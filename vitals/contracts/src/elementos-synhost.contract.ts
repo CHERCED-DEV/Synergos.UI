@@ -204,6 +204,14 @@ export interface TimelineEntry {
   readonly body?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: TimelineHorizontalItem). */
+export interface TimelineHorizontalItem {
+  readonly time: string;
+  readonly title: string;
+  readonly track?: string;
+  readonly description?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: TourGuideStep). */
 export interface TourGuideStep {
   readonly target?: string;
@@ -672,6 +680,14 @@ export interface TagProps {
 export interface TimelineProps {
   /** contenido */
   readonly events?: readonly TimelineEntry[];
+}
+
+/** <synergos-timeline-horizontal> · pieza */
+export interface TimelineHorizontalProps {
+  /** contenido */
+  readonly items?: readonly TimelineHorizontalItem[];
+  /** decision */
+  readonly snapEnabled: boolean;
 }
 
 /** <synergos-tour-guide> · pieza · diccionario: TourGuide, Common.Actions */
@@ -2519,6 +2535,33 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   },
 };
 
+export const TIMELINE_HORIZONTAL_SYNHOST: ElementoSynHost<TimelineHorizontalProps> = {
+  nombre: "timeline-horizontal",
+  tipo: "pieza",
+  record: "TimelineHorizontalProps",
+  diccionario: [],
+  claves: [],
+  campos: ["items","snapEnabled"],
+  listas: {"items":["time","title","track","description"]},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "items": [
+      {
+        "time": "09:00",
+        "title": "Apertura",
+        "track": "Sala A",
+        "description": "Bienvenida y agenda del día."
+      },
+      {
+        "time": "10:30",
+        "title": "Panel de cierre"
+      }
+    ],
+    "snapEnabled": true
+  },
+};
+
 export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   nombre: "tour-guide",
   tipo: "pieza",
@@ -2669,6 +2712,7 @@ export const ELEMENTOS_SYNHOST = [
   TABS_SYNHOST,
   TAG_SYNHOST,
   TIMELINE_SYNHOST,
+  TIMELINE_HORIZONTAL_SYNHOST,
   TOUR_GUIDE_SYNHOST,
   TRAVEL_SHELL_SYNHOST,
   TREE_VIEW_SYNHOST,

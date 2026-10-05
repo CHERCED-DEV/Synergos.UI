@@ -5,8 +5,14 @@ import {
   inject,
   input,
 } from '@angular/core';
+import type { TimelineHorizontalProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
-import { coerceOptionalBooleanInput } from '@synergos/shared';
+import {
+  coerceOptionalBooleanInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
 
 /**
  * Web Component for the CMS element `elementSynTimelineHorizontal`.
@@ -19,6 +25,12 @@ import { coerceOptionalBooleanInput } from '@synergos/shared';
  *
  * Bridge contract: every CMS property is a TypeScript input with the same
  * alias (`eventsJson`/`items`, `snapEnabled`, `integration`).
+ *
+ * El `config` que manda el CMS tiene la forma de `TimelineHorizontalProps`, GENERADO del record C#
+ * (ADR 0135): `items` es una LISTA ya parseada (`time`/`title`/`track`/`description`) y
+ * `snapEnabled`. El elemento no tenía `config` y su `items` sólo leía TEXTO por `parseValue`:
+ * con el record, `/eventos/` pintaba la agenda VACÍA. `items` acepta ahora la lista tal cual o
+ * el texto, y `eventsJson` sigue como respaldo legado en texto.
  */
 
 interface TimelineItem {
@@ -95,6 +107,20 @@ function normalizeItem(value: unknown): TimelineItem | null {
   };
 }
 
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config`
+ * real de la vista.
+ */
+export function sanitizeTimelineHorizontalConfig(value: Partial<TimelineHorizontalProps>): Partial<TimelineHorizontalProps> {
+  const items = Array.isArray(value.items)
+    ? normalizeItems(value.items).map(({ time, title, track, description }) => ({ time, title, track, description }))
+    : undefined;
+  return omitUndefinedProperties<TimelineHorizontalProps>({
+    items,
+    snapEnabled: coerceOptionalBooleanInput(value.snapEnabled),
+  });
+}
+
 export function normalizeItems(value: unknown): readonly TimelineItem[] {
   if (!Array.isArray(value)) {
     return [];
@@ -118,8 +144,11 @@ export function normalizeItems(value: unknown): readonly TimelineItem[] {
 export class TimelineHorizontalElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  /** Canonical alias `items`; `eventsJson` kept for the original scaffold/CMS. */
-  readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
+  readonly config = input<Partial<TimelineHorizontalProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TimelineHorizontalProps>(sanitizeTimelineHorizontalConfig),
+  });
+  /** Alias canónico `items`: la LISTA tal cual, o su texto JSON. `eventsJson` es el respaldo legado. */
+  readonly itemsInput = input<unknown>(undefined, { alias: 'items' });
   readonly eventsJson = input<string | undefined>(undefined);
   readonly snapInput = input<boolean | undefined, unknown>(undefined, {
     alias: 'snapEnabled',
@@ -127,11 +156,13 @@ export class TimelineHorizontalElementComponent {
   });
   readonly integration = input<string | undefined>(undefined);
 
-  readonly snap = computed(() => this.snapInput() ?? true);
+  readonly snap = computed(() => resolveConfigValue(this.snapInput(), this.config()?.snapEnabled, true));
 
   readonly items = computed<readonly TimelineItem[]>(() => {
-    const raw = this.itemsInput() ?? this.eventsJson();
-    return normalizeItems(this.#initialData.parseValue<unknown>(raw));
+    // Gana el atributo; luego el record del CMS; luego el texto legado de `eventsJson`. Una lista
+    // se lee tal cual: `parseValue` sólo entiende texto y con un arreglo devolvía nada.
+    const raw = this.itemsInput() ?? this.config()?.items ?? this.eventsJson();
+    return normalizeItems(Array.isArray(raw) ? raw : this.#initialData.parseValue<unknown>(raw as string | undefined));
   });
 
   readonly hasItems = computed(() => this.items().length > 0);

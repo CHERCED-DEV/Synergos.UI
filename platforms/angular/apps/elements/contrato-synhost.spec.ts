@@ -55,6 +55,7 @@ import { sanitizeFormStepperConfig } from './compositions/form-stepper/src/form-
 import { sanitizeDataGridConfig } from './modules/data-grid/src/data-grid/data-grid';
 import { sanitizeSearchBoxConfig } from './compositions/search-box/src/search-box/search-box';
 import { sanitizeSeparatorConfig } from './primitives/separator/src/separator/separator';
+import { sanitizeTimelineHorizontalConfig } from './compositions/timeline-horizontal/src/timeline-horizontal/timeline-horizontal';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -128,6 +129,7 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   'data-grid': sanitizeDataGridConfig,
   'search-box': sanitizeSearchBoxConfig,
   separator: sanitizeSeparatorConfig,
+  'timeline-horizontal': sanitizeTimelineHorizontalConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(
