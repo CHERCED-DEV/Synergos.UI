@@ -165,6 +165,7 @@ export class CarouselElementComponent {
   readonly nextLabel = computed(() => t('Slider.Next', 'Siguiente diapositiva'));
   readonly pagerLabel = computed(() => t('Slider.Pager', 'Diapositivas'));
   readonly slideLabel = computed(() => t('Slider.GoToSlide', 'Ir a diapositiva {n}'));
+  readonly slidePositionLabel = computed(() => t('Slider.SlideOf', 'Diapositiva {n} de {total}'));
 
   readonly activeIndex = signal(0);
   readonly paused = signal(false);

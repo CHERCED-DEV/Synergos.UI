@@ -113,6 +113,10 @@ describe('CarouselElementComponent', () => {
 
       const controles = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.syn-carousel__control'));
       expect(controles.map((b) => b.textContent?.trim())).toEqual(['Diapositiva anterior', 'Siguiente diapositiva']);
+      const total = CAROUSEL_SYNHOST.ejemplo.slides?.length ?? 0;
+      expect(total).toBeGreaterThan(1);
+      const escenario = (fixture.nativeElement as HTMLElement).querySelector('.syn-carousel__stage');
+      expect(escenario?.getAttribute('aria-label')).toBe(`Diapositiva 1 de ${total}`);
     });
 
     it('con el bridge pinta el texto de las claves que publicó la página', async () => {

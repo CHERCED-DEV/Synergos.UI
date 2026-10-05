@@ -35,7 +35,11 @@ export interface CarouselItem {
       (keydown)="onKeydown($event)"
     >
       @if (activeItem(); as item) {
-        <div class="syn-carousel__stage">
+        <div
+          class="syn-carousel__stage"
+          [attr.role]="items().length > 1 ? 'group' : null"
+          [attr.aria-label]="items().length > 1 ? activePositionLabel() : null"
+        >
           @if ((item.type ?? 'image') === 'video') {
             <video
               class="syn-carousel__media"
@@ -130,6 +134,11 @@ export class CarouselComponent {
   readonly pagerLabel = input('Slides');
   /** Nombre accesible de la miniatura de una diapositiva sin rótulo; `{n}` es su número. */
   readonly slideLabel = input('Slide {n}');
+  /**
+   * Nombre de la diapositiva visible (patrón APG de carrusel): sin él, quien no ve la pantalla no
+   * sabe en cuál está ni cuántas hay. `{n}` es su número y `{total}` cuántas son.
+   */
+  readonly slidePositionLabel = input('Slide {n} of {total}');
   readonly loop = input(true);
   readonly startIndex = input(0);
   readonly compact = input(false);
@@ -137,6 +146,11 @@ export class CarouselComponent {
   readonly activeIndex = linkedSignal(() => this.normalizeIndex(this.startIndex()));
   readonly activeItem = computed(() => this.items()[this.activeIndex()] ?? null);
   readonly lastIndex = computed(() => Math.max(0, this.items().length - 1));
+  readonly activePositionLabel = computed(() =>
+    this.slidePositionLabel()
+      .replace('{n}', String(this.activeIndex() + 1))
+      .replace('{total}', String(this.items().length)),
+  );
 
   readonly activeIndexChange = output<number>();
 

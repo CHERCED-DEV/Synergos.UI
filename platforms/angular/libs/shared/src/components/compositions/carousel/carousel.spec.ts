@@ -89,4 +89,30 @@ describe(CarouselComponent.name, () => {
     const miniaturas = Array.from(raiz.querySelectorAll('.syn-carousel__thumb')).map((b) => b.getAttribute('aria-label'));
     expect(miniaturas).toEqual(['Ir a diapositiva 1', 'Fachada']);
   });
+
+  // #199: el escenario mostraba una diapositiva y no decía cuál; ahora se nombra «n de total».
+  it('nombra la diapositiva visible con su posición, y la sigue al avanzar', () => {
+    const fixture = TestBed.createComponent(CarouselComponent);
+    fixture.componentRef.setInput('items', [{ src: '/a.jpg' }, { src: '/b.jpg' }, { src: '/c.jpg' }]);
+    fixture.componentRef.setInput('slidePositionLabel', 'Diapositiva {n} de {total}');
+    fixture.detectChanges();
+
+    const escenario = (): Element | null => (fixture.nativeElement as HTMLElement).querySelector('.syn-carousel__stage');
+    expect(escenario()?.getAttribute('role')).toBe('group');
+    expect(escenario()?.getAttribute('aria-label')).toBe('Diapositiva 1 de 3');
+
+    fixture.componentInstance.next();
+    fixture.detectChanges();
+    expect(escenario()?.getAttribute('aria-label')).toBe('Diapositiva 2 de 3');
+  });
+
+  it('con una sola diapositiva no hay posición que anunciar', () => {
+    const fixture = TestBed.createComponent(CarouselComponent);
+    fixture.componentRef.setInput('items', [{ src: '/a.jpg' }]);
+    fixture.detectChanges();
+
+    const escenario = (fixture.nativeElement as HTMLElement).querySelector('.syn-carousel__stage');
+    expect(escenario?.getAttribute('role')).toBeNull();
+    expect(escenario?.getAttribute('aria-label')).toBeNull();
+  });
 });
