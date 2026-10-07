@@ -64,6 +64,9 @@ on:
       - 'tools/contrato-synhost.mjs'
       - 'tools/lib/contrato-synhost.mjs'
       - 'vitals/contracts/src/elementos-synhost.contract.ts'
+      - 'tools/contrato-http*.mjs'
+      - 'tools/lib/contrato-http*.mjs'
+      - 'vitals/contracts/src/http/**'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
@@ -89,11 +92,14 @@ on:
       - 'tools/contrato-synhost.mjs'
       - 'tools/lib/contrato-synhost.mjs'
       - 'vitals/contracts/src/elementos-synhost.contract.ts'
+      - 'tools/contrato-http*.mjs'
+      - 'tools/lib/contrato-http*.mjs'
+      - 'vitals/contracts/src/http/**'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión · G-13 unidades menores
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión · G-13 unidades menores · G-14 contrato HTTP
     runs-on: ubuntu-latest
 
     steps:
@@ -245,3 +251,23 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/contrato-synhost.mjs --check
+
+      # ── G-14 — los tipos del contrato HTTP de los orquestadores salen de su OpenAPI ──
+      #
+      # POR QUÉ EXISTE (ADR 0140, F2 · CMS#201). Desde la F2 cada pieza del backend publica su
+      # documento OpenAPI en el CMS (`docs/contracts/openapi/`), generado desde el host real y con
+      # suelo (`ContratoOpenApiTests` y `SueloDelContratoTests`). De los `Synergos.Bff.*` —el
+      # contrato del flujo, no el de las capacidades— sale `vitals/contracts/src/http/`: interfaces
+      # y un mapa de tipos por operationId. Esto comprueba que lo versionado es lo que da el
+      # documento de HOY y que el documento se sabe traducir entero; lo que no, se rechaza en vez
+      # de volverse `unknown`. Sin el CMS sale en ROJO, como G-11.
+      #
+      # Lo que esto NO vigila todavía: que alguien IMPORTE esos tipos. Hasta la F4 nadie lo hace
+      # (regla 24, abierta con fecha), así que un renombre allá se regenera y compila acá en verde.
+      # Y como en G-11, un cambio del documento en el CMS no dispara este workflow: se pone rojo
+      # en el siguiente cambio que toque el contrato, o en `contracts:validate`.
+      - name: Contrato HTTP de los orquestadores (G-14)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/contrato-http.mjs --check

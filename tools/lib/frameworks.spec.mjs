@@ -222,6 +222,7 @@ const CIEGAS_AL_FRAMEWORK = [
   // Genera los tipos del contrato HTTP de los orquestadores desde su OpenAPI (ADR 0140, F2 ·
   // CMS#201). Escribe en `vitals/contracts/src/http`, que es agnóstico, y lo que lee del otro
   // lado es un documento OpenAPI, que no tiene framework de este.
+  'contrato-http.mjs',
   'lib/contrato-http.mjs',
   // Estaba en ESPECIFICAS_DE_ANGULAR —«publica al slot runtime/angular/<version>/»—
   // y era cierto mientras hubiera una plataforma. Con dos, publicaba el runtime de
