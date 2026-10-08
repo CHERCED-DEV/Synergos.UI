@@ -1,5 +1,5 @@
 /**
- * El contrato HTTP de los orquestadores, en tipos TypeScript (ADR 0140, F2 · CMS#201).
+ * El contrato HTTP de los orquestadores, en tipos TypeScript (ADR 0140, F2 y F3 · CMS#201).
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * DE DÓNDE SALE.
@@ -15,15 +15,22 @@
  *     ──tsc──▶ quien lo importe (nadie hasta la F4: ver abajo)
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * POR QUÉ SÓLO `Synergos.Bff.*`, Y POR QUÉ SIN RUTAS.
+ * POR QUÉ SÓLO `Synergos.Bff.*`, Y POR QUÉ POR LA PUERTA (F3).
  *
  * El front conoce el contrato del FLUJO, no el de las capacidades (ADR 0140 §3): los
  * `Synergos.Api.*` los lee el orquestador, y su compatibilidad la cruza el CMS
  * (`ContratoConsumidorEventosTests`). Y el navegador no habla con las rutas del BFF sino con la
- * puerta, por operación (§6): por eso sale un mapa de tipos por operationId —qué cuerpo se
- * manda, qué vuelve con éxito, si pide Idempotency-Key— y no las rutas. Cómo se nombra cada
- * operación en la puerta lo decide la F3; los parámetros de ruta y de consulta viajan con la
- * ruta, así que tampoco salen (se validan igual: el día que salgan no habrá sorpresas).
+ * puerta del CMS: `GET|POST /api/flujos/{flujo}/{operacion}`. Por eso sale un mapa por flujo y
+ * por el NOMBRE EN LA PUERTA —el vocabulario fijo de saga: abrir, cerrar, cancelar, consultar—
+ * y no por operationId: el front sólo necesita la clave del flujo.
+ *
+ * Sólo salen las operaciones que el orquestador marca con `x-synergos-flujo` ({flujo,
+ * operacion}), y sólo los esquemas que ellas alcanzan: lo demás (reintentar, compensaciones,
+ * publicar la oferta) es operación del despliegue, y el navegador no tiene por qué conocerla.
+ * Sin marcas, el mapa sale vacío, que es la verdad: la puerta no expone nada. Los parámetros de
+ * ruta del orquestador viajan en la consulta, con su nombre. Las cabeceras que pone la puerta
+ * (`x-synergos-puerta: true`: el sujeto, el negocio, el contacto) no salen: el navegador no las
+ * manda, y si las mandara la puerta las tiraría. Cualquier otra extensión se sigue rechazando.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * POR QUÉ UN GENERADOR PROPIO, Y POR QUÉ RECHAZA.
@@ -70,8 +77,8 @@ const JSON_ = 'application/json';
 const PROBLEMA = 'application/problem+json';
 
 const METODOS = new Set(['get', 'post', 'put', 'patch', 'delete']);
-const CLAVES_DE_OPERACION = new Set(['operationId', 'parameters', 'requestBody', 'responses']);
-const CLAVES_DE_PARAMETRO = new Set(['name', 'in', 'required', 'schema']);
+const CLAVES_DE_OPERACION = new Set(['operationId', 'parameters', 'requestBody', 'responses', 'x-synergos-flujo']);
+const CLAVES_DE_PARAMETRO = new Set(['name', 'in', 'required', 'schema', 'x-synergos-puerta']);
 const CLAVES_DE_RESPUESTA = new Set(['description', 'content']);
 const CLAVES_DE_CUERPO = new Set(['content', 'required']);
 const UBICACIONES = new Set(['path', 'query', 'header']);
@@ -92,7 +99,22 @@ const FORMATOS = {
 };
 
 /** Los nombres que el generado declara por su cuenta: un esquema que se llame así chocaría. */
-const RESERVADOS = new Set(['Operaciones', 'OperacionHttp']);
+const RESERVADOS = new Set(['OperacionesDeLaPuerta', 'OperacionDeLaPuerta']);
+
+/** La marca de una operación que la puerta expone: `{ flujo, operacion }`. */
+export const MARCA_DEL_FLUJO = 'x-synergos-flujo';
+
+/** La marca de una cabecera que pone la puerta y no el navegador. */
+export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
+
+/** El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6). */
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar'];
+
+/** Los métodos que la puerta pasa. */
+const METODOS_DE_LA_PUERTA = new Set(['get', 'post']);
+
+/** Una clave de flujo: `eventos.compra`. Es lo que va en la ruta de la puerta. */
+const CLAVE_DE_FLUJO = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/;
 
 const ordinal = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const esObjeto = (x) => typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -229,10 +251,17 @@ function revisarParametros(op, quien, esquemas, errores) {
       continue;
     }
     sobran(p, CLAVES_DE_PARAMETRO, `${quien} · ${p.name}`, errores);
+    const deLaPuerta = p[MARCA_DE_LA_PUERTA];
+    if (deLaPuerta !== undefined && (deLaPuerta !== true || p.in !== 'header' || p.name === LLAVE)) {
+      // La marca dice «esto lo pone la puerta»: sólo tiene sentido en una cabecera, y nunca en la
+      // llave, que la manda el navegador (la puerta la reemite atada al sujeto).
+      errores.push(`${quien}: «${p.name}» lleva ${MARCA_DE_LA_PUERTA} y sólo vale \`true\` en una cabecera que no sea ${LLAVE}`);
+    }
     if (!UBICACIONES.has(p.in)) {
       errores.push(`${quien}: parámetro «${p.name}» en «${p.in}» sin traducción`);
-    } else if (p.in === 'header' && p.name !== LLAVE) {
-      // El mapa sólo sabe decir si la operación pide la llave; otra cabecera se perdería.
+    } else if (p.in === 'header' && p.name !== LLAVE && deLaPuerta !== true) {
+      // El mapa sólo sabe decir si la operación pide la llave; otra cabecera que no ponga la
+      // puerta se perdería.
       errores.push(`${quien}: la cabecera «${p.name}» no es ${LLAVE}, y el mapa no sabe declararla`);
     }
     revisarEsquema(p.schema, `${quien} · ${p.name}`, esquemas, errores);
@@ -249,6 +278,39 @@ function revisarCuerpo(op, quien, esquemas, errores) {
     return;
   }
   revisarEsquema(contenido[JSON_].schema, `${quien} · cuerpo`, esquemas, errores);
+}
+
+/**
+ * La marca de la puerta en una operación: `{ flujo, operacion }`, con la operación del vocabulario
+ * fijo, por GET o POST, una sola vez por flujo, y con lo que viaja en la consulta sin repetirse.
+ */
+function revisarMarca(op, metodo, quien, vistas, errores) {
+  const marca = op[MARCA_DEL_FLUJO];
+  if (marca === undefined) return;
+
+  if (!esObjeto(marca) || Object.keys(marca).sort(ordinal).join() !== 'flujo,operacion') {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO} tiene que ser { flujo, operacion } y nada más`);
+    return;
+  }
+  if (typeof marca.flujo !== 'string' || !CLAVE_DE_FLUJO.test(marca.flujo)) {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO}.flujo «${marca.flujo}» no es una clave de flujo (dominio.flujo)`);
+  }
+  if (!OPERACIONES_DE_LA_PUERTA.includes(marca.operacion)) {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO}.operacion «${marca.operacion}» no es del vocabulario de la puerta (${OPERACIONES_DE_LA_PUERTA.join(', ')})`);
+  }
+  if (!METODOS_DE_LA_PUERTA.has(metodo)) {
+    errores.push(`${quien}: la puerta sólo pasa GET y POST, y la operación es ${metodo.toUpperCase()}`);
+  }
+
+  const par = `${marca.flujo}/${marca.operacion}`;
+  if (vistas.has(par)) errores.push(`${quien}: ${par} ya lo marca ${vistas.get(par)}`);
+  else vistas.set(par, quien);
+
+  // Ruta y consulta acaban en la MISMA consulta de la puerta: dos con el mismo nombre chocarían.
+  const consulta = (op.parameters ?? []).filter((p) => p?.in === 'path' || p?.in === 'query').map((p) => p.name);
+  for (const nombre of new Set(consulta.filter((n, i) => consulta.indexOf(n) !== i))) {
+    errores.push(`${quien}: «${nombre}» llegaría dos veces a la consulta de la puerta`);
+  }
 }
 
 function revisarRechazo(esquemas, errores) {
@@ -288,6 +350,7 @@ export function validarDocumento(doc) {
   revisarRechazo(esquemas, errores);
 
   const ids = new Set();
+  const marcadas = new Map();
   let operaciones = 0;
   for (const [ruta, item] of Object.entries(esObjeto(doc?.paths) ? doc.paths : {})) {
     for (const [metodo, op] of Object.entries(esObjeto(item) ? item : {})) {
@@ -312,6 +375,7 @@ export function validarDocumento(doc) {
       revisarParametros(op, quien, esquemas, errores);
       revisarCuerpo(op, quien, esquemas, errores);
       revisarRespuestas(op, quien, esquemas, errores);
+      revisarMarca(op, metodo, quien, marcadas, errores);
     }
   }
   if (operaciones === 0) errores.push('el documento no publica ninguna operación: generaría un mapa vacío que compila');
@@ -354,6 +418,61 @@ function llaveDe(op) {
   return p.required === true ? 'requerida' : 'opcional';
 }
 
+/** Lo que el navegador manda en la consulta de la puerta: los parámetros de ruta y de consulta. */
+function consultaDe(op) {
+  const enConsulta = (op.parameters ?? []).filter((p) => p.in === 'path' || p.in === 'query');
+  if (enConsulta.length === 0) return 'undefined';
+  return `{ ${enConsulta
+    .map((p) => `readonly ${clave(p.name)}${p.in === 'path' || p.required === true ? '' : '?'}: ${tipoTs(p.schema)};`)
+    .join(' ')} }`;
+}
+
+/** Las operaciones marcadas, una por flujo y nombre en la puerta. */
+function operacionesDeLaPuerta(doc) {
+  const salida = [];
+  for (const item of Object.values(doc.paths)) {
+    for (const [metodo, op] of Object.entries(item)) {
+      const marca = op[MARCA_DEL_FLUJO];
+      if (marca === undefined) continue;
+      const exito = Object.entries(op.responses).find(([c]) => /^2\d\d$/.test(c))[1];
+      salida.push({
+        flujo: marca.flujo,
+        nombre: marca.operacion,
+        metodo: metodo.toUpperCase(),
+        consulta: consultaDe(op),
+        cuerpo: op.requestBody ? op.requestBody.content[JSON_].schema : undefined,
+        respuesta: exito.content[JSON_].schema,
+        parametros: (op.parameters ?? []).filter((p) => p.in === 'path' || p.in === 'query'),
+        llave: llaveDe(op),
+      });
+    }
+  }
+  return salida.sort((a, b) => ordinal(a.flujo, b.flujo) || ordinal(a.nombre, b.nombre));
+}
+
+/** Los esquemas que alcanzan las operaciones marcadas, por $ref y de forma transitiva, más `Rechazo`. */
+function esquemasAlcanzados(esquemas, operaciones) {
+  const vistos = new Set([RECHAZO]);
+  const pendientes = [esquemas[RECHAZO]];
+  for (const o of operaciones) pendientes.push(o.cuerpo, o.respuesta, ...o.parametros.map((p) => p.schema));
+  while (pendientes.length > 0) {
+    const s = pendientes.pop();
+    if (!esObjeto(s)) continue;
+    const nombre = typeof s.$ref === 'string' ? s.$ref.match(REF_A_ESQUEMA)?.[1] : undefined;
+    if (nombre !== undefined) {
+      if (!vistos.has(nombre)) {
+        vistos.add(nombre);
+        pendientes.push(esquemas[nombre]);
+      }
+      continue;
+    }
+    for (const a of s.oneOf ?? []) pendientes.push(a);
+    if (s.items !== undefined) pendientes.push(s.items);
+    for (const ps of Object.values(s.properties ?? {})) pendientes.push(ps);
+  }
+  return vistos;
+}
+
 /**
  * El fichero TS de un documento. Determinista y en LF: el mismo JSON da el mismo texto, así que
  * `--check` puede comparar por igualdad. Los tipos y las operaciones salen en orden ordinal (no
@@ -368,50 +487,64 @@ export function generarTs(doc, fichero) {
   const esquemas = doc.components.schemas;
   const bloques = [
     [
-      `// ─── El contrato HTTP de ${fichero.replace(/\.json$/, '')} (ADR 0140, F2) ───`,
+      `// ─── El contrato HTTP de ${fichero.replace(/\.json$/, '')} por la puerta (ADR 0140, F3) ───`,
       '// GENERADO por tools/contrato-http.mjs desde el repo del CMS:',
       `//   ${[...RUTA_EN_CMS, fichero].join('/')}`,
       '// que a su vez GENERA `ContratoOpenApiTests` desde el host real del orquestador.',
       '// NO se edita a mano. Regenerar: `node tools/contrato-http.mjs` · comprobar: `--check`.',
       '//',
-      '// Son los TIPOS del flujo y no sus rutas: el navegador llama a la puerta por operación',
-      '// (ADR 0140 §6), y cómo se nombra ahí cada una lo decide la F3. Hasta la F4 no lo',
-      '// importa nadie: la regla 24 de CLAUDE.md queda abierta con fecha.',
+      '// Sólo lo que el navegador manda y recibe por la puerta (GET|POST /api/flujos/{flujo}/{operacion}):',
+      `// las operaciones que el orquestador marca con ${MARCA_DEL_FLUJO}, por su nombre en la puerta, y los`,
+      '// esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la',
+      '// regla 24 de CLAUDE.md queda abierta con fecha.',
     ].join('\n'),
   ];
 
-  for (const nombre of Object.keys(esquemas).sort(ordinal)) bloques.push(declaracion(nombre, esquemas[nombre]));
-
-  const operaciones = [];
-  for (const item of Object.values(doc.paths)) {
-    for (const op of Object.values(item)) {
-      const exito = Object.entries(op.responses).find(([c]) => /^2\d\d$/.test(c))[1];
-      operaciones.push({
-        id: op.operationId,
-        cuerpo: op.requestBody ? tipoTs(op.requestBody.content[JSON_].schema) : 'undefined',
-        respuesta: tipoTs(exito.content[JSON_].schema),
-        llave: llaveDe(op),
-      });
-    }
+  const operaciones = operacionesDeLaPuerta(doc);
+  const alcanzados = esquemasAlcanzados(esquemas, operaciones);
+  for (const nombre of Object.keys(esquemas).filter((n) => alcanzados.has(n)).sort(ordinal)) {
+    bloques.push(declaracion(nombre, esquemas[nombre]));
   }
-  operaciones.sort((a, b) => ordinal(a.id, b.id));
 
+  const flujos = [...new Set(operaciones.map((o) => o.flujo))];
   bloques.push(
     [
       '/**',
-      ' * Una operación del flujo: el cuerpo que se manda (`undefined` si no lleva), lo que vuelve',
-      ` * con éxito y si pide la cabecera ${LLAVE}. Los rechazos vuelven como \`${RECHAZO}\`.`,
+      ' * Una operación por la puerta: con qué método, qué va en la consulta (los parámetros de ruta del',
+      ' * orquestador viajan ahí, con su nombre), el cuerpo que se manda (`undefined` si no lleva), lo',
+      ` * que vuelve con éxito y si pide la cabecera ${LLAVE}. Los rechazos vuelven como \`${RECHAZO}\`:`,
+      ' * los del orquestador con su `code`, los de la puerta con `puerta.*`.',
       ' */',
-      'export interface OperacionHttp<TCuerpo, TRespuesta, TLlave extends "requerida" | "opcional" | "ninguna"> {',
+      'export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, TCuerpo, TRespuesta, TLlave extends "requerida" | "opcional" | "ninguna"> {',
+      '  readonly metodo: TMetodo;',
+      '  readonly consulta: TConsulta;',
       '  readonly cuerpo: TCuerpo;',
       '  readonly respuesta: TRespuesta;',
       '  readonly llave: TLlave;',
       '}',
       '',
-      '/** Las operaciones del orquestador, por su operationId. */',
-      'export interface Operaciones {',
-      ...operaciones.map((o) => `  readonly ${o.id}: OperacionHttp<${o.cuerpo}, ${o.respuesta}, ${JSON.stringify(o.llave)}>;`),
-      '}',
+      ...(flujos.length === 0
+        ? [
+            `/** Lo que la puerta expone de este orquestador: nada todavía, ninguna operación lleva ${MARCA_DEL_FLUJO}. */`,
+            'export interface OperacionesDeLaPuerta {}',
+          ]
+        : [
+            '/** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */',
+            'export interface OperacionesDeLaPuerta {',
+            ...flujos.flatMap((f) => [
+              `  readonly ${JSON.stringify(f)}: {`,
+              ...operaciones
+                .filter((o) => o.flujo === f)
+                .map(
+                  (o) =>
+                    `    readonly ${o.nombre}: OperacionDeLaPuerta<${JSON.stringify(o.metodo)}, ${o.consulta}, ${
+                      o.cuerpo === undefined ? 'undefined' : tipoTs(o.cuerpo)
+                    }, ${tipoTs(o.respuesta)}, ${JSON.stringify(o.llave)}>;`,
+                ),
+              '  };',
+            ]),
+            '}',
+          ]),
     ].join('\n'),
   );
 

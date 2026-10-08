@@ -18,7 +18,9 @@ const sinCuerpo = { description: 'Falta la llave compartida o no es la buena (si
 /**
  * Un documento con la forma que emite `ContratoOpenApiTests` del CMS (ASP.NET Core 10): anulables
  * como `type: ["null", X]`, un $ref anulable como `oneOf`, decimal con `format`, la llave como
- * parámetro de cabecera y los rechazos en problem+json contra `Rechazo`.
+ * parámetro de cabecera y los rechazos en problem+json contra `Rechazo`. Y, desde la F3, dos
+ * operaciones marcadas para la puerta (abrir, consultar), una cabecera que pone la puerta, y una
+ * operación SIN marca con un esquema que sólo ella alcanza (`Ajuste`).
  */
 const documento = () => ({
   openapi: '3.1.1',
@@ -27,7 +29,11 @@ const documento = () => ({
     '/v1/compras': {
       post: {
         operationId: 'Comprar',
-        parameters: [{ name: 'Idempotency-Key', in: 'header', required: true, schema: { maxLength: 128, type: 'string' } }],
+        'x-synergos-flujo': { flujo: 'prueba.compra', operacion: 'abrir' },
+        parameters: [
+          { name: 'Idempotency-Key', in: 'header', required: true, schema: { maxLength: 128, type: 'string' } },
+          { name: 'X-Synergos-Sujeto', in: 'header', schema: { type: 'string' }, 'x-synergos-puerta': true },
+        ],
         requestBody: { ...json(ref('CompraRequest')), required: true },
         responses: { 201: { description: 'Created', ...json(ref('CompraResponse')) }, 401: sinCuerpo, 409: rechazo('Conflict') },
       },
@@ -35,6 +41,7 @@ const documento = () => ({
     '/v1/compras/{id}': {
       get: {
         operationId: 'VerCompra',
+        'x-synergos-flujo': { flujo: 'prueba.compra', operacion: 'consultar' },
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 401: sinCuerpo, 404: rechazo('NotFound') },
       },
@@ -47,7 +54,7 @@ const documento = () => ({
           { name: 'Idempotency-Key', in: 'header', schema: { maxLength: 128, type: 'string' } },
         ],
         requestBody: { ...json({ type: 'array', items: { type: ['null', 'string'] } }), required: true },
-        responses: { 200: { description: 'OK', ...json({ type: 'array', items: ref('Linea') }) }, 401: sinCuerpo },
+        responses: { 200: { description: 'OK', ...json(ref('Ajuste')) }, 401: sinCuerpo },
       },
     },
   },
@@ -94,6 +101,11 @@ const documento = () => ({
         type: 'object',
         properties: { amount: { type: 'number', format: 'decimal' }, currency: { type: 'string' } },
       },
+      Ajuste: {
+        required: ['lineas'],
+        type: 'object',
+        properties: { lineas: { type: 'array', items: ref('Linea') } },
+      },
     },
     securitySchemes: { llaveCompartida: { type: 'apiKey', name: 'X-Synergos-Key', in: 'header' } },
   },
@@ -101,15 +113,16 @@ const documento = () => ({
 });
 
 /** Lo que tiene que salir de `documento()`, byte a byte: el contrato del generador. */
-const ESPERADO = `// ─── El contrato HTTP de Synergos.Bff.Prueba (ADR 0140, F2) ───
+const ESPERADO = `// ─── El contrato HTTP de Synergos.Bff.Prueba por la puerta (ADR 0140, F3) ───
 // GENERADO por tools/contrato-http.mjs desde el repo del CMS:
 //   Synergos.CMS.Web/docs/contracts/openapi/Synergos.Bff.Prueba.json
 // que a su vez GENERA \`ContratoOpenApiTests\` desde el host real del orquestador.
 // NO se edita a mano. Regenerar: \`node tools/contrato-http.mjs\` · comprobar: \`--check\`.
 //
-// Son los TIPOS del flujo y no sus rutas: el navegador llama a la puerta por operación
-// (ADR 0140 §6), y cómo se nombra ahí cada una lo decide la F3. Hasta la F4 no lo
-// importa nadie: la regla 24 de CLAUDE.md queda abierta con fecha.
+// Sólo lo que el navegador manda y recibe por la puerta (GET|POST /api/flujos/{flujo}/{operacion}):
+// las operaciones que el orquestador marca con x-synergos-flujo, por su nombre en la puerta, y los
+// esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la
+// regla 24 de CLAUDE.md queda abierta con fecha.
 
 export interface CompraRequest {
   readonly eventId?: string | null;
@@ -145,20 +158,25 @@ export interface Rechazo {
 }
 
 /**
- * Una operación del flujo: el cuerpo que se manda (\`undefined\` si no lleva), lo que vuelve
- * con éxito y si pide la cabecera Idempotency-Key. Los rechazos vuelven como \`Rechazo\`.
+ * Una operación por la puerta: con qué método, qué va en la consulta (los parámetros de ruta del
+ * orquestador viajan ahí, con su nombre), el cuerpo que se manda (\`undefined\` si no lleva), lo
+ * que vuelve con éxito y si pide la cabecera Idempotency-Key. Los rechazos vuelven como \`Rechazo\`:
+ * los del orquestador con su \`code\`, los de la puerta con \`puerta.*\`.
  */
-export interface OperacionHttp<TCuerpo, TRespuesta, TLlave extends "requerida" | "opcional" | "ninguna"> {
+export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, TCuerpo, TRespuesta, TLlave extends "requerida" | "opcional" | "ninguna"> {
+  readonly metodo: TMetodo;
+  readonly consulta: TConsulta;
   readonly cuerpo: TCuerpo;
   readonly respuesta: TRespuesta;
   readonly llave: TLlave;
 }
 
-/** Las operaciones del orquestador, por su operationId. */
-export interface Operaciones {
-  readonly Ajustar: OperacionHttp<readonly (string | null)[], readonly Linea[], "opcional">;
-  readonly Comprar: OperacionHttp<CompraRequest, CompraResponse, "requerida">;
-  readonly VerCompra: OperacionHttp<undefined, CompraResponse, "ninguna">;
+/** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
+export interface OperacionesDeLaPuerta {
+  readonly "prueba.compra": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "requerida">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, CompraResponse, "ninguna">;
+  };
 }
 `;
 
@@ -282,9 +300,11 @@ describe('validarDocumento', () => {
   it('rechaza un esquema cuyo nombre no sirve de tipo, o choca con lo que el generado declara', () => {
     const d = documento();
     d.components.schemas['Page`1'] = d.components.schemas.Linea;
-    d.components.schemas.Operaciones = d.components.schemas.Linea;
+    d.components.schemas.OperacionesDeLaPuerta = d.components.schemas.Linea;
+    d.components.schemas.OperacionDeLaPuerta = d.components.schemas.Linea;
     expect(errores(d)).toContain('esquema «Page`1»: no sirve de nombre de tipo');
-    expect(errores(d)).toContain('esquema «Operaciones»: no sirve de nombre de tipo');
+    expect(errores(d)).toContain('esquema «OperacionesDeLaPuerta»: no sirve de nombre de tipo');
+    expect(errores(d)).toContain('esquema «OperacionDeLaPuerta»: no sirve de nombre de tipo');
   });
 
   it('rechaza una operación sin operationId: el mapa no tendría con qué nombrarla', () => {
@@ -349,6 +369,86 @@ describe('validarDocumento', () => {
       mutar(d.paths['/v1/compras'].post.requestBody);
       expect(errores(d)).toContain('Comprar: el cuerpo de la petición no es un único application/json requerido con esquema');
     }
+  });
+});
+
+describe('la puerta (ADR 0140 F3): marcas, cabeceras de la puerta y lo que no sale', () => {
+  it('acepta la cabecera que pone la puerta, y sigue rechazando una cabecera sin esa marca', () => {
+    expect(validarDocumento(documento())).toEqual([]);
+    const d = documento();
+    delete d.paths['/v1/compras'].post.parameters[1]['x-synergos-puerta'];
+    expect(errores(d)).toContain('Comprar: la cabecera «X-Synergos-Sujeto» no es Idempotency-Key');
+  });
+
+  it('la marca de la puerta sólo vale `true`, en una cabecera, y nunca en la llave (la manda el navegador)', () => {
+    const casos = [
+      (op) => (op.parameters[1]['x-synergos-puerta'] = 'si'),
+      (op) => (op.parameters[0]['x-synergos-puerta'] = true),
+      (op) => op.parameters.push({ name: 'canal', in: 'query', schema: { type: 'string' }, 'x-synergos-puerta': true }),
+    ];
+    const nombres = ['X-Synergos-Sujeto', 'Idempotency-Key', 'canal'];
+    casos.forEach((mutar, i) => {
+      const d = documento();
+      mutar(d.paths['/v1/compras'].post);
+      expect(errores(d)).toContain(`Comprar: «${nombres[i]}» lleva x-synergos-puerta y sólo vale \`true\``);
+    });
+  });
+
+  it('cualquier otra extensión se sigue rechazando, en la operación y en el parámetro', () => {
+    const d = documento();
+    d.paths['/v1/compras'].post['x-foo'] = 1;
+    d.paths['/v1/compras'].post.parameters[0]['x-bar'] = true;
+    expect(errores(d)).toContain('Comprar: «x-foo» sin traducción');
+    expect(errores(d)).toContain('Comprar · Idempotency-Key: «x-bar» sin traducción');
+  });
+
+  it('rechaza una marca mal formada: forma, flujo, operación fuera del vocabulario, método, par repetido, consulta que choca', () => {
+    const casos = [
+      [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'] = { flujo: 'prueba.compra', operacion: 'abrir', extra: 1 }),
+        'Comprar: x-synergos-flujo tiene que ser { flujo, operacion } y nada más'],
+      [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'].flujo = 'Prueba'),
+        'Comprar: x-synergos-flujo.flujo «Prueba» no es una clave de flujo'],
+      [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'].operacion = 'BuyTickets'),
+        'Comprar: x-synergos-flujo.operacion «BuyTickets» no es del vocabulario de la puerta'],
+      [(d) => {
+        d.paths['/v1/compras/{id}'].delete = { ...d.paths['/v1/compras/{id}'].get, operationId: 'Borrar' };
+        d.paths['/v1/compras/{id}'].delete['x-synergos-flujo'] = { flujo: 'prueba.compra', operacion: 'cancelar' };
+      }, 'Borrar: la puerta sólo pasa GET y POST, y la operación es DELETE'],
+      [(d) => (d.paths['/v1/compras/{id}'].get['x-synergos-flujo'].operacion = 'abrir'),
+        'VerCompra: prueba.compra/abrir ya lo marca Comprar'],
+      [(d) => d.paths['/v1/compras/{id}'].get.parameters.push({ name: 'id', in: 'query', schema: { type: 'string' } }),
+        'VerCompra: «id» llegaría dos veces a la consulta de la puerta'],
+    ];
+    for (const [mutar, mensaje] of casos) {
+      const d = documento();
+      mutar(d);
+      expect(errores(d)).toContain(mensaje);
+    }
+  });
+
+  it('sólo salen las operaciones marcadas, por flujo y nombre en la puerta, y los esquemas que ellas alcanzan', () => {
+    const ts = generarTs(documento(), 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly abrir: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "requerida">;');
+    expect(ts).toContain('readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, CompraResponse, "ninguna">;');
+    // La operación sin marca y el esquema que sólo ella alcanza no salen; la cabecera de la puerta tampoco.
+    expect(ts).not.toContain('Ajustar');
+    expect(ts).not.toContain('Ajuste');
+    expect(ts).not.toContain('Sujeto');
+  });
+
+  it('sin marcas el mapa sale vacío y lo dice, con Rechazo como único esquema: es la verdad, la puerta no expone nada', () => {
+    const d = documento();
+    for (const item of Object.values(d.paths)) for (const op of Object.values(item)) delete op['x-synergos-flujo'];
+    expect(validarDocumento(d)).toEqual([]);
+
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('export interface OperacionesDeLaPuerta {}');
+    expect(ts).toContain('export interface Rechazo {');
+    expect([...ts.matchAll(/^export interface (\w+)/gm)].map((m) => m[1])).toEqual([
+      'Rechazo',
+      'OperacionDeLaPuerta',
+      'OperacionesDeLaPuerta',
+    ]);
   });
 });
 
