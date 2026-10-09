@@ -393,31 +393,18 @@
               </div>
             </fieldset>
           }
-          @case ('pago') {
-            <fieldset class="eventos__form">
-              <legend class="eventos__heading">Método de pago</legend>
-              <label class="eventos__radio">
-                <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
-                <span>Tarjeta de crédito / débito</span>
-              </label>
-              <label class="eventos__radio">
-                <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
-                <span>PSE — débito desde tu banco</span>
-              </label>
-              <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
-            </fieldset>
-          }
           @case ('revisar') {
             <div class="eventos__review">
               <h2 class="eventos__heading">Revisa tu orden</h2>
               <dl class="eventos__cart-summary">
                 @for (item of cartItems(); track item.id) {
-                  <div class="eventos__cart-row"><dt>{{ item.label }} × {{ item.quantity }}</dt><dd>{{ formatPrice(item.amount * item.quantity / 100, currency()) }}</dd></div>
+                  <div class="eventos__cart-row"><dt>{{ item.label }} × {{ item.quantity }}</dt><dd>{{ formatMinor(item.amount * item.quantity) }}</dd></div>
                 }
                 <div class="eventos__cart-row"><dt>Cargos por servicio</dt><dd>{{ feesLabel() }}</dd></div>
                 <div class="eventos__cart-row eventos__cart-row--total"><dt>Total</dt><dd>{{ cartTotalLabel() }}</dd></div>
               </dl>
               <p class="eventos__review-buyer">Comprador: {{ buyerName() }} · {{ buyerEmail() }}</p>
+              <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
             </div>
           }
         }

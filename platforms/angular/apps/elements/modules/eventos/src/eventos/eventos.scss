@@ -734,13 +734,6 @@
     }
   }
 
-  &__radio {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-sm;
-    font-size: syn.px-to-rem(14);
-  }
-
   &__review-buyer {
     margin: syn.$space-sm 0 0;
     font-size: syn.px-to-rem(13);

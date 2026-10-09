@@ -487,6 +487,65 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.checkoutConfig().confirmFailedMessage).toContain('(referencia {referencia})');
   });
 
+  // ── ADR 0140 F4: tras recargar o volver del login, la compra no miente ───────
+  //
+  // El carrito y su llave viven en la sesión (`localStorage`) y sobreviven; la ficha y los
+  // asistentes no. Medido en el plan de la F4: al volver a `#/eventos/checkout` un evento pagado
+  // pasaba a «gratis», sin filas de asistentes y con el `eventId` vacío. Se simula la recarga como
+  // la hace el navegador: la misma sesión persistida, leída por una instancia NUEVA del elemento.
+  it('recarga en checkout: lo pagado sigue pagado, con una fila por entrada y el evento de la línea', async () => {
+    const almacen = installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    const pagado = component.events().find((e) => e.mode === 'general' && e.fromAmount > 0);
+    component.openEvent(pagado!);
+    await flushMicrotasks();
+    component.startSelection();
+    component.incrementQty();
+    component.proceedToCart();
+    await flushMicrotasks();
+    component.goToCheckout();
+    fixture.detectChanges();
+    const eventId = component.checkoutInstrument()['eventId'];
+    expect(eventId).toBeTruthy();
+
+    // El scope lleva el número de instancia del módulo, que en una página recargada vuelve a
+    // empezar: acá se copia la sesión al de la instancia siguiente.
+    const sesion = almacen.get(`syn.txn.session.eventos.${component.instanceId}`);
+    expect(sesion).toBeTruthy();
+    const siguiente = component.instanceId + 1;
+    TestBed.resetTestingModule();
+    almacen.set(`syn.txn.session.eventos.${siguiente}`, sesion!);
+    window.location.hash = '#/eventos/checkout';
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.instanceId).toBe(siguiente);
+    expect(component.view()).toBe('checkout');
+    expect(component.detail()).toBeNull();
+    expect(component.checkoutConfig().submitLabel).toBe('Pagar y confirmar');
+    expect(component.checkoutInstrument()).toMatchObject({ eventId, provider: 'eventos' });
+    expect(component.attendees()).toHaveLength(2);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.eventos__attendee')).toHaveLength(2);
+  });
+
+  it('los pasos son asistentes → revisar en lo pagado y en lo gratis: no hay un método de pago que no viaja', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.openEvent(component.events().find((e) => e.fromAmount > 0)!);
+    await flushMicrotasks();
+    expect(component.isFreeEvent()).toBe(false);
+    expect(component.checkoutConfig().steps.map((paso) => paso.id)).toEqual(['asistentes', 'revisar']);
+
+    component.openEvent(component.events().find((e) => e.fromAmount <= 0)!);
+    await flushMicrotasks();
+    expect(component.isFreeEvent()).toBe(true);
+    expect(component.checkoutConfig().steps.map((paso) => paso.id)).toEqual(['asistentes', 'revisar']);
+    expect(component.checkoutConfig().submitLabel).toBe('Confirmar registro');
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
   it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();

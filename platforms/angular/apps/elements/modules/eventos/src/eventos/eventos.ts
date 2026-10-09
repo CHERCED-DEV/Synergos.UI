@@ -343,7 +343,6 @@ export class EventosElementComponent implements OnInit {
   readonly attendees = signal<readonly Attendee[]>([]);
   readonly buyerName = signal('');
   readonly buyerEmail = signal('');
-  readonly paymentMethod = signal<'card' | 'pse'>('card');
 
   // Confirmation
   readonly orderRef = signal('');
@@ -491,7 +490,19 @@ export class EventosElementComponent implements OnInit {
   });
 
   readonly isReserved = computed(() => this.detail()?.event.mode === 'reserved');
-  readonly isFreeEvent = computed(() => (this.detail()?.event.fromAmount ?? 0) <= 0);
+  /**
+   * Si lo que se compra es gratis. Con carrito sale de sus LÍNEAS —todas a 0—, que viven en la
+   * sesión y sobreviven a la recarga y a la vuelta del login; `detail()` no: al volver queda nulo y
+   * un evento pagado pasaba a contarse como gratis, con su «Confirmar registro» (medido en el plan
+   * de la F4). Sin carrito, la ficha abierta.
+   */
+  readonly isFreeEvent = computed(() => {
+    const lineas = this.#store.items();
+    if (lineas.length > 0) {
+      return lineas.every((linea) => linea.amount <= 0);
+    }
+    return (this.detail()?.event.fromAmount ?? 0) <= 0;
+  });
 
   readonly pdpMedia = computed<readonly DetailMedia[]>(() => {
     const detail = this.detail();
@@ -587,11 +598,14 @@ export class EventosElementComponent implements OnInit {
     () => this.buyerName().trim().length >= 2 && /.+@.+\..+/.test(this.buyerEmail().trim()),
   );
 
-  /** Pasos apagables por config: asistentes → [pago] → revisar. Pago OFF si gratis. */
+  /**
+   * Asistentes → revisar, en lo pagado y en lo gratis. El paso «pago» con su tarjeta/PSE se fue:
+   * el método elegido no viajaba por ninguna ruta, así que la pantalla afirmaba una elección que
+   * nadie recibía (T2, «la UI no miente»). La pasarela es del #183.
+   */
   readonly checkoutConfig = computed<CheckoutWizardConfig>(() => {
     const steps = [
       { id: 'asistentes', label: 'Asistentes' },
-      ...(this.isFreeEvent() ? [] : [{ id: 'pago', label: 'Pago' }]),
       { id: 'revisar', label: 'Confirmar' },
     ];
     return {
@@ -618,16 +632,25 @@ export class EventosElementComponent implements OnInit {
 
   readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     asistentes: this.attendeesValid() && this.buyerValid(),
-    pago: true,
     revisar: true,
   }));
 
+  /** La selección de la línea del carrito: el evento que se compra, aunque la ficha no esté cargada. */
+  readonly #seleccionDelCarrito = computed<Readonly<Record<string, unknown>>>(
+    () => (this.#store.items()[0]?.selection as Readonly<Record<string, unknown>> | undefined) ?? {},
+  );
+
   readonly checkoutInstrument = computed<Readonly<Record<string, unknown>>>(() => {
     const detail = this.detail();
+    const linea = this.#seleccionDelCarrito();
+    // El evento y su título salen de la LÍNEA: tras recargar o volver del login `detail()` es nulo
+    // y el `eventId` quedaba vacío. El lugar y la hora, que la línea no lleva, son de la ficha.
+    const eventId = typeof linea['eventId'] === 'string' ? linea['eventId'] : (detail?.event.id ?? '');
+    const eventTitle = typeof linea['eventTitle'] === 'string' ? linea['eventTitle'] : (detail?.event.title ?? '');
     return {
       apiBase: this.apiBase(),
-      eventId: detail?.event.id ?? '',
-      eventTitle: detail?.event.title ?? '',
+      eventId,
+      eventTitle,
       venueName: detail?.venue.name ?? detail?.event.venueName ?? '',
       startsAt: detail?.event.startsAt ?? '',
       attendees: this.attendees().map((a) => ({
@@ -636,11 +659,7 @@ export class EventosElementComponent implements OnInit {
         document: a.document.trim(),
       })),
       buyer: { name: this.buyerName().trim(), email: this.buyerEmail().trim() } as Buyer,
-      provider: this.isFreeEvent()
-        ? 'eventos-free'
-        : this.paymentMethod() === 'pse'
-          ? 'eventos-pse'
-          : 'eventos-card',
+      provider: this.isFreeEvent() ? 'eventos-free' : 'eventos',
     };
   });
 
@@ -988,9 +1007,31 @@ export class EventosElementComponent implements OnInit {
         }
         this.view.set('confirmed');
         return;
+      case 'checkout':
+        this.sembrarAsistentes();
+        this.view.set('checkout');
+        return;
       default:
         this.view.set(view);
     }
+  }
+
+  /**
+   * Una fila de asistente por entrada de la LÍNEA del carrito, conservando lo ya escrito. Se
+   * sembraba sólo al pasar por la selección, así que al volver del login o al recargar en
+   * `#/…/checkout` quedaban cero filas, el paso no era válido y no había campos para llenarlo: la
+   * persona quedaba atascada (medido en el plan de la F4). Los datos de los asistentes no se
+   * guardan en `localStorage`: son personales, y re-sembrar cuesta una línea.
+   */
+  private sembrarAsistentes(): void {
+    const entradas = this.#store.items().reduce((suma, linea) => suma + Math.max(0, linea.quantity), 0);
+    const previas = this.attendees();
+    if (entradas <= 0 || previas.length === entradas) {
+      return;
+    }
+    this.attendees.set(
+      Array.from({ length: entradas }, (_sin, indice) => previas[indice] ?? { name: '', email: '', document: '' }),
+    );
   }
 
   private routeHash(view: EventosView, param: string): string {
@@ -1395,10 +1436,6 @@ export class EventosElementComponent implements OnInit {
   attendeeFieldHandler(index: number, field: keyof Attendee): (event: Event) => void {
     return (event: Event) =>
       this.setAttendeeField(index, field, (event.target as HTMLInputElement | null)?.value ?? '');
-  }
-
-  setPaymentMethod(method: 'card' | 'pse'): void {
-    this.paymentMethod.set(method);
   }
 
   // ─── Checkout (SH-3 wizard callbacks) ────────────────────────────────────────
