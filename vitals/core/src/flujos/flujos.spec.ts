@@ -367,7 +367,9 @@ describe('orden de definición: el coordinador que llega TARDE', () => {
     expect(f.llamadas).toHaveLength(1);
   });
 
-  it('definido por el participante al cargar (la decisión de la F4): el pedido nunca llega antes que su oyente', async () => {
+  // Que cada participante la DEFINA al cargar su bundle (la decisión 2 de la F4) no se prueba acá:
+  // lo vigila `tools/lib/coordinador-de-los-participantes.mjs` sobre la entrada de cada uno.
+  it('con la etiqueta ya definida cuando sale el pedido, se atiende sin esperar ningún re-anuncio', async () => {
     document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
     const f = falsoFetch([json(200, compra)]);
     (document.getElementById('c') as CoordinadorDelFlujo).enviar = transporte(f.f);

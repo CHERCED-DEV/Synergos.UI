@@ -357,6 +357,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // Una etiqueta cruda trae su bundle (ADR 0140 F4): detector y cruce puros sobre texto y el
   // registro; el recorrido lo hace su spec con `descubrirFuentes` y `raicesEnDisco`.
   'lib/etiquetas-crudas.mjs',
+  // Cada participante de un flujo define el coordinador al cargar (ADR 0140 F4): deriva la API de
+  // `vitals/core/src/flujos` y lee la entrada que DECLARA cada plataforma (`PLATAFORMAS`).
+  'lib/coordinador-de-los-participantes.mjs',
 ];
 
 /**
