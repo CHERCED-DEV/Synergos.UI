@@ -335,7 +335,18 @@
     }
 
     <!-- ─── CHECKOUT: SH-3 checkout-wizard sobre el engine ────────────────── -->
-    @if (view() === 'checkout') {
+    @if (view() === 'checkout' && pideSesion()) {
+      <!-- La compra es de miembros (ADR 0140 F4): sin sesión, el panel REEMPLAZA al asistente
+           antes de pedir los asistentes. No es región viva: trae su encabezado, como el panel
+           del organizador. El login vuelve aquí, y el carrito sigue en la sesión. -->
+      <div class="eventos__denied">
+        <h2 class="eventos__denied-title">{{ textosDeSesion.titulo }}</h2>
+        <p class="eventos__denied-text">{{ textosDeSesion.texto }}</p>
+        <div class="eventos__denied-actions">
+          <a class="eventos__btn eventos__btn--primary" [href]="loginUrl()">{{ textosDeSesion.boton }}</a>
+        </div>
+      </div>
+    } @else if (view() === 'checkout') {
       <syn-checkout-wizard
         [config]="checkoutConfig()"
         [stepTemplate]="checkoutStep"

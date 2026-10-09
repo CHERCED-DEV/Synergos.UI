@@ -483,6 +483,64 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.checkoutConfig().submitLabel).toBe('Confirmar registro');
   });
 
+  // ── ADR 0140 F4: la compra es de miembros, y la sesión se pide ANTES de pagar ─
+  //
+  // Lo decide el bridge que el CMS emite por render (`window.synergos.member`): con host y sin
+  // miembro, el checkout pinta el panel de sesión en lugar del asistente. Sin host —standalone—
+  // no hay panel. Con miembro, el asistente, con la primera fila precargada.
+  async function alCheckoutCon(bridge: Record<string, unknown> | undefined): Promise<ReturnType<typeof vi.fn>> {
+    if (bridge) {
+      (window as { synergos?: unknown }).synergos = bridge;
+    }
+    installMemoryStorage();
+    const red = vi.fn(() => Promise.reject(new Error('offline')));
+    vi.stubGlobal('fetch', red);
+    await createComponent();
+    await ponerEntradasEnCarrito();
+    component.goToCheckout();
+    fixture.detectChanges();
+    expect(component.view()).toBe('checkout');
+    return red;
+  }
+
+  const panelDeSesion = (): HTMLAnchorElement | null =>
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.eventos__denied a[href^="/account/login"]');
+  const asistenteMontado = (): boolean => fixture.debugElement.query(By.directive(CheckoutWizardComponent)) !== null;
+
+  it('con el CMS delante y sin miembro, el checkout pide la sesión con el login que vuelve aquí, y no pide nada', async () => {
+    try {
+      const red = await alCheckoutCon({ member: null });
+      const enlace = panelDeSesion();
+      expect(enlace).not.toBeNull();
+      expect(asistenteMontado()).toBe(false);
+      const aqui = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      expect(aqui).toContain('#/eventos/checkout');
+      expect(enlace!.getAttribute('href')).toBe(`/account/login?returnUrl=${encodeURIComponent(aqui)}`);
+      expect(enlace!.textContent?.trim()).toBe('Iniciar sesión');
+      expect(red.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === 'POST')).toEqual([]);
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
+
+  it('sin host (standalone) no hay panel de sesión: el asistente, como siempre', async () => {
+    await alCheckoutCon(undefined);
+    expect(panelDeSesion()).toBeNull();
+    expect(asistenteMontado()).toBe(true);
+  });
+
+  it('con miembro, el asistente con la primera fila y el comprador precargados con el miembro', async () => {
+    try {
+      await alCheckoutCon({ member: { key: 'm-1', displayName: 'Ada Lovelace', email: 'ada@ejemplo.co', roles: [] } });
+      expect(panelDeSesion()).toBeNull();
+      expect(asistenteMontado()).toBe(true);
+      expect(component.attendees()[0]).toMatchObject({ name: 'Ada Lovelace', email: 'ada@ejemplo.co' });
+      expect([component.buyerName(), component.buyerEmail()]).toEqual(['Ada Lovelace', 'ada@ejemplo.co']);
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
   it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();

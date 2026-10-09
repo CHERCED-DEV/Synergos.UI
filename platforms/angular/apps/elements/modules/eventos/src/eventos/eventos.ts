@@ -63,6 +63,7 @@ import {
   SynErrorStateComponent,
 } from '@synergos/shared';
 import type { EventosProps } from '@synergos/contracts';
+import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
 
@@ -235,6 +236,23 @@ export class EventosElementComponent implements OnInit {
   readonly #bus = inject<TransactionEventBusService<EventosBus>>(TransactionEventBusService);
   readonly #api = inject(EventosApiClient);
   readonly #reloj = inject(EVENTOS_RELOJ);
+  readonly #identidad = inject(HostIdentityService);
+
+  /**
+   * Con el CMS delante y sin miembro, el checkout pide la sesión ANTES de los asistentes: la compra
+   * por la puerta es de miembros (`Acceso: Miembro`, también lo gratis), y reaccionar sólo al 401
+   * dejaba a la persona llenar los datos para perder el contexto después. Sin host —standalone— no
+   * hay panel: el elemento se comporta como siempre. Se decide con el bridge, que el CMS emite por
+   * render; el 401 de la puerta sigue siendo la última palabra.
+   */
+  readonly pideSesion = computed(() => this.#identidad.hasHost() && !this.#identidad.isAuthenticated());
+
+  /** Lo que dice el panel de sesión, del diccionario (sección `Events.Purchase`). */
+  readonly textosDeSesion = {
+    titulo: t('Events.Purchase.SignInTitle', 'Inicia sesión para comprar'),
+    texto: t('Events.Purchase.SignInText', 'La compra de entradas es para miembros. Al volver, tu selección seguirá aquí.'),
+    boton: t('Events.Purchase.SignIn', 'Iniciar sesión'),
+  };
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<EventosConfig | undefined, unknown>(undefined, {
@@ -1013,16 +1031,30 @@ export class EventosElementComponent implements OnInit {
    * `#/…/checkout` quedaban cero filas, el paso no era válido y no había campos para llenarlo: la
    * persona quedaba atascada (medido en el plan de la F4). Los datos de los asistentes no se
    * guardan en `localStorage`: son personales, y re-sembrar cuesta una línea.
+   *
+   * Con sesión, la primera fila y el comprador vacíos se precargan con el miembro: es quien vuelve
+   * del login, y casi siempre va.
    */
   private sembrarAsistentes(): void {
     const entradas = this.#store.items().reduce((suma, linea) => suma + Math.max(0, linea.quantity), 0);
     const previas = this.attendees();
-    if (entradas <= 0 || previas.length === entradas) {
-      return;
+    let filas = previas;
+    if (entradas > 0 && previas.length !== entradas) {
+      filas = Array.from({ length: entradas }, (_sin, indice) => previas[indice] ?? { name: '', email: '', document: '' });
     }
-    this.attendees.set(
-      Array.from({ length: entradas }, (_sin, indice) => previas[indice] ?? { name: '', email: '', document: '' }),
-    );
+    const [primera] = filas;
+    const nombre = this.#identidad.displayName();
+    const correo = this.#identidad.email();
+    if (primera && !primera.name.trim() && !primera.email.trim() && this.#identidad.isAuthenticated()) {
+      filas = [{ ...primera, name: nombre, email: correo }, ...filas.slice(1)];
+    }
+    if (filas !== previas) {
+      this.attendees.set(filas);
+    }
+    if (!this.buyerName().trim() && !this.buyerEmail().trim() && this.#identidad.isAuthenticated()) {
+      this.buyerName.set(nombre);
+      this.buyerEmail.set(correo);
+    }
   }
 
   private routeHash(view: EventosView, param: string): string {
