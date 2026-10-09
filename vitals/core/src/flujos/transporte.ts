@@ -51,9 +51,22 @@ export type ResultadoDelFlujo<T> =
 export type Enviar = (peticion: Peticion) => Promise<ResultadoDelFlujo<unknown>>;
 export type Interceptor = (siguiente: Enviar) => Enviar;
 
+/**
+ * 32 hex al azar, sobre `crypto.getRandomValues`, que existe en TODO contexto. `crypto.randomUUID`
+ * sólo existe en un contexto SEGURO (https o localhost): en http://synergos.local:5000 o en el
+ * Docker por HTTP vale `undefined`, y llamarlo lanzaba antes de salir a la red — la compra decía
+ * «no se te cobró nada» sin una sola petición y el enlace del aviso se quedaba cargando (ADR 0140
+ * F4, medido en Chromium con isSecureContext=false).
+ */
+export function idAleatorio(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** 32 hex sin guiones: la forma que el CMS conserva entera, así que navegador, CMS y árbol registran UN id. */
 export function nuevaCorrelacion(): string {
-  return crypto.randomUUID().replace(/-/g, '');
+  return idAleatorio();
 }
 
 const CODIGO = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/;

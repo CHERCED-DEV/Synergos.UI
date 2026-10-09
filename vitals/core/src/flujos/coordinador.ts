@@ -1,4 +1,4 @@
-import { rechazoLocal, transportePorDefecto, type Enviar, type ResultadoDelFlujo } from './transporte';
+import { idAleatorio, rechazoLocal, transportePorDefecto, type Enviar, type ResultadoDelFlujo } from './transporte';
 import {
   OPERACIONES_DE_LA_PUERTA,
   crearClienteDeLaPuerta,
@@ -133,7 +133,7 @@ export function claseDelCoordinador(): new () => CoordinadorDelFlujo {
       d.atendida = true;
       const quien = e.composedPath()[0];
       if (quien instanceof Element) this.#participantes.add(quien);
-      void this.#ejecutar(d).then((resultado) => {
+      const contestar = (resultado: ResultadoDelFlujo<unknown>): void => {
         const detalle: DetalleDeResultado = {
           protocolo: PROTOCOLO_DEL_FLUJO,
           solicitud: d.solicitud,
@@ -142,7 +142,12 @@ export function claseDelCoordinador(): new () => CoordinadorDelFlujo {
           resultado,
         };
         if (quien instanceof Element) quien.dispatchEvent(new CustomEvent(EVENTOS_DEL_FLUJO.resultado, { detail: detalle }));
-      });
+      };
+      // Un envío que LANZA (un `enviar` sustituido, un defecto) también contesta: sin esta rama el
+      // pedido no recibe nunca su `synergos:submit-result` y se cuelga.
+      void this.#ejecutar(d)
+        .catch((error: unknown): ResultadoDelFlujo<unknown> => ({ ok: false, correlacion: '', rechazo: rechazoLocal('cliente.fallo_interno', String(error)) }))
+        .then(contestar);
     };
 
     #ejecutar(d: DetalleDePeticion): Promise<ResultadoDelFlujo<unknown>> {
@@ -221,9 +226,9 @@ export interface OpcionesDePedido {
 
 /**
  * Pide una operación al coordinador más cercano del flujo. Sin coordinador contesta AL INSTANTE
- * `cliente.sin_coordinador` en vez de colgarse. El id de cada solicitud es global
- * (`crypto.randomUUID`), no un contador del módulo: con N bundles en la página habría N contadores
- * (regla 60).
+ * `cliente.sin_coordinador` en vez de colgarse. El id de cada solicitud es global y al azar
+ * (`idAleatorio`, sobre `crypto.getRandomValues`: `randomUUID` no existe sin https), no un contador
+ * del módulo: con N bundles en la página habría N contadores (regla 60).
  */
 export function pedirAlFlujo<F extends Flujo, O extends OperacionDe<F>>(
   desde: Element,
@@ -234,7 +239,7 @@ export function pedirAlFlujo<F extends Flujo, O extends OperacionDe<F>>(
 ): Promise<ResultadoDelFlujo<RespuestaDe<OperacionesDeLaPuerta[F][O]>>> {
   const a = args as { consulta?: Readonly<Record<string, unknown>>; cuerpo?: unknown; llave?: string; senal?: AbortSignal };
   const intentar = (): Promise<ResultadoDelFlujo<unknown>> | null => {
-    const solicitud = crypto.randomUUID();
+    const solicitud = idAleatorio();
     let resolver!: (r: ResultadoDelFlujo<unknown>) => void;
     const promesa = new Promise<ResultadoDelFlujo<unknown>>((r) => (resolver = r));
     const alResultado = (e: Event): void => {

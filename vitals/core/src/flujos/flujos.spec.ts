@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CABECERA_DE_CORRELACION,
   TECHO_DE_UNA_PETICION_MS,
   crearEnvioPorFetch,
+  idAleatorio,
   transportePorDefecto,
   type Enviar,
   type Medida,
@@ -394,5 +395,52 @@ describe('rechazos: la clase sale del code; el texto lo pone la funcionalidad', 
     expect(elegirMensaje(r('pricing.price_not_in_effect'), { 'pricing.price_not_in_effect': 'La venta cerró' }, porClase)).toBe('La venta cerró');
     expect(elegirMensaje(r('inventory.algo_nuevo'), {}, porClase)).toBe('G');
     expect(elegirMensaje(r('toString'), {}, porClase)).toBe('G');
+  });
+});
+
+describe('fuera de un contexto seguro (http://synergos.local:5000): sin crypto.randomUUID', () => {
+  // En http, `crypto.randomUUID` vale undefined (WebCrypto lo marca [SecureContext]) y
+  // `getRandomValues` sí existe: medido en Chromium con isSecureContext=false (ADR 0140 F4).
+  const real = globalThis.crypto;
+  beforeAll(() => definirCoordinador());
+  beforeEach(() => vi.stubGlobal('crypto', { getRandomValues: real.getRandomValues.bind(real) }));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = '';
+  });
+
+  it('abrir la compra SALE a la red, con una correlación de 32 hex y una solicitud propia', async () => {
+    expect((globalThis.crypto as Partial<Crypto>).randomUUID).toBeUndefined();
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    const { f, llamadas } = falsoFetch([json(201, compra)]);
+    (document.getElementById('c') as CoordinadorDelFlujo).enviar = transporte(f);
+    const p = document.getElementById('p')!;
+    const solicitudes: string[] = [];
+    p.parentElement!.addEventListener(EVENTOS_DEL_FLUJO.pedir, (e) => solicitudes.push((e as CustomEvent<{ solicitud: string }>).detail.solicitud), { capture: true });
+
+    const r = await abrirCompraDeEventos(p, { eventId: 'ev1', lines: [{ quantity: 2, tier: 'GEN' }] }, 'sess-1');
+
+    expect(r.ok).toBe(true);
+    expect(llamadas).toHaveLength(1);
+    expect(cabecera(llamadas[0]!, CABECERA_DE_CORRELACION)).toMatch(/^[0-9a-f]{32}$/);
+    expect(solicitudes).toHaveLength(1);
+    expect(solicitudes[0]).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('idAleatorio da 32 hex distintos cada vez', () => {
+    const ids = new Set(Array.from({ length: 50 }, () => idAleatorio()));
+    expect(ids.size).toBe(50);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it('un envío que LANZA también contesta: el pedido recibe cliente.fallo_interno y no se cuelga', async () => {
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    (document.getElementById('c') as CoordinadorDelFlujo).enviar = () => {
+      throw new TypeError('crypto.randomUUID is not a function');
+    };
+    const r = await pedirAlFlujo(document.getElementById('p')!, 'eventos.compra', 'consultar', { consulta: { id: 's' } });
+    if (r.ok) throw new Error('esperaba rechazo');
+    expect(r.rechazo.code).toBe('cliente.fallo_interno');
+    expect(clasificarRechazo(r.rechazo)).toBe('defecto');
   });
 });
