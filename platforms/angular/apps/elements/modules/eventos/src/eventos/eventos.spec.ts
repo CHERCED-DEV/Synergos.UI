@@ -51,6 +51,13 @@ interface RechazoDelBorde {
   readonly code: string;
   readonly transient?: boolean;
   readonly title?: string;
+  /**
+   * Qué le pasó a la saga cuando `POST cerrar` contesta este «no» sin ser transitorio. Por defecto
+   * `deshecho` (`Compensated`), lo que hace el orquestador con sus propios rechazos; `hecho` es la
+   * captura que SÍ ocurrió y cuya respuesta se perdió (un 502 `puerta.respuesta_invalida`), y
+   * `en_curso` un fallo a mitad de cerrar que deja la saga `Running`.
+   */
+  readonly cobro?: 'deshecho' | 'hecho' | 'en_curso';
 }
 
 /** Lo que el borde vio de cada petición. */
@@ -70,6 +77,7 @@ interface PeticionVista {
  *    `pta-77`, `Running`, con el total DEL SERVIDOR y lo apartado). La misma llave devuelve la
  *    misma saga, y una saga deshecha se reabre con ella: lo que hace el orquestador.
  *  - `POST cerrar` → `/api/flujos/eventos.compra/cerrar?id=…`: 200 `Completed`.
+ *  - `GET consultar` → `/api/flujos/eventos.compra/consultar?id=…`: la saga en su estado de ese momento.
  *  - `POST asistentes` y `GET entradas` → el artefacto, `/api/eventos/compras/{id}/…`.
  *  - `POST /ticket/{id}/transfer`, `POST /event` y `POST /checkin`, como antes. El check-in lleva
  *    ESTADO: `valid`, después `already-used`, y lo que no emitió es `invalid`.
@@ -88,6 +96,10 @@ function bordeDeEventos(
     readonly caidas?: readonly string[];
     readonly rechazos?: Readonly<Record<string, readonly RechazoDelBorde[]>>;
     readonly total?: number;
+    /** Claves cuya PRÓXIMA respuesta es un 200 con el cuerpo cortado; `POST cerrar` completa igual. */
+    readonly cortados?: readonly string[];
+    /** La saga de esa llave ya se cerró: abrir la devuelve `Completed`, y anotar contesta 409. */
+    readonly yaCerrada?: boolean;
   } = {},
 ): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
@@ -99,6 +111,7 @@ function bordeDeEventos(
   const rechazos = new Map(Object.entries(opciones.rechazos ?? {}).map(([clave, lista]) => [clave, [...lista]]));
   const vistas: PeticionVista[] = [];
   const quemadas = new Set<string>();
+  const cortados = new Set(opciones.cortados ?? []);
   const total = opciones.total ?? 201_600;
   let apartadas: { tier: string; seat: string | null; quantity: number }[] = [];
   let estado = 'Running';
@@ -133,6 +146,7 @@ function bordeDeEventos(
   const claveDe = (metodo: string, ruta: string): string => {
     if (ruta === '/api/flujos/eventos.compra/abrir') return `${metodo} abrir`;
     if (ruta === '/api/flujos/eventos.compra/cerrar') return `${metodo} cerrar`;
+    if (ruta === '/api/flujos/eventos.compra/consultar') return `${metodo} consultar`;
     if (/^\/api\/eventos\/compras\/[^/]+\/asistentes$/.test(ruta)) return `${metodo} asistentes`;
     if (/^\/api\/eventos\/compras\/[^/]+\/entradas$/.test(ruta)) return `${metodo} entradas`;
     return `${metodo} ${ruta.replace(/^\/api\/eventos/, '').replace(/^\/ticket\/[^/]+\/transfer$/, '/ticket/{id}/transfer')}`;
@@ -148,11 +162,17 @@ function bordeDeEventos(
     if (caidas.has(clave)) {
       return Promise.reject(new TypeError('offline'));
     }
+    if (cortados.delete(clave)) {
+      // El servidor hizo su trabajo y la conexión se cortó a mitad del cuerpo.
+      if (clave === 'POST cerrar') estado = 'Completed';
+      return Promise.resolve(new Response('{"id":"pta-77","sta', { status: 200, headers: { 'content-type': 'application/json' } }));
+    }
     const enCola = rechazos.get(clave)?.shift();
     if (enCola) {
       if (clave === 'POST cerrar' && !enCola.transient) {
-        // Cerrar que falla sin ser transitorio DESHACE la saga (el orquestador compensa).
-        estado = 'Compensated';
+        // Un «no» del orquestador al cerrar DESHACE la saga (compensa); los otros dos casos son los
+        // que no implican eso (ver `RechazoDelBorde.cobro`).
+        estado = enCola.cobro === 'hecho' ? 'Completed' : enCola.cobro === 'en_curso' ? estado : 'Compensated';
       }
       return responder(
         enCola.status,
@@ -164,10 +184,15 @@ function bordeDeEventos(
       case 'POST abrir': {
         const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
         apartadas = lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity }));
-        estado = 'Running';
+        estado = opciones.yaCerrada ? 'Completed' : 'Running';
         return responder(201, compra());
       }
+      case 'GET consultar':
+        return responder(200, compra());
       case 'POST asistentes':
+        if (estado !== 'Running') {
+          return responder(409, { title: 'Conflict', status: 409, code: 'eventos.compra_ya_cerrada', transient: false }, 'application/problem+json');
+        }
         return responder(200, { id: 'pta-77', asistentes: Array.isArray(cuerpo['attendees']) ? cuerpo['attendees'].length : 0 });
       case 'POST cerrar':
         if (estado !== 'Running' && estado !== 'Completed') {
@@ -513,8 +538,9 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     await purchaseFirstGeneralEvent(fallos.escuchar);
 
     expect(fallos.motivos).toEqual(['payments.payment_declined']);
-    // Un solo aviso, por el code, y sin decir que se cobró: la saga se deshizo.
+    // Un solo aviso, por el code, y sin decir que se cobró: la saga se deshizo, y lo dijo ELLA.
     expect(alertas()).toEqual(['Tu pago fue rechazado y no se te cobró nada.']);
+    expect(borde.llamadas('GET consultar')).toBe(1);
 
     asistente().next();
     await flushMicrotasks(60);
@@ -526,6 +552,80 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     // La MISMA intención: el orquestador reabre la saga deshecha en vez de abrir otra.
     expect(abiertas[1]!.llave).toBe(abiertas[0]!.llave);
     expect(borde.llamadas('POST cerrar')).toBe(2);
+  });
+
+  // ── cerrar no transitorio NO es «se deshizo»: se pregunta a la saga antes de decidir ─────
+  it('cerrar que SÍ cobró y contestó mal (502 puerta.respuesta_invalida): consulta, ve la compra completa y termina, sin decir «no se te cobró nada»', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 502, code: 'puerta.respuesta_invalida', title: 'Bad Gateway', cobro: 'hecho' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual([]);
+    expect(borde.llamadas('GET consultar')).toBe(1);
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(borde.llamadas('POST abrir')).toBe(1);
+  });
+
+  it('un 2xx de cerrar con el cuerpo cortado (cliente.respuesta_ilegible): consulta, ve la compra completa y sigue a las entradas', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ cortados: ['POST cerrar'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual([]);
+    expect(borde.llamadas('GET consultar')).toBe(1);
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+  });
+
+  it('cerrar no transitorio con la saga EN CURSO: dice lo que quedó apartado, no «no se te cobró nada», y el reintento cierra la MISMA saga', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 502, code: 'puerta.respuesta_invalida', title: 'Bad Gateway', cobro: 'en_curso' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['puerta.respuesta_invalida']);
+    expect(borde.llamadas('GET consultar')).toBe(1);
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'pta-77')]);
+
+    asistente().next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.llamadas('POST abrir')).toBe(1);
+    expect(borde.llamadas('POST cerrar')).toBe(2);
+  });
+
+  it('abrir con la MISMA llave devuelve la compra ya cerrada: no se anota otra vez (sería 409) y se piden sus entradas', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ yaCerrada: true });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual([]);
+    expect(borde.llamadas('POST asistentes')).toBe(0);
+    expect(borde.llamadas('POST cerrar')).toBe(1);
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
   });
 
   it('una sesión que vence a mitad de la compra (401 del artefacto) lleva al panel de sesión, sin cerrar nada', async () => {

@@ -53,6 +53,14 @@ export async function abrirCompraDeEventos(
   return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'abrir', { cuerpo, llave }));
 }
 
+/**
+ * Lee la compra: su estado es lo que dice qué QUEDÓ cuando cerrar no contestó bien (ADR 0140 F4).
+ * Un rechazo no transitorio no implica que la saga se deshizo: lo implica `Compensated`.
+ */
+export async function consultarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
+  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'consultar', { consulta: { id } }));
+}
+
 /** Cierra la compra: captura y la da por completa. Idempotente sobre una compra ya completa. */
 export async function cerrarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
   return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cerrar', { consulta: { id } }));

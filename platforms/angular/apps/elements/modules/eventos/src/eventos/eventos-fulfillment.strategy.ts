@@ -22,7 +22,7 @@ import {
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
-import { aMenores, abrirCompraDeEventos, cerrarCompraDeEventos } from '@synergos/vitals-core';
+import { aMenores, abrirCompraDeEventos, cerrarCompraDeEventos, consultarCompraDeEventos } from '@synergos/vitals-core';
 
 /** Criteria the shell hands the strategy on `search`. */
 interface EventosSearchCriteria {
@@ -159,6 +159,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       pricing: { ...sesion.pricing, currency: compra.moneda, totalAmount: total, balanceDue: total },
     });
 
+    if (compra.estado === 'Completed') {
+      // La MISMA intención ya se cerró (cerrar cobró y su respuesta se perdió): anotar contestaría
+      // 409 `eventos.compra_ya_cerrada` en cada clic. Se acepta con su referencia y `confirm`
+      // vuelve a cerrar —idempotente sobre una compra completa— y pide sus entradas.
+      return { accepted: true, reference: compra.id };
+    }
+
     const anotados = await this.#api.anotarAsistentes(instrument.apiBase ?? apiBaseOf(request.session), compra.id, attendees);
     if (!anotados.ok) {
       // La saga queda abierta —apartada y autorizada, sin cobrar—: volver a pulsar abre con la
@@ -171,11 +178,16 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   /**
    * Step 4 — CERRAR la compra (captura) y pedir sus entradas.
    *
-   * **Si cerrar falla sin ser transitorio, la saga ya se deshizo** (el orquestador compensa y
-   * devuelve el rechazo original): reintentar cerrar contestaría `eventos.not_confirmable` para
-   * siempre. Por eso el último pago de la sesión se marca `failed`, y el siguiente clic vuelve a
-   * `pay`, que abre con la MISMA llave y el orquestador reabre la saga deshecha. Si es transitorio
-   * el pago se queda como está y el reintento repite sólo cerrar, que es idempotente.
+   * Si cerrar falla y es transitorio, el pago se queda como está y el reintento repite sólo cerrar,
+   * que es idempotente. **Si NO es transitorio, se pregunta a la saga antes de decidir** (`consultar`):
+   * un «no» del orquestador la deja `Compensated`, pero un 502 `puerta.respuesta_invalida` o un 2xx
+   * cuyo cuerpo se cortó (`cliente.respuesta_ilegible`) pueden llegar con la captura HECHA, y decir
+   * ahí «no se te cobró nada» invitaba a comprar dos veces (revisión de la F4).
+   *  - `Compensated`: la saga se deshizo. El último pago se marca `failed` y el siguiente clic vuelve
+   *    a `pay`, que abre con la MISMA llave y el orquestador reabre la saga deshecha.
+   *  - `Completed`: cerrar sí cobró; se sigue a las entradas como si hubiera contestado bien.
+   *  - cualquier otro (o sin respuesta): no se afirma nada; el pago se queda y se dice lo que quedó
+   *    apartado, con su referencia.
    */
   override async confirm(
     session: SessionData,
@@ -189,10 +201,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     }
     const cerrada = await cerrarCompraDeEventos(host, id);
     if (!cerrada.ok) {
-      if (!cerrada.rechazo.transient) {
-        this.marcarElPagoFallido();
+      const estado = cerrada.rechazo.transient ? '' : await this.estadoDeLaCompra(host, id);
+      if (estado !== 'Completed') {
+        if (estado === 'Compensated') {
+          this.marcarElPagoFallido();
+        }
+        return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
       }
-      return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
     }
 
     const attendees = (session.parties ?? []).map(
@@ -231,6 +246,12 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         },
       })),
     };
+  }
+
+  /** El estado de la saga según el orquestador (`Completed`, `Compensated`…), o '' si no se pudo leer. */
+  private async estadoDeLaCompra(host: Element, id: string): Promise<string> {
+    const leida = await consultarCompraDeEventos(host, id);
+    return leida.ok ? leida.valor.estado : '';
   }
 
   /** El último pago de la sesión, `failed`: lo que el servidor deshizo ya no está cobrado. */
