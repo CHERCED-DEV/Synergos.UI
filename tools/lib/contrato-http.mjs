@@ -12,7 +12,7 @@
  *
  *   records + TypedResults del orquestador ──ContratoOpenApiTests──▶ openapi/Synergos.Bff.<X>.json
  *     ──este generador──▶ vitals/contracts/src/http/bff-<x>.contract.ts (+ su index.ts)
- *     ──tsc──▶ quien lo importe (nadie hasta la F4: ver abajo)
+ *     ──tsc──▶ el cliente de la puerta de vitals/core (desde la F4: ver abajo)
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * POR QUÉ SÓLO `Synergos.Bff.*`, Y POR QUÉ POR LA PUERTA (F3).
@@ -43,12 +43,12 @@
  * rojo hasta que alguien escriba su traducción — es lo que se quiere, aunque cueste.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * QUIÉN LO IMPORTA: NADIE, HASTA LA F4.
+ * QUIÉN LO IMPORTA: EL CLIENTE DE LA PUERTA, DESDE LA F4.
  *
- * El cliente que lo usa llama a la puerta, y la puerta llega en la F3. La regla 24 de CLAUDE.md
- * («un contrato que no importa nadie es un comentario con sintaxis») queda abierta con fecha: en
- * la F4 el cliente de `vitals/core` lo importa y un renombre rompe `tsc`, con su mutante. Hasta
- * entonces lo que sí está vigilado es que el tipo versionado sea el que da el documento de HOY.
+ * `vitals/core/src/flujos` lee el mapa, la tabla de ejecución (`OPERACIONES_DE_LA_PUERTA`, que
+ * emite este generador del mismo documento) y la respuesta de la compra. Así se cierra la regla 24
+ * de CLAUDE.md («un contrato que no importa nadie es un comentario con sintaxis»): un renombre en
+ * el orquestador se regenera acá y rompe `test:tipos-vitals`, con los mutantes medidos.
  *
  * Como en `contrato-synhost.mjs`, el cruce con el CMS no está en `npm test` (que corre sin
  * hermano): está en `contracts:validate` y en `design-gates-ui.yml` (G-14), y sin el CMS

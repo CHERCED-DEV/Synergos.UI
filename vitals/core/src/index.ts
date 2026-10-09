@@ -6,3 +6,4 @@ export * from './inputs';
 export * from './environment';
 export * from './rutas';
 export * from './formato';
+export * from './flujos';
