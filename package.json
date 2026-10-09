@@ -28,6 +28,8 @@
     "test:tools": "npx vitest run tools/lib",
     "// test:vitals — --dir y NO un filtro de substring: `vitest run vitals` casaría cualquier ruta que contenga esa cadena, que es el defecto que costó dos cierres de ticket": "",
     "test:vitals": "npx vitest run --dir vitals",
+    "// test:tipos-vitals — el typecheck de vitals/core, que no corría en ningún sitio: vitest transpila sin mirar tipos y build:vitals sólo construye contracts. Cierra la regla 24 (ADR 0140 F4): el cliente de la puerta importa el tipo generado, así que un renombre allá pone esto en rojo en ~5 s. El rootDir del tsconfig es '..' porque core lee contracts desde la fuente (paths): con './src' daba 18 TS6059 en un árbol sano, y un tramo que sale rojo siempre no vigila nada": "",
+    "test:tipos-vitals": "tsc -p vitals/core/tsconfig.json --noEmit",
     "test:angular": "npm run --prefix platforms/angular test",
     "// test:preact — corre contra el BUNDLE construido, no contra el fuente: es lo único que ve que falte customElements.define (#64)": "",
     "test:preact": "npm run --prefix platforms/preact test",
