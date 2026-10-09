@@ -539,7 +539,9 @@
     "tier": "module",
     "framework": "angular",
     "dependencies": [
-      "countdown-clock"
+      "countdown-clock",
+      "qr-code",
+      "seat-map"
     ]
   },
   {

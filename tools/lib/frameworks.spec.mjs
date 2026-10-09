@@ -354,6 +354,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // Un lavado de estado como tinta (UI#91): detector puro sobre texto; el recorrido de las
   // plataformas lo hace su spec con `raicesEnDisco`.
   'lib/tinta-de-lavado.mjs',
+  // Una etiqueta cruda trae su bundle (ADR 0140 F4): detector y cruce puros sobre texto y el
+  // registro; el recorrido lo hace su spec con `descubrirFuentes` y `raicesEnDisco`.
+  'lib/etiquetas-crudas.mjs',
 ];
 
 /**
