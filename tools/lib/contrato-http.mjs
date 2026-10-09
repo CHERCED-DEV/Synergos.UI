@@ -99,7 +99,10 @@ const FORMATOS = {
 };
 
 /** Los nombres que el generado declara por su cuenta: un esquema que se llame así chocaría. */
-const RESERVADOS = new Set(['OperacionesDeLaPuerta', 'OperacionDeLaPuerta']);
+const RESERVADOS = new Set(['OperacionesDeLaPuerta', 'OperacionDeLaPuerta', 'TablaDeLaPuerta']);
+
+/** La tabla de ejecución que el generado emite junto al mapa (ADR 0140 F4, el «cliente mínimo»). */
+export const TABLA_DE_EJECUCION = 'OPERACIONES_DE_LA_PUERTA';
 
 /** La marca de una operación que la puerta expone: `{ flujo, operacion }`. */
 export const MARCA_DEL_FLUJO = 'x-synergos-flujo';
@@ -408,8 +411,30 @@ function tipoTs(s) {
 }
 
 function declaracion(nombre, s) {
+  if (nombre === RECHAZO) return declaracionDelRechazo(s);
   if (s.type === 'object') return [`export interface ${nombre} {`, ...propiedades(s).map((l) => `  ${l}`), '}'].join('\n');
   return `export type ${nombre} = ${tipoTs(s)};`;
+}
+
+/**
+ * `Rechazo` con `title` ensanchado a `string`. El documento del orquestador lo declara como su
+ * enum (`RejectionKind`), y eso es verdad DEL ORQUESTADOR; pero este fichero describe lo que el
+ * navegador recibe por la PUERTA, y la puerta y el artefacto rechazan por su cuenta con la frase
+ * HTTP de título («Unauthorized», «Not Found»): para 401, 405, 413, 415, 502 y 504 no hay
+ * `RejectionKind` que poner. Un tipo que prometiera el enum dejaría compilar un `switch` por
+ * `title` que falla en silencio con todo `puerta.*`. Se decide por `code` y `transient`.
+ */
+function declaracionDelRechazo(s) {
+  const ancho = { ...s, properties: { ...s.properties, title: { type: 'string' } } };
+  return [
+    '/**',
+    ' * Un rechazo, venga del orquestador o de la puerta. Se decide por `code` y `transient`: `title`',
+    ' * es texto libre, porque la puerta y el artefacto ponen la frase HTTP («Unauthorized»).',
+    ' */',
+    `export interface ${RECHAZO} {`,
+    ...propiedades(ancho).map((l) => `  ${l}`),
+    '}',
+  ].join('\n');
 }
 
 function llaveDe(op) {
@@ -440,6 +465,7 @@ function operacionesDeLaPuerta(doc) {
         nombre: marca.operacion,
         metodo: metodo.toUpperCase(),
         consulta: consultaDe(op),
+        nombresDeConsulta: (op.parameters ?? []).filter((p) => p.in === 'path' || p.in === 'query').map((p) => p.name),
         cuerpo: op.requestBody ? op.requestBody.content[JSON_].schema : undefined,
         respuesta: exito.content[JSON_].schema,
         parametros: (op.parameters ?? []).filter((p) => p.in === 'path' || p.in === 'query'),
@@ -495,8 +521,9 @@ export function generarTs(doc, fichero) {
       '//',
       '// Sólo lo que el navegador manda y recibe por la puerta (GET|POST /api/flujos/{flujo}/{operacion}):',
       `// las operaciones que el orquestador marca con ${MARCA_DEL_FLUJO}, por su nombre en la puerta, y los`,
-      '// esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la',
-      '// regla 24 de CLAUDE.md queda abierta con fecha.',
+      `// esquemas que alcanzan. Lo que pone la puerta no sale. Junto al mapa va ${TABLA_DE_EJECUCION},`,
+      '// lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la',
+      '// regla 24 de CLAUDE.md.',
     ].join('\n'),
   ];
 
@@ -548,7 +575,60 @@ export function generarTs(doc, fichero) {
     ].join('\n'),
   );
 
+  bloques.push(tablaDeEjecucion(operaciones, flujos));
+
   return bloques.join('\n\n') + '\n';
+}
+
+/**
+ * La tabla de ejecución: método, llave y nombres de la consulta de cada operación marcada.
+ *
+ * El mapa de arriba son sólo tipos, y en ejecución el cliente no puede saber con qué método ir
+ * —cerrar y cancelar son POST sin cuerpo— ni qué nombres codificar. Escribirla a mano en el
+ * cliente sería una segunda copia del documento (regla 23), y una operación que gana un parámetro
+ * de consulta quedaría en verde (medido en el plan de la F4). Sale de acá, del mismo documento, y
+ * el tipo auxiliar hace que `satisfies` la cruce con el mapa: un renombre en uno sin el otro no
+ * compila.
+ */
+function tablaDeEjecucion(operaciones, flujos) {
+  const filas = flujos.flatMap((f) => [
+    `  ${JSON.stringify(f)}: {`,
+    ...operaciones
+      .filter((o) => o.flujo === f)
+      .map(
+        (o) =>
+          `    ${o.nombre}: { metodo: ${JSON.stringify(o.metodo)}, llave: ${JSON.stringify(o.llave)}, consulta: [${o.nombresDeConsulta
+            .map((n) => JSON.stringify(n))
+            .join(', ')}] },`,
+      ),
+    '  },',
+  ]);
+  return [
+    '/**',
+    ' * La forma en ejecución de cada operación del mapa: el método, la llave y los nombres que viajan',
+    ' * en la consulta (ninguno si la operación no la lleva).',
+    ' */',
+    'export type TablaDeLaPuerta<TOperaciones> = {',
+    '  readonly [F in keyof TOperaciones]: {',
+    '    readonly [O in keyof TOperaciones[F]]: TOperaciones[F][O] extends OperacionDeLaPuerta<"GET" | "POST", unknown, unknown, unknown, "requerida" | "opcional" | "ninguna">',
+    '      ? {',
+    '          readonly metodo: TOperaciones[F][O]["metodo"];',
+    '          readonly llave: TOperaciones[F][O]["llave"];',
+    '          readonly consulta: TOperaciones[F][O]["consulta"] extends undefined ? readonly never[] : readonly (keyof TOperaciones[F][O]["consulta"] & string)[];',
+    '        }',
+    '      : never;',
+    '  };',
+    '};',
+    '',
+    '/**',
+    ' * Lo que el cliente necesita en EJECUCIÓN y el mapa no le puede dar (son sólo tipos): con qué',
+    ' * método va cada operación, si pide la llave y qué nombres codifica en la consulta. Sale del',
+    ' * mismo documento que el mapa, y `satisfies` los cruza.',
+    ' */',
+    filas.length === 0
+      ? `export const ${TABLA_DE_EJECUCION} = {} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;`
+      : [`export const ${TABLA_DE_EJECUCION} = {`, ...filas, '} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;'].join('\n'),
+  ].join('\n');
 }
 
 /**

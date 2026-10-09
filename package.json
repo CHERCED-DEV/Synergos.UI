@@ -63,7 +63,7 @@
     "gate:rutas": "node tools/rutas-del-borde.mjs",
     "contratos:synhost": "node tools/contrato-synhost.mjs",
     "contratos:synhost:check": "node tools/contrato-synhost.mjs --check",
-    "// contratos:http — los tipos del contrato HTTP de los orquestadores (ADR 0140, F2), desde el OpenAPI que el CMS publica de cada Synergos.Bff.*: sólo tipos, sin cliente, y sin importador hasta la F4 (regla 24). :check necesita el CMS y sin él RECHAZA, así que vive en contracts:validate y en G-14, no en npm test": "",
+    "// contratos:http — los tipos del contrato HTTP de los orquestadores (ADR 0140, F2), desde el OpenAPI que el CMS publica de cada Synergos.Bff.*: los tipos y, desde la F4, la tabla de ejecución de la puerta (el cliente mínimo: método, llave y consulta de cada operación, cruzada con el mapa por satisfies). :check necesita el CMS y sin él RECHAZA, así que vive en contracts:validate y en G-14, no en npm test": "",
     "contratos:http": "node tools/contrato-http.mjs",
     "contratos:http:check": "node tools/contrato-http.mjs --check",
     "humo:cdn": "node tools/humo-cdn.mjs",

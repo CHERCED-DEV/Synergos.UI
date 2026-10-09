@@ -6,8 +6,9 @@
 //
 // Sólo lo que el navegador manda y recibe por la puerta (GET|POST /api/flujos/{flujo}/{operacion}):
 // las operaciones que el orquestador marca con x-synergos-flujo, por su nombre en la puerta, y los
-// esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la
-// regla 24 de CLAUDE.md queda abierta con fecha.
+// esquemas que alcanzan. Lo que pone la puerta no sale. Junto al mapa va OPERACIONES_DE_LA_PUERTA,
+// lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
+// regla 24 de CLAUDE.md.
 
 export interface BuyTicketsRequest {
   readonly eventId?: string | null;
@@ -25,9 +26,13 @@ export interface MoneyDto {
   readonly currency: string;
 }
 
+/**
+ * Un rechazo, venga del orquestador o de la puerta. Se decide por `code` y `transient`: `title`
+ * es texto libre, porque la puerta y el artefacto ponen la frase HTTP («Unauthorized»).
+ */
 export interface Rechazo {
   readonly type: string;
-  readonly title: "Invalid" | "NotFound" | "Conflict" | "Forbidden" | "Expired" | "Unavailable";
+  readonly title: string;
   readonly status: number;
   readonly detail: string;
   readonly code: string;
@@ -75,3 +80,33 @@ export interface OperacionesDeLaPuerta {
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
   };
 }
+
+/**
+ * La forma en ejecución de cada operación del mapa: el método, la llave y los nombres que viajan
+ * en la consulta (ninguno si la operación no la lleva).
+ */
+export type TablaDeLaPuerta<TOperaciones> = {
+  readonly [F in keyof TOperaciones]: {
+    readonly [O in keyof TOperaciones[F]]: TOperaciones[F][O] extends OperacionDeLaPuerta<"GET" | "POST", unknown, unknown, unknown, "requerida" | "opcional" | "ninguna">
+      ? {
+          readonly metodo: TOperaciones[F][O]["metodo"];
+          readonly llave: TOperaciones[F][O]["llave"];
+          readonly consulta: TOperaciones[F][O]["consulta"] extends undefined ? readonly never[] : readonly (keyof TOperaciones[F][O]["consulta"] & string)[];
+        }
+      : never;
+  };
+};
+
+/**
+ * Lo que el cliente necesita en EJECUCIÓN y el mapa no le puede dar (son sólo tipos): con qué
+ * método va cada operación, si pide la llave y qué nombres codifica en la consulta. Sale del
+ * mismo documento que el mapa, y `satisfies` los cruza.
+ */
+export const OPERACIONES_DE_LA_PUERTA = {
+  "eventos.compra": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+  },
+} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

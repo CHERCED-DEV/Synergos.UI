@@ -121,8 +121,9 @@ const ESPERADO = `// ─── El contrato HTTP de Synergos.Bff.Prueba por la pu
 //
 // Sólo lo que el navegador manda y recibe por la puerta (GET|POST /api/flujos/{flujo}/{operacion}):
 // las operaciones que el orquestador marca con x-synergos-flujo, por su nombre en la puerta, y los
-// esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la
-// regla 24 de CLAUDE.md queda abierta con fecha.
+// esquemas que alcanzan. Lo que pone la puerta no sale. Junto al mapa va OPERACIONES_DE_LA_PUERTA,
+// lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
+// regla 24 de CLAUDE.md.
 
 export interface CompraRequest {
   readonly eventId?: string | null;
@@ -148,9 +149,13 @@ export interface MoneyDto {
   readonly currency: string;
 }
 
+/**
+ * Un rechazo, venga del orquestador o de la puerta. Se decide por \`code\` y \`transient\`: \`title\`
+ * es texto libre, porque la puerta y el artefacto ponen la frase HTTP («Unauthorized»).
+ */
 export interface Rechazo {
   readonly type: string;
-  readonly title: "Invalid" | "NotFound";
+  readonly title: string;
   readonly status: number;
   readonly detail: string;
   readonly code: string;
@@ -178,6 +183,34 @@ export interface OperacionesDeLaPuerta {
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, CompraResponse, "ninguna">;
   };
 }
+
+/**
+ * La forma en ejecución de cada operación del mapa: el método, la llave y los nombres que viajan
+ * en la consulta (ninguno si la operación no la lleva).
+ */
+export type TablaDeLaPuerta<TOperaciones> = {
+  readonly [F in keyof TOperaciones]: {
+    readonly [O in keyof TOperaciones[F]]: TOperaciones[F][O] extends OperacionDeLaPuerta<"GET" | "POST", unknown, unknown, unknown, "requerida" | "opcional" | "ninguna">
+      ? {
+          readonly metodo: TOperaciones[F][O]["metodo"];
+          readonly llave: TOperaciones[F][O]["llave"];
+          readonly consulta: TOperaciones[F][O]["consulta"] extends undefined ? readonly never[] : readonly (keyof TOperaciones[F][O]["consulta"] & string)[];
+        }
+      : never;
+  };
+};
+
+/**
+ * Lo que el cliente necesita en EJECUCIÓN y el mapa no le puede dar (son sólo tipos): con qué
+ * método va cada operación, si pide la llave y qué nombres codifica en la consulta. Sale del
+ * mismo documento que el mapa, y \`satisfies\` los cruza.
+ */
+export const OPERACIONES_DE_LA_PUERTA = {
+  "prueba.compra": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+  },
+} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;
 `;
 
 const errores = (doc) => validarDocumento(doc).join('\n');
@@ -302,9 +335,11 @@ describe('validarDocumento', () => {
     d.components.schemas['Page`1'] = d.components.schemas.Linea;
     d.components.schemas.OperacionesDeLaPuerta = d.components.schemas.Linea;
     d.components.schemas.OperacionDeLaPuerta = d.components.schemas.Linea;
+    d.components.schemas.TablaDeLaPuerta = d.components.schemas.Linea;
     expect(errores(d)).toContain('esquema «Page`1»: no sirve de nombre de tipo');
     expect(errores(d)).toContain('esquema «OperacionesDeLaPuerta»: no sirve de nombre de tipo');
     expect(errores(d)).toContain('esquema «OperacionDeLaPuerta»: no sirve de nombre de tipo');
+    expect(errores(d)).toContain('esquema «TablaDeLaPuerta»: no sirve de nombre de tipo');
   });
 
   it('rechaza una operación sin operationId: el mapa no tendría con qué nombrarla', () => {
@@ -443,12 +478,56 @@ describe('la puerta (ADR 0140 F3): marcas, cabeceras de la puerta y lo que no sa
 
     const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
     expect(ts).toContain('export interface OperacionesDeLaPuerta {}');
+    expect(ts).toContain('export const OPERACIONES_DE_LA_PUERTA = {} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;');
     expect(ts).toContain('export interface Rechazo {');
     expect([...ts.matchAll(/^export interface (\w+)/gm)].map((m) => m[1])).toEqual([
       'Rechazo',
       'OperacionDeLaPuerta',
       'OperacionesDeLaPuerta',
     ]);
+  });
+});
+
+describe('la tabla de ejecución y el rechazo de la puerta (ADR 0140 F4, el «cliente mínimo»)', () => {
+  const tabla = (ts) => ts.slice(ts.indexOf('export const OPERACIONES_DE_LA_PUERTA'));
+
+  it('la tabla sale del documento: método, llave y nombres de la consulta de cada operación marcada, y nada más', () => {
+    const t = tabla(generarTs(documento(), 'Synergos.Bff.Prueba.json'));
+    expect(t).toContain('abrir: { metodo: "POST", llave: "requerida", consulta: [] },');
+    expect(t).toContain('consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },');
+    // La operación sin marca no tiene fila: el cliente no puede pedir lo que la puerta no abre.
+    expect(t).not.toMatch(/ajustar|Ajustar/);
+    expect(t).toMatch(/\} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;\n$/);
+  });
+
+  it('una operación que gana un parámetro de consulta cambia la tabla, no sólo el tipo (M8 del plan de la F4)', () => {
+    const d = documento();
+    d.paths['/v1/compras'].post.parameters.push({ name: 'canal', in: 'query', required: true, schema: { type: 'string' } });
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly abrir: OperacionDeLaPuerta<"POST", { readonly canal: string; }, CompraRequest, CompraResponse, "requerida">;');
+    expect(tabla(ts)).toContain('abrir: { metodo: "POST", llave: "requerida", consulta: ["canal"] },');
+  });
+
+  it('el método y la llave de la tabla son los del documento, no un valor por defecto', () => {
+    const d = documento();
+    d.paths['/v1/compras/{id}'].post = { ...d.paths['/v1/compras/{id}'].get, operationId: 'Cerrar' };
+    d.paths['/v1/compras/{id}'].post['x-synergos-flujo'] = { flujo: 'prueba.compra', operacion: 'cerrar' };
+    d.paths['/v1/compras/{id}'].post.parameters = [
+      ...d.paths['/v1/compras/{id}'].get.parameters,
+      { name: 'Idempotency-Key', in: 'header', schema: { maxLength: 128, type: 'string' } },
+    ];
+    expect(validarDocumento(d)).toEqual([]);
+    expect(tabla(generarTs(d, 'Synergos.Bff.Prueba.json'))).toContain('cerrar: { metodo: "POST", llave: "opcional", consulta: ["id"] },');
+  });
+
+  it('title se ensancha a string en el fichero de la puerta: la puerta y el artefacto ponen la frase HTTP, no el enum', () => {
+    const ts = generarTs(documento(), 'Synergos.Bff.Prueba.json');
+    const rechazo = ts.slice(ts.indexOf('export interface Rechazo {'), ts.indexOf('}', ts.indexOf('export interface Rechazo {')));
+    expect(rechazo).toContain('readonly title: string;');
+    expect(rechazo).not.toMatch(/"Invalid"|"NotFound"/);
+    // Lo que decide sigue igual de estricto: `code` y `transient`, requeridos.
+    expect(rechazo).toContain('readonly code: string;');
+    expect(rechazo).toContain('readonly transient: boolean;');
   });
 });
 
