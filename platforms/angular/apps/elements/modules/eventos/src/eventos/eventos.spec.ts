@@ -233,8 +233,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   }
 
   // ── empty: pristine app, catalogue view, no order ────────────────────────────
-  // ── cupones (#29): el descuento se ve, y nunca deja el total bajo cero ───────
-  /** Deja entradas en el carrito para poder descontar sobre algo. */
+  /** Deja entradas en el carrito (la comisión se mira sobre algo). */
   async function ponerEntradasEnCarrito(): Promise<void> {
     const event =
       component.events().find((e) => e.mode === 'general' && e.fromAmount > 0) ??
@@ -245,19 +244,6 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     component.proceedToCart();
     await flushMicrotasks();
     fixture.detectChanges();
-  }
-
-  function respuestaPromo(body: unknown, status = 200): void {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve({
-          ok: status >= 200 && status < 300,
-          status,
-          json: () => Promise.resolve(body),
-        } as Response),
-      ),
-    );
   }
 
   // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
@@ -284,55 +270,6 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     component.navigate('wallet');
     await flushMicrotasks();
     expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/mis-tickets');
-  });
-
-  it('un cupón baja el total de Eventos y aparece como fila propia', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-    await ponerEntradasEnCarrito();
-    const antes = component.cartTotalMinor();
-    expect(antes).toBeGreaterThan(0);
-
-    respuestaPromo({ code: 'ENTRADA5', amountMinor: 20_000, label: 'Cupón ENTRADA5' });
-    await component.applyPromo('ENTRADA5');
-
-    expect(component.promo()?.amountMinor).toBe(-20_000);
-    expect(component.cartTotalMinor()).toBe(antes - 20_000);
-    // Subtotal · cargos · descuento · total — el descuento entre los cargos y el
-    // total, que es donde se lee.
-    expect(component.cartSummary().map((f) => f.id)).toEqual([
-      'subtotal',
-      'fees',
-      'promo',
-      'total',
-    ]);
-  });
-
-  it('el descuento se resta DESPUÉS de los cargos y no deja el total bajo cero', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-    await ponerEntradasEnCarrito();
-
-    respuestaPromo({ code: 'TODO', amountMinor: 999_999_999, label: 'Cupón TODO' });
-    await component.applyPromo('TODO');
-
-    expect(component.cartTotalMinor()).toBe(0);
-  });
-
-  it('con el endpoint caído no se aplica nada', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-    await ponerEntradasEnCarrito();
-    const antes = component.cartTotalMinor();
-
-    await component.applyPromo('LOQUESEA');
-
-    expect(component.promo()).toBeNull();
-    expect(component.promoRejection()).toBe('failed');
-    expect(component.cartTotalMinor()).toBe(antes);
   });
 
   it('starts on the SH-1 catalogue with no order (empty case)', async () => {

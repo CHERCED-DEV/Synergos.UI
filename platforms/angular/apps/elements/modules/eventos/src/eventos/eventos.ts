@@ -10,7 +10,6 @@ import {
   input,
   output,
   signal,
-  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -60,9 +59,6 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-  PromoCodeComponent,
-  type AppliedPromo,
-  type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
@@ -105,7 +101,6 @@ import {
   type TierSelectionPayload,
   type VenueZone,
   type WalletTicket,
-  type EventPromo,
   type TierSaleState,
 } from './eventos.model';
 import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores, t } from '@synergos/vitals-core';
@@ -217,7 +212,6 @@ let eventosInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
-    PromoCodeComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -575,10 +569,7 @@ export class EventosElementComponent implements OnInit {
   );
   // La regla de los motores del CMS (al par, exacta): `eventos-comision.ts`, cruzada con G-12.
   readonly feesMinor = computed(() => comisionEnMenores(this.cartSubtotalMinor(), this.feePercent()));
-  readonly cartTotalMinor = computed(() =>
-    // Con el cupón restado y con suelo en cero — mismo criterio que `reprice()`.
-    Math.max(0, this.cartSubtotalMinor() + this.feesMinor() + this.promoMinor()),
-  );
+  readonly cartTotalMinor = computed(() => this.cartSubtotalMinor() + this.feesMinor());
   readonly cartSubtotalLabel = computed(() =>
     this.formatMinor(this.cartSubtotalMinor()),
   );
@@ -1357,16 +1348,6 @@ export class EventosElementComponent implements OnInit {
         value: this.feesLabel(),
       });
     }
-    const promo = this.promo();
-    if (promo) {
-      // El descuento se VE: un total más bajo sin la línea que lo explica se lee
-      // como un error de precio.
-      filas.push({
-        id: 'promo',
-        label: promo.label,
-        value: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
-      });
-    }
     filas.push({ id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true });
     return filas;
   });
@@ -1909,10 +1890,7 @@ export class EventosElementComponent implements OnInit {
     const items = this.#store.items();
     const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
     const fees = comisionEnMenores(subtotal, this.feePercent());
-    const promo = this.promo();
-    // El descuento se aplica sobre subtotal + cargos, y nunca deja el total bajo
-    // cero: un carrito que se debe a sí mismo lo cobraría el checkout en negativo.
-    const total = Math.max(0, subtotal + fees + (promo?.amountMinor ?? 0));
+    const total = subtotal + fees;
     this.#store.setPricing({
       currency: this.currency(),
       totalAmount: total,
@@ -1924,64 +1902,8 @@ export class EventosElementComponent implements OnInit {
           amount: item.amount * item.quantity,
         })),
         ...(fees > 0 ? [{ code: 'fees', label: 'Cargos por servicio', amount: fees }] : []),
-        // La línea NEGATIVA que el motor esperaba desde el primer día.
-        ...(promo ? [{ code: `promo:${promo.code}`, label: promo.label, amount: promo.amountMinor }] : []),
       ],
     });
-  }
-
-  // ─── Cupones: `syn-promo-code` (#29) ────────────────────────────────────────
-  readonly promoControl = viewChild(PromoCodeComponent);
-  readonly promo = signal<EventPromo | null>(null);
-  readonly promoBusy = signal(false);
-  readonly promoRejection = signal<PromoRejection | null>(null);
-  readonly promoDetail = signal('');
-
-  readonly appliedPromo = computed<AppliedPromo | null>(() => {
-    const promo = this.promo();
-    if (!promo) {
-      return null;
-    }
-    return {
-      code: promo.code,
-      discountLabel: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
-      ...(promo.detail ? { detail: promo.detail } : {}),
-    };
-  });
-
-  readonly promoMinor = computed(() => this.promo()?.amountMinor ?? 0);
-
-  async applyPromo(code: string): Promise<void> {
-    if (this.promoBusy()) {
-      return;
-    }
-    this.promoBusy.set(true);
-    this.promoRejection.set(null);
-    this.promoDetail.set('');
-
-    const result = await this.#api.applyPromo(this.apiBase(), code, this.cartSubtotalMinor());
-    this.promoBusy.set(false);
-
-    if (result.ok) {
-      this.promo.set(result.promo);
-      this.promoControl()?.clear();
-      this.reprice();
-      return;
-    }
-
-    this.promoRejection.set(result.reason);
-    if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
-      this.promoDetail.set(
-        `Te faltan ${this.formatMinor(result.shortfallMinor)}.`,
-      );
-    }
-  }
-
-  removePromo(): void {
-    this.promo.set(null);
-    this.promoRejection.set(null);
-    this.promoDetail.set('');
-    this.reprice();
   }
 
   /**
