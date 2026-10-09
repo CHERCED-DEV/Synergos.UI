@@ -21,10 +21,7 @@
 export interface SynAcademySchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynAccordion — tier:composition → tag:<synergos-accordion> */
@@ -40,7 +37,6 @@ export interface SynAppLauncherSchema {
   readonly subheading?: string;
   readonly apps?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynAudioPlayer — tier:module → tag:<synergos-audio-player> */
@@ -96,17 +92,12 @@ export interface SynBadgeGroupSchema {
 export interface SynBlogsSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynBookingWizard — tier:module → tag:<synergos-booking-wizard> */
 export interface SynBookingWizardSchema {
-  readonly apiBase?: string;
   readonly destinationLabel?: string;
-  readonly currency?: string;
   readonly integration?: string;
 }
 
@@ -200,23 +191,21 @@ export interface SynCopyButtonSchema {
 /** elementSynCountdownClock — tier:module → tag:<synergos-countdown-clock> */
 export interface SynCountdownClockSchema {
   readonly endDateTime?: string;
-  readonly labelFormat?: string;
   readonly integration?: string;
 }
 
 /** elementSynCountdownDigital — tier:module → tag:<synergos-countdown-digital> */
 export interface SynCountdownDigitalSchema {
   readonly endDateTime?: string;
-  readonly showLabels?: string;
+  readonly hideLabels?: string;
   readonly style?: string;
   readonly integration?: string;
 }
 
 /** elementSynDataGrid — tier:module → tag:<synergos-data-grid> */
 export interface SynDataGridSchema {
-  readonly dataSource?: string;
-  readonly columnsJson?: string;
-  readonly pageSize?: string;
+  readonly fuente?: string;
+  readonly content?: string;
   readonly integration?: string;
 }
 
@@ -261,21 +250,14 @@ export interface SynDropzoneSchema {
 
 /** elementSynEhr — tier:module → tag:<synergos-ehr> */
 export interface SynEhrSchema {
-  readonly heading?: string;
-  readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
-  readonly content?: string;
-  readonly integration?: string;
+
 }
 
 /** elementSynEventos — tier:module → tag:<synergos-eventos> */
 export interface SynEventosSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
   readonly role?: string;
-  readonly config?: string;
   readonly content?: string;
   readonly integration?: string;
 }
@@ -317,20 +299,17 @@ export interface SynFileUploaderSchema {
 
 /** elementSynFormStepper — tier:composition → tag:<synergos-form-stepper> */
 export interface SynFormStepperSchema {
-  readonly stepsJson?: string;
-  readonly submitEndpoint?: string;
+  readonly formInternalKey?: string;
+  readonly steps?: string;
   readonly allowSkip?: string;
-  readonly integration?: string;
+  readonly content?: string;
 }
 
 /** elementSynGov — tier:module → tag:<synergos-gov> */
 export interface SynGovSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynHeroBanner — tier:module → tag:<synergos-hero-banner> */
@@ -521,10 +500,7 @@ export interface SynRatingStarsSchema {
 export interface SynRealtySchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynRichTooltip — tier:composition → tag:<synergos-rich-tooltip> */
@@ -545,8 +521,8 @@ export interface SynScrollTopSchema {
 /** elementSynSearchBox — tier:composition → tag:<synergos-search-box> */
 export interface SynSearchBoxSchema {
   readonly searchPlaceholder?: string;
-  readonly searchEndpoint?: string;
-  readonly searchParamName?: string;
+  readonly submitToPage?: string;
+  readonly content?: string;
   readonly integration?: string;
 }
 
@@ -554,7 +530,6 @@ export interface SynSearchBoxSchema {
 export interface SynSeatMapSchema {
   readonly mapRef?: string;
   readonly maxSelectable?: string;
-  readonly currency?: string;
   readonly density?: string;
   readonly hidePrices?: string;
   readonly hideLegend?: string;
@@ -574,10 +549,7 @@ export interface SynSelectMultiSchema {
 export interface SynSellerSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynSeparator — tier:primitive → tag:<synergos-separator> */
@@ -651,10 +623,7 @@ export interface SynStepperSchema {
 export interface SynStorefrontSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynTabs — tier:composition → tag:<synergos-tabs> */
@@ -689,7 +658,6 @@ export interface SynTestimonialSectionSchema {
 /** elementSynTimeline — tier:module → tag:<synergos-timeline> */
 export interface SynTimelineSchema {
   readonly eventsJson?: string;
-  readonly orientation?: string;
   readonly integration?: string;
 }
 
@@ -725,10 +693,7 @@ export interface SynTourGuideSchema {
 export interface SynTravelShellSchema {
   readonly heading?: string;
   readonly subheading?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynTreeView — tier:module → tag:<synergos-tree-view> */
@@ -742,7 +707,5 @@ export interface SynTreeViewSchema {
 export interface SynVideoPlayerSchema {
   readonly videoFile?: string;
   readonly posterImage?: string;
-  readonly chaptersJson?: string;
-  readonly enableAnalytics?: string;
   readonly integration?: string;
 }
