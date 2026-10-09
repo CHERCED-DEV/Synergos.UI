@@ -445,6 +445,48 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(borde.llamadas('POST /confirm')).toBe(2);
   });
 
+  // ── ADR 0140 F4: lo que dice un registro gratis sale del diccionario ─────────
+  //
+  // Sección `Events.Purchase`, que `EventosProps` declara desde la F4. `t()` pinta su respaldo
+  // es-CO cuando la clave no llegó, así que un texto «bien traducido» no prueba nada: se mira con
+  // un bridge que trae OTRO texto.
+  async function abrirEventoGratis(): Promise<void> {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    const gratis = component.events().find((e) => e.fromAmount <= 0);
+    expect(gratis).toBeDefined();
+    component.openEvent(gratis!);
+    await flushMicrotasks();
+    expect(component.isFreeEvent()).toBe(true);
+  }
+
+  it('los avisos de un registro gratis son las claves `Events.Purchase` que publicó la página', async () => {
+    (window as { synergos?: unknown }).synergos = {
+      i18n: {
+        culture: 'en-US',
+        defaultCulture: 'es-CO',
+        keys: {
+          'Events.Purchase.FreeFailed': "We couldn't complete your registration.",
+          'Events.Purchase.FreeConfirmPending': 'Your registration is open ({referencia}).',
+        },
+      },
+    };
+    try {
+      await abrirEventoGratis();
+      expect(component.checkoutConfig().payFailedMessage).toBe("We couldn't complete your registration.");
+      expect(component.checkoutConfig().confirmFailedMessage).toBe('Your registration is open ({referencia}).');
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
+
+  it('sin el bridge, los avisos de un registro gratis son el respaldo es-CO', async () => {
+    await abrirEventoGratis();
+    expect(component.checkoutConfig().payFailedMessage).toBe('No pudimos completar tu registro. Intenta de nuevo.');
+    expect(component.checkoutConfig().confirmFailedMessage).toContain('(referencia {referencia})');
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
   it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();

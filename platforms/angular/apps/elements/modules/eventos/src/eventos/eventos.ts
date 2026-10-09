@@ -599,12 +599,15 @@ export class EventosElementComponent implements OnInit {
       summaryHeading: 'Tu orden',
       submitLabel: this.isFreeEvent() ? 'Confirmar registro' : 'Pagar y confirmar',
       // El fallo lo dice el ASISTENTE, una vez (UI#91). Un evento gratis no cobra, y su
-      // aviso no puede hablar de un pago.
+      // aviso no puede hablar de un pago. Sale del diccionario, sección `Events.Purchase`
+      // (ADR 0140 F4): el respaldo es el texto es-CO de siempre.
       ...(this.isFreeEvent()
         ? {
-            payFailedMessage: 'No pudimos completar tu registro. Intenta de nuevo.',
-            confirmFailedMessage:
+            payFailedMessage: t('Events.Purchase.FreeFailed', 'No pudimos completar tu registro. Intenta de nuevo.'),
+            confirmFailedMessage: t(
+              'Events.Purchase.FreeConfirmPending',
               'Tu registro quedó abierto (referencia {referencia}) pero no pudimos confirmarlo. Vuelve a intentarlo.',
+            ),
           }
         : AVISOS_DE_UN_COBRO),
       processingLabel: 'Procesando…',

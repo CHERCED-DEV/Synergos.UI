@@ -424,7 +424,7 @@ export interface EhrProps {
   readonly apiBase: string;
 }
 
-/** <synergos-eventos> · funcionalidad · diccionario: Events.Sale */
+/** <synergos-eventos> · funcionalidad · diccionario: Events.Sale, Events.Purchase */
 export interface EventosProps {
   /** contenido */
   readonly heading?: string;
@@ -1337,8 +1337,8 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   nombre: "eventos",
   tipo: "funcionalidad",
   record: "EventosProps",
-  diccionario: ["Events.Sale"],
-  claves: ["Events.Sale.Closed","Events.Sale.NotYet"],
+  diccionario: ["Events.Sale","Events.Purchase"],
+  claves: ["Events.Purchase.AttendeesInvalid","Events.Purchase.BackToEvents","Events.Purchase.ConfirmPending","Events.Purchase.Failed","Events.Purchase.FreeConfirmPending","Events.Purchase.FreeFailed","Events.Purchase.HoldExpired","Events.Purchase.InProgress","Events.Purchase.NotCompleted","Events.Purchase.NotFound","Events.Purchase.NotOnSale","Events.Purchase.OverLimit","Events.Purchase.PaymentDeclined","Events.Purchase.Retry","Events.Purchase.SessionRequired","Events.Purchase.SignIn","Events.Purchase.SignInText","Events.Purchase.SignInTitle","Events.Purchase.SoldOut","Events.Purchase.Unavailable","Events.Sale.Closed","Events.Sale.NotYet"],
   campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent"],
   listas: {},
   selectores: [],
