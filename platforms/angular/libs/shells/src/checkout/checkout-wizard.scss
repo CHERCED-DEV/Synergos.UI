@@ -12,7 +12,7 @@
   --shw-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --shw-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --shw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --shw-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --shw-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
   --shw-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
 
   display: block;

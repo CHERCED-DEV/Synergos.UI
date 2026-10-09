@@ -12,11 +12,11 @@
   --scf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --scf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --scf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --scf-ok: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --scf-ok: var(--syn-color-state-success-text, #{syn.$color-success-600});
   --scf-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
   --scf-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --scf-warn-text: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
-  --scf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --scf-warn-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+  --scf-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
   --scf-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
   --scf-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
 

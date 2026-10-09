@@ -18,8 +18,22 @@
  * 14,27:1. El árbol ya lo cumple, así que es trinquete absoluto: ningún `color:` nombra un
  * lavado de estado.
  *
+ * **Y por un alias tampoco (ADR 0140 F4, CMS#201).** El aviso de rechazo del asistente de la
+ * compra —`.syn-wizard__error`, el ÚNICO mensaje de cada rechazo desde la F4— pintaba
+ * `color: var(--shw-danger)`, y la hoja definía arriba `--shw-danger:
+ * var(--syn-color-state-danger-surface, …)`. Es el mismo texto invisible (medido en el
+ * navegador: 1,14 a 1,19:1 en los siete temas, el aviso era una franja rojiza vacía), y este
+ * gate no lo veía porque leía sólo la línea del `color:`. Contado con el detector de alias: 31
+ * usos por 19 alias en 13 hojas. Se arreglaron los de la compra —asistente, carrito y acuse—
+ * con el `-text` de su familia (medido sobre el CSS del CMS en las ocho rutas de render, con el
+ * lavado compuesto sobre la tarjeta y sobre el lienzo: peligro 5,04, aviso 4,79 y éxito 5,70
+ * como mínimo, contra 1,14 de antes); los demás quedan censados en el spec, y el censo sólo
+ * baja.
+ *
  * Lo que NO mira, dicho: `fill`/`stroke` de un SVG y `outline-color`. Hoy ninguno nombra un
  * lavado de estado (medido con un grep), y el primero que lo haga es un ícono, no un texto.
+ * Tampoco un alias definido en OTRA hoja (un mixin, un `:host` heredado): sólo los de la misma
+ * fuente, que es donde vive cada `--shw-*`, `--sct-*` o `--scf-*` del árbol.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -32,21 +46,60 @@ export function sinComentarios(fuente) {
 }
 
 /**
- * Las declaraciones `color:` que pintan con un lavado: `[{ linea, token }]`.
+ * Las propiedades propias de la hoja que valen un lavado: `Map<alias, token>`.
+ *
+ * Un alias es una propiedad personalizada cuyo valor nombra un lavado (`--shw-danger:
+ * var(--syn-color-state-danger-surface, …)`) o a otro alias de la misma hoja. Basta con que UNA
+ * de sus definiciones lo haga: un modificador que lo redefine con un lavado pinta igual.
+ *
+ * @param {string} fuente un `.scss`, o un `.ts` con estilos en línea
+ */
+export function aliasDeLavado(fuente) {
+  const definiciones = [...sinComentarios(fuente).matchAll(/(--[a-z0-9-]+)\s*:\s*([^;{}]+)/gi)].map((m) => ({
+    nombre: m[1],
+    valor: m[2],
+  }));
+  const alias = new Map();
+  for (let cambio = true; cambio; ) {
+    cambio = false;
+    for (const { nombre, valor } of definiciones) {
+      if (alias.has(nombre)) continue;
+      const directo = valor.match(LAVADO);
+      const encadenado = directo
+        ? null
+        : [...valor.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((r) => r[1]).find((r) => alias.has(r));
+      if (directo || encadenado) {
+        alias.set(nombre, directo ? directo[0] : alias.get(encadenado));
+        cambio = true;
+      }
+    }
+  }
+  return alias;
+}
+
+/**
+ * Las declaraciones `color:` que pintan con un lavado: `[{ linea, token, alias? }]`.
  *
  * Sólo la propiedad `color` (la tinta del texto): `background:`, `background-color:` y
- * `border-color:` son justo el sitio de un lavado.
+ * `border-color:` son justo el sitio de un lavado. `alias` dice por qué propiedad de la hoja
+ * llegó, cuando no se nombra el token directo.
  *
  * @param {string} fuente un `.scss`, o un `.ts` con estilos en línea
  */
 export function lavadosComoTinta(fuente) {
   const hallados = [];
+  const alias = aliasDeLavado(fuente);
   sinComentarios(fuente)
     .split('\n')
     .forEach((linea, i) => {
       for (const m of linea.matchAll(/(?:^|[\s;{'"`])color\s*:\s*([^;'"`}]+)/g)) {
         const token = m[1].match(LAVADO);
-        if (token) hallados.push({ linea: i + 1, token: token[0] });
+        if (token) {
+          hallados.push({ linea: i + 1, token: token[0] });
+          continue;
+        }
+        const via = [...m[1].matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((r) => r[1]).find((r) => alias.has(r));
+        if (via) hallados.push({ linea: i + 1, token: alias.get(via), alias: via });
       }
     });
   return hallados;

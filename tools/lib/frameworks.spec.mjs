@@ -542,6 +542,11 @@ const RUTAS_DE_PLATAFORMA = {
     'La ÚNICA de las seis cuya regla es de Angular: `[algo]="… || null"` es property binding ' +
     'de la sintaxis de plantillas de Angular, y un `[x]="y || null"` no significa nada en JSX. ' +
     'El día que haya un gate equivalente para otra sintaxis será otro fichero, no éste.',
+  'lib/tinta-de-lavado.spec.mjs':
+    'El censo de los lavados que llegan por un alias (ADR 0140 F4) nombra la hoja donde vive ' +
+    'cada alias heredado, y la compra de la F4 nombra los tres shells de su flujo: son ' +
+    'aserciones SOBRE el disco, como el fixture de element-sources. El recorrido no la cablea: ' +
+    'barre las plataformas con raicesEnDisco.',
 };
 
 describe('el censo de RUTAS de plataforma en tools/lib (#60)', () => {
