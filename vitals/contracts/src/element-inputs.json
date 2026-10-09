@@ -5250,7 +5250,7 @@
       "name": "apiBase",
       "type": "string",
       "required": false,
-      "description": "Base URL of the backing API. Defaults to the module route when unset."
+      "description": "Base URL of the backing API, set per site by the CMS (Synergos:Features:Alquiler). Without it nothing is requested and the catalogue says it could not be read."
     },
     {
       "name": "category",
@@ -5269,12 +5269,6 @@
       "type": "string",
       "required": false,
       "description": "Supporting line under the headline."
-    },
-    {
-      "name": "currency",
-      "type": "string",
-      "required": false,
-      "description": "ISO currency the rental total and the held deposit are formatted in."
     }
   ],
   "app-launcher": [

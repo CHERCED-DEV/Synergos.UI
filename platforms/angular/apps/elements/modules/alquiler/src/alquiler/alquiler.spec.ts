@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent } from './alquiler';
 import { normalizeRental, readRentalState } from './alquiler.model';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * El vertical de alquiler visto desde el navegador (#147).
@@ -14,12 +15,9 @@ import { normalizeRental, readRentalState } from './alquiler.model';
  * apagón total no sabe reproducir.
  */
 
-/** El rechazo de `fetch` es un macrotask en jsdom; hay que dejarlo llegar. */
-async function drenar(veces = 12): Promise<void> {
-  for (let i = 0; i < veces; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+/** El rechazo de `fetch` es un macrotask en jsdom; hay que dejarlo llegar (#84: `asentar`). */
+function drenar(veces = 12): Promise<void> {
+  return asentar(veces);
 }
 
 const EQUIPO = {
@@ -30,6 +28,7 @@ const EQUIPO = {
   coverUrl: '/media/andamio.jpg',
   dailyRate: 45000,
   deposit: 400000,
+  currency: 'COP',
   units: 8,
 };
 
@@ -55,6 +54,7 @@ const COTIZACION = {
   perDay: 38000,
   rentalTotal: 532000,
   deposit: 800000,
+  currency: 'COP',
 };
 
 const CONTRATO = {
@@ -65,6 +65,7 @@ const CONTRATO = {
   end: '2026-10-12',
   rentalTotal: 532000,
   depositHeld: 800000,
+  currency: 'COP',
   issuedUtc: '2026-09-22T15:00:00+00:00',
   seal: 'a1b2c3d4e5f60718',
   verified: true,
@@ -142,7 +143,8 @@ describe('AlquilerElementComponent', () => {
   let fixture: ComponentFixture<AlquilerElementComponent>;
   let component: AlquilerElementComponent;
 
-  async function montar(): Promise<void> {
+  /** Monta la app con la API que el CMS le pasa; `null` es montarla SIN ella. */
+  async function montar(apiBase: string | null = '/api/alquiler'): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [AlquilerElementComponent],
       providers: [provideZonelessChangeDetection(), AlquilerApiClient],
@@ -150,12 +152,16 @@ describe('AlquilerElementComponent', () => {
 
     fixture = TestBed.createComponent(AlquilerElementComponent);
     component = fixture.componentInstance;
+    if (apiBase !== null) {
+      fixture.componentRef.setInput('config', { apiBase });
+    }
     fixture.detectChanges();
     await component.cargarCatalogo();
     await drenar();
   }
 
   afterEach(() => {
+    delete (window as unknown as { synergos?: unknown }).synergos;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
@@ -423,5 +429,62 @@ describe('AlquilerElementComponent', () => {
 
     expect(component.reserva()).toBeNull();
     expect(component.problema()).toContain('sigue abierto');
+  });
+
+  // ── La moneda, la API y los textos: de dónde sale cada uno ─────────────
+
+  it('la moneda sale del DATO: un catálogo en dólares se pinta en dólares', async () => {
+    servidor({
+      ...GUION_FELIZ,
+      'GET /api/alquiler/equipment': [{ ...EQUIPO, currency: 'USD' }],
+      'POST /api/alquiler/quote': { ...COTIZACION, currency: 'USD' },
+    });
+    await montar();
+    fixture.detectChanges();
+
+    const tarjeta = (fixture.nativeElement as HTMLElement).querySelector('.sg-alquiler__price')?.textContent ?? '';
+    // Un peso compilado en el bundle pintaría «$ 45.000» de un equipo que se alquila en dólares.
+    expect(tarjeta).toContain('US$');
+
+    await component.abrir('andamio-6m');
+    await drenar();
+    component.desde.set('2026-10-05');
+    component.hasta.set('2026-10-12');
+    await component.cotizar();
+    await drenar();
+    expect(component.cotizacion()?.currency).toBe('USD');
+  });
+
+  it('un importe SIN moneda se pinta como número y NO se le inventa una', async () => {
+    servidor({ ...GUION_FELIZ, 'GET /api/alquiler/equipment': [{ ...EQUIPO, currency: undefined }] });
+    await montar();
+
+    const estado = component.catalogo();
+    const equipo = estado.estado === 'ok' ? estado.valor[0] : null;
+    expect(equipo?.currency).toBe('');
+    // Ni «$» ni «COP»: el número solo, que es lo que `formatearImporte` hace sin moneda.
+    expect(component.plata(45000, equipo?.currency ?? '')).toBe('45.000');
+  });
+
+  it('sin la API del sitio NO se llama a nada y el catálogo dice que no se pudo leer', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar(null);
+
+    // No hay base de respaldo compilada (ADR 0137): una ruta relativa iría al origen de la página.
+    expect(llamadas).toEqual([]);
+    expect(component.catalogo().estado).toBe('error');
+  });
+
+  it('los textos salen del diccionario que publica la página, y el respaldo es el es-CO', async () => {
+    (window as unknown as { synergos: unknown }).synergos = {
+      i18n: { keys: { 'Alquiler.Nav.Equipment': 'Equipment', 'Alquiler.Catalog.DepositHeld': 'Deposit held: {monto}' } },
+    };
+    servidor(GUION_FELIZ);
+    await montar();
+
+    expect(component.txt.equipos).toBe('Equipment');
+    expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
+    // La clave que la página no trae sale por su respaldo, no vacía.
+    expect(component.txt.misAlquileres).toBe('Mis alquileres');
   });
 });

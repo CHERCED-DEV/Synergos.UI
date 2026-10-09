@@ -119,6 +119,7 @@ export const ENTRADAS_DE_CABLEADO = {
   // No es de una vertical, y se midió igual: media-explorer filtraba por la categoría
   // «muestra: defaultCategory», que ningún item tiene, y se quedaba sin un solo video.
   defaultCategory: 'una de las categorías del propio contenido: una inventada filtra todo y deja la lista vacía',
+  category: 'la familia de equipos que acota el catálogo de alquiler: una inventada filtra todo y deja la vitrina vacía',
 
   // ── Los vocabularios cerrados de las piezas que NO son verticales (UI#91) ──────────
   // Medido sobre element-inputs.json: 25 entradas de 12 nombres seguían recibiendo
@@ -154,7 +155,7 @@ export const ENTRADAS_DE_CABLEADO = {
  * Las entradas de texto de las verticales que el banco SÍ rellena: se pintan tal
  * cual, así que cualquier texto es un valor que el elemento acepta.
  */
-export const TEXTO_DE_LAS_VERTICALES = ['destinationLabel', 'heading'];
+export const TEXTO_DE_LAS_VERTICALES = ['destinationLabel', 'heading', 'subheading'];
 
 /**
  * Valores de muestra por input, para que el elemento no salga en blanco — o

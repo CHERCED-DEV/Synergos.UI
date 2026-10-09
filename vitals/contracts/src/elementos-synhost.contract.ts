@@ -248,6 +248,18 @@ export interface AccordionProps {
   readonly allowMultiple?: boolean;
 }
 
+/** <synergos-alquiler> · funcionalidad · diccionario: Alquiler */
+export interface AlquilerProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** decision */
+  readonly category?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
 /** <synergos-app-launcher> · funcionalidad · diccionario: AppLauncher, Common.States */
 export interface AppLauncherProps {
   /** contenido */
@@ -765,6 +777,24 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
       }
     ],
     "allowMultiple": true
+  },
+};
+
+export const ALQUILER_SYNHOST: ElementoSynHost<AlquilerProps> = {
+  nombre: "alquiler",
+  tipo: "funcionalidad",
+  record: "AlquilerProps",
+  diccionario: ["Alquiler"],
+  claves: ["Alquiler.Catalog.DepositHeld","Alquiler.Catalog.EmptyMessage","Alquiler.Catalog.EmptyTitle","Alquiler.Catalog.Failed","Alquiler.Catalog.Loading","Alquiler.Catalog.Open","Alquiler.Catalog.PerDay","Alquiler.Catalog.Units","Alquiler.Defaults.Heading","Alquiler.Defaults.Subheading","Alquiler.Detail.Back","Alquiler.Detail.Includes","Alquiler.Detail.Loading","Alquiler.Detail.RateFrom","Alquiler.Detail.RatePerDay","Alquiler.Detail.Rates","Alquiler.Detail.Requires","Alquiler.Done.Line","Alquiler.Done.Title","Alquiler.Errors.CancelFailed","Alquiler.Errors.DetailFailed","Alquiler.Errors.DetailGone","Alquiler.Errors.QuoteFailed","Alquiler.Errors.ReserveFailed","Alquiler.Errors.ReturnFailed","Alquiler.Errors.SignInToRent","Alquiler.Form.Asked","Alquiler.Form.Bounds","Alquiler.Form.From","Alquiler.Form.Quote","Alquiler.Form.Quoting","Alquiler.Form.To","Alquiler.Form.Units","Alquiler.Mine.Cancel","Alquiler.Mine.DepositUnknown","Alquiler.Mine.EmptyMessage","Alquiler.Mine.EmptyTitle","Alquiler.Mine.Failed","Alquiler.Mine.Line","Alquiler.Mine.Loading","Alquiler.Mine.Returned","Alquiler.Mine.SealMismatch","Alquiler.Mine.SealUnverified","Alquiler.Mine.SealVerified","Alquiler.Mine.SignInMessage","Alquiler.Mine.SignInTitle","Alquiler.Nav.Equipment","Alquiler.Nav.Mine","Alquiler.Nav.Sections","Alquiler.Quote.Deposit","Alquiler.Quote.Line","Alquiler.Quote.Reserve","Alquiler.Quote.Reserving","Alquiler.Seal.Mismatch","Alquiler.Seal.Unverified","Alquiler.Seal.Verified"],
+  campos: ["heading","subheading","category","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Alquiler de equipos",
+    "subheading": "Por días, con la garantía retenida y no cobrada",
+    "category": "andamios",
+    "apiBase": "/api/alquiler"
   },
 };
 
@@ -2668,6 +2698,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
 export const ELEMENTOS_SYNHOST = [
   ACADEMY_SYNHOST,
   ACCORDION_SYNHOST,
+  ALQUILER_SYNHOST,
   APP_LAUNCHER_SYNHOST,
   AUDIO_PLAYER_SYNHOST,
   AVATAR_SYNHOST,

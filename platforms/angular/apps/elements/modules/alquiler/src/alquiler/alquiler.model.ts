@@ -74,6 +74,12 @@ export interface EquipmentCard {
   readonly coverUrl: string;
   readonly dailyRate: number;
   readonly deposit: number;
+  /**
+   * ISO-4217 de la tarifa y de la garantía, tal como la manda el catálogo. Vacía es «no consta»
+   * y el importe se pinta sin moneda: compilar un peso de respaldo acá sería la regla del sitio
+   * escrita en el bundle (CMS#196).
+   */
+  readonly currency: string;
   readonly units: number;
 }
 
@@ -98,6 +104,8 @@ export interface RentalQuote {
   readonly rentalTotal: number;
   /** Lo que se RETIENE. No se suma al total, y la pantalla lo dice. */
   readonly deposit: number;
+  /** La moneda de los tres importes; la del equipo que se cotizó. */
+  readonly currency: string;
 }
 
 /** Los tres estados que el borde emite. */
@@ -119,6 +127,8 @@ export interface RentalAgreement {
   readonly rentalTotal: number;
   /** Ver `Rental.depositHeld`: `null` es «no consta», nunca cero. */
   readonly depositHeld: number | null;
+  /** La moneda del total y de la garantía; va dentro de lo que el sello firma. */
+  readonly currency: string;
   readonly issuedUtc: string;
   readonly seal: string;
   /**
@@ -179,6 +189,7 @@ export function normalizeCard(value: unknown): EquipmentCard | null {
     coverUrl: readString(value['coverUrl']),
     dailyRate,
     deposit,
+    currency: readString(value['currency']).trim(),
     units: readNumber(value['units']) ?? 0,
   };
 }
@@ -246,6 +257,7 @@ export function normalizeQuote(value: unknown): RentalQuote | null {
     perDay,
     rentalTotal,
     deposit,
+    currency: readString(value['currency']).trim(),
   };
 }
 
@@ -262,6 +274,7 @@ export function normalizeAgreement(value: unknown): RentalAgreement | null {
     end: readString(value['end']),
     rentalTotal: readNumber(value['rentalTotal']) ?? 0,
     depositHeld: readNumber(value['depositHeld']),
+    currency: readString(value['currency']).trim(),
     issuedUtc: readString(value['issuedUtc']),
     seal: readString(value['seal']),
     verified: readBooleanOrNull(value['verified']),

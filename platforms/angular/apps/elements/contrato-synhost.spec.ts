@@ -47,6 +47,7 @@ import { sanitizeAcademyConfig } from './modules/academy/src/academy/academy';
 import { sanitizeBlogsConfig } from './modules/blogs/src/blogs/blogs';
 import { sanitizeGovConfig } from './modules/gov/src/gov/gov';
 import { sanitizeSellerConfig } from './modules/seller/src/seller/seller';
+import { sanitizeAlquilerConfig } from './modules/alquiler/src/alquiler/alquiler';
 import { sanitizeStorefrontConfig } from './modules/storefront/src/storefront/storefront';
 import { sanitizeTravelShellConfig } from './modules/travel-shell/src/travel-shell/travel-shell';
 import { sanitizeEhrConfig } from './modules/ehr/src/ehr/ehr';
@@ -121,6 +122,7 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   blogs: sanitizeBlogsConfig,
   gov: sanitizeGovConfig,
   seller: sanitizeSellerConfig,
+  alquiler: sanitizeAlquilerConfig,
   storefront: sanitizeStorefrontConfig,
   'travel-shell': sanitizeTravelShellConfig,
   ehr: sanitizeEhrConfig,

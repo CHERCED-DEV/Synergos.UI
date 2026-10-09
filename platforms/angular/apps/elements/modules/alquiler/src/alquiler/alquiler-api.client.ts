@@ -124,21 +124,27 @@ export class AlquilerApiClient {
   /**
    * El equipo volvió. `amount` es el daño, ya calculado por quien lo recibió.
    *
-   * **La acción va escrita en la URL y no en una variable**, y eso no es estilo: G-7 resuelve la
-   * ruta de un `const url` y descarta los segmentos interpolados, así que un
-   * `` `…/${accion}` `` colapsa sobre la ruta hermana y el gate acusa a un cuerpo correcto de
-   * mandar la clave del otro. Medido: con la acción interpolada, denunciaba que `POST /rentals`
-   * manda `amount`. Un gate que grita sobre algo que está bien se desactiva a la tercera.
+   * **La ruta y el cuerpo van escritos EN el método, y la acción en la URL**, y eso no es estilo:
+   * G-7 lee la ruta de un `const url` y el cuerpo del literal de la misma llamada. Cuando la
+   * llamada vivía en un `settle(url, …)` compartido, la ruta llegaba como parámetro y G-7 la
+   * buscaba en el método de ARRIBA: acusó a `POST /rentals` de mandar `amount` (medido dos
+   * veces, en CMS#147 y en CMS#204), y el cuerpo de devolver no se cruzaba con `SettleRequest`.
+   *
+   * La llave lleva el MONTO dentro: cobrar de la garantía es un movimiento RELATIVO, así que
+   * corregir la cifra y repetir con la misma llave devolvería lo de antes contestando 200 y
+   * diciendo «puesto» (`seeded_content_needs_fingerprint`, addendum #114).
    */
   async return(apiBase: string, rentalId: string, amount: number): Promise<Rental> {
     const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/return`;
-    return this.settle(url, llaveDe('return', rentalId, String(amount)), amount);
+    const idempotencyKey = llaveDe('return', rentalId, String(amount));
+    return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
   }
 
-  /** Se cancela antes de que salga. `amount` es la penalidad. */
+  /** Se cancela antes de que salga. `amount` es la penalidad; la llave, como en `return`. */
   async cancel(apiBase: string, rentalId: string, amount: number): Promise<Rental> {
     const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/cancel`;
-    return this.settle(url, llaveDe('cancel', rentalId, String(amount)), amount);
+    const idempotencyKey = llaveDe('cancel', rentalId, String(amount));
+    return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
   }
 
   /** Mis contratos. Lanza `AlquilerUnauthorizedError` sin sesión. */
@@ -150,23 +156,8 @@ export class AlquilerApiClient {
       : [];
   }
 
-  /** El comprobante de un alquiler, con su sello ya comprobado por el servidor. */
-  async agreement(apiBase: string, rentalId: string): Promise<RentalAgreement | null> {
-    const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/agreement`;
-    const data = await this.getJson(url);
-    return normalizeAgreement(data);
-  }
-
-  /**
-   * Cierra un alquiler.
-   *
-   * La llave lleva el MONTO dentro: cobrar de la garantía es un movimiento RELATIVO, así que
-   * corregir la cifra y repetir con la misma llave devolvería lo de antes contestando 200 y
-   * diciendo «puesto» (`seeded_content_needs_fingerprint`, addendum #114).
-   */
-  private async settle(url: string, idempotencyKey: string, amount: number): Promise<Rental> {
-    const body = { amount, idempotencyKey };
-    const data = await this.postJson(url, body);
+  /** Lo que contestó un cierre, o un error: un acuse que no es un alquiler no se da por bueno. */
+  private alquilerDe(data: unknown): Rental {
     const rental = normalizeRental(data);
     if (!rental) {
       throw new Error('El borde contestó algo que no es un alquiler.');

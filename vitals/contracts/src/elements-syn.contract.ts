@@ -36,10 +36,7 @@ export interface SynAlquilerSchema {
   readonly heading?: string;
   readonly subheading?: string;
   readonly category?: string;
-  readonly apiBase?: string;
-  readonly config?: string;
   readonly content?: string;
-  readonly integration?: string;
 }
 
 /** elementSynAppLauncher — tier:module → tag:<synergos-app-launcher> */
