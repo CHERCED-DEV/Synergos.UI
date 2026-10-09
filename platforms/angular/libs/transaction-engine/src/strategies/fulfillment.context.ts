@@ -50,9 +50,12 @@ export class FulfillmentContext {
     return this.resolve(request.session).pay(request);
   }
 
-  /** Step 4 — confirm every held line. */
-  async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
-    return this.resolve(session).confirm(session);
+  /** Step 4 — confirm every held line, with the same instrument `pay` received (ADR 0140 F4). */
+  async confirm(
+    session: SessionData,
+    instrument?: Readonly<Record<string, unknown>>,
+  ): Promise<FulfillmentConfirmation> {
+    return this.resolve(session).confirm(session, instrument);
   }
 
   private resolve(session: SessionData) {

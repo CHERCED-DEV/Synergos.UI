@@ -77,6 +77,13 @@ export interface CheckoutWizardConfig {
    * `{referencia}` se sustituye por la referencia que devolvió el `pay`.
    */
   readonly confirmFailedMessage: string;
+  /**
+   * El aviso que escribe el DOMINIO a partir del motivo que devolvió su estrategia (el `code`
+   * del rechazo) y de la referencia del cobro que quedó, si quedó alguno (ADR 0140 F4). Si
+   * devuelve texto, ése es EL aviso —uno solo: un dominio que escribe su aviso encima del del
+   * asistente crea dos `role="alert"` (regla 55)—; si devuelve `null`, quedan los dos de arriba.
+   */
+  readonly mensajeDeFallo?: (motivo: string, referenciaCapturada: string) => string | null;
   /** BCP-47 locale for the built-in price formatting. Default `es-CO`. */
   readonly locale?: string;
   /** Fraction digits for the built-in price formatting. Default 0. */
@@ -355,7 +362,9 @@ export class CheckoutWizardComponent {
         });
       }
 
-      const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession());
+      // El mismo instrumento que `pay`, también en el reintento que sólo confirma: es por donde
+      // el dominio le pasa a su estrategia lo que es de ESTE elemento (ADR 0140 F4).
+      const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession(), this.instrument());
       if (!confirmation.confirmed) {
         throw new Error(confirmation.reason || 'not-confirmed');
       }
@@ -368,7 +377,7 @@ export class CheckoutWizardComponent {
       // Lo que decide el mensaje no es POR QUÉ falló: es si el servidor ya se llevó
       // el cobro. Se relee de la sesión porque este mismo intento pudo haberlo
       // dejado escrito antes de fallar al confirmar.
-      this.errorMessage.set(this.failureMessage(this.capturedReference()));
+      this.errorMessage.set(this.failureMessage(reason, this.capturedReference()));
       this.failed.emit(reason);
     } finally {
       this.processing.set(false);
@@ -376,8 +385,12 @@ export class CheckoutWizardComponent {
   }
 
   /** El aviso de fallo: el que el dominio escribió para lo que QUEDÓ (ver la config). */
-  private failureMessage(capturedReference: string): string {
+  private failureMessage(reason: string, capturedReference: string): string {
     const config = this.config();
+    const delDominio = config.mensajeDeFallo?.(reason, capturedReference);
+    if (delDominio) {
+      return delDominio;
+    }
     return capturedReference
       ? config.confirmFailedMessage.replaceAll('{referencia}', capturedReference)
       : config.payFailedMessage;

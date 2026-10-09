@@ -106,8 +106,16 @@ export interface IFulfillmentStrategy {
   /** Step 3 — take a single payment for the whole cart. */
   pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult>;
 
-  /** Step 4 — confirm every held line, returning a voucher per item. */
-  confirm(session: SessionData): Promise<FulfillmentConfirmation>;
+  /**
+   * Step 4 — confirm every held line, returning a voucher per item.
+   *
+   * `instrument` es el mismo que recibió `pay`, y llega también en el reintento que sólo
+   * confirma (ADR 0140 F4). Viaja por llamada a propósito: la app se crea una vez por etiqueta,
+   * así que hay UNA estrategia por página y lo que pertenece a un elemento —su host— no puede
+   * vivir en un campo de la estrategia (regla 60); y entre `pay` y `confirm` la página puede
+   * recargarse (regla 20). Opcional: las estrategias que no lo necesitan no cambian.
+   */
+  confirm(session: SessionData, instrument?: Readonly<Record<string, unknown>>): Promise<FulfillmentConfirmation>;
 }
 
 /**
@@ -148,5 +156,8 @@ export abstract class FulfillmentStrategyBase implements IFulfillmentStrategy {
     session: SessionData,
   ): Promise<FulfillmentSelection>;
   abstract pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult>;
-  abstract confirm(session: SessionData): Promise<FulfillmentConfirmation>;
+  abstract confirm(
+    session: SessionData,
+    instrument?: Readonly<Record<string, unknown>>,
+  ): Promise<FulfillmentConfirmation>;
 }

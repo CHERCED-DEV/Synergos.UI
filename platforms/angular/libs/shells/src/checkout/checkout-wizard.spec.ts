@@ -55,8 +55,15 @@ class SpecStrategy extends FulfillmentStrategyBase {
       : { accepted: false, reason: 'rejected-by-spec' };
   }
 
-  override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
+  /** Lo que recibió cada `confirm` como instrumento (ADR 0140 F4). */
+  readonly confirmInstruments: (Readonly<Record<string, unknown>> | undefined)[] = [];
+
+  override async confirm(
+    session: SessionData,
+    instrument?: Readonly<Record<string, unknown>>,
+  ): Promise<FulfillmentConfirmation> {
     this.confirmCalls += 1;
+    this.confirmInstruments.push(instrument);
     if (!this.confirmOk) {
       return { confirmed: false, vouchers: [], reason: 'confirm-unreachable' };
     }
@@ -340,5 +347,65 @@ describe(CheckoutWizardComponent.name, () => {
     expect(store.session().payments).toHaveLength(1);
     expect(host.result?.reference).toBe('REF-1');
     expect(store.session().status).toBe('confirmed');
+  });
+
+  // ── ADR 0140 F4 · lo que es del elemento viaja por llamada ──────────────────
+  it('confirm recibe el MISMO instrumento que pay, también en el reintento que sólo confirma', async () => {
+    const fixture = await createHost();
+    store.addItem(cartItem('a', 50_000));
+    fixture.detectChanges();
+
+    strategy.confirmOk = false;
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+
+    strategy.confirmOk = true;
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+
+    // Una estrategia por página: el host de ESTE elemento no puede vivir en un campo suyo.
+    expect(strategy.payCalls).toBe(1);
+    expect(strategy.confirmInstruments).toEqual([{ provider: 'spec-psp' }, { provider: 'spec-psp' }]);
+  });
+
+  it('mensajeDeFallo: si el dominio da un texto por el motivo, ése es EL aviso —uno solo—; si da null, quedan los del asistente', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    host.config.set({
+      ...THREE_STEPS,
+      mensajeDeFallo: (motivo, referencia) =>
+        motivo === 'rejected-by-spec' ? `El dominio dice: ${motivo}${referencia ? ` (${referencia})` : ''}` : null,
+    });
+    store.addItem(cartItem('a', 50_000));
+    strategy.acceptPay = false;
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+
+    const alertas = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]');
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0]?.textContent?.trim()).toBe('El dominio dice: rejected-by-spec');
+
+    // Otro motivo, el del confirm que no salió: el dominio no lo nombra y vuelve el del asistente.
+    strategy.acceptPay = true;
+    strategy.confirmOk = false;
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+    const otra = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]');
+    expect(otra).toHaveLength(1);
+    expect(otra[0]?.textContent).toContain('REF-2');
+    expect(otra[0]?.textContent).toContain('no se te cobrará de nuevo');
   });
 });
