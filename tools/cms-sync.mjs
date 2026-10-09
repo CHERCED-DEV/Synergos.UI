@@ -232,8 +232,10 @@ function buildModelFile(kebab, props) {
   const pascal = kebabToPascal(kebab);
   // El audit pide modelos con shape `field: type` (ver parseModelFields
   // regex en element-contract-audit.mjs: `/^\s{2}([A-Za-z0-9]+)\??:\s*[^;]+;$/`).
-  // Emitimos config opcional + props del schema CMS como string.
-  const propLines = props.map(p => `  ${p}?: string;`).join('\n');
+  // Emitimos config opcional + props del schema CMS como string. Un DocType que declara su
+  // PROPIO `config` (los verticales: blogs, storefront, alquiler) lo traía dos veces, y una
+  // clave repetida en una interface es TS2300: el modelo generado no compilaba.
+  const propLines = props.filter(p => p !== 'config').map(p => `  ${p}?: string;`).join('\n');
   return `${AUTO_GEN_BANNER}
 export interface ${pascal}Inputs {
   config?: string;

@@ -802,6 +802,10 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-testimonial-section',
     map: (d) => toRecord(d),
   },
+  elementSynAlquiler: {
+    tag: 'synergos-alquiler',
+    map: (d) => toRecord(d),
+  },
 };
 
 export function mapBlockToElementResult(block: BlockConfig): BlockMappingResult {
