@@ -222,12 +222,37 @@ function claseDelMotivo(motivo: string): ClaseDeRechazo {
   return clasificarRechazo({ code: motivo, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} });
 }
 
+/**
+ * El parámetro de la consulta con el que llega la compra del enlace del aviso. Es el de
+ * `Synergos:Puerta:Flujos:eventos.compra:Aviso:Ruta` del CMS (`/eventos/?compra={id}`).
+ */
+export const PARAMETRO_DE_LA_COMPRA = 'compra';
+
 /** La compra del enlace del aviso: `?compra={id}` en la consulta de la página. Vacío sin ella. */
 function compraDelEnlace(): string {
   if (typeof window === 'undefined') {
     return '';
   }
-  return new URLSearchParams(window.location.search).get('compra')?.trim() ?? '';
+  return new URLSearchParams(window.location.search).get(PARAMETRO_DE_LA_COMPRA)?.trim() ?? '';
+}
+
+/**
+ * La consulta de la página SIN la compra del enlace: `?compra=` se usa una vez, y lo que quede en la
+ * URL lo vuelve a abrir cualquier recarga o vuelta del login de esa pestaña (ADR 0140 F4).
+ */
+function consultaSinLaCompra(): string {
+  const consulta = new URLSearchParams(window.location.search);
+  consulta.delete(PARAMETRO_DE_LA_COMPRA);
+  const texto = consulta.toString();
+  return texto ? `?${texto}` : '';
+}
+
+/** Saca `?compra=` de la URL sin recargar ni tocar el hash ni el historial. */
+function consumirCompraDelEnlace(): void {
+  if (typeof window === 'undefined' || !new URLSearchParams(window.location.search).has(PARAMETRO_DE_LA_COMPRA)) {
+    return;
+  }
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${consultaSinLaCompra()}${window.location.hash}`);
 }
 
 let eventosInstanceId = 0;
@@ -300,6 +325,12 @@ export class EventosElementComponent implements OnInit {
    * esta página. Se dice, y no se toca la red; NUNCA se vuelve a la ruta vieja.
    */
   readonly sinCoordinador = signal(false);
+
+  /**
+   * La compra del enlace del aviso, ya fuera de la URL: sólo el panel del enlace sin sesión la
+   * devuelve al `returnUrl` del login, para que al volver se abra. Otra compra no la arrastra.
+   */
+  #compraDelEnlace = '';
 
   /** Lo que dice el panel del enlace del aviso sin sesión (sección `Events.Purchase`). */
   readonly textoDelEnlace = t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
@@ -1022,8 +1053,12 @@ export class EventosElementComponent implements OnInit {
       void this.loadManage().then(() => this.applyHash());
     } else {
       // El enlace del correo del aviso trae la compra en la CONSULTA (`/eventos/?compra={id}`, ADR
-      // 0140 F4), no en el hash: abre sus entradas en vez de la ruta del hash.
+      // 0140 F4), no en el hash: abre sus entradas en vez de la ruta del hash. Se CONSUME: si se
+      // quedara en la URL, una recarga o la vuelta del login en medio de otra compra de esta
+      // pestaña abriría otra vez ésta y diría «¡Compra confirmada!» de la que no es.
       const compra = compraDelEnlace();
+      this.#compraDelEnlace = compra;
+      consumirCompraDelEnlace();
       void this.runSearch().then(() => (compra ? this.abrirCompraDelEnlace(compra) : this.applyHash()));
     }
   }
@@ -1051,6 +1086,7 @@ export class EventosElementComponent implements OnInit {
       this.errorMessage.set(this.mensajeDelEnlace(r.rechazo));
       return;
     }
+    this.#compraDelEnlace = '';
     this.orderRef.set(id);
     this.tickets.set(r.valor.tickets);
     this.walletLoaded.set(false);
@@ -1920,12 +1956,20 @@ export class EventosElementComponent implements OnInit {
   /**
    * Login del CMS de vuelta a ESTA página. Método y no `computed`: el hash cambia con la
    * navegación y un computed cacheado devolvería el de la primera lectura.
+   *
+   * `?compra=` viaja SÓLO desde el panel del enlace sin sesión (la vista `compra`): es la compra que
+   * esa persona vino a ver. Desde cualquier otra vista, el login vuelve a lo que estaba haciendo.
    */
   loginUrl(): string {
     if (typeof window === 'undefined') {
       return '/account/login';
     }
-    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const consulta = new URLSearchParams(consultaSinLaCompra());
+    if (this.view() === 'compra' && this.#compraDelEnlace) {
+      consulta.set(PARAMETRO_DE_LA_COMPRA, this.#compraDelEnlace);
+    }
+    const texto = consulta.toString();
+    const here = `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`;
     return `/account/login?returnUrl=${encodeURIComponent(here)}`;
   }
 

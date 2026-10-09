@@ -869,6 +869,50 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     }
   });
 
+  /** Una recarga de la página: el elemento se desmonta y vuelve a montarse con la URL de ese momento. */
+  async function recargar(): Promise<void> {
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    await createComponent();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  it('?compra= se consume al abrirla: sale de la URL, y una recarga en medio de OTRA compra no vuelve a «¡Compra confirmada!» de la vieja', async () => {
+    const borde = bordeDeEventos();
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-77', borde);
+      expect(component.view()).toBe('confirmed');
+      expect(window.location.search).toBe('');
+
+      // Desde la confirmación, otra compra en la MISMA pestaña: «Explorar más eventos», su carrito, y F5.
+      component.startOver();
+      window.location.hash = '#/eventos/carrito';
+      await recargar();
+
+      expect(component.view()).toBe('cart');
+      expect(component.orderRef()).toBe('');
+      expect(alArtefacto(borde)).toEqual(['GET entradas /api/eventos/compras/pta-77/entradas']);
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
+  it('el returnUrl del login de OTRA compra no arrastra ?compra=: sólo el panel del enlace sin sesión lo lleva', async () => {
+    const borde = bordeDeEventos();
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-77', borde);
+      component.startOver();
+      window.location.hash = '#/eventos/carrito';
+
+      const vuelta = decodeURIComponent(component.loginUrl().split('returnUrl=')[1] ?? '');
+      expect(vuelta).toBe('/eventos/#/eventos/carrito');
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
   it('una compra ajena o inexistente (404) y una que no se completó (409) se dicen por su code', async () => {
     const ajena = bordeDeEventos({
       rechazos: { 'GET entradas': [{ status: 404, code: 'eventos.purchase_not_found', title: 'Not Found' }] },
