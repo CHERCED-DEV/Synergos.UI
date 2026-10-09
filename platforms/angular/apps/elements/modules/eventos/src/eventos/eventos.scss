@@ -691,8 +691,7 @@
     border: 0;
   }
 
-  &__attendee,
-  &__buyer {
+  &__attendee {
     display: flex;
     flex-direction: column;
     gap: syn.$space-sm;
@@ -732,12 +731,6 @@
       outline: syn.px-to-rem(2) solid var(--ev-focus-ring);
       outline-offset: syn.px-to-rem(1);
     }
-  }
-
-  &__review-buyer {
-    margin: syn.$space-sm 0 0;
-    font-size: syn.px-to-rem(13);
-    color: var(--ev-text-secondary);
   }
 
   &__confirm-badge {

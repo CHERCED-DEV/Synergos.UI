@@ -12,20 +12,17 @@ import {
   type SessionItem,
   type SessionParty,
 } from '@synergos/transaction-engine';
-import { EventosApiClient, type ConfirmContext } from './eventos-api.client';
+import type { BffEventos } from '@synergos/contracts';
+import { EventosApiClient } from './eventos-api.client';
 import {
   EVENTOS_FLOW,
   EVENTOS_KIND,
   type Attendee,
-  type Buyer,
   type CatalogCriteria,
-  type CheckoutItem,
-  type CheckoutResult,
-  type ConfirmResult,
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
-import { aMenores } from '@synergos/vitals-core';
+import { aMenores, abrirCompraDeEventos, cerrarCompraDeEventos } from '@synergos/vitals-core';
 
 /** Criteria the shell hands the strategy on `search`. */
 interface EventosSearchCriteria {
@@ -33,13 +30,19 @@ interface EventosSearchCriteria {
   readonly criteria: CatalogCriteria;
 }
 
-/** PSP instrument the SH-3 wizard hands the strategy on `pay`. */
+/**
+ * Lo que el asistente SH-3 le pasa a la estrategia en `pay` Y en `confirm` (ADR 0140 F4).
+ *
+ * `host` es el `<synergos-eventos>` de ESTA compra: desde él se encuentra, por ancestro, su
+ * `<synergos-flujo>`. Viaja por llamada porque hay UNA estrategia por página (la app se crea una
+ * vez por etiqueta) y un campo suyo cruzaría dos instancias (regla 60).
+ */
 interface EventosPayInstrument {
+  readonly host: Element;
   readonly apiBase: string;
-  readonly eventId: string;
   readonly attendees: readonly Attendee[];
-  readonly buyer: Buyer;
-  /** Event context threaded to `confirm` for the wallet ("mis tickets"). */
+  /** El evento de la compra, para la billetera ("mis tickets"). */
+  readonly eventId?: string;
   readonly eventTitle?: string;
   readonly venueName?: string;
   readonly startsAt?: string;
@@ -51,13 +54,12 @@ interface EventosPayInstrument {
  * shell calls the engine's <c>FulfillmentContext</c> and never knows this class
  * answered; the provider routes by `flow === 'eventos'`.
  *
- * `search`/`select`/`pay`/`confirm` map onto the backend contract via
- * <c>EventosApiClient</c>: the catalogue degrades to mock data when its read endpoint
- * is not yet wired, but **the order and the e-tickets never do** — `pay` and `confirm`
- * contestan que no cuando el borde no abrió la orden o no emitió las entradas (UI#92).
- * The cart is multi-line (one line per
- * tier selection; reserved-seating carries its seat ids); "confirmed" means the
- * e-tickets (QR) are issued. Free events resolve `pay` to an accepted no-op.
+ * **La compra va por la puerta** (ADR 0140 F4): `pay` la ABRE —aparta y autoriza— y anota los
+ * asistentes; `confirm` la CIERRA —captura— y pide las entradas. Abrir y cerrar no salen de acá:
+ * se le piden al `<synergos-flujo>` ancestro del elemento, que las lleva a la puerta con el
+ * cliente generado. Sin coordinador la compra contesta que no, con `cliente.sin_coordinador`, y
+ * **nunca vuelve a la ruta vieja** (`/api/eventos/checkout|confirm`): dos caminos para la misma
+ * intención abren dos órdenes, y el retiro exige cero usos. Los rechazos vuelven como su `code`.
  */
 @Injectable()
 export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
@@ -66,9 +68,6 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
 
   readonly #api = inject(EventosApiClient);
   readonly #store = inject(SessionStore);
-
-  /** Event context captured on `pay`, threaded into `confirm` for the wallet. */
-  #confirmContext: ConfirmContext = {};
 
   /** Step 1 — catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
@@ -121,62 +120,81 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     return { item };
   }
 
-  /** Step 3 — one PSP order for the whole cart (or free order). */
+  /**
+   * Step 3 — ABRIR la compra por la puerta y anotar sus asistentes.
+   *
+   * La llave de idempotencia es la de la INTENCIÓN: `SessionData.sessionId`, nueva en cada
+   * selección y persistida, así que sobrevive a la recarga y al login. Con la misma llave y una
+   * saga en curso el orquestador devuelve esa saga; con una deshecha, la reabre. El total que se
+   * cobra es el del servidor —con su comisión—, y la sesión pasa a decirlo: es el que el asistente
+   * anota y compara después. Devuelve como referencia el id de la saga.
+   */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
-    const apiBase = instrument.apiBase ?? '';
-    const eventId =
-      instrument.eventId ?? (request.session.items[0]?.productRef ?? '');
-    const attendees = instrument.attendees ?? [];
-    const buyer: Buyer = instrument.buyer ?? { name: '', email: '' };
     if (request.session.items.length === 0) {
       return { accepted: false, reason: 'empty-cart' };
     }
-    const items = toCheckoutItems(request.session);
-    const currency = request.session.pricing.currency;
-
-    // The SH-3 wizard drives pay→confirm off the store; persist the attendees as
-    // parties + stash the event context so `confirm` issues one e-ticket per
-    // attendee and the wallet reads meaningfully (no shell coupling).
+    const host = instrument.host;
+    if (!(host instanceof Element)) {
+      return { accepted: false, reason: 'cliente.sin_coordinador' };
+    }
+    const cuerpo: BffEventos.BuyTicketsRequest = { eventId: eventIdOf(request.session), lines: toLines(request.session) };
+    const abierta = await abrirCompraDeEventos(host, cuerpo, request.session.sessionId);
+    if (!abierta.ok) {
+      return { accepted: false, reason: abierta.rechazo.code };
+    }
+    const compra = abierta.valor;
+    const total = aMenores(compra.importe, compra.moneda);
+    const sesion = this.#store.getValidSession();
+    const attendees = instrument.attendees ?? [];
     const parties: SessionParty[] = attendees.map((attendee, index) => ({
       id: `att-${index + 1}`,
       fullName: attendee.name,
       email: attendee.email,
       details: { document: attendee.document },
     }));
-    this.#store.setSession({ ...this.#store.getValidSession(), parties });
-    this.#confirmContext = {
-      eventId,
-      eventTitle: instrument.eventTitle ?? eventSelectionTitle(request.session),
-      venueName: instrument.venueName ?? '',
-      startsAt: instrument.startsAt ?? '',
-      buyer,
-    };
+    this.#store.setSession({
+      ...sesion,
+      parties,
+      pricing: { ...sesion.pricing, currency: compra.moneda, totalAmount: total, balanceDue: total },
+    });
 
-    // Si el borde no abrió la orden, NO se acepta (UI#92): el cliente fabricaba un
-    // `MOCK-<ts>` con su `psp_mock_…` y esto lo daba por bueno, así que el asistente
-    // seguía a confirmar contra una orden que no existe. Nada se cobró: el asistente dice
-    // su `payFailedMessage` y volver a pulsar abre la orden otra vez.
-    let checkout: CheckoutResult;
-    try {
-      checkout = await this.#api.checkout(apiBase, eventId, items, attendees, buyer, currency);
-    } catch (error) {
-      void error;
-      return { accepted: false, reason: 'checkout-not-opened' };
+    const anotados = await this.#api.anotarAsistentes(instrument.apiBase ?? apiBaseOf(request.session), compra.id, attendees);
+    if (!anotados.ok) {
+      // La saga queda abierta —apartada y autorizada, sin cobrar—: volver a pulsar abre con la
+      // MISMA llave, el orquestador devuelve esa saga, y se anotan otra vez.
+      return { accepted: false, reason: anotados.rechazo.code };
     }
-    return { accepted: true, reference: checkout.orderRef };
+    return { accepted: true, reference: compra.id };
   }
 
   /**
-   * Step 4 — confirm the order, issuing one e-ticket (QR) per attendee/seat.
+   * Step 4 — CERRAR la compra (captura) y pedir sus entradas.
    *
-   * **Si el borde no emitió las entradas, esto NO confirma** (UI#92). El asistente
-   * conserva la orden ya abierta en la sesión y dice su `confirmFailedMessage`: volver a
-   * pulsar repite SÓLO la confirmación, que el borde resuelve por `orderRef` — no abre
-   * otra orden ni otro cobro (CMS#117).
+   * **Si cerrar falla sin ser transitorio, la saga ya se deshizo** (el orquestador compensa y
+   * devuelve el rechazo original): reintentar cerrar contestaría `eventos.not_confirmable` para
+   * siempre. Por eso el último pago de la sesión se marca `failed`, y el siguiente clic vuelve a
+   * `pay`, que abre con la MISMA llave y el orquestador reabre la saga deshecha. Si es transitorio
+   * el pago se queda como está y el reintento repite sólo cerrar, que es idempotente.
    */
-  override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
-    const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
+  override async confirm(
+    session: SessionData,
+    instrument?: Readonly<Record<string, unknown>>,
+  ): Promise<FulfillmentConfirmation> {
+    const datos = (instrument ?? {}) as Partial<EventosPayInstrument>;
+    const host = datos.host;
+    const id = session.payments[session.payments.length - 1]?.reference ?? '';
+    if (!(host instanceof Element)) {
+      return { confirmed: false, reason: 'cliente.sin_coordinador', vouchers: [] };
+    }
+    const cerrada = await cerrarCompraDeEventos(host, id);
+    if (!cerrada.ok) {
+      if (!cerrada.rechazo.transient) {
+        this.marcarElPagoFallido();
+      }
+      return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
+    }
+
     const attendees = (session.parties ?? []).map(
       (party): Attendee => ({
         name: party.fullName,
@@ -184,13 +202,18 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         document: typeof party.details?.['document'] === 'string' ? party.details['document'] : '',
       }),
     );
-    let confirmation: ConfirmResult;
-    try {
-      confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef, attendees, this.#confirmContext);
-    } catch (error) {
-      void error;
-      return { confirmed: false, reason: 'tickets-not-issued', vouchers: [] };
+    const entradas = await this.#api.entradas(datos.apiBase ?? apiBaseOf(session), id, attendees, {
+      eventId: datos.eventId ?? eventIdOf(session),
+      eventTitle: datos.eventTitle ?? eventSelectionTitle(session),
+      venueName: datos.venueName ?? '',
+      startsAt: datos.startsAt ?? '',
+    });
+    if (!entradas.ok) {
+      // La compra quedó cerrada y cobrada: el pago sigue capturado en la sesión, y el reintento
+      // repite cerrar (idempotente sobre una compra completa) y vuelve a pedir las entradas.
+      return { confirmed: false, reason: entradas.rechazo.code, vouchers: [] };
     }
+    const confirmation = entradas.valor;
     return {
       confirmed:
         confirmation.status.toLowerCase() === 'confirmed' ||
@@ -210,11 +233,17 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     };
   }
 
-  /** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */
-  private apiBaseOf(session: SessionData): string {
-    const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
-    const base = selection?.['apiBase'];
-    return typeof base === 'string' ? base.trim() : '';
+  /** El último pago de la sesión, `failed`: lo que el servidor deshizo ya no está cobrado. */
+  private marcarElPagoFallido(): void {
+    const sesion = this.#store.getValidSession();
+    const ultimo = sesion.payments.length - 1;
+    if (ultimo < 0) {
+      return;
+    }
+    this.#store.setSession({
+      ...sesion,
+      payments: sesion.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
+    });
   }
 
   private lineId(payload: TierSelectionPayload): string {
@@ -240,6 +269,20 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   }
 }
 
+/** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */
+function apiBaseOf(session: SessionData): string {
+  const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+  const base = selection?.['apiBase'];
+  return typeof base === 'string' ? base.trim() : '';
+}
+
+/** El evento de la compra, de la LÍNEA del carrito (sobrevive a la recarga y al login). */
+function eventIdOf(session: SessionData): string {
+  const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+  const id = selection?.['eventId'];
+  return typeof id === 'string' ? id : (session.items[0]?.productRef ?? '');
+}
+
 /** Read the event title from the first cart line's selection (best-effort). */
 function eventSelectionTitle(session: SessionData): string {
   const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
@@ -247,20 +290,23 @@ function eventSelectionTitle(session: SessionData): string {
   return typeof title === 'string' ? title : (session.items[0]?.label ?? '');
 }
 
-/** Expand the cart into the checkout contract's `items` (one per seat, else qty). */
-function toCheckoutItems(session: SessionData): readonly CheckoutItem[] {
-  const items: CheckoutItem[] = [];
+/**
+ * El carrito como las líneas de `BuyTicketsRequest`: una por butaca (cantidad 1) en lo numerado,
+ * y una por localidad con su cantidad en la admisión general.
+ */
+function toLines(session: SessionData): BffEventos.TicketLineRequest[] {
+  const lines: BffEventos.TicketLineRequest[] = [];
   for (const line of session.items) {
     const selection = line.selection as Record<string, unknown>;
     const tier = typeof selection['tierId'] === 'string' ? selection['tierId'] : line.productRef;
     const seats = Array.isArray(selection['seats']) ? (selection['seats'] as string[]) : [];
     if (seats.length > 0) {
       for (const seat of seats) {
-        items.push({ tier, seat, qty: 1 });
+        lines.push({ quantity: 1, tier, seat });
       }
     } else {
-      items.push({ tier, qty: Math.max(1, line.quantity) });
+      lines.push({ quantity: Math.max(1, line.quantity), tier });
     }
   }
-  return items;
+  return lines;
 }

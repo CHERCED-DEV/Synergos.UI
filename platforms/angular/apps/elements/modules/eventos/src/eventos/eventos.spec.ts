@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
+import { FULFILLMENT_STRATEGIES, SessionStore } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { EventosApiClient } from './eventos-api.client';
 import { EventosFulfillmentStrategy } from './eventos-fulfillment.strategy';
@@ -9,6 +9,7 @@ import { EVENTOS_RELOJ, EventosElementComponent } from './eventos';
 import { comisionEnMenores } from './eventos-comision';
 import { asentar } from '../../../../../../tools/asentar';
 import { EVENTOS_SYNHOST } from '@synergos/contracts';
+import { aMenores, definirCoordinador } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = {
@@ -44,35 +45,79 @@ async function flushMicrotasks(times = 8): Promise<void> {
 
 type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+/** Un rechazo con la forma del de verdad: problem+json con `code` y `transient`, y `title` = la frase HTTP. */
+interface RechazoDelBorde {
+  readonly status: number;
+  readonly code: string;
+  readonly transient?: boolean;
+  readonly title?: string;
+}
+
+/** Lo que el borde vio de cada petición. */
+interface PeticionVista {
+  readonly clave: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly correlacion: string | null;
+  readonly cuerpo: Record<string, unknown>;
+}
+
 /**
- * Un borde de eventos que contesta las ESCRITURAS con la forma del de verdad y se apaga
- * por MÉTODO y ruta (UI#92; reglas 16, 18 y 38).
+ * El borde de la compra por la PUERTA (ADR 0140 F4) y de las escrituras que siguen en el
+ * controller, con la forma del de verdad y apagable por clave (UI#92; reglas 16, 18 y 38).
  *
- * Las formas son las de `EventosController` del CMS: `CheckoutResponse`, `ConfirmResponse`
- * con sus `EventTicketDto`, `TransferResponse` (con `status`, `to` y `ticketId` en la raíz),
- * `CreateEventResponse` y `CheckInResponse`. El check-in lleva ESTADO, como el de verdad:
- * la primera vez es `valid`, la segunda `already-used`, y lo que no emitió es `invalid`.
+ *  - `POST abrir` → `/api/flujos/eventos.compra/abrir`: 201 `TicketPurchaseResponse` (la saga
+ *    `pta-77`, `Running`, con el total DEL SERVIDOR y lo apartado). La misma llave devuelve la
+ *    misma saga, y una saga deshecha se reabre con ella: lo que hace el orquestador.
+ *  - `POST cerrar` → `/api/flujos/eventos.compra/cerrar?id=…`: 200 `Completed`.
+ *  - `POST asistentes` y `GET entradas` → el artefacto, `/api/eventos/compras/{id}/…`.
+ *  - `POST /ticket/{id}/transfer`, `POST /event` y `POST /checkin`, como antes. El check-in lleva
+ *    ESTADO: `valid`, después `already-used`, y lo que no emitió es `invalid`.
  *
- * **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): la orden es
- * `evord_77` (el `catch` acuñaba `MOCK-<ts>`), la entrada `tkt_77_1` con el QR
- * `QR-SERVIDOR-77-1` (allá `TKT-<orden>-1` con un `SYN1|…` hecho en el navegador) y el
- * evento `evt_77` con un slug que `slugify(título)` no da.
+ * `caidas` apaga una clave (la red no contesta); `rechazos` pone en cola los «no» de una clave, uno
+ * por llamada, y después contesta bien. Todo es un `Response` de verdad: el transporte lee sus
+ * cabeceras. **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): la saga
+ * `pta-77`, la entrada `tkt_77_1` con el QR `QR-SERVIDOR-77-1` y el evento `evt_77`.
  *
- * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel).
+ * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel). La
+ * ruta vieja (`/checkout`, `/confirm`) no la sirve: el UI no vuelve a ella, y si la pidiera el
+ * `afterEach` del bloque lo pone en rojo.
  */
-function bordeDeEventos(opciones: { readonly caidas?: readonly string[] } = {}): {
+function bordeDeEventos(
+  opciones: {
+    readonly caidas?: readonly string[];
+    readonly rechazos?: Readonly<Record<string, readonly RechazoDelBorde[]>>;
+    readonly total?: number;
+  } = {},
+): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
   readonly llamadas: (clave: string) => number;
+  readonly vistas: () => readonly PeticionVista[];
   readonly encender: (clave: string) => void;
 } {
   const caidas = new Set(opciones.caidas ?? []);
-  const vistas: string[] = [];
+  const rechazos = new Map(Object.entries(opciones.rechazos ?? {}).map(([clave, lista]) => [clave, [...lista]]));
+  const vistas: PeticionVista[] = [];
   const quemadas = new Set<string>();
-  const responder = (status: number, body: unknown): Promise<Response> =>
-    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
-  const entrada = (estado: string) => ({
-    id: 'tkt_77_1',
-    qr: 'QR-SERVIDOR-77-1',
+  const total = opciones.total ?? 201_600;
+  let apartadas: { tier: string; seat: string | null; quantity: number }[] = [];
+  let estado = 'Running';
+  const responder = (status: number, body: unknown, tipo = 'application/json'): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': tipo } }));
+  const compra = () => ({
+    id: 'pta-77',
+    buyerKind: 'eventos.comprador',
+    buyerId: 'm-1',
+    eventId: 'evt_1',
+    status: estado,
+    total: { amount: total, currency: 'COP' },
+    held: apartadas,
+    pendingCompensations: 0,
+    lastError: null,
+  });
+  const entrada = (indice: number, estadoDeLaEntrada: string) => ({
+    id: `tkt_77_${indice}`,
+    qr: `QR-SERVIDOR-77-${indice}`,
     eventId: 'evt_1',
     attendeeName: 'Ada Lovelace',
     attendee: 'Ada Lovelace',
@@ -80,36 +125,63 @@ function bordeDeEventos(opciones: { readonly caidas?: readonly string[] } = {}):
     seat: null,
     holderEmail: 'ada@example.com',
     holder: 'ada@example.com',
-    status: estado,
+    status: estadoDeLaEntrada,
     eventTitle: 'Evento del servidor',
     venueName: 'Ágora',
     startsAt: '2026-11-14T20:00:00',
   });
+  const claveDe = (metodo: string, ruta: string): string => {
+    if (ruta === '/api/flujos/eventos.compra/abrir') return `${metodo} abrir`;
+    if (ruta === '/api/flujos/eventos.compra/cerrar') return `${metodo} cerrar`;
+    if (/^\/api\/eventos\/compras\/[^/]+\/asistentes$/.test(ruta)) return `${metodo} asistentes`;
+    if (/^\/api\/eventos\/compras\/[^/]+\/entradas$/.test(ruta)) return `${metodo} entradas`;
+    return `${metodo} ${ruta.replace(/^\/api\/eventos/, '').replace(/^\/ticket\/[^/]+\/transfer$/, '/ticket/{id}/transfer')}`;
+  };
 
   const fetchDoble = vi.fn<FetchDoble>((url, init) => {
     const metodo = (init?.method ?? 'GET').toUpperCase();
-    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/eventos/, '');
-    const clave = `${metodo} ${ruta.replace(/^\/ticket\/[^/]+\/transfer$/, '/ticket/{id}/transfer')}`;
-    vistas.push(clave);
-    if (caidas.has(clave)) {
-      return Promise.reject(new Error('offline'));
-    }
+    const direccion = new URL(String(url), 'http://borde.test');
+    const clave = claveDe(metodo, direccion.pathname);
+    const cabeceras = new Headers(init?.headers);
     const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+    vistas.push({ clave, url: `${direccion.pathname}${direccion.search}`, llave: cabeceras.get('Idempotency-Key'), correlacion: cabeceras.get('X-Correlation-Id'), cuerpo });
+    if (caidas.has(clave)) {
+      return Promise.reject(new TypeError('offline'));
+    }
+    const enCola = rechazos.get(clave)?.shift();
+    if (enCola) {
+      if (clave === 'POST cerrar' && !enCola.transient) {
+        // Cerrar que falla sin ser transitorio DESHACE la saga (el orquestador compensa).
+        estado = 'Compensated';
+      }
+      return responder(
+        enCola.status,
+        { type: 'about:blank', title: enCola.title ?? 'Conflict', status: enCola.status, detail: enCola.code, code: enCola.code, transient: enCola.transient === true },
+        'application/problem+json',
+      );
+    }
     switch (clave) {
-      case 'POST /checkout':
-        return responder(200, {
-          orderRef: 'evord_77',
-          paymentSessionId: 'psp_77',
-          amount: 180_000,
-          amountFormatted: '$ 180.000',
-          currency: 'COP',
-          free: false,
-        });
-      case 'POST /confirm':
-        return responder(200, { status: 'Paid', tickets: [entrada('valid')] });
+      case 'POST abrir': {
+        const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
+        apartadas = lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity }));
+        estado = 'Running';
+        return responder(201, compra());
+      }
+      case 'POST asistentes':
+        return responder(200, { id: 'pta-77', asistentes: Array.isArray(cuerpo['attendees']) ? cuerpo['attendees'].length : 0 });
+      case 'POST cerrar':
+        if (estado !== 'Running' && estado !== 'Completed') {
+          return responder(409, { title: 'Conflict', status: 409, code: 'eventos.not_confirmable', transient: false }, 'application/problem+json');
+        }
+        estado = 'Completed';
+        return responder(200, compra());
+      case 'GET entradas': {
+        const cuantas = Math.max(1, apartadas.reduce((n, a) => n + a.quantity, 0));
+        return responder(200, { status: 'Confirmed', tickets: Array.from({ length: cuantas }, (_sin, i) => entrada(i + 1, 'valid')) });
+      }
       case 'POST /ticket/{id}/transfer':
         return responder(200, {
-          ticket: entrada('transferred'),
+          ticket: entrada(1, 'transferred'),
           newQr: 'QR-NUEVO-77',
           status: 'transferred',
           to: cuerpo['to'],
@@ -127,22 +199,37 @@ function bordeDeEventos(opciones: { readonly caidas?: readonly string[] } = {}):
         if (codigo !== 'QR-SERVIDOR-77-1') {
           return responder(200, { status: 'invalid', ticketId: null, attendee: null });
         }
-        const estado = quemadas.has(codigo) ? 'already-used' : 'valid';
+        const resultado = quemadas.has(codigo) ? 'already-used' : 'valid';
         quemadas.add(codigo);
-        return responder(200, { status: estado, ticketId: 'tkt_77_1', attendee: 'Ada Lovelace' });
+        return responder(200, { status: resultado, ticketId: 'tkt_77_1', attendee: 'Ada Lovelace' });
       }
+      case 'POST /checkout':
+      case 'POST /confirm':
+        return responder(404, { code: 'ruta.vieja', transient: false });
       default:
-        return Promise.reject(new Error('offline'));
+        return Promise.reject(new TypeError('offline'));
     }
   });
 
   return {
     fetchDoble,
-    llamadas: (clave) => vistas.filter((vista) => vista === clave).length,
+    llamadas: (clave) => vistas.filter((vista) => vista.clave === clave).length,
+    vistas: () => vistas,
     encender: (clave) => {
       caidas.delete(clave);
     },
   };
+}
+
+/**
+ * Lo que la compra NO puede pedir nunca: la ruta vieja ni el cupón (ADR 0140 F4). Se mira en
+ * CADA spec que puso un `fetch` de mentira, en su `afterEach`.
+ */
+function rutasViejasPedidas(): string[] {
+  const doble = globalThis.fetch as unknown as { mock?: { calls: readonly (readonly unknown[])[] } };
+  return (doble.mock?.calls ?? [])
+    .map(([url]) => new URL(String(url), 'http://borde.test').pathname)
+    .filter((ruta) => /\/(checkout|confirm|promo)$/.test(ruta));
 }
 
 describe('EventosElementComponent (v2 sobre shells)', () => {
@@ -154,7 +241,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
    * del primer ciclo. Por defecto, la configuración de negocio que la vista emite con los valores
    * base del sitio (el `ejemplo` del contrato, ADR 0137), sin la cara que eligió esa muestra.
    */
-  async function createComponent(config: Record<string, unknown> = NEGOCIO_DEL_CMS): Promise<void> {
+  async function createComponent(config: Record<string, unknown> = NEGOCIO_DEL_CMS, conCoordinador = true): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [EventosElementComponent],
       providers: [
@@ -166,19 +253,35 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     fixture = TestBed.createComponent(EventosElementComponent);
     component = fixture.componentInstance;
+    // Como lo coloca el CMS (ADR 0140 F4): dentro de su <synergos-flujo>, que la compra
+    // encuentra por ancestro y que lleva sus pedidos a la puerta.
+    if (conCoordinador) {
+      const flujo = document.createElement('synergos-flujo');
+      flujo.setAttribute('flujo', 'eventos.compra');
+      document.body.appendChild(flujo);
+      flujo.appendChild(fixture.nativeElement as HTMLElement);
+    }
     fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
     // Initial catalogue search runs in the constructor; let it settle.
     await flushMicrotasks();
   }
 
+  beforeAll(() => definirCoordinador());
+
   afterEach(() => {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
     }
+    // Ningún spec pide la ruta vieja ni el cupón: la compra va por la puerta (ADR 0140 F4). Se
+    // lee ANTES de limpiar (el `fetch` de mentira se va con los globales) y se afirma DESPUÉS, para
+    // que un rojo acá no deje sucio el spec siguiente.
+    const viejas = rutasViejasPedidas();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+    expect(viejas).toEqual([]);
   });
 
   const alertas = (): string[] =>
@@ -186,7 +289,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
       (alerta) => alerta.textContent?.trim() ?? '',
     );
 
-  /** Drive catálogo → SH-2 ficha → selección → carrito → SH-3 wizard → confirm. */
+  /** Drive catálogo → SH-2 ficha → selección → carrito → SH-3 wizard → la compra por la puerta. */
   async function purchaseFirstGeneralEvent(
     antesDeEnviar: (wizard: CheckoutWizardComponent) => void = () => undefined,
   ): Promise<void> {
@@ -202,22 +305,20 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     component.setAttendeeField(0, 'name', 'Ada Lovelace');
     component.setAttendeeField(0, 'email', 'ada@example.com');
     component.setAttendeeField(0, 'document', 'CC123');
-    component.buyerName.set('Ada Lovelace');
-    component.buyerEmail.set('ada@example.com');
 
     component.goToCheckout();
     fixture.detectChanges();
 
     const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
       .componentInstance as CheckoutWizardComponent;
-    // asistentes → pago → revisar → submit (steps collapse for free events).
+    // asistentes → revisar → submit.
     while (!wizard.isLastStep()) {
       wizard.next();
       fixture.detectChanges();
     }
     antesDeEnviar(wizard);
-    wizard.next(); // submit → pay (POST /checkout) → confirm (POST /confirm)
-    await flushMicrotasks(30);
+    wizard.next(); // submit → pay (abrir + asistentes) → confirm (cerrar + entradas)
+    await flushMicrotasks(60);
     fixture.detectChanges();
   }
 
@@ -309,32 +410,49 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(host.querySelector('.eventos__hero-sub')?.textContent?.trim()).toBe('Y');
   });
 
-  // ── happy: catálogo → ficha → carrito(+fees) → SH-3 wizard → confirm + QR ─────
+  // ── happy: catálogo → ficha → carrito(+fees) → SH-3 por la PUERTA → entradas con QR ─
   //
-  // Corría con la red caída y lo que probaba era la orden `MOCK-<ts>` y las entradas con
-  // QR hecho en el navegador (UI#92, regla 16). Hoy el borde contesta con la forma de
-  // verdad y lo que se mira son la orden y el QR que emitió el SERVIDOR.
-  it('runs the full purchase lifecycle through the SH-3 wizard into e-tickets (happy case)', async () => {
+  // La compra va por el `<synergos-flujo>` que envuelve al elemento (ADR 0140 F4): abrir y cerrar
+  // por la puerta, los asistentes y las entradas por el artefacto, en ese orden. Lo que se mira es
+  // la saga y el QR que emitió el SERVIDOR, la llave de la intención y el total que él cobra.
+  it('compra por la puerta: abrir → asistentes → cerrar → entradas, con la llave de la intención y el total del servidor (happy case)', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos();
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
+    const compras: unknown[] = [];
+    component.purchased.subscribe((payload) => compras.push(payload));
 
-    await purchaseFirstGeneralEvent();
+    let llave = '';
+    await purchaseFirstGeneralEvent(() => (llave = TestBed.inject(SessionStore).session().sessionId));
+
+    const escrituras = borde.vistas().filter((vista) => !vista.clave.startsWith('GET /'));
+    expect(escrituras.map((vista) => vista.clave)).toEqual(['POST abrir', 'POST asistentes', 'POST cerrar', 'GET entradas']);
+    const [abrir, asistentes, cerrar, entradas] = escrituras;
+    expect(abrir!.url).toBe('/api/flujos/eventos.compra/abrir');
+    expect(llave).not.toBe('');
+    expect(abrir!.llave).toBe(llave);
+    expect(abrir!.correlacion).toMatch(/^[0-9a-f]{32}$/);
+    expect(abrir!.cuerpo).toEqual({ eventId: expect.any(String), lines: [{ quantity: 1, tier: expect.any(String) }] });
+    expect(asistentes!.url).toBe('/api/eventos/compras/pta-77/asistentes');
+    expect(asistentes!.cuerpo).toEqual({ attendees: [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC123' }] });
+    expect(cerrar!.url).toBe('/api/flujos/eventos.compra/cerrar?id=pta-77');
+    expect(cerrar!.llave).toBeNull();
+    expect(entradas!.url).toBe('/api/eventos/compras/pta-77/entradas');
 
     expect(component.view()).toBe('confirmed');
-    expect(component.orderRef()).toBe('evord_77');
+    expect(component.orderRef()).toBe('pta-77');
     expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
-    // Fees were applied on top of the ticket subtotal.
-    expect(component.feesMinor()).toBeGreaterThan(0);
-    expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
+    // El total que se cobra es el del servidor, con su comisión, y es el que la sesión dice.
+    expect(TestBed.inject(SessionStore).pricing().totalAmount).toBe(aMenores(201_600, 'COP'));
+    expect(compras).toEqual([expect.objectContaining({ orderRef: 'pta-77', tickets: 1 })]);
     expect(window.location.hash).toContain('/confirmacion');
   });
 
-  // ── UI#92: sin orden abierta no hay compra, ni entradas, ni anuncio ───────────
-  it('con el POST /checkout caído no cobra ni emite: lo dice una vez y no anuncia la compra', async () => {
+  // ── UI#92: sin compra abierta no hay cobro, ni entradas, ni anuncio ──────────────
+  it('con la puerta caída al abrir no cobra ni emite ni cierra: lo dice una vez y no anuncia la compra', async () => {
     installMemoryStorage();
-    const borde = bordeDeEventos({ caidas: ['POST /checkout'] });
+    const borde = bordeDeEventos({ caidas: ['POST abrir'] });
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
     const compras: unknown[] = [];
@@ -343,43 +461,188 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     await purchaseFirstGeneralEvent(fallos.escuchar);
 
-    // La estrategia CONTESTA que no abrió la orden; no revienta.
-    expect(fallos.motivos).toEqual(['checkout-not-opened']);
-
+    // La estrategia CONTESTA que no abrió, con el code del transporte; no revienta.
+    expect(fallos.motivos).toEqual(['cliente.sin_red']);
     expect(component.view()).not.toBe('confirmed');
     expect(component.tickets()).toEqual([]);
     expect(compras).toEqual([]);
-    expect(borde.llamadas('POST /confirm')).toBe(0);
+    expect(borde.llamadas('POST asistentes')).toBe(0);
+    expect(borde.llamadas('POST cerrar')).toBe(0);
     expect(alertas()).toEqual([asistente().config().payFailedMessage]);
   });
 
-  // ── UI#92: la orden quedó abierta y la emisión no — reintentar NO abre otra ──
-  it('con el POST /confirm caído no emite entradas; reintentar confirma la MISMA orden', async () => {
+  // ── cerrar que no salió: lo que quedó decide qué se dice y qué se repite ────────
+  it('cerrar transitorio (flow.busy): dice lo que quedó apartado; reintentar cierra la MISMA saga, sin otro abrir', async () => {
     installMemoryStorage();
-    const borde = bordeDeEventos({ caidas: ['POST /confirm'] });
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 503, code: 'flow.busy', transient: true, title: 'Service Unavailable' }] },
+    });
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
     const fallos = motivosDe();
 
     await purchaseFirstGeneralEvent(fallos.escuchar);
 
-    expect(fallos.motivos).toEqual(['tickets-not-issued']);
+    expect(fallos.motivos).toEqual(['flow.busy']);
     expect(component.view()).not.toBe('confirmed');
-    expect(component.tickets()).toEqual([]);
-    // El aviso nombra la orden que SÍ quedó, la del servidor.
-    expect(alertas()).toEqual([
-      asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'evord_77'),
-    ]);
+    // El aviso nombra la compra que SÍ quedó apartada, la del servidor.
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'pta-77')]);
 
-    borde.encender('POST /confirm');
     asistente().next();
-    await flushMicrotasks(30);
+    await flushMicrotasks(60);
     fixture.detectChanges();
 
     expect(component.view()).toBe('confirmed');
     expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
-    expect(borde.llamadas('POST /checkout')).toBe(1);
-    expect(borde.llamadas('POST /confirm')).toBe(2);
+    expect(borde.llamadas('POST abrir')).toBe(1);
+    expect(borde.vistas().filter((vista) => vista.clave === 'POST cerrar').map((vista) => vista.url)).toEqual([
+      '/api/flujos/eventos.compra/cerrar?id=pta-77',
+      '/api/flujos/eventos.compra/cerrar?id=pta-77',
+    ]);
+  });
+
+  it('cerrar que deshace la saga (pago rechazado): no se dice cobrado; reintentar ABRE con la MISMA llave y completa', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 402, code: 'payments.payment_declined', title: 'Payment Required' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['payments.payment_declined']);
+    // Un solo aviso, por el code, y sin decir que se cobró: la saga se deshizo.
+    expect(alertas()).toEqual(['Tu pago fue rechazado y no se te cobró nada.']);
+
+    asistente().next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    const abiertas = borde.vistas().filter((vista) => vista.clave === 'POST abrir');
+    expect(abiertas).toHaveLength(2);
+    // La MISMA intención: el orquestador reabre la saga deshecha en vez de abrir otra.
+    expect(abiertas[1]!.llave).toBe(abiertas[0]!.llave);
+    expect(borde.llamadas('POST cerrar')).toBe(2);
+  });
+
+  it('una sesión que vence a mitad de la compra (401 del artefacto) lleva al panel de sesión, sin cerrar nada', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST asistentes': [{ status: 401, code: 'puerta.sesion_requerida', title: 'Unauthorized' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+    fixture.detectChanges();
+
+    expect(fallos.motivos).toEqual(['puerta.sesion_requerida']);
+    expect(component.view()).toBe('checkout');
+    expect(panelDeSesion()).not.toBeNull();
+    expect(asistenteMontado()).toBe(false);
+    expect(borde.llamadas('POST cerrar')).toBe(0);
+  });
+
+  it('sin <synergos-flujo> arriba, la compra dice que no está disponible y no pide nada: ni la puerta ni la ruta vieja', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(NEGOCIO_DEL_CMS, false);
+    await ponerEntradasEnCarrito();
+    component.setAttendeeField(0, 'name', 'Ada Lovelace');
+    component.setAttendeeField(0, 'email', 'ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+
+    expect(component.sinCoordinador()).toBe(true);
+    expect(asistenteMontado()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__denied')?.textContent).toContain(
+      'La compra en línea no está disponible en este momento.',
+    );
+    // Y la estrategia, si alguien la llamara igual, tampoco sale a la red.
+    const [estrategia] = TestBed.inject(FULFILLMENT_STRATEGIES);
+    const pago = await estrategia!.pay({
+      session: TestBed.inject(SessionStore).getValidSession(),
+      instrument: component.checkoutInstrument(),
+    });
+    expect(pago).toEqual({ accepted: false, reason: 'cliente.sin_coordinador' });
+    expect(borde.vistas().filter((vista) => vista.clave.startsWith('POST'))).toEqual([]);
+  });
+
+  // ── la traducción por code (ADR 0136): el respaldo es-CO, y con el bridge, la clave ─
+  it('un «no» del negocio se dice por su code (inventory.insufficient_stock), una vez y en español', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 409, code: 'inventory.insufficient_stock', title: 'Conflict' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    await purchaseFirstGeneralEvent();
+
+    expect(alertas()).toEqual(['No quedan entradas suficientes para tu selección.']);
+    expect(borde.llamadas('POST cerrar')).toBe(0);
+  });
+
+  it('con el bridge, el «no» es la clave `Events.Purchase` que publicó la página (t() pinta su respaldo si no llegó)', async () => {
+    (window as { synergos?: unknown }).synergos = {
+      member: { key: 'm-1', displayName: 'Ada Lovelace', email: 'ada@example.com', roles: [] },
+      i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Events.Purchase.SoldOut': 'Not enough tickets left.' } },
+    };
+    try {
+      installMemoryStorage();
+      const borde = bordeDeEventos({
+        rechazos: { 'POST abrir': [{ status: 409, code: 'inventory.insufficient_stock', title: 'Conflict' }] },
+      });
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent();
+
+      await purchaseFirstGeneralEvent();
+
+      expect(alertas()).toEqual(['Not enough tickets left.']);
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
+
+  it('gratis: sin paso de pago, abrir con total 0 y cerrar sin cobro, y sus entradas', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 0 });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    component.openEvent(component.events().find((e) => e.fromAmount <= 0)!);
+    await flushMicrotasks();
+    component.startSelection();
+    component.proceedToCart();
+    await flushMicrotasks();
+    component.setAttendeeField(0, 'name', 'Ada Lovelace');
+    component.setAttendeeField(0, 'email', 'ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+
+    expect(component.checkoutConfig().steps.map((paso) => paso.id)).toEqual(['asistentes', 'revisar']);
+    expect(component.checkoutConfig().submitLabel).toBe('Confirmar registro');
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.vistas().filter((vista) => !vista.clave.startsWith('GET /')).map((vista) => vista.clave)).toEqual([
+      'POST abrir',
+      'POST asistentes',
+      'POST cerrar',
+      'GET entradas',
+    ]);
+    expect(TestBed.inject(SessionStore).pricing().totalAmount).toBe(0);
   });
 
   // ── ADR 0140 F4: lo que dice un registro gratis sale del diccionario ─────────
@@ -529,13 +792,12 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(asistenteMontado()).toBe(true);
   });
 
-  it('con miembro, el asistente con la primera fila y el comprador precargados con el miembro', async () => {
+  it('con miembro, el asistente con la primera fila precargada con el miembro', async () => {
     try {
       await alCheckoutCon({ member: { key: 'm-1', displayName: 'Ada Lovelace', email: 'ada@ejemplo.co', roles: [] } });
       expect(panelDeSesion()).toBeNull();
       expect(asistenteMontado()).toBe(true);
       expect(component.attendees()[0]).toMatchObject({ name: 'Ada Lovelace', email: 'ada@ejemplo.co' });
-      expect([component.buyerName(), component.buyerEmail()]).toEqual(['Ada Lovelace', 'ada@ejemplo.co']);
     } finally {
       delete (window as { synergos?: unknown }).synergos;
     }
@@ -1045,24 +1307,32 @@ describe('EventosApiClient', () => {
 
   const CONTEXTO = { eventId: 'evt_1', eventTitle: 'Evento X', venueName: 'Ágora', startsAt: '2026-08-14T09:00:00' };
 
-  it('emite las entradas que devuelve el borde, las siembra en la billetera y valida en la puerta', async () => {
-    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
+  it('anota los asistentes y lee las entradas por el artefacto, las siembra en la billetera y valida en la puerta', async () => {
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
     const client = createClient();
+    const ada = [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC9' }];
 
-    const confirmation = await client.confirm(
-      '/api/eventos',
-      'evord_77',
-      [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC9' }],
-      CONTEXTO,
-    );
-    expect(confirmation.tickets.map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
-    const id = confirmation.tickets[0].id;
+    const anotados = await client.anotarAsistentes('/api/eventos', 'pta-77', ada);
+    expect(anotados.ok).toBe(true);
+    expect(borde.vistas().at(-1)).toMatchObject({
+      clave: 'POST asistentes',
+      url: '/api/eventos/compras/pta-77/asistentes',
+      cuerpo: { attendees: ada },
+    });
+    expect(borde.vistas().at(-1)!.correlacion).toMatch(/^[0-9a-f]{32}$/);
+
+    const entradas = await client.entradas('/api/eventos', 'pta-77', ada, CONTEXTO);
+    if (!entradas.ok) throw new Error(`esperaba las entradas: ${entradas.rechazo.code}`);
+    expect(borde.vistas().at(-1)).toMatchObject({ clave: 'GET entradas', url: '/api/eventos/compras/pta-77/entradas' });
+    expect(entradas.valor.tickets.map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    const id = entradas.valor.tickets[0]!.id;
     // T9: la credencial es el token del QR, no el id.
-    const qr = confirmation.tickets[0].qr;
+    const qr = entradas.valor.tickets[0]!.qr;
 
-    // The confirmed ticket is now in the wallet ("mis tickets").
+    // The issued ticket is now in the wallet ("mis tickets"), con la saga como su orden.
     const wallet = await client.tickets('/api/eventos', 'ada@example.com');
-    expect(wallet.tickets.some((t) => t.id === id)).toBe(true);
+    expect(wallet.tickets.find((t) => t.id === id)?.orderRef).toBe('pta-77');
 
     // Transfer invalidates the origin.
     const transfer = await client.transfer('/api/eventos', id, 'nuevo@b.co');
@@ -1076,60 +1346,46 @@ describe('EventosApiClient', () => {
     expect((await client.checkin('/api/eventos', 'NOPE')).status).toBe('invalid');
   });
 
-  // ── EL QUE MUERDE: con la red caída no hay entradas, ni transferencia, ni veredicto ─
-  it('con la red caída confirmar, transferir y validar LANZAN y no fabrican nada', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    const client = createClient();
-    const fallo = { name: 'EventosWriteFailedError' };
-
-    await expect(
-      client.confirm('/api/eventos', 'evord_77', [{ name: 'Ada', email: 'a@b.co', document: 'CC9' }], CONTEXTO),
-    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/confirm' });
-    await expect(client.transfer('/api/eventos', 'tkt_77_1', 'nuevo@b.co')).rejects.toMatchObject(fallo);
-    await expect(client.checkin('/api/eventos', 'QR-SERVIDOR-77-1')).rejects.toMatchObject(fallo);
-    await expect(
-      client.checkout('/api/eventos', 'evt_1', [{ tier: 'vip', qty: 1 }], [], { name: 'Ada', email: 'a@b.co' }, 'COP'),
-    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/checkout' });
-
-    // Ninguna escritura caída enciende el cartel de «datos de ejemplo»…
-    expect(client.degraded).toBe(false);
-    // …y la billetera (una LECTURA, que sí degrada) no lleva ninguna entrada de esta orden.
-    const wallet = await client.tickets('/api/eventos', 'a@b.co');
-    expect(wallet.tickets.some((ticket) => ticket.orderRef === 'evord_77')).toBe(false);
-  });
-
-  it('returns a free checkout when the order total is zero (free case)', async () => {
+  it('un rechazo del artefacto vuelve por su code, con lo que el servidor agregó, y no siembra nada', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          // `CheckoutResponse` de una orden de total cero: sin sesión de pago.
-          json: () =>
-            Promise.resolve({
-              orderRef: 'evord_free_1',
-              paymentSessionId: '',
-              amount: 0,
-              amountFormatted: '$ 0',
-              currency: 'COP',
-              free: true,
-            }),
-        } as Response),
+        Promise.resolve(
+          new Response(
+            JSON.stringify({ title: 'Conflict', status: 409, code: 'eventos.compra_en_curso', transient: false, purchaseStatus: 'Running' }),
+            { status: 409, headers: { 'content-type': 'application/problem+json' } },
+          ),
+        ),
       ),
     );
     const client = createClient();
 
-    const checkout = await client.checkout(
-      '/api/eventos',
-      'EVT-FREE',
-      [{ tier: 'free', qty: 1 }],
-      [],
-      { name: 'Ada', email: 'a@b.co' },
-      'COP',
-    );
+    const entradas = await client.entradas('/api/eventos', 'pta-77', [], CONTEXTO);
 
-    expect(checkout).toEqual({ orderRef: 'evord_free_1', paymentSessionId: '', amount: 0, currency: 'COP', free: true });
+    expect(entradas).toMatchObject({ ok: false, rechazo: { code: 'eventos.compra_en_curso', transient: false, extra: { purchaseStatus: 'Running' } } });
+    const wallet = await client.tickets('/api/eventos', 'a@b.co');
+    expect(wallet.tickets.some((ticket) => ticket.orderRef === 'pta-77')).toBe(false);
+  });
+
+  // ── EL QUE MUERDE: con la red caída no hay entradas, ni transferencia, ni veredicto ─
+  it('con la red caída: asistentes y entradas CONTESTAN el rechazo sin fabricar nada; transferir y validar LANZAN', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
+    const client = createClient();
+    const fallo = { name: 'EventosWriteFailedError' };
+
+    expect(await client.anotarAsistentes('/api/eventos', 'pta-77', [{ name: 'Ada', email: 'a@b.co', document: 'CC9' }])).toMatchObject({
+      ok: false,
+      rechazo: { code: 'cliente.sin_red', transient: true },
+    });
+    expect(await client.entradas('/api/eventos', 'pta-77', [], CONTEXTO)).toMatchObject({ ok: false, rechazo: { code: 'cliente.sin_red' } });
+    await expect(client.transfer('/api/eventos', 'tkt_77_1', 'nuevo@b.co')).rejects.toMatchObject(fallo);
+    await expect(client.checkin('/api/eventos', 'QR-SERVIDOR-77-1')).rejects.toMatchObject(fallo);
+
+    // Ninguna escritura caída enciende el cartel de «datos de ejemplo»…
+    expect(client.degraded).toBe(false);
+    // …y la billetera (una LECTURA, que sí degrada) no lleva ninguna entrada de esa compra.
+    const wallet = await client.tickets('/api/eventos', 'a@b.co');
+    expect(wallet.tickets.some((ticket) => ticket.orderRef === 'pta-77')).toBe(false);
   });
 
   it('normalises a manage response with aforo + portfolio (happy case)', async () => {

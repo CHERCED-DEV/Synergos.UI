@@ -272,41 +272,13 @@ export interface TierSelectionPayload {
   readonly apiBase?: string;
 }
 
-// ─── Attendees / buyer (checkout) ────────────────────────────────────────────
+// ─── Attendees (checkout) ────────────────────────────────────────────────────
 
 /** Attendee contact captured per ticket. */
 export interface Attendee {
   readonly name: string;
   readonly email: string;
   readonly document: string;
-}
-
-/** The buyer (payer) of the order. */
-export interface Buyer {
-  readonly name: string;
-  readonly email: string;
-}
-
-// ─── Checkout contract (API) ─────────────────────────────────────────────────
-
-/** One item in the `POST /api/eventos/checkout` request body. */
-export interface CheckoutItem {
-  readonly tier: string;
-  readonly seat?: string;
-  readonly qty: number;
-}
-
-/**
- * `POST /api/eventos/checkout` response. Opens one PSP session for the order. A
- * free order short-circuits to `amount === 0` (no payment needed).
- */
-export interface CheckoutResult {
-  readonly orderRef: string;
-  readonly paymentSessionId: string;
-  readonly amount: number;
-  readonly currency: string;
-  /** `true` when the order total was zero → no payment, order already placed. */
-  readonly free: boolean;
 }
 
 /** One issued e-ticket — `qr` is the (signed) payload to render + scan. */
@@ -322,7 +294,7 @@ export interface ETicket {
   readonly seat?: string;
 }
 
-/** `POST /api/eventos/confirm` response — the order confirmed + e-tickets issued. */
+/** Las entradas de una compra completa (`GET /api/eventos/compras/{id}/entradas`): su estado y un e-ticket por asistente. */
 export interface ConfirmResult {
   readonly status: string;
   readonly tickets: readonly ETicket[];

@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   InjectionToken,
   type OnInit,
   computed,
@@ -38,7 +39,6 @@ import {
   type AccountShellConfig,
   type AuthoringWizardConfig,
   type CheckoutWizardConfig,
-  AVISOS_DE_UN_COBRO,
   type CheckoutWizardResult,
   type ConsoleColumn,
   type ConsoleKpi,
@@ -79,7 +79,6 @@ import { subscribeToChannel, type RealtimeSubscription } from './realtime-stream
 import {
   EVENTOS_FLOW,
   type Attendee,
-  type Buyer,
   type CatalogCriteria,
   type CheckInOutcome,
   type CheckInResult,
@@ -104,7 +103,19 @@ import {
   type WalletTicket,
   type TierSaleState,
 } from './eventos.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores, t } from '@synergos/vitals-core';
+import {
+  FLUJO_COMPRA_DE_EVENTOS,
+  aMenores,
+  baseDeRuta,
+  clasificarRechazo,
+  desdeMenores,
+  formatearImporte,
+  hayCoordinador,
+  mismaRuta,
+  segmentosDeRuta,
+  t,
+  type ClaseDeRechazo,
+} from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEventos</c>.
@@ -201,6 +212,15 @@ function monedaDelCarrito(items: readonly { readonly selection?: unknown }[]): s
   return typeof moneda === 'string' ? moneda.trim() : '';
 }
 
+/**
+ * La clase de un rechazo del que la estrategia sólo devolvió el `code` (el motivo que ve el
+ * asistente). Lo que se decide sin `transient` —la sesión, lo no disponible— va por el code; lo
+ * reintentable no se sabe acá, y cae a los avisos de lo que quedó, que ya invitan a reintentar.
+ */
+function claseDelMotivo(motivo: string): ClaseDeRechazo {
+  return clasificarRechazo({ code: motivo, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} });
+}
+
 let eventosInstanceId = 0;
 
 @Component({
@@ -237,6 +257,23 @@ export class EventosElementComponent implements OnInit {
   readonly #api = inject(EventosApiClient);
   readonly #reloj = inject(EVENTOS_RELOJ);
   readonly #identidad = inject(HostIdentityService);
+  /**
+   * El `<synergos-eventos>` de esta instancia: desde él la compra encuentra, por ancestro, su
+   * `<synergos-flujo>`. Viaja en el instrumento del asistente, nunca en un campo de la estrategia,
+   * que es una por página (regla 60).
+   */
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
+
+  /**
+   * La sesión venció a mitad de la compra: la puerta o el artefacto contestaron 401
+   * `puerta.sesion_requerida` (o un proxy redirigió al login). Lleva al mismo panel que el bridge
+   * sin miembro: el 401 es la última palabra.
+   */
+  readonly sesionVencida = signal(false);
+
+  /** «Mis datos»: los de la cuenta de la sesión, que son con los que se compra. Vacíos si es anónimo. */
+  readonly miembroNombre = this.#identidad.displayName;
+  readonly miembroCorreo = this.#identidad.email;
 
   /**
    * Con el CMS delante y sin miembro, el checkout pide la sesión ANTES de los asistentes: la compra
@@ -245,7 +282,21 @@ export class EventosElementComponent implements OnInit {
    * hay panel: el elemento se comporta como siempre. Se decide con el bridge, que el CMS emite por
    * render; el 401 de la puerta sigue siendo la última palabra.
    */
-  readonly pideSesion = computed(() => this.#identidad.hasHost() && !this.#identidad.isAuthenticated());
+  readonly pideSesion = computed(
+    () => (this.#identidad.hasHost() && !this.#identidad.isAuthenticated()) || this.sesionVencida(),
+  );
+
+  /**
+   * No hay un `<synergos-flujo>` de la compra por encima del elemento: la compra no está abierta en
+   * esta página. Se dice, y no se toca la red; NUNCA se vuelve a la ruta vieja.
+   */
+  readonly sinCoordinador = signal(false);
+
+  /** Lo que dice el panel de la compra no disponible, del diccionario (sección `Events.Purchase`). */
+  readonly textosNoDisponible = {
+    texto: t('Events.Purchase.Unavailable', 'La compra en línea no está disponible en este momento.'),
+    volver: t('Events.Purchase.BackToEvents', 'Volver a la cartelera'),
+  };
 
   /** Lo que dice el panel de sesión, del diccionario (sección `Events.Purchase`). */
   readonly textosDeSesion = {
@@ -351,10 +402,9 @@ export class EventosElementComponent implements OnInit {
   readonly quantity = signal(1);
   readonly selectedSeats = signal<readonly string[]>([]);
 
-  // Attendees / buyer (SH-3 checkout steps)
+  // Attendees (SH-3 checkout steps). No hay comprador: el sujeto y el contacto del aviso los pone
+  // la puerta desde la sesión del miembro (ADR 0140 F3), y un formulario que no viaja miente.
   readonly attendees = signal<readonly Attendee[]>([]);
-  readonly buyerName = signal('');
-  readonly buyerEmail = signal('');
 
   // Confirmation
   readonly orderRef = signal('');
@@ -603,10 +653,6 @@ export class EventosElementComponent implements OnInit {
       ),
   );
 
-  readonly buyerValid = computed(
-    () => this.buyerName().trim().length >= 2 && /.+@.+\..+/.test(this.buyerEmail().trim()),
-  );
-
   /**
    * Asistentes → revisar, en lo pagado y en lo gratis. El paso «pago» con su tarjeta/PSE se fue:
    * el método elegido no viajaba por ninguna ruta, así que la pantalla afirmaba una elección que
@@ -621,9 +667,10 @@ export class EventosElementComponent implements OnInit {
       steps,
       summaryHeading: 'Tu orden',
       submitLabel: this.isFreeEvent() ? 'Confirmar registro' : 'Pagar y confirmar',
-      // El fallo lo dice el ASISTENTE, una vez (UI#91). Un evento gratis no cobra, y su
-      // aviso no puede hablar de un pago. Sale del diccionario, sección `Events.Purchase`
-      // (ADR 0140 F4): el respaldo es el texto es-CO de siempre.
+      // El fallo lo dice el ASISTENTE, una vez (UI#91), y sale del diccionario, sección
+      // `Events.Purchase` (ADR 0140 F4). Los avisos de un cobro no sirven acá: abrir la compra
+      // sólo AUTORIZA, así que «Ya recibimos tu pago» sería falso; lo que queda es una compra
+      // apartada. Un evento gratis no cobra, y su aviso no puede hablar de un pago.
       ...(this.isFreeEvent()
         ? {
             payFailedMessage: t('Events.Purchase.FreeFailed', 'No pudimos completar tu registro. Intenta de nuevo.'),
@@ -632,15 +679,63 @@ export class EventosElementComponent implements OnInit {
               'Tu registro quedó abierto (referencia {referencia}) pero no pudimos confirmarlo. Vuelve a intentarlo.',
             ),
           }
-        : AVISOS_DE_UN_COBRO),
+        : {
+            payFailedMessage: t(
+              'Events.Purchase.Failed',
+              'No pudimos completar tu compra y no se te cobró nada. Intenta de nuevo.',
+            ),
+            confirmFailedMessage: t(
+              'Events.Purchase.ConfirmPending',
+              'Tu compra quedó apartada (referencia {referencia}) pero no pudimos confirmarla. Vuelve a intentarlo: no se te cobrará dos veces.',
+            ),
+          }),
+      mensajeDeFallo: this.#mensajeDeFallo,
       processingLabel: 'Procesando…',
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
     };
   });
 
+  /**
+   * EL aviso de un fallo de la compra por el `code` del rechazo que devolvió la estrategia (ADR
+   * 0136: la funcionalidad traduce, con claves literales; ADR 0140 F4). Tienen texto propio los
+   * códigos que la persona puede provocar; los demás caen al de su clase, y los que no tienen clase
+   * propia (`null`) a los avisos de arriba, que nombran lo que QUEDÓ: nada cobrado, o una compra
+   * apartada con su referencia. Nunca se decide por `title`: la puerta pone ahí la frase HTTP.
+   */
+  readonly #mensajeDeFallo = (motivo: string): string | null => {
+    switch (motivo) {
+      case 'inventory.insufficient_stock':
+      case 'inventory.unit_taken':
+        return t('Events.Purchase.SoldOut', 'No quedan entradas suficientes para tu selección.');
+      case 'inventory.hold_expired':
+      case 'inventory.hold_released':
+        return t('Events.Purchase.HoldExpired', 'Tu reserva venció. Vuelve a elegir tus entradas.');
+      case 'pricing.price_not_in_effect':
+        return t('Events.Purchase.NotOnSale', 'Estas entradas no están a la venta en este momento.');
+      case 'pricing.quantity_over_limit':
+        return t('Events.Purchase.OverLimit', 'Superaste el máximo de entradas por compra.');
+      case 'payments.payment_declined':
+      case 'payments.payment_failed':
+        return t('Events.Purchase.PaymentDeclined', 'Tu pago fue rechazado y no se te cobró nada.');
+      case 'eventos.asistentes_invalidos':
+      case 'eventos.asistentes_no_cuadran':
+        return t('Events.Purchase.AttendeesInvalid', 'Revisa los datos de los asistentes: falta alguno o no es válido.');
+      default:
+        break;
+    }
+    switch (claseDelMotivo(motivo)) {
+      case 'sesion':
+        return t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
+      case 'no_disponible':
+        return t('Events.Purchase.Unavailable', 'La compra en línea no está disponible en este momento.');
+      default:
+        return null;
+    }
+  };
+
   readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
-    asistentes: this.attendeesValid() && this.buyerValid(),
+    asistentes: this.attendeesValid(),
     revisar: true,
   }));
 
@@ -657,6 +752,7 @@ export class EventosElementComponent implements OnInit {
     const eventId = typeof linea['eventId'] === 'string' ? linea['eventId'] : (detail?.event.id ?? '');
     const eventTitle = typeof linea['eventTitle'] === 'string' ? linea['eventTitle'] : (detail?.event.title ?? '');
     return {
+      host: this.#host,
       apiBase: this.apiBase(),
       eventId,
       eventTitle,
@@ -667,7 +763,6 @@ export class EventosElementComponent implements OnInit {
         email: a.email.trim(),
         document: a.document.trim(),
       })),
-      buyer: { name: this.buyerName().trim(), email: this.buyerEmail().trim() } as Buyer,
       provider: this.isFreeEvent() ? 'eventos-free' : 'eventos',
     };
   });
@@ -1017,6 +1112,8 @@ export class EventosElementComponent implements OnInit {
         this.view.set('confirmed');
         return;
       case 'checkout':
+        // Sin coordinador arriba no hay a quién pedirle la compra: se dice antes de los asistentes.
+        this.sinCoordinador.set(!hayCoordinador(this.#host, FLUJO_COMPRA_DE_EVENTOS));
         this.sembrarAsistentes();
         this.view.set('checkout');
         return;
@@ -1032,8 +1129,8 @@ export class EventosElementComponent implements OnInit {
    * persona quedaba atascada (medido en el plan de la F4). Los datos de los asistentes no se
    * guardan en `localStorage`: son personales, y re-sembrar cuesta una línea.
    *
-   * Con sesión, la primera fila y el comprador vacíos se precargan con el miembro: es quien vuelve
-   * del login, y casi siempre va.
+   * Con sesión, la primera fila vacía se precarga con el miembro: es quien vuelve del login, y
+   * casi siempre va.
    */
   private sembrarAsistentes(): void {
     const entradas = this.#store.items().reduce((suma, linea) => suma + Math.max(0, linea.quantity), 0);
@@ -1050,10 +1147,6 @@ export class EventosElementComponent implements OnInit {
     }
     if (filas !== previas) {
       this.attendees.set(filas);
-    }
-    if (!this.buyerName().trim() && !this.buyerEmail().trim() && this.#identidad.isAuthenticated()) {
-      this.buyerName.set(nombre);
-      this.buyerEmail.set(correo);
     }
   }
 
@@ -1452,6 +1545,21 @@ export class EventosElementComponent implements OnInit {
   }
 
   // ─── Checkout (SH-3 wizard callbacks) ────────────────────────────────────────
+  /**
+   * Un fallo que cambia QUÉ se muestra, no sólo qué se dice: la sesión venció a mitad de la compra
+   * (401 de la puerta o del artefacto) lleva al panel de sesión, que vuelve a esta misma compra; y
+   * un coordinador que dejó de estar lleva al panel de no disponible. El resto lo dice el asistente,
+   * una vez (`mensajeDeFallo`).
+   */
+  onCheckoutFailed(motivo: string): void {
+    const clase = claseDelMotivo(motivo);
+    if (clase === 'sesion') {
+      this.sesionVencida.set(true);
+    } else if (motivo === 'cliente.sin_coordinador') {
+      this.sinCoordinador.set(true);
+    }
+  }
+
   onCheckoutCompleted(result: CheckoutWizardResult): void {
     this.orderRef.set(result.reference);
     const issued: ETicket[] = result.vouchers.map((voucher) => ({
@@ -1489,8 +1597,6 @@ export class EventosElementComponent implements OnInit {
     this.quantity.set(1);
     this.selectedSeats.set([]);
     this.attendees.set([]);
-    this.buyerName.set('');
-    this.buyerEmail.set('');
     this.orderRef.set('');
     this.tickets.set([]);
     this.errorMessage.set('');
@@ -1502,7 +1608,7 @@ export class EventosElementComponent implements OnInit {
     if (this.walletLoaded()) {
       return;
     }
-    const holder = this.buyerEmail().trim() || this.attendees()[0]?.email.trim() || '';
+    const holder = this.#identidad.email() || this.attendees()[0]?.email.trim() || '';
     void this.#api.tickets(this.apiBase(), holder).then((result) => {
       this.wallet.set(result.tickets);
       this.walletLoaded.set(true);

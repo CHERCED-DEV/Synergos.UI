@@ -346,6 +346,15 @@
           <a class="eventos__btn eventos__btn--primary" [href]="loginUrl()">{{ textosDeSesion.boton }}</a>
         </div>
       </div>
+    } @else if (view() === 'checkout' && sinCoordinador()) {
+      <!-- Sin <synergos-flujo> arriba la compra no está abierta en esta página: se dice y no se
+           toca la red. NUNCA se vuelve a la ruta vieja (ADR 0140 F4). -->
+      <div class="eventos__denied">
+        <p class="eventos__denied-text">{{ textosNoDisponible.texto }}</p>
+        <div class="eventos__denied-actions">
+          <button type="button" class="eventos__btn eventos__btn--primary" (click)="goToCatalog()">{{ textosNoDisponible.volver }}</button>
+        </div>
+      </div>
     } @else if (view() === 'checkout') {
       <syn-checkout-wizard
         [config]="checkoutConfig()"
@@ -353,6 +362,7 @@
         [validity]="checkoutValidity()"
         [instrument]="checkoutInstrument()"
         (completed)="onCheckoutCompleted($event)"
+        (failed)="onCheckoutFailed($event)"
         (exit)="navigate('cart')"
       />
 
@@ -378,17 +388,6 @@
                   </label>
                 </div>
               }
-              <div class="eventos__buyer">
-                <p class="eventos__attendee-num">Datos del comprador</p>
-                <label class="eventos__field">
-                  <span class="eventos__label">Nombre completo</span>
-                  <input class="eventos__input" type="text" [value]="buyerName()" (input)="bind(buyerName.set)($event)" />
-                </label>
-                <label class="eventos__field">
-                  <span class="eventos__label">Correo electrónico</span>
-                  <input class="eventos__input" type="email" [value]="buyerEmail()" (input)="bind(buyerEmail.set)($event)" />
-                </label>
-              </div>
             </fieldset>
           }
           @case ('revisar') {
@@ -401,7 +400,6 @@
                 <div class="eventos__cart-row"><dt>Cargos por servicio</dt><dd>{{ feesLabel() }}</dd></div>
                 <div class="eventos__cart-row eventos__cart-row--total"><dt>Total</dt><dd>{{ cartTotalLabel() }}</dd></div>
               </dl>
-              <p class="eventos__review-buyer">Comprador: {{ buyerName() }} · {{ buyerEmail() }}</p>
               <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
             </div>
           }
@@ -541,14 +539,14 @@
           @case ('perfil') {
             <fieldset class="eventos__form">
               <legend class="eventos__heading">Mis datos</legend>
-              <p class="eventos__notice">Estos datos prellenan el checkout y tu wallet.</p>
+              <p class="eventos__notice">Son los de tu cuenta: con ellos se hacen tus compras.</p>
               <label class="eventos__field">
                 <span class="eventos__label">Nombre completo</span>
-                <input class="eventos__input" type="text" [value]="buyerName()" (input)="bind(buyerName.set)($event)" />
+                <input class="eventos__input" type="text" readonly [value]="miembroNombre()" />
               </label>
               <label class="eventos__field">
                 <span class="eventos__label">Correo electrónico</span>
-                <input class="eventos__input" type="email" [value]="buyerEmail()" (input)="bind(buyerEmail.set)($event)" />
+                <input class="eventos__input" type="email" readonly [value]="miembroCorreo()" />
               </label>
             </fieldset>
           }

@@ -11,6 +11,9 @@
   </head>
   <body>
     <h1>synergos-eventos · standalone preview</h1>
-    <synergos-eventos currency="COP"></synergos-eventos>
+    <!-- Como lo coloca el CMS (ADR 0140 F4): la compra se pide al coordinador que la envuelve. -->
+    <synergos-flujo flujo="eventos.compra" style="display:contents">
+      <synergos-eventos currency="COP"></synergos-eventos>
+    </synergos-flujo>
   </body>
 </html>

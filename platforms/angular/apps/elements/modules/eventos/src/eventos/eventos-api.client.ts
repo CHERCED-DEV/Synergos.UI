@@ -1,13 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { rechazoLocal, transportePorDefecto, type ResultadoDelFlujo } from '@synergos/vitals-core';
 import {
   type Attendee,
-  type Buyer,
   type CatalogCriteria,
   type CatalogResult,
   type CheckInResult,
-  type CheckoutItem,
-  type CheckoutResult,
   type ConfirmResult,
   type CreateEventRequest,
   type CreateEventResult,
@@ -35,8 +33,12 @@ import {
  *
  *  - `GET  /api/eventos/events?q=`                          → `{ events:[...] }`
  *  - `GET  /api/eventos/event/{id}`                         → `{ event, tiers:[...], seatmap }`
- *  - `POST /api/eventos/checkout` `{ eventId, items, attendees }` → `{ orderRef, paymentSessionId, amount, currency }`
- *  - `POST /api/eventos/confirm`  `{ orderRef }`            → `{ status, tickets:[{id, qr}] }`
+ *  - `POST /api/eventos/compras/{id}/asistentes` `{ attendees }` → `{ id, asistentes }`
+ *  - `GET  /api/eventos/compras/{id}/entradas`               → `{ status, tickets:[{id, qr}] }`
+ *
+ * La compra —abrir y cerrar— NO pasa por este cliente: va por la puerta, con el coordinador
+ * (`<synergos-flujo>`, ADR 0140 F4). Las dos rutas de arriba son el ARTEFACTO que el CMS agrega a
+ * esa compra (quién se sienta y las entradas con su QR), y van por el mismo transporte que la puerta.
  *  - `GET  /api/eventos/manage/{eventId}`                   → `{ attendees:[...], capacity, sold }`
  *  - `POST /api/eventos/checkin`  `{ ticketId }`            → `{ status }`
  *
@@ -153,66 +155,65 @@ export class EventosApiClient {
     }
   }
 
-  // ─── Checkout (open one PSP session for the order) ───────────────────────────
+  // ─── El artefacto de una compra por la puerta (ADR 0140 F4) ─────────────────
+  //
+  // Abrir y cerrar la compra van por el coordinador a la puerta (`abrirCompraDeEventos`,
+  // `cerrarCompraDeEventos`); lo que el CMS agrega a esa compra vive fuera de la puerta, en sus
+  // propias rutas bajo la base de la API y sin contrato generado, así que lo vigilan G-6 y
+  // `gate:rutas`, que leen este cliente. Va por el MISMO transporte que la puerta: correlación de
+  // 32 hex, rechazo leído por `code` y reintento sólo del GET. No lanza: devuelve el rechazo, y
+  // quien llama decide por su `code` (regla 59). Sustituyen a `checkout` y `confirm`, que
+  // llamaban a la ruta vieja: el UI nunca vuelve a ella, ni ante un 503 de la puerta.
+
+  readonly #transporte = transportePorDefecto();
 
   /**
-   * Abre la orden y su sesión de pago. **Lanza si el borde no la abrió** (UI#92).
-   *
-   * Devolvía una orden `MOCK-<ts>` —o `FREE-<ts>`— con un `psp_mock_…`, y la estrategia
-   * contestaba `accepted: true`: el asistente seguía a confirmar contra una orden que el
-   * servidor no conoce. **Sin `fallbackAmount`**: era la fabricación escrita en la firma
-   * (regla 19) — el total lo calcula el borde, con su comisión (CMS#194), justamente para
-   * no confiarle el precio al navegador.
+   * `POST {apiBase}/compras/{id}/asistentes` — quién se sienta, uno por entrada apartada, ANTES
+   * de cerrar. El servidor exige tantos como entradas apartó (`eventos.asistentes_no_cuadran`).
    */
-  async checkout(
-    apiBase: string,
-    eventId: string,
-    items: readonly CheckoutItem[],
-    attendees: readonly Attendee[],
-    buyer: Buyer,
-    currency: string,
-  ): Promise<CheckoutResult> {
-    const url = `${apiBase}/checkout`;
-    try {
-      const data = await this.postJson(apiBase, url, { eventId, items, attendees, buyer });
-      const result = normalizeCheckout(data, currency);
-      if (result) {
-        return result;
-      }
-      throw new Error('checkout-shape');
-    } catch (error) {
-      this.writeFailed('POST /api/eventos/checkout', error);
+  async anotarAsistentes(apiBase: string, id: string, asistentes: readonly Attendee[]): Promise<ResultadoDelFlujo<unknown>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
     }
+    const url = `${apiBase}/compras/${encodeURIComponent(id)}/asistentes`;
+    return this.#transporte({
+      metodo: 'POST',
+      url,
+      cabeceras: { 'Content-Type': 'application/json' },
+      cuerpo: JSON.stringify({ attendees: asistentes }),
+      etiqueta: 'eventos/asistentes',
+    });
   }
 
-  // ─── Confirm (issue e-tickets) ───────────────────────────────────────────────
-
   /**
-   * Captura y emite las entradas. **Lanza si el borde no las emitió** (UI#92).
-   *
-   * Fabricaba una entrada por asistente con un QR «firmado» en el navegador y la sembraba
-   * en «mis entradas»: es la regla 14 en su forma más cara — la entrada es lo que alguien
-   * enseña en la puerta, y la puerta no la iba a reconocer. Las que siembra la billetera
-   * son sólo las que el servidor devolvió.
+   * `GET {apiBase}/compras/{id}/entradas` — las entradas de una compra completa del miembro, con la
+   * forma de siempre (`{ status, tickets }`). Las que siembra la billetera son sólo las que el
+   * servidor devolvió (regla 14).
    */
-  async confirm(
+  async entradas(
     apiBase: string,
-    orderRef: string,
+    id: string,
     attendees: readonly Attendee[],
     context?: ConfirmContext,
-  ): Promise<ConfirmResult> {
-    const url = `${apiBase}/confirm`;
-    try {
-      const data = await this.postJson(apiBase, url, { orderRef });
-      const confirmation = normalizeConfirm(data);
-      if (confirmation) {
-        this.seedWallet(confirmation.tickets, attendees, orderRef, context);
-        return confirmation;
-      }
-      throw new Error('confirm-shape');
-    } catch (error) {
-      this.writeFailed('POST /api/eventos/confirm', error);
+  ): Promise<ResultadoDelFlujo<ConfirmResult>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
     }
+    const url = `${apiBase}/compras/${encodeURIComponent(id)}/entradas`;
+    const r = await this.#transporte({ metodo: 'GET', url, cabeceras: {}, etiqueta: 'eventos/entradas' });
+    if (!r.ok) {
+      return r;
+    }
+    const confirmation = normalizeConfirm(r.valor);
+    if (!confirmation) {
+      return {
+        ok: false,
+        correlacion: r.correlacion,
+        rechazo: rechazoLocal('cliente.respuesta_ilegible', 'las entradas no traen la forma esperada', false, 'forma', r.estado),
+      };
+    }
+    this.seedWallet(confirmation.tickets, attendees, id, context);
+    return { ...r, valor: confirmation };
   }
 
   /** Append the issued tickets to the in-memory wallet ("mis tickets"). */
@@ -222,7 +223,7 @@ export class EventosApiClient {
     orderRef: string,
     context?: ConfirmContext,
   ): void {
-    const holder = attendees[0]?.email || context?.buyer?.email || 'invitado@synergos';
+    const holder = attendees[0]?.email || 'invitado@synergos';
     const seeded: WalletTicket[] = tickets.map((ticket, index) => ({
       id: ticket.id,
       qr: ticket.qr,
@@ -448,13 +449,12 @@ export class EventosApiClient {
   }
 }
 
-/** Event context threaded into `confirm` so the mock wallet reads meaningfully. */
+/** El evento de una compra, para que la billetera lea con sentido las entradas que emitió el servidor. */
 export interface ConfirmContext {
   readonly eventId?: string;
   readonly eventTitle?: string;
   readonly venueName?: string;
   readonly startsAt?: string;
-  readonly buyer?: Buyer;
 }
 
 // ─── Normalisers (defensive — tolerate partial/loose API shapes) ───────────────
@@ -711,24 +711,6 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): EventDetail 
         .map((entry) => normalizeZone(entry, fallbackCurrency))
         .filter((zone): zone is VenueZone => zone !== null),
     },
-  };
-}
-
-function normalizeCheckout(value: unknown, fallbackCurrency: string): CheckoutResult | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const orderRef = readString(value['orderRef']).trim() || readString(value['id']).trim();
-  if (!orderRef) {
-    return null;
-  }
-  const amount = readNumber(value['amount']);
-  return {
-    orderRef,
-    paymentSessionId: readString(value['paymentSessionId']).trim() || readString(value['sessionId']).trim(),
-    amount,
-    currency: readString(value['currency']).trim() || fallbackCurrency,
-    free: amount <= 0 || readBoolean(value['free']),
   };
 }
 
