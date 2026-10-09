@@ -115,6 +115,7 @@ import {
   segmentosDeRuta,
   t,
   type ClaseDeRechazo,
+  type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 
 /**
@@ -221,6 +222,14 @@ function claseDelMotivo(motivo: string): ClaseDeRechazo {
   return clasificarRechazo({ code: motivo, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} });
 }
 
+/** La compra del enlace del aviso: `?compra={id}` en la consulta de la página. Vacío sin ella. */
+function compraDelEnlace(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return new URLSearchParams(window.location.search).get('compra')?.trim() ?? '';
+}
+
 let eventosInstanceId = 0;
 
 @Component({
@@ -291,6 +300,9 @@ export class EventosElementComponent implements OnInit {
    * esta página. Se dice, y no se toca la red; NUNCA se vuelve a la ruta vieja.
    */
   readonly sinCoordinador = signal(false);
+
+  /** Lo que dice el panel del enlace del aviso sin sesión (sección `Events.Purchase`). */
+  readonly textoDelEnlace = t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
 
   /** Lo que dice el panel de la compra no disponible, del diccionario (sección `Events.Purchase`). */
   readonly textosNoDisponible = {
@@ -1009,8 +1021,57 @@ export class EventosElementComponent implements OnInit {
       this.manageEventId.set(this.deepLinkEventId());
       void this.loadManage().then(() => this.applyHash());
     } else {
-      void this.runSearch().then(() => this.applyHash());
+      // El enlace del correo del aviso trae la compra en la CONSULTA (`/eventos/?compra={id}`, ADR
+      // 0140 F4), no en el hash: abre sus entradas en vez de la ruta del hash.
+      const compra = compraDelEnlace();
+      void this.runSearch().then(() => (compra ? this.abrirCompraDelEnlace(compra) : this.applyHash()));
     }
+  }
+
+  /**
+   * El enlace del correo del aviso abre la compra (ADR 0140 F4): `GET …/compras/{id}/entradas` con la
+   * sesión de su dueño, y la vista confirmada con sus entradas y su QR. Sin sesión, el panel de login,
+   * cuyo `returnUrl` conserva `?compra=`; una compra ajena es el mismo 404 que una que no existe, y se
+   * dice por su code, como una que no se completó o que sigue en curso.
+   */
+  private async abrirCompraDelEnlace(id: string): Promise<void> {
+    if (this.#identidad.hasHost() && !this.#identidad.isAuthenticated()) {
+      this.view.set('compra');
+      return;
+    }
+    this.loading.set(true);
+    const titular = { name: this.#identidad.displayName(), email: this.#identidad.email(), document: '' };
+    const r = await this.#api.entradas(this.apiBase(), id, titular.email ? [titular] : [], {});
+    this.loading.set(false);
+    if (!r.ok) {
+      if (clasificarRechazo(r.rechazo) === 'sesion') {
+        this.view.set('compra');
+        return;
+      }
+      this.errorMessage.set(this.mensajeDelEnlace(r.rechazo));
+      return;
+    }
+    this.orderRef.set(id);
+    this.tickets.set(r.valor.tickets);
+    this.walletLoaded.set(false);
+    this.navigate('confirmed');
+  }
+
+  /** Lo que se dice cuando el enlace no abre la compra, por el `code` del rechazo. */
+  private mensajeDelEnlace(rechazo: RechazoDelFlujo): string {
+    switch (rechazo.code) {
+      case 'eventos.purchase_not_found':
+        return t('Events.Purchase.NotFound', 'No encontramos esta compra en tu cuenta.');
+      case 'eventos.compra_no_completada':
+        return t('Events.Purchase.NotCompleted', 'Esta compra no se completó, así que no tiene entradas.');
+      case 'eventos.compra_en_curso':
+        return t('Events.Purchase.InProgress', 'Tu compra todavía se está procesando. Inténtalo de nuevo en unos segundos.');
+      default:
+        break;
+    }
+    return clasificarRechazo(rechazo) === 'no_disponible'
+      ? t('Events.Purchase.Unavailable', 'La compra en línea no está disponible en este momento.')
+      : t('Events.Purchase.Retry', 'No pudimos completar este paso. Intenta de nuevo.');
   }
 
   // ─── Role switch ─────────────────────────────────────────────────────────────

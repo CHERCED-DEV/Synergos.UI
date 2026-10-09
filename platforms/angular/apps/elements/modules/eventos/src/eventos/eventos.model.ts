@@ -42,8 +42,9 @@ export type EventosView =
   | 'event' // SH-2 detail: hero, countdown, tiers, artist/venue
   | 'select' // tier/quantity (general) or seat-map (reserved)
   | 'cart' // carrito + fees + hold countdown
-  | 'checkout' // SH-3 wizard: attendees → pago → revisar
+  | 'checkout' // SH-3 wizard: asistentes → revisar (la compra va por la puerta)
   | 'confirmed' // order + e-ticket QR per attendee
+  | 'compra' // el enlace del aviso (?compra={id}) sin sesión: pide entrar antes de enseñar la compra
   | 'wallet' // SH-10 credential-wallet: e-tickets + transfer/resell
   | 'account'; // SH-4 account-shell: mis tickets bandeja + tracking
 

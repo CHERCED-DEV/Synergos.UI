@@ -407,6 +407,17 @@
       </ng-template>
     }
 
+    <!-- ─── El enlace del aviso sin sesión (ADR 0140 F4): la compra es de su dueño, así que
+         primero se entra; el login vuelve con ?compra= y la abre. ─────────────── -->
+    @if (view() === 'compra') {
+      <div class="eventos__denied">
+        <p class="eventos__denied-text">{{ textoDelEnlace }}</p>
+        <div class="eventos__denied-actions">
+          <a class="eventos__btn eventos__btn--primary" [href]="loginUrl()">{{ textosDeSesion.boton }}</a>
+        </div>
+      </div>
+    }
+
     <!-- ─── CONFIRMED: order + e-ticket QR por asistente ──────────────────── -->
     @if (view() === 'confirmed') {
       <!-- SH-11 (#19). Las entradas con su QR son el ARTEFACTO del dominio y

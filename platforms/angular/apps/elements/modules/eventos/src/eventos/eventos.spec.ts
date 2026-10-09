@@ -803,6 +803,97 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     }
   });
 
+  // ── ADR 0140 F4: el enlace del correo del aviso abre la compra ──────────────
+  //
+  // `Synergos:Puerta:Flujos:eventos.compra:Aviso:Ruta` es `/eventos/?compra={id}`: la compra viaja en
+  // la CONSULTA de la página, no en el hash, y el elemento la abre con la sesión de su dueño.
+  const MIEMBRO = { member: { key: 'm-1', displayName: 'Ada Lovelace', email: 'ada@example.com', roles: [] } };
+
+  async function abrirElEnlace(ruta: string, borde: ReturnType<typeof bordeDeEventos>): Promise<void> {
+    (window as { synergos?: unknown }).synergos = MIEMBRO;
+    window.history.replaceState(null, '', ruta);
+    installMemoryStorage();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  function cerrarElEnlace(): void {
+    delete (window as { synergos?: unknown }).synergos;
+    window.history.replaceState(null, '', '/');
+  }
+
+  const alArtefacto = (borde: ReturnType<typeof bordeDeEventos>): string[] =>
+    borde.vistas().filter((vista) => vista.url.startsWith('/api/eventos/compras/')).map((vista) => `${vista.clave} ${vista.url}`);
+
+  it('con ?compra=S y la sesión de su dueño, pide UNA vez sus entradas y abre la vista confirmada con sus QR', async () => {
+    const borde = bordeDeEventos();
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-77', borde);
+
+      expect(alArtefacto(borde)).toEqual(['GET entradas /api/eventos/compras/pta-77/entradas']);
+      expect(component.view()).toBe('confirmed');
+      expect(component.orderRef()).toBe('pta-77');
+      expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
+  it('sin el parámetro, no se le pide nada al artefacto', async () => {
+    const borde = bordeDeEventos();
+    try {
+      await abrirElEnlace('/eventos/', borde);
+
+      expect(alArtefacto(borde)).toEqual([]);
+      expect(component.view()).toBe('catalog');
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
+  it('una sesión que no llega (401) lleva al panel de login, con un returnUrl que conserva ?compra=', async () => {
+    const borde = bordeDeEventos({
+      rechazos: { 'GET entradas': [{ status: 401, code: 'puerta.sesion_requerida', title: 'Unauthorized' }] },
+    });
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-77', borde);
+
+      expect(component.view()).toBe('compra');
+      const enlace = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.eventos__denied a[href^="/account/login"]');
+      expect(enlace?.getAttribute('href')).toContain(`returnUrl=${encodeURIComponent('/eventos/?compra=pta-77')}`);
+      expect(alArtefacto(borde)).toEqual(['GET entradas /api/eventos/compras/pta-77/entradas']);
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
+  it('una compra ajena o inexistente (404) y una que no se completó (409) se dicen por su code', async () => {
+    const ajena = bordeDeEventos({
+      rechazos: { 'GET entradas': [{ status: 404, code: 'eventos.purchase_not_found', title: 'Not Found' }] },
+    });
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-otra', ajena);
+      expect(alertas()).toEqual(['No encontramos esta compra en tu cuenta.']);
+      expect(component.view()).not.toBe('confirmed');
+    } finally {
+      cerrarElEnlace();
+    }
+
+    vi.unstubAllGlobals();
+    TestBed.resetTestingModule();
+    const deshecha = bordeDeEventos({
+      rechazos: { 'GET entradas': [{ status: 409, code: 'eventos.compra_no_completada', title: 'Conflict' }] },
+    });
+    try {
+      await abrirElEnlace('/eventos/?compra=pta-77', deshecha);
+      expect(alertas()).toEqual(['Esta compra no se completó, así que no tiene entradas.']);
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
   it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();
