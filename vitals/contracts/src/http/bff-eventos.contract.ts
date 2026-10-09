@@ -9,6 +9,22 @@
 // esquemas que alcanzan. Lo que pone la puerta no sale. Hasta la F4 no lo importa nadie: la
 // regla 24 de CLAUDE.md queda abierta con fecha.
 
+export interface BuyTicketsRequest {
+  readonly eventId?: string | null;
+  readonly lines?: readonly TicketLineRequest[] | null;
+}
+
+export interface HeldSeatResponse {
+  readonly tier: string;
+  readonly seat: string | null;
+  readonly quantity: number;
+}
+
+export interface MoneyDto {
+  readonly amount: number;
+  readonly currency: string;
+}
+
 export interface Rechazo {
   readonly type: string;
   readonly title: "Invalid" | "NotFound" | "Conflict" | "Forbidden" | "Expired" | "Unavailable";
@@ -16,6 +32,24 @@ export interface Rechazo {
   readonly detail: string;
   readonly code: string;
   readonly transient: boolean;
+}
+
+export interface TicketLineRequest {
+  readonly quantity: number;
+  readonly tier?: string | null;
+  readonly seat?: string | null;
+}
+
+export interface TicketPurchaseResponse {
+  readonly id: string;
+  readonly buyerKind: string;
+  readonly buyerId: string;
+  readonly eventId: string;
+  readonly status: string;
+  readonly total: MoneyDto;
+  readonly held: readonly HeldSeatResponse[];
+  readonly pendingCompensations: number;
+  readonly lastError: string | null;
 }
 
 /**
@@ -32,5 +66,12 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
   readonly llave: TLlave;
 }
 
-/** Lo que la puerta expone de este orquestador: nada todavía, ninguna operación lleva x-synergos-flujo. */
-export interface OperacionesDeLaPuerta {}
+/** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
+export interface OperacionesDeLaPuerta {
+  readonly "eventos.compra": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, BuyTicketsRequest, TicketPurchaseResponse, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
+    readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
+  };
+}
