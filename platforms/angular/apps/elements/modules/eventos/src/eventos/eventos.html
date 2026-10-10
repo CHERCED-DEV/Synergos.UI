@@ -414,7 +414,7 @@
          primero se entra; el login vuelve con ?compra= y la abre. ─────────────── -->
     @if (view() === 'compra') {
       <div class="eventos__denied">
-        <p class="eventos__denied-text">{{ textoDelEnlace }}</p>
+        <p class="eventos__denied-text">{{ textoDelEnlace() }}</p>
         <div class="eventos__denied-actions">
           <a class="eventos__btn eventos__btn--primary" [href]="loginUrl()">{{ textosDeSesion.boton }}</a>
         </div>

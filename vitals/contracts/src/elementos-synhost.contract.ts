@@ -1338,7 +1338,7 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   tipo: "funcionalidad",
   record: "EventosProps",
   diccionario: ["Events.Sale","Events.Purchase"],
-  claves: ["Events.Purchase.AttendeesInvalid","Events.Purchase.BackToEvents","Events.Purchase.ConfirmPending","Events.Purchase.Failed","Events.Purchase.FreeConfirmPending","Events.Purchase.FreeContinue","Events.Purchase.FreeFailed","Events.Purchase.FreeReceived","Events.Purchase.HoldExpired","Events.Purchase.InProgress","Events.Purchase.NotCompleted","Events.Purchase.NotFound","Events.Purchase.NotOnSale","Events.Purchase.OverLimit","Events.Purchase.PaymentDeclined","Events.Purchase.Retry","Events.Purchase.SessionRequired","Events.Purchase.SignIn","Events.Purchase.SignInText","Events.Purchase.SignInTitle","Events.Purchase.SoldOut","Events.Purchase.Unavailable","Events.Sale.Closed","Events.Sale.NotYet"],
+  claves: ["Events.Purchase.AttendeesInvalid","Events.Purchase.BackToEvents","Events.Purchase.ConfirmPending","Events.Purchase.Failed","Events.Purchase.FreeConfirmPending","Events.Purchase.FreeContinue","Events.Purchase.FreeFailed","Events.Purchase.FreeReceived","Events.Purchase.HoldExpired","Events.Purchase.InProgress","Events.Purchase.LinkSignIn","Events.Purchase.NotCompleted","Events.Purchase.NotFound","Events.Purchase.NotOnSale","Events.Purchase.OverLimit","Events.Purchase.PaymentDeclined","Events.Purchase.Retry","Events.Purchase.SessionRequired","Events.Purchase.SignIn","Events.Purchase.SignInText","Events.Purchase.SignInTitle","Events.Purchase.SoldOut","Events.Purchase.Unavailable","Events.Sale.Closed","Events.Sale.NotYet"],
   campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent"],
   listas: {},
   selectores: [],

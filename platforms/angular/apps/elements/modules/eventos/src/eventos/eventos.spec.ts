@@ -1031,9 +1031,34 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
       await abrirElEnlace('/eventos/?compra=pta-77', borde);
 
       expect(component.view()).toBe('compra');
+      // Había un miembro y el artefacto dijo 401: esa sesión SÍ terminó.
+      expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__denied-text')?.textContent?.trim()).toBe(
+        'Tu sesión terminó. Inicia sesión para seguir con tu compra.',
+      );
       const enlace = (fixture.nativeElement as HTMLElement).querySelector<HTMLAnchorElement>('.eventos__denied a[href^="/account/login"]');
       expect(enlace?.getAttribute('href')).toContain(`returnUrl=${encodeURIComponent('/eventos/?compra=pta-77')}`);
       expect(alArtefacto(borde)).toEqual(['GET entradas /api/eventos/compras/pta-77/entradas']);
+    } finally {
+      cerrarElEnlace();
+    }
+  });
+
+  it('el enlace abierto sin haber entrado pide la sesión para VER la compra, no «Tu sesión terminó», y no pide nada', async () => {
+    const borde = bordeDeEventos();
+    try {
+      (window as { synergos?: unknown }).synergos = { member: null };
+      window.history.replaceState(null, '', '/eventos/?compra=pta-77');
+      installMemoryStorage();
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent();
+      await flushMicrotasks(30);
+      fixture.detectChanges();
+
+      expect(component.view()).toBe('compra');
+      expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__denied-text')?.textContent?.trim()).toBe(
+        'Inicia sesión para ver tu compra y sus entradas.',
+      );
+      expect(alArtefacto(borde)).toEqual([]);
     } finally {
       cerrarElEnlace();
     }

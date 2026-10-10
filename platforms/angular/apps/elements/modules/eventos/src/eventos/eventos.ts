@@ -337,8 +337,19 @@ export class EventosElementComponent implements OnInit {
   /** La confirmación viene de pagar en esta página: la pieza lleva la vista y el foco a su encabezado. */
   readonly trasPagar = signal(false);
 
+  /**
+   * Si la sesión del enlace del aviso VENCIÓ (había un miembro y el artefacto contestó 401). Quien
+   * abre el enlace sin haber entrado nunca no tuvo una sesión que terminara, y «Tu sesión terminó»
+   * le mentía (verificación en vivo de la F4).
+   */
+  readonly #sesionDelEnlaceVencida = signal(false);
+
   /** Lo que dice el panel del enlace del aviso sin sesión (sección `Events.Purchase`). */
-  readonly textoDelEnlace = t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
+  readonly textoDelEnlace = computed(() =>
+    this.#sesionDelEnlaceVencida()
+      ? t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.')
+      : t('Events.Purchase.LinkSignIn', 'Inicia sesión para ver tu compra y sus entradas.'),
+  );
 
   /** Lo que dice el panel de la compra no disponible, del diccionario (sección `Events.Purchase`). */
   readonly textosNoDisponible = {
@@ -1086,6 +1097,7 @@ export class EventosElementComponent implements OnInit {
    */
   private async abrirCompraDelEnlace(id: string): Promise<void> {
     if (this.#identidad.hasHost() && !this.#identidad.isAuthenticated()) {
+      this.#sesionDelEnlaceVencida.set(false);
       this.view.set('compra');
       return;
     }
@@ -1095,6 +1107,7 @@ export class EventosElementComponent implements OnInit {
     this.loading.set(false);
     if (!r.ok) {
       if (clasificarRechazo(r.rechazo) === 'sesion') {
+        this.#sesionDelEnlaceVencida.set(this.#identidad.hasHost() && this.#identidad.isAuthenticated());
         this.view.set('compra');
         return;
       }
