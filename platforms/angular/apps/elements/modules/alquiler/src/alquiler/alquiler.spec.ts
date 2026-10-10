@@ -143,7 +143,11 @@ describe('AlquilerElementComponent', () => {
   let fixture: ComponentFixture<AlquilerElementComponent>;
   let component: AlquilerElementComponent;
 
-  /** Monta la app con la API que el CMS le pasa; `null` es montarla SIN ella. */
+  /**
+   * Monta la app COMO EL CMS: la API llega como entrada después de construirla, y nadie arranca
+   * la carga a mano. Llamar aquí a `cargarCatalogo()` escondía que el elemento nunca pedía su
+   * catálogo (UI#96). `null` es montarla SIN la API.
+   */
   async function montar(apiBase: string | null = '/api/alquiler'): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [AlquilerElementComponent],
@@ -156,7 +160,6 @@ describe('AlquilerElementComponent', () => {
       fixture.componentRef.setInput('config', { apiBase });
     }
     fixture.detectChanges();
-    await component.cargarCatalogo();
     await drenar();
   }
 
@@ -168,6 +171,17 @@ describe('AlquilerElementComponent', () => {
   });
 
   // ── El camino bueno existe y se prueba ─────────────────────────────────
+
+  it('pide su catálogo SOLO al montarse, una vez, a la API que manda el CMS (UI#96)', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar();
+
+    // Nadie llamó a cargarCatalogo(): si el elemento no lo pide al iniciarse, se queda en el
+    // esqueleto para siempre, que es lo que se vio en vivo con la CDN local.
+    const lecturas = llamadas.filter((l) => l.metodo === 'GET' && l.url.endsWith('/api/alquiler/equipment'));
+    expect(lecturas.length).toBe(1);
+    expect(component.catalogo().estado).toBe('ok');
+  });
 
   it('sirve el catálogo que el CMS publica', async () => {
     servidor(GUION_FELIZ);

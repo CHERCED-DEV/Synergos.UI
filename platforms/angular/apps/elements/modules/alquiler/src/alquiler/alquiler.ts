@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   input,
+  OnInit,
   signal,
 } from '@angular/core';
 import {
@@ -141,7 +142,7 @@ function textosDeAlquiler() {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-alquiler' },
 })
-export class AlquilerElementComponent {
+export class AlquilerElementComponent implements OnInit {
   readonly #api = inject(AlquilerApiClient);
 
   // ── Lo que el CMS pasa ─────────────────────────────────────────────────
@@ -228,6 +229,15 @@ export class AlquilerElementComponent {
   });
 
   // ── Lecturas ───────────────────────────────────────────────────────────
+
+  /**
+   * La primera lectura, aquí y no en el constructor: en un custom element las entradas del CMS
+   * —la `apiBase` del sitio— llegan después de construirlo y antes de `ngOnInit`. Sin esta
+   * llamada nadie pedía el catálogo y la pantalla se quedaba en el esqueleto (UI#96).
+   */
+  ngOnInit(): void {
+    void this.cargarCatalogo();
+  }
 
   /** Carga el catálogo. Es lo primero que la pantalla hace. */
   async cargarCatalogo(): Promise<void> {
