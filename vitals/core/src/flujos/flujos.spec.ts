@@ -15,6 +15,7 @@ import { OPERACIONES_DE_LA_PUERTA, crearClienteDeLaPuerta, esFlujo, type Operaci
 import {
   ETIQUETA_DEL_COORDINADOR,
   EVENTOS_DEL_FLUJO,
+  PROTOCOLO_DEL_FLUJO,
   claseDelCoordinador,
   definirCoordinador,
   hayCoordinador,
@@ -99,7 +100,8 @@ describe('transporte: interceptores', () => {
     const r = await cliente(f).llamar('eventos.compra', 'cerrar', { consulta: { id: 'saga1' } });
     expect(llamadas).toHaveLength(1);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.rechazo).toMatchObject({ code: 'flow.busy', transient: true, status: 503, origen: 'servidor' });
+    if (r.ok) throw new Error('esperaba rechazo');
+    expect(r.rechazo).toMatchObject({ code: 'flow.busy', transient: true, status: 503, origen: 'servidor' });
   });
 
   it('una negativa no se reintenta, ni siquiera en una lectura (404 no transitorio)', async () => {
@@ -176,7 +178,8 @@ describe('cliente de la puerta (la tabla generada)', () => {
     const c = cliente(f);
     const r = await (c.llamar as (a: string, b: string, x: unknown) => ReturnType<typeof c.llamar>)('eventos.compra', 'abrir', { cuerpo: {} });
     expect(llamadas).toHaveLength(0);
-    if (!r.ok) expect(r.rechazo.code).toBe('cliente.llave_requerida');
+    if (r.ok) throw new Error('esperaba rechazo');
+    expect(r.rechazo.code).toBe('cliente.llave_requerida');
   });
 
   it('una operación que la tabla no tiene no sale a la red', async () => {
@@ -184,7 +187,8 @@ describe('cliente de la puerta (la tabla generada)', () => {
     const c = cliente(f);
     const r = await (c.llamar as (a: string, b: string, x: unknown) => ReturnType<typeof c.llamar>)('eventos.compra', 'reintentar', {});
     expect(llamadas).toHaveLength(0);
-    if (!r.ok) expect(r.rechazo.code).toBe('cliente.operacion_desconocida');
+    if (r.ok) throw new Error('esperaba rechazo');
+    expect(r.rechazo.code).toBe('cliente.operacion_desconocida');
   });
 
   it('abrir: POST a /api/flujos/eventos.compra/abrir con JSON y la llave; cerrar: la consulta lleva sólo lo declarado y sin llave', async () => {
@@ -274,6 +278,69 @@ describe('<synergos-flujo>: el coordinador', () => {
     const r = await pedirAlFlujo(document.getElementById('p')!, 'eventos.compra', 'consultar', { consulta: { id: 's' } });
     expect(r.ok).toBe(true);
     expect(fx.llamadas).toHaveLength(0);
+    expect(fc.llamadas).toHaveLength(1);
+  });
+
+  it('un pedido CRUDO con un flujo que la tabla no conoce (el DOM no es frontera) contesta cliente.flujo_desconocido, de clase no_disponible, sin salir a la red', async () => {
+    // El de arriba lo corta el filtro del mismo flujo; a la guarda de la tabla sólo se llega con un
+    // pedido del MISMO flujo que el atributo, que es lo que manda otro bundle con otra tabla.
+    document.body.innerHTML = '<synergos-flujo id="x" flujo="../admin"><span id="p"></span></synergos-flujo>';
+    const fx = falsoFetch([json(200, compra)]);
+    conFetch('#x', fx.f);
+    const p = document.getElementById('p')!;
+    const resultado = new Promise<DetalleDeResultado>((r) =>
+      p.addEventListener(EVENTOS_DEL_FLUJO.resultado, (e) => r((e as CustomEvent<DetalleDeResultado>).detail), { once: true }),
+    );
+    p.dispatchEvent(
+      new CustomEvent(EVENTOS_DEL_FLUJO.pedir, {
+        bubbles: true,
+        composed: true,
+        detail: { protocolo: 1, flujo: '../admin', solicitud: 's1', operacion: 'consultar', consulta: { id: 's' } },
+      }),
+    );
+    const d = await resultado;
+    if (d.resultado.ok) throw new Error('esperaba rechazo');
+    expect(d.resultado.rechazo.code).toBe('cliente.flujo_desconocido');
+    expect(clasificarRechazo(d.resultado.rechazo)).toBe('no_disponible');
+    expect(fx.llamadas).toHaveLength(0);
+  });
+
+  it('los nombres del protocolo v2 son los de dom-events.md, en crudo: con dos bundles en la página, renombrar uno deja a los pedidos sin quien los atienda', () => {
+    expect(EVENTOS_DEL_FLUJO).toEqual({
+      registrar: 'synergos:register',
+      pedir: 'synergos:submit-request',
+      resultado: 'synergos:submit-result',
+      ocupado: 'synergos:flujo-ocupado',
+      presente: 'synergos:flujo-presente',
+    });
+    expect(PROTOCOLO_DEL_FLUJO).toBe(1);
+  });
+
+  it('un participante que habla el protocolo con las cadenas CRUDAS —otro bundle, otra copia de vitals— se registra y es atendido', async () => {
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    const fc = falsoFetch([json(200, compra)]);
+    conFetch('#c', fc.f);
+    const p = document.getElementById('p')!;
+    let registrado = false;
+    p.dispatchEvent(
+      new CustomEvent('synergos:register', {
+        bubbles: true,
+        composed: true,
+        detail: { protocolo: 1, flujo: 'eventos.compra', responder: () => (registrado = true) },
+      }),
+    );
+    expect(registrado).toBe(true);
+    const resultado = new Promise<DetalleDeResultado>((r) =>
+      p.addEventListener('synergos:submit-result', (e) => r((e as CustomEvent<DetalleDeResultado>).detail), { once: true }),
+    );
+    p.dispatchEvent(
+      new CustomEvent('synergos:submit-request', {
+        bubbles: true,
+        composed: true,
+        detail: { protocolo: 1, flujo: 'eventos.compra', solicitud: 's-crudo', operacion: 'consultar', consulta: { id: 's' } },
+      }),
+    );
+    expect(await resultado).toMatchObject({ protocolo: 1, solicitud: 's-crudo', operacion: 'consultar', outcome: 'success' });
     expect(fc.llamadas).toHaveLength(1);
   });
 
