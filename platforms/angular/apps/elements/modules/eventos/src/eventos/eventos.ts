@@ -334,6 +334,9 @@ export class EventosElementComponent implements OnInit {
    */
   #compraDelEnlace = '';
 
+  /** La confirmación viene de pagar en esta página: la pieza lleva la vista y el foco a su encabezado. */
+  readonly trasPagar = signal(false);
+
   /** Lo que dice el panel del enlace del aviso sin sesión (sección `Events.Purchase`). */
   readonly textoDelEnlace = t('Events.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
 
@@ -1089,6 +1092,7 @@ export class EventosElementComponent implements OnInit {
       return;
     }
     this.#compraDelEnlace = '';
+    this.trasPagar.set(false);
     this.orderRef.set(id);
     this.tickets.set(r.valor.tickets);
     this.walletLoaded.set(false);
@@ -1660,6 +1664,7 @@ export class EventosElementComponent implements OnInit {
   }
 
   onCheckoutCompleted(result: CheckoutWizardResult): void {
+    this.trasPagar.set(true);
     this.orderRef.set(result.reference);
     const issued: ETicket[] = result.vouchers.map((voucher) => ({
       id: voucher.itemId,
@@ -1690,6 +1695,7 @@ export class EventosElementComponent implements OnInit {
   }
 
   startOver(): void {
+    this.trasPagar.set(false);
     this.#store.reset();
     this.detail.set(null);
     this.selectedTierId.set('');

@@ -29,6 +29,7 @@ const CONFIG: ConfirmationShellConfig = {
       [steps]="steps()"
       [actions]="actions()"
       [artifactTemplate]="withArtifact() ? artifact : null"
+      [enfocar]="enfocar()"
       (referencecopied)="copiedLog.push($event)"
       (action)="actionLog.push($event)"
     />
@@ -41,6 +42,7 @@ class Host {
   readonly steps = signal<readonly ConfirmationStep[]>([]);
   readonly actions = signal<readonly ConfirmationAction[]>([]);
   readonly withArtifact = signal(false);
+  readonly enfocar = signal(false);
   readonly copiedLog: string[] = [];
   readonly actionLog: string[] = [];
 }
@@ -57,6 +59,25 @@ const text = (fixture: { nativeElement: HTMLElement }, sel: string): string =>
 describe('SH-11 syn-confirmation-shell', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+  });
+
+  // ── ADR 0140 F4: tras pagar, la confirmación queda a la vista y con el foco ─────────────
+  it('con enfocar, al mostrarse lleva el foco a su encabezado (con el render del scheduler); sin él, no lo toca', async () => {
+    for (const enfocar of [false, true]) {
+      const fixture = TestBed.createComponent(Host);
+      fixture.componentInstance.enfocar.set(enfocar);
+      const element: HTMLElement = fixture.nativeElement;
+      document.body.appendChild(element);
+      fixture.autoDetectChanges();
+      await fixture.whenStable();
+
+      const heading = element.querySelector<HTMLElement>('.syn-confirm__heading');
+      expect(heading).not.toBeNull();
+      expect(document.activeElement === heading, `enfocar=${enfocar}`).toBe(enfocar);
+      expect(heading?.getAttribute('tabindex')).toBe(enfocar ? '-1' : null);
+      element.remove();
+      fixture.destroy();
+    }
   });
 
   // ─── feliz ──────────────────────────────────────────────────────────────────

@@ -1,8 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   type TemplateRef,
+  afterNextRender,
   computed,
+  inject,
   input,
   output,
   signal,
@@ -98,7 +101,7 @@ export interface ConfirmationShellConfig {
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </span>
-        <h2 class="syn-confirm__heading" [id]="headingId">{{ config().heading }}</h2>
+        <h2 class="syn-confirm__heading" [id]="headingId" [attr.tabindex]="enfocar() ? -1 : null">{{ config().heading }}</h2>
         @if (config().summary) {
           <p class="syn-confirm__summary">{{ config().summary }}</p>
         }
@@ -204,6 +207,15 @@ export class ConfirmationShellComponent {
   readonly actions = input<readonly ConfirmationAction[]>([]);
   /** El artefacto del dominio (QR, voucher, diploma), si lo hay. */
   readonly artifactTemplate = input<TemplateRef<unknown> | null>(null);
+  /**
+   * Al mostrarse, lleva la vista y el foco a su encabezado. Para cuando la confirmación REEMPLAZA lo
+   * que la persona estaba haciendo —el paso de pagar, más largo—: sin esto el scroll se quedaba
+   * donde estaba el botón, la confirmación quedaba por encima de la vista y el foco en BODY
+   * (verificación en vivo de la ADR 0140 F4). Lo decide el dominio: la pieza no sabe de dónde viene.
+   */
+  readonly enfocar = input(false);
+
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
 
   /** Se emite al copiar la referencia — el dominio puede querer anotarlo. */
   readonly referencecopied = output<string>();
@@ -214,6 +226,18 @@ export class ConfirmationShellComponent {
   readonly copied = signal(false);
 
   readonly hasReference = computed(() => this.reference().trim().length > 0);
+
+  constructor() {
+    // DESPUÉS del render: antes el encabezado no existe (la misma razón que el resumen de errores
+    // de SH-6, #87).
+    afterNextRender(() => {
+      if (!this.enfocar()) {
+        return;
+      }
+      this.#host.scrollIntoView?.({ block: 'start' });
+      this.#host.querySelector<HTMLElement>('.syn-confirm__heading')?.focus({ preventScroll: true });
+    });
+  }
 
   onCopy(): void {
     const value = this.reference().trim();

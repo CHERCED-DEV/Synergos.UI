@@ -474,6 +474,21 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(window.location.hash).toContain('/confirmacion');
   });
 
+  it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    await purchaseFirstGeneralEvent();
+    await fixture.whenStable();
+
+    expect(component.view()).toBe('confirmed');
+    const heading = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.syn-confirm__heading');
+    expect(heading?.textContent?.trim()).toBe('¡Compra confirmada!');
+    expect(document.activeElement).toBe(heading);
+  });
+
   // ── UI#92: sin compra abierta no hay cobro, ni entradas, ni anuncio ──────────────
   it('con la puerta caída al abrir no cobra ni emite ni cierra: lo dice una vez y no anuncia la compra', async () => {
     installMemoryStorage();
