@@ -61,6 +61,9 @@ on:
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
+      - 'tools/avisos-de-los-flujos.mjs'
+      - 'tools/lib/avisos-de-los-flujos.mjs'
+      - 'vitals/core/src/flujos/avisos.ts'
       - 'tools/contrato-synhost.mjs'
       - 'tools/lib/contrato-synhost.mjs'
       - 'vitals/contracts/src/elementos-synhost.contract.ts'
@@ -89,6 +92,9 @@ on:
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
+      - 'tools/avisos-de-los-flujos.mjs'
+      - 'tools/lib/avisos-de-los-flujos.mjs'
+      - 'vitals/core/src/flujos/avisos.ts'
       - 'tools/contrato-synhost.mjs'
       - 'tools/lib/contrato-synhost.mjs'
       - 'vitals/contracts/src/elementos-synhost.contract.ts'
@@ -99,7 +105,7 @@ on:
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión · G-13 unidades menores · G-14 contrato HTTP
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión · G-13 unidades menores · G-14 contrato HTTP · G-15 avisos de los flujos
     runs-on: ubuntu-latest
 
     steps:
@@ -232,6 +238,22 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/rutas-del-borde.mjs
+
+      # ── G-15 — el enlace del aviso de un flujo trae el parámetro que lee su participante ──
+      #
+      # POR QUÉ EXISTE (ADR 0140 F4 · CMS#201). El CMS manda en el correo
+      # `Synergos:Puerta:Flujos:{flujo}:Aviso:Ruta` (hoy `/eventos/?compra={id}`) y `<synergos-eventos>`
+      # abre la compra leyendo `?compra=`. Eran dos literales que nadie cruzaba, y el validador de la
+      # puerta acepta cualquier ruta del sitio: un `/?id={id}` arrancaba y el enlace abría la
+      # cartelera sin decir nada. Esto cruza `vitals/core/src/flujos/avisos.ts` con el
+      # `appsettings.json` del CMS en los dos sentidos. Lo que NO ve: los `appsettings.<Entorno>.json`
+      # de un despliegue; y, como G-10, un cambio del lado del CMS no dispara este workflow (allá lo
+      # fija `CoordinadorDelFlujoEnLasVistasTests`).
+      - name: Avisos de los flujos (G-15)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/avisos-de-los-flujos.mjs
 
       # ── G-11 — el tipo TS de lo que viaja a cada elemento sale del record del CMS ──
       #

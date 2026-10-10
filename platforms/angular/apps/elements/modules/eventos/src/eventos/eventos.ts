@@ -104,6 +104,7 @@ import {
   type TierSaleState,
 } from './eventos.model';
 import {
+  AVISOS_DE_LOS_FLUJOS,
   FLUJO_COMPRA_DE_EVENTOS,
   aMenores,
   baseDeRuta,
@@ -224,9 +225,10 @@ function claseDelMotivo(motivo: string): ClaseDeRechazo {
 
 /**
  * El parámetro de la consulta con el que llega la compra del enlace del aviso. Es el de
- * `Synergos:Puerta:Flujos:eventos.compra:Aviso:Ruta` del CMS (`/eventos/?compra={id}`).
+ * `Synergos:Puerta:Flujos:eventos.compra:Aviso:Ruta` del CMS (`/eventos/?compra={id}`), y sale de
+ * la tabla que `gate:avisos` (G-15) cruza con ese `appsettings.json`.
  */
-export const PARAMETRO_DE_LA_COMPRA = 'compra';
+export const PARAMETRO_DE_LA_COMPRA = AVISOS_DE_LOS_FLUJOS[FLUJO_COMPRA_DE_EVENTOS].parametro;
 
 /** La compra del enlace del aviso: `?compra={id}` en la consulta de la página. Vacío sin ella. */
 function compraDelEnlace(): string {
