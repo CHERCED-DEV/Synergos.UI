@@ -440,6 +440,21 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   // La compra va por el `<synergos-flujo>` que envuelve al elemento (ADR 0140 F4): abrir y cerrar
   // por la puerta, los asistentes y las entradas por el artefacto, en ese orden. Lo que se mira es
   // la saga y el QR que emitió el SERVIDOR, la llave de la intención y el total que él cobra.
+  it('lo pagado sí habla de pago: «Continuar al pago», el aviso de que no hay cobro real, y «Pago recibido» (control del registro gratis)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
+    await createComponent();
+    let notice: string | null | undefined;
+    await purchaseFirstGeneralEvent(() => {
+      fixture.detectChanges();
+      notice = (fixture.nativeElement as HTMLElement).querySelector('.eventos__review .eventos__notice')?.textContent?.trim();
+    });
+
+    expect(notice).toBe('Demostración: no se realiza un cobro real.');
+    expect(component.view()).toBe('confirmed');
+    expect(component.confirmationSteps()[0]).toEqual({ id: 'pagado', label: 'Pago recibido', done: true });
+  });
+
   it('compra por la puerta: abrir → asistentes → cerrar → entradas, con la llave de la intención y el total del servidor (happy case)', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos();
@@ -760,6 +775,44 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(TestBed.inject(SessionStore).pricing().totalAmount).toBe(0);
   });
 
+  it('un registro gratis no habla de pago: «Continuar al registro», sin el aviso de cobro, y «Registro confirmado»', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 0 });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    component.openEvent(component.events().find((e) => e.fromAmount <= 0)!);
+    await flushMicrotasks();
+    component.startSelection();
+    component.proceedToCart();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(component.cartActions().find((accion) => accion.id === 'checkout')?.label).toBe('Continuar al registro');
+    expect(host.textContent).not.toContain('Continuar al pago');
+
+    component.setAttendeeField(0, 'name', 'Ada Lovelace');
+    component.setAttendeeField(0, 'email', 'ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    expect(host.querySelector('.eventos__review')).not.toBeNull();
+    expect(host.querySelector('.eventos__review .eventos__notice')).toBeNull();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(component.confirmationSteps()[0]).toEqual({ id: 'registrado', label: 'Registro confirmado', done: true });
+    expect(host.textContent).toContain('Registro confirmado');
+    expect(host.textContent).not.toContain('Pago recibido');
+  });
+
   // ── ADR 0140 F4: lo que dice un registro gratis sale del diccionario ─────────
   //
   // Sección `Events.Purchase`, que `EventosProps` declara desde la F4. `t()` pinta su respaldo
@@ -784,6 +837,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
         keys: {
           'Events.Purchase.FreeFailed': "We couldn't complete your registration.",
           'Events.Purchase.FreeConfirmPending': 'Your registration is open ({referencia}).',
+          'Events.Purchase.FreeContinue': 'Continue to registration',
         },
       },
     };
@@ -791,6 +845,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
       await abrirEventoGratis();
       expect(component.checkoutConfig().payFailedMessage).toBe("We couldn't complete your registration.");
       expect(component.checkoutConfig().confirmFailedMessage).toBe('Your registration is open ({referencia}).');
+      expect(component.cartActions().find((accion) => accion.id === 'checkout')?.label).toBe('Continue to registration');
     } finally {
       delete (window as { synergos?: unknown }).synergos;
     }

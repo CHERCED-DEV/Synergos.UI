@@ -507,15 +507,25 @@ export class EventosElementComponent implements OnInit {
     copiedLabel: 'Orden copiada',
   }));
 
-  readonly confirmationSteps: readonly ConfirmationStep[] = [
-    { id: 'pagado', label: 'Pago recibido', done: true },
+  /**
+   * La compra que se acaba de confirmar en esta página no cobró nada (todas sus líneas a 0): su
+   * primer paso no puede decir «Pago recibido» (verificación en vivo de la F4). Se fija al
+   * completarla, cuando el carrito todavía la dice; la del enlace del aviso no se sabe, y se queda
+   * como antes.
+   */
+  readonly #confirmadaGratis = signal(false);
+
+  readonly confirmationSteps = computed<readonly ConfirmationStep[]>(() => [
+    this.#confirmadaGratis()
+      ? { id: 'registrado', label: t('Events.Purchase.FreeReceived', 'Registro confirmado'), done: true }
+      : { id: 'pagado', label: 'Pago recibido', done: true },
     { id: 'entradas', label: 'Tus entradas quedaron emitidas', done: true },
     {
       id: 'puerta',
       label: 'Preséntalas en la entrada',
       detail: 'Basta con el QR en el teléfono; no hace falta imprimir.',
     },
-  ];
+  ]);
 
   readonly confirmationActions: readonly ConfirmationAction[] = [
     { id: 'wallet', label: 'Ver mis tickets', kind: 'primary' },
@@ -1093,6 +1103,7 @@ export class EventosElementComponent implements OnInit {
     }
     this.#compraDelEnlace = '';
     this.trasPagar.set(false);
+    this.#confirmadaGratis.set(false);
     this.orderRef.set(id);
     this.tickets.set(r.valor.tickets);
     this.walletLoaded.set(false);
@@ -1604,7 +1615,13 @@ export class EventosElementComponent implements OnInit {
   readonly cartActions = computed<readonly CartAction[]>(() => [
     { id: 'catalog', label: 'Explorar eventos', visibility: 'empty' },
     { id: 'back', label: 'Volver', visibility: 'filled' },
-    { id: 'checkout', label: 'Continuar al pago', kind: 'primary', visibility: 'filled' },
+    {
+      id: 'checkout',
+      // Un registro gratis no pasa por ningún pago (verificación en vivo de la F4).
+      label: this.isFreeEvent() ? t('Events.Purchase.FreeContinue', 'Continuar al registro') : 'Continuar al pago',
+      kind: 'primary',
+      visibility: 'filled',
+    },
   ]);
 
   onCartAction(id: string): void {
@@ -1664,6 +1681,7 @@ export class EventosElementComponent implements OnInit {
   }
 
   onCheckoutCompleted(result: CheckoutWizardResult): void {
+    this.#confirmadaGratis.set(this.isFreeEvent());
     this.trasPagar.set(true);
     this.orderRef.set(result.reference);
     const issued: ETicket[] = result.vouchers.map((voucher) => ({
@@ -1696,6 +1714,7 @@ export class EventosElementComponent implements OnInit {
 
   startOver(): void {
     this.trasPagar.set(false);
+    this.#confirmadaGratis.set(false);
     this.#store.reset();
     this.detail.set(null);
     this.selectedTierId.set('');

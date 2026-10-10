@@ -400,7 +400,10 @@
                 <div class="eventos__cart-row"><dt>Cargos por servicio</dt><dd>{{ feesLabel() }}</dd></div>
                 <div class="eventos__cart-row eventos__cart-row--total"><dt>Total</dt><dd>{{ cartTotalLabel() }}</dd></div>
               </dl>
-              <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
+              @if (!isFreeEvent()) {
+                <!-- Un registro gratis no cobra nada: avisar de que «no se realiza un cobro real» es hablarle de un pago. -->
+                <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
+              }
             </div>
           }
         }
@@ -443,7 +446,7 @@
       <syn-confirmation-shell
         [config]="confirmationConfig()"
         [reference]="orderRef()"
-        [steps]="confirmationSteps"
+        [steps]="confirmationSteps()"
         [actions]="confirmationActions"
         [artifactTemplate]="tickets().length > 0 ? entradas : null"
         [enfocar]="trasPagar()"
