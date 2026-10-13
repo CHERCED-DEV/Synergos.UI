@@ -1,9 +1,17 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-.syn-promo-code {
+// En `:host` y no en `.syn-promo-code` (ADR 0140, el cupón endurecido): la clase la pone el host, y
+// con encapsulación emulada Angular compila `.syn-promo-code` como `.syn-promo-code[_ngcontent-…]`,
+// un atributo que el host NO lleva. La regla no casaba nunca, las --syn-promo-* salían vacías y
+// cada var() era inválida: el campo sin borde ni fondo y «Aplicar» sin relleno, en los siete temas.
+:host {
   --syn-promo-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
   --syn-promo-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
   --syn-promo-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  /* El BORDE DEL CAMPO es lo que lo identifica como campo (WCAG 1.4.11, 3:1 contra lo de alrededor):
+     border-default es decorativo y da 1,2–1,5:1 en los siete temas. text-muted da 5,9:1 o más en
+     todos (medido contra syn-tokens.css, compuesto sobre surface-primary y sobre canvas). */
+  --syn-promo-field-border: var(--syn-color-text-muted, #{syn.$color-text-muted});
   --syn-promo-text: var(--syn-color-text-primary, #{syn.$color-text-primary});
   --syn-promo-muted: var(--syn-color-text-muted, #{syn.$color-text-muted});
   /* Par SÓLIDO — el de lavado es invisible en los temas claros (#25). */
@@ -44,12 +52,21 @@
   text-transform: uppercase;
   color: var(--syn-promo-text);
   background: var(--syn-promo-surface);
-  border: syn.px-to-rem(1) solid var(--syn-promo-border);
+  border: syn.px-to-rem(1) solid var(--syn-promo-field-border);
   border-radius: syn.$radius-sm;
+
+  // El texto de ejemplo es texto: AA (4,5:1). Sin regla, cada navegador lo pinta a su gris con
+  // opacidad, y daba 3,2:1 en dark.
+  @include syn.placeholder(var(--syn-promo-muted));
 
   &:focus-visible {
     outline: syn.px-to-rem(2) solid var(--syn-promo-focus-ring);
     outline-offset: syn.px-to-rem(1);
+  }
+
+  &:disabled {
+    background: var(--syn-promo-surface-muted);
+    cursor: not-allowed;
   }
 }
 

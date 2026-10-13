@@ -176,6 +176,43 @@ describe('syn-promo-code', () => {
     expect(fixture.nativeElement.querySelector('.syn-promo__locked')).toBeNull();
   });
 
+  // ─── los estilos llegan (ADR 0140, el cupón endurecido) ──────────────────────
+  // Las --syn-promo-* se declaraban en `.syn-promo-code`, que con encapsulación emulada compila a
+  // `.syn-promo-code[_ngcontent-…]`: el host no lleva ese atributo, la regla no casaba y cada var()
+  // era inválida. Medido en vivo: el campo sin borde ni fondo y «Aplicar» sin relleno en los 7 temas.
+  /** Las reglas que inyectó el componente (las únicas que hablan de --syn-promo-*). */
+  function reglasDelControl(): CSSStyleRule[] {
+    return Array.from(document.styleSheets)
+      .flatMap((hoja) => Array.from(hoja.cssRules))
+      .filter((regla): regla is CSSStyleRule => 'selectorText' in regla && regla.cssText.includes('--syn-promo-'));
+  }
+
+  it('cada --syn-promo-* con que pinta el control está declarada EN su host', () => {
+    const { fixture } = mount();
+    const control = fixture.nativeElement.querySelector('syn-promo-code') as HTMLElement;
+    const estilo = getComputedStyle(control);
+    const usadas = new Set(reglasDelControl().flatMap((regla) => [...regla.cssText.matchAll(/var\((--syn-promo-[a-z-]+)/g)].map((m) => m[1]!)));
+
+    // Control: se leyó la hoja del componente (el borde, el relleno de «Aplicar», el error, el chip…).
+    expect(usadas.size).toBeGreaterThanOrEqual(8);
+    for (const variable of usadas) {
+      expect(estilo.getPropertyValue(variable).trim(), variable).not.toBe('');
+    }
+  });
+
+  it('el borde del campo y el texto de ejemplo usan la tinta que se distingue del fondo (WCAG 1.4.11 y AA)', () => {
+    const { fixture } = mount();
+    const control = fixture.nativeElement.querySelector('syn-promo-code') as HTMLElement;
+    const estilo = getComputedStyle(control);
+
+    // border-default es decorativo (1,2–1,5:1 en los siete temas); text-muted da 5,9:1 o más.
+    expect(estilo.getPropertyValue('--syn-promo-field-border')).toContain('var(--syn-color-text-muted');
+    const campo = reglasDelControl().find((regla) => /syn-promo__input\[[^\]]+\]$/.test(regla.selectorText.trim()));
+    expect(campo?.style.getPropertyValue('border')).toContain('var(--syn-promo-field-border)');
+    const ejemplo = reglasDelControl().find((regla) => regla.selectorText.includes('::placeholder'));
+    expect(ejemplo?.style.getPropertyValue('color')).toBe('var(--syn-promo-muted)');
+  });
+
   // ─── EL caso: cada motivo dice lo suyo ──────────────────────────────────────
   it('cada motivo de rechazo tiene su mensaje', () => {
     const { fixture, host } = mount();
