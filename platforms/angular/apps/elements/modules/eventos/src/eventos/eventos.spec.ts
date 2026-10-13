@@ -100,6 +100,8 @@ function bordeDeEventos(
     readonly cortados?: readonly string[];
     /** La saga de esa llave ya se cerró: abrir la devuelve `Completed`, y anotar contesta 409. */
     readonly yaCerrada?: boolean;
+    /** Lo que contesta `POST cotizar` (el cupón, en unidades mayores): lo calcula el SERVIDOR. */
+    readonly cotizacion?: { readonly subtotal: number; readonly descuento: number; readonly comision: number; readonly total: number };
   } = {},
 ): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
@@ -147,6 +149,7 @@ function bordeDeEventos(
     if (ruta === '/api/flujos/eventos.compra/abrir') return `${metodo} abrir`;
     if (ruta === '/api/flujos/eventos.compra/cerrar') return `${metodo} cerrar`;
     if (ruta === '/api/flujos/eventos.compra/consultar') return `${metodo} consultar`;
+    if (ruta === '/api/flujos/eventos.compra/cotizar') return `${metodo} cotizar`;
     if (/^\/api\/eventos\/compras\/[^/]+\/asistentes$/.test(ruta)) return `${metodo} asistentes`;
     if (/^\/api\/eventos\/compras\/[^/]+\/entradas$/.test(ruta)) return `${metodo} entradas`;
     return `${metodo} ${ruta.replace(/^\/api\/eventos/, '').replace(/^\/ticket\/[^/]+\/transfer$/, '/ticket/{id}/transfer')}`;
@@ -189,6 +192,21 @@ function bordeDeEventos(
       }
       case 'GET consultar':
         return responder(200, compra());
+      case 'POST cotizar': {
+        // La vista previa del cupón (ADR 0140): el orquestador cotiza sin apartar ni autorizar nada.
+        const c = opciones.cotizacion ?? { subtotal: 168_000, descuento: 16_800, comision: 20_160, total: 171_360 };
+        const cop = (amount: number) => ({ amount, currency: 'COP' });
+        const codigo = typeof cuerpo['promotionCode'] === 'string' ? cuerpo['promotionCode'] : null;
+        return responder(200, {
+          eventId: 'evt_1',
+          subtotal: cop(c.subtotal),
+          discount: cop(codigo ? c.descuento : 0),
+          tax: cop(0),
+          serviceFee: cop(c.comision),
+          total: cop(c.total),
+          promotionCode: codigo,
+        });
+      }
       case 'POST asistentes':
         if (estado !== 'Running') {
           return responder(409, { title: 'Conflict', status: 409, code: 'eventos.compra_ya_cerrada', transient: false }, 'application/problem+json');
@@ -487,6 +505,203 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(TestBed.inject(SessionStore).pricing().totalAmount).toBe(aMenores(201_600, 'COP'));
     expect(compras).toEqual([expect.objectContaining({ orderRef: 'pta-77', tickets: 1 })]);
     expect(window.location.hash).toContain('/confirmacion');
+  });
+
+  // ── El cupón, de verdad (ADR 0140, el cupón): del navegador sólo sale el CÓDIGO ──────────
+  //
+  // La vista previa la cotiza el orquestador por la puerta (`cotizar`, sin llave, sin apartar
+  // nada); el descuento y el total que se pintan son los que contestó el SERVIDOR, y abrir lleva el
+  // código con una llave propia: la intención cambió. Lo que se mira no lo puede producir el cupón de
+  // antes, que restaba en el navegador: el total es el del borde (171.360), no una resta local.
+  async function alRevisar(): Promise<CheckoutWizardComponent> {
+    const event =
+      component.events().find((e) => e.mode === 'general' && e.fromAmount > 0) ??
+      component.events()[0];
+    component.openEvent(event);
+    await flushMicrotasks();
+    component.startSelection();
+    component.proceedToCart();
+    await flushMicrotasks();
+    component.setAttendeeField(0, 'name', 'Ada Lovelace');
+    component.setAttendeeField(0, 'email', 'ada@example.com');
+    component.setAttendeeField(0, 'document', 'CC123');
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    return wizard;
+  }
+
+  const filaDelCupon = (): string | undefined =>
+    (fixture.nativeElement as HTMLElement).querySelector('.eventos__review .eventos__cart-row--promo')?.textContent?.replace(/\s+/g, ' ').trim();
+
+  it('el cupón: cotiza por la puerta SIN llave, pinta el descuento y el total del servidor, y abrir lleva el código con su propia llave', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 171_360 });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    const sesion = TestBed.inject(SessionStore);
+    const sessionId = sesion.session().sessionId;
+    const sinCupon = component.cartTotalMinor();
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    const cotizar = borde.vistas().find((vista) => vista.clave === 'POST cotizar')!;
+    expect(cotizar.url).toBe('/api/flujos/eventos.compra/cotizar');
+    expect(cotizar.llave).toBeNull();
+    expect(cotizar.cuerpo).toEqual({ eventId: expect.any(String), lines: [{ quantity: 1, tier: expect.any(String) }], promotionCode: 'BIENVENIDA10' });
+    // Mirar no abre nada.
+    expect(borde.llamadas('POST abrir')).toBe(0);
+    expect(component.promo()).toEqual({ codigo: 'BIENVENIDA10', descuentoMinor: aMenores(16_800, 'COP') });
+    expect(component.cartTotalMinor()).toBe(aMenores(171_360, 'COP'));
+    expect(component.cartTotalMinor()).not.toBe(sinCupon);
+    expect(sesion.pricing().totalAmount).toBe(aMenores(171_360, 'COP'));
+    expect(component.cartSummary().map((fila) => fila.id).slice(-2)).toEqual(['promo', 'total']);
+    expect(filaDelCupon()).toBe(`Descuento (BIENVENIDA10)${component.promoValueLabel()}`);
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const abrir = borde.vistas().find((vista) => vista.clave === 'POST abrir')!;
+    expect(abrir.cuerpo).toEqual(cotizar.cuerpo);
+    expect(abrir.llave).not.toBe(sessionId);
+    expect(abrir.llave!.startsWith(`${sessionId}~`)).toBe(true);
+    expect(component.view()).toBe('confirmed');
+    expect(sesion.pricing().totalAmount).toBe(aMenores(171_360, 'COP'));
+  });
+
+  it('un cupón que no existe se dice por su code, una vez, y no toca el total ni la compra', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cotizar': [{ status: 404, code: 'pricing.promotion_not_found', title: 'Not Found' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    const antes = component.cartTotalMinor();
+
+    await component.applyPromo('NOEXISTE');
+    fixture.detectChanges();
+
+    expect(component.promoRejection()).toBe('unknown');
+    expect(component.promo()).toBeNull();
+    expect(component.cartTotalMinor()).toBe(antes);
+    expect(filaDelCupon()).toBeUndefined();
+    expect(alertas()).toEqual(['No encontramos ese código. Revisa que esté bien escrito.']);
+    expect(borde.llamadas('POST abrir')).toBe(0);
+  });
+
+  it('un «no» que no es del código (las entradas ya no están a la venta) se dice con su texto, sin culpar al código', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cotizar': [{ status: 409, code: 'pricing.price_not_in_effect', title: 'Conflict' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    expect(component.promoRejection()).toBe('not-applicable');
+    expect(alertas()).toEqual([
+      'No pudimos aplicar el código a esta compra. Estas entradas no están a la venta en este momento.',
+    ]);
+  });
+
+  it('quitar el cupón vuelve al total de siempre, y abrir va sin código y con la llave de la sesión', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    const sessionId = TestBed.inject(SessionStore).session().sessionId;
+    const sinCupon = component.cartTotalMinor();
+    await component.applyPromo('BIENVENIDA10');
+
+    component.removePromo();
+    fixture.detectChanges();
+
+    expect(component.promo()).toBeNull();
+    expect(component.cartTotalMinor()).toBe(sinCupon);
+    expect(component.cartSummary().map((fila) => fila.id)).not.toContain('promo');
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const abrir = borde.vistas().find((vista) => vista.clave === 'POST abrir')!;
+    expect(abrir.cuerpo).toEqual({ eventId: expect.any(String), lines: [{ quantity: 1, tier: expect.any(String) }] });
+    expect(abrir.llave).toBe(sessionId);
+  });
+
+  it('un cupón que vence entre la vista previa y el pago: abrir lo rechaza sin apartar, el cupón se quita y se dice una vez', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 410, code: 'pricing.promotion_expired', title: 'Gone' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    await component.applyPromo('BIENVENIDA10');
+    const fallos = motivosDe();
+    fallos.escuchar(wizard);
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(fallos.motivos).toEqual(['pricing.promotion_expired']);
+    expect(component.promo()).toBeNull();
+    expect(borde.llamadas('POST asistentes')).toBe(0);
+    expect(component.view()).not.toBe('confirmed');
+    expect(alertas()).toEqual([
+      'Tu código de descuento ya no aplica y lo quitamos: no se te cobró nada. Revisa el total y vuelve a intentarlo.',
+    ]);
+  });
+
+  it('el cupón vive en la sesión: tras recargar en el checkout sigue aplicado, y abrir lo lleva', async () => {
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    await component.applyPromo('BIENVENIDA10');
+    const cupon = component.promo();
+    expect(cupon).not.toBeNull();
+
+    // Como en «recarga en checkout»: la sesión pasa a la instancia siguiente del módulo.
+    const guardada = almacen.get(`syn.txn.session.eventos.${component.instanceId}`);
+    const siguiente = component.instanceId + 1;
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    almacen.set(`syn.txn.session.eventos.${siguiente}`, guardada!);
+    window.location.hash = '#/eventos/checkout';
+    await createComponent();
+    fixture.detectChanges();
+
+    expect(component.instanceId).toBe(siguiente);
+    expect(component.promo()).toEqual(cupon);
+    component.setAttendeeField(0, 'name', 'Ada Lovelace');
+    component.setAttendeeField(0, 'email', 'ada@example.com');
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const abrir = borde.vistas().find((vista) => vista.clave === 'POST abrir')!;
+    expect(abrir.cuerpo['promotionCode']).toBe('BIENVENIDA10');
   });
 
   it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {

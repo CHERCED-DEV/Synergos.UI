@@ -398,9 +398,25 @@
                   <div class="eventos__cart-row"><dt>{{ item.label }} × {{ item.quantity }}</dt><dd>{{ formatMinor(item.amount * item.quantity) }}</dd></div>
                 }
                 <div class="eventos__cart-row"><dt>Cargos por servicio</dt><dd>{{ feesLabel() }}</dd></div>
+                @if (promo()) {
+                  <!-- El descuento que calculó Pricing, como fila propia entre los cargos y el total (ADR 0140, el cupón). -->
+                  <div class="eventos__cart-row eventos__cart-row--promo"><dt>{{ promoLabel() }}</dt><dd>{{ promoValueLabel() }}</dd></div>
+                }
                 <div class="eventos__cart-row eventos__cart-row--total"><dt>Total</dt><dd>{{ cartTotalLabel() }}</dd></div>
               </dl>
               @if (!isFreeEvent()) {
+                <!-- El cupón, antes de pagar y con la sesión ya pedida: la vista previa la cotiza el
+                     orquestador por la puerta, sin apartar nada, y la puerta es de miembros. Un registro
+                     gratis no tiene qué descontar. -->
+                <syn-promo-code
+                  [config]="promoConfig"
+                  [applied]="appliedPromo()"
+                  [busy]="promoBusy()"
+                  [rejection]="promoRejection()"
+                  [rejectionDetail]="promoDetail()"
+                  (apply)="applyPromo($event)"
+                  (remove)="removePromo()"
+                />
                 <!-- Un registro gratis no cobra nada: avisar de que «no se realiza un cobro real» es hablarle de un pago. -->
                 <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
               }

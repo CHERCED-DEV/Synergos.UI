@@ -8,6 +8,7 @@ import {
   type FulfillmentProduct,
   type FulfillmentSearchQuery,
   type FulfillmentSelection,
+  type Pricing,
   type SessionData,
   type SessionItem,
   type SessionParty,
@@ -126,8 +127,11 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * La llave de idempotencia es la de la INTENCIÓN: `SessionData.sessionId`, nueva en cada
    * selección y persistida, así que sobrevive a la recarga y al login. Con la misma llave y una
    * saga en curso el orquestador devuelve esa saga; con una deshecha, la reabre. El total que se
-   * cobra es el del servidor —con su comisión—, y la sesión pasa a decirlo: es el que el asistente
-   * anota y compara después. Devuelve como referencia el id de la saga.
+   * cobra es el del servidor —con su comisión y el descuento del cupón—, y la sesión pasa a decirlo:
+   * es el que el asistente anota y compara después. Devuelve como referencia el id de la saga.
+   *
+   * Con cupón la intención es OTRA (`llaveDeLaIntencion`): con la misma llave, una saga abierta antes
+   * sin el código devolvería su total sin descuento, y se cobraría lo que la pantalla ya no dice.
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
@@ -138,8 +142,14 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     if (!(host instanceof Element)) {
       return { accepted: false, reason: 'cliente.sin_coordinador' };
     }
-    const cuerpo: BffEventos.BuyTicketsRequest = { eventId: eventIdOf(request.session), lines: toLines(request.session) };
-    const abierta = await abrirCompraDeEventos(host, cuerpo, request.session.sessionId);
+    // El cupón sale de la SESIÓN (regla 20): lo dejó la vista previa en su pricing, y sobrevive a la
+    // recarga y al login. Sólo viaja el CÓDIGO; el descuento lo vuelve a calcular Pricing al abrir.
+    const codigo = cuponDeLaSesion(request.session.pricing)?.codigo ?? null;
+    const abierta = await abrirCompraDeEventos(
+      host,
+      cuerpoDeLaCompra(request.session, codigo),
+      llaveDeLaIntencion(request.session.sessionId, codigo),
+    );
     if (!abierta.ok) {
       return { accepted: false, reason: abierta.rechazo.code };
     }
@@ -288,6 +298,52 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       },
     };
   }
+}
+
+/**
+ * El prefijo de la línea del cupón en `pricing.breakdown`: `promo:<CÓDIGO>`, con el descuento en
+ * NEGATIVO (ADR 0140, el cupón). La escribe la vista previa del elemento con lo que contestó la
+ * puerta; la lee `pay`. Vive en la SESIÓN y no en un campo, así sobrevive a la recarga y al login.
+ */
+export const PREFIJO_DEL_CUPON = 'promo:';
+
+/** El cupón aplicado a la compra, si lo hay: su código y lo que descontó el servidor, en unidades menores. */
+export interface CuponDeLaCompra {
+  readonly codigo: string;
+  readonly descuentoMinor: number;
+}
+
+export function cuponDeLaSesion(pricing: Pricing): CuponDeLaCompra | null {
+  const linea = pricing.breakdown.find((l) => l.code.startsWith(PREFIJO_DEL_CUPON));
+  const codigo = linea ? linea.code.slice(PREFIJO_DEL_CUPON.length).trim() : '';
+  return linea && codigo ? { codigo, descuentoMinor: Math.abs(linea.amount) } : null;
+}
+
+/**
+ * Lo que se le pide a la puerta para ABRIR la compra, y también para COTIZARLA: el mismo cuerpo, así
+ * lo que la vista previa muestra es lo que abrir autorizaría. Sin código, el de siempre (sin un
+ * `promotionCode` vacío).
+ */
+export function cuerpoDeLaCompra(session: SessionData, codigo?: string | null): BffEventos.BuyTicketsRequest {
+  const cuerpo: BffEventos.BuyTicketsRequest = { eventId: eventIdOf(session), lines: toLines(session) };
+  return codigo ? { ...cuerpo, promotionCode: codigo } : cuerpo;
+}
+
+/**
+ * La llave de la intención: la de la sesión sin cupón, y otra —la misma para el mismo código— con él.
+ * La huella es FNV-1a de 32 bits sobre el código en mayúsculas: no es un secreto (el CMS la reemite
+ * atada al sujeto), sólo tiene que separar dos códigos de la MISMA sesión.
+ */
+export function llaveDeLaIntencion(sessionId: string, codigo: string | null): string {
+  if (!codigo) {
+    return sessionId;
+  }
+  let huella = 0x811c9dc5;
+  for (const caracter of codigo.trim().toUpperCase()) {
+    huella ^= caracter.codePointAt(0) ?? 0;
+    huella = Math.imul(huella, 0x01000193) >>> 0;
+  }
+  return `${sessionId}~${huella.toString(16).padStart(8, '0')}`;
 }
 
 /** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */

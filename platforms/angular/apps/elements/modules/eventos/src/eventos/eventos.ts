@@ -11,6 +11,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -59,6 +60,10 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  PromoCodeComponent,
+  type AppliedPromo,
+  type PromoCodeConfig,
+  type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
@@ -66,6 +71,7 @@ import type { EventosProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
+import { PREFIJO_DEL_CUPON, cuerpoDeLaCompra, cuponDeLaSesion } from './eventos-fulfillment.strategy';
 
 /**
  * El reloj de la ficha: la hora contra la que se decide si una localidad «aún no» abre (#195).
@@ -109,6 +115,7 @@ import {
   aMenores,
   baseDeRuta,
   clasificarRechazo,
+  cotizarCompraDeEventos,
   desdeMenores,
   formatearImporte,
   hayCoordinador,
@@ -116,6 +123,7 @@ import {
   segmentosDeRuta,
   t,
   type ClaseDeRechazo,
+  type CotizacionLeida,
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 
@@ -269,6 +277,7 @@ let eventosInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
+    PromoCodeComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -706,7 +715,13 @@ export class EventosElementComponent implements OnInit {
   );
   // La regla de los motores del CMS (al par, exacta): `eventos-comision.ts`, cruzada con G-12.
   readonly feesMinor = computed(() => comisionEnMenores(this.cartSubtotalMinor(), this.feePercent()));
-  readonly cartTotalMinor = computed(() => this.cartSubtotalMinor() + this.feesMinor());
+  /**
+   * El total: subtotal + comisión, o —con cupón— el que contestó el SERVIDOR al cotizar (ADR 0140, el
+   * cupón): el descuento lo calcula Pricing, y lo que se pinta es lo que abrir autorizaría.
+   */
+  readonly cartTotalMinor = computed(() =>
+    this.promo() ? this.#store.pricing().totalAmount : this.cartSubtotalMinor() + this.feesMinor(),
+  );
   readonly cartSubtotalLabel = computed(() =>
     this.formatMinor(this.cartSubtotalMinor()),
   );
@@ -784,6 +799,13 @@ export class EventosElementComponent implements OnInit {
         return t('Events.Purchase.NotOnSale', 'Estas entradas no están a la venta en este momento.');
       case 'pricing.quantity_over_limit':
         return t('Events.Purchase.OverLimit', 'Superaste el máximo de entradas por compra.');
+      case 'pricing.promotion_not_found':
+      case 'pricing.promotion_expired':
+      case 'pricing.promotion_currency_mismatch':
+        return t(
+          'Events.Purchase.PromoRemoved',
+          'Tu código de descuento ya no aplica y lo quitamos: no se te cobró nada. Revisa el total y vuelve a intentarlo.',
+        );
       case 'payments.payment_declined':
       case 'payments.payment_failed':
         return t('Events.Purchase.PaymentDeclined', 'Tu pago fue rechazado y no se te cobró nada.');
@@ -1600,6 +1622,11 @@ export class EventosElementComponent implements OnInit {
         value: this.feesLabel(),
       });
     }
+    // El descuento se VE, como fila propia entre los cargos y el total: un total más bajo sin la línea
+    // que lo explica se lee como un error de precio.
+    if (this.promo()) {
+      filas.push({ id: 'promo', label: this.promoLabel(), value: this.promoValueLabel() });
+    }
     filas.push({ id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true });
     return filas;
   });
@@ -1685,6 +1712,12 @@ export class EventosElementComponent implements OnInit {
    * una vez (`mensajeDeFallo`).
    */
   onCheckoutFailed(motivo: string): void {
+    // El cupón dejó de valer entre la vista previa y el pago (venció, o ya no existe): abrir lo rechazó
+    // ANTES de apartar nada. Se quita, para que el total vuelva a ser el de siempre y el siguiente clic
+    // no choque otra vez; el asistente lo dice una vez (`Events.Purchase.PromoRemoved`).
+    if (motivo.startsWith('pricing.promotion_')) {
+      this.removePromo();
+    }
     const clase = claseDelMotivo(motivo);
     if (clase === 'sesion') {
       this.sesionVencida.set(true);
@@ -2173,9 +2206,23 @@ export class EventosElementComponent implements OnInit {
     const items = this.#store.items();
     const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
     const fees = comisionEnMenores(subtotal, this.feePercent());
-    const total = subtotal + fees;
+    this.#fijarPrecio(this.currency(), subtotal + fees, fees, null);
+  }
+
+  /**
+   * El pricing de la sesión: una línea por entrada, los cargos si los hay y, con cupón, su línea
+   * NEGATIVA (`promo:<CÓDIGO>`), que es lo que `pay` lee para mandar el código. Sin cupón es el de
+   * siempre.
+   */
+  #fijarPrecio(
+    moneda: string,
+    total: number,
+    fees: number,
+    cupon: { readonly codigo: string; readonly descuento: number } | null,
+  ): void {
+    const items = this.#store.items();
     this.#store.setPricing({
-      currency: this.currency(),
+      currency: moneda,
       totalAmount: total,
       balanceDue: total,
       breakdown: [
@@ -2185,8 +2232,121 @@ export class EventosElementComponent implements OnInit {
           amount: item.amount * item.quantity,
         })),
         ...(fees > 0 ? [{ code: 'fees', label: 'Cargos por servicio', amount: fees }] : []),
+        // La línea NEGATIVA que el motor esperaba desde el primer día (#29), ahora con el descuento que
+        // calculó Pricing y no uno restado acá.
+        ...(cupon
+          ? [{ code: `${PREFIJO_DEL_CUPON}${cupon.codigo}`, label: this.#etiquetaDelCupon(cupon.codigo), amount: -cupon.descuento }]
+          : []),
       ],
     });
+  }
+
+  // ─── Cupón: `syn-promo-code`, cotizado por la puerta (ADR 0140, el cupón) ────
+  // Del navegador sólo sale el CÓDIGO: la vista previa la cotiza el orquestador con los mismos pasos
+  // que abrir —Pricing calcula el descuento, el orquestador suma la comisión— sin apartar ni autorizar
+  // nada, y lo que se pinta es lo que contestó. El cupón vive en la SESIÓN (la línea `promo:` del
+  // pricing), así sobrevive a la recarga y al login, y `pay` lo manda con la compra. Abrir vuelve a
+  // cotizar: si el código vence entre medias, lo rechaza con su `code` y el cupón se quita.
+  readonly promoControl = viewChild(PromoCodeComponent);
+  readonly promoBusy = signal(false);
+  readonly promoRejection = signal<PromoRejection | null>(null);
+  readonly promoDetail = signal('');
+
+  /** El cupón aplicado, de la sesión; nulo sin cupón. */
+  readonly promo = computed(() => cuponDeLaSesion(this.#store.pricing()));
+
+  readonly promoLabel = computed(() => this.#etiquetaDelCupon(this.promo()?.codigo ?? ''));
+  readonly promoValueLabel = computed(() => `−${this.formatMinor(this.promo()?.descuentoMinor ?? 0)}`);
+
+  readonly appliedPromo = computed<AppliedPromo | null>(() => {
+    const promo = this.promo();
+    return promo ? { code: promo.codigo, discountLabel: this.promoValueLabel() } : null;
+  });
+
+  /** Los motivos del campo, del diccionario (sección `Events.Purchase`): el control no sabe del negocio. */
+  readonly promoConfig: PromoCodeConfig = {
+    messages: {
+      unknown: t('Events.Purchase.PromoUnknown', 'No encontramos ese código. Revisa que esté bien escrito.'),
+      expired: t('Events.Purchase.PromoExpired', 'Ese código ya venció.'),
+      'not-applicable': t('Events.Purchase.PromoNotApplicable', 'No pudimos aplicar el código a esta compra.'),
+      failed: t('Events.Purchase.PromoFailed', 'No pudimos validar el código. Intenta de nuevo.'),
+    },
+  };
+
+  #etiquetaDelCupon(codigo: string): string {
+    return t('Events.Purchase.PromoDiscount', 'Descuento ({codigo})', { codigo });
+  }
+
+  async applyPromo(code: string): Promise<void> {
+    const codigo = code.trim();
+    if (this.promoBusy() || !codigo || !this.hasCart() || this.isFreeEvent()) {
+      return;
+    }
+    this.promoBusy.set(true);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+
+    const cotizada = await cotizarCompraDeEventos(this.#host, cuerpoDeLaCompra(this.#store.getValidSession(), codigo));
+    this.promoBusy.set(false);
+
+    if (!cotizada.ok) {
+      this.#rechazarPromo(cotizada.rechazo);
+      return;
+    }
+    if (cotizada.valor.descuento <= 0) {
+      // Pricing aceptó el código y no descontó nada: no hay cupón que mostrar.
+      this.promoRejection.set('not-applicable');
+      return;
+    }
+    this.#aplicarCotizacion(cotizada.valor, codigo);
+    this.promoControl()?.clear();
+  }
+
+  removePromo(): void {
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+    this.reprice();
+  }
+
+  /** Lo que contestó el servidor, a la sesión: sus importes, no unos calculados acá. */
+  #aplicarCotizacion(cotizacion: CotizacionLeida, codigo: string): void {
+    const moneda = cotizacion.moneda || this.currency();
+    this.#fijarPrecio(moneda, aMenores(cotizacion.total, moneda), aMenores(cotizacion.comision, moneda), {
+      codigo: (cotizacion.codigo ?? codigo).toUpperCase(),
+      descuento: aMenores(cotizacion.descuento, moneda),
+    });
+  }
+
+  /**
+   * Por qué no se aplicó, por su `code` (ADR 0136: la funcionalidad traduce). Los del cupón tienen su
+   * motivo; la sesión que venció lleva al panel de sesión; lo transitorio, a reintentar; y un «no» que
+   * no es del código —las entradas fuera de venta, la compra no disponible— se dice con su texto, sin
+   * culpar al código.
+   */
+  #rechazarPromo(rechazo: RechazoDelFlujo): void {
+    switch (rechazo.code) {
+      case 'pricing.promotion_not_found':
+        this.promoRejection.set('unknown');
+        return;
+      case 'pricing.promotion_expired':
+        this.promoRejection.set('expired');
+        return;
+      case 'pricing.promotion_currency_mismatch':
+        this.promoRejection.set('not-applicable');
+        return;
+      default:
+        break;
+    }
+    const clase = clasificarRechazo(rechazo);
+    if (clase === 'sesion') {
+      this.sesionVencida.set(true);
+    }
+    if (clase === 'sesion' || clase === 'reintentable' || clase === 'defecto') {
+      this.promoRejection.set('failed');
+      return;
+    }
+    this.promoRejection.set('not-applicable');
+    this.promoDetail.set(this.#mensajeDeFallo(rechazo.code) ?? '');
   }
 
   /**
