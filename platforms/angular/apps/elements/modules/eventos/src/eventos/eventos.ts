@@ -825,9 +825,13 @@ export class EventosElementComponent implements OnInit {
     }
   };
 
+  /**
+   * «revisar» no deja pagar mientras se valida un código (ADR 0140, el cupón endurecido): abrir leería
+   * la sesión SIN el cupón que la persona acaba de pedir, y autorizaría el total sin descuento.
+   */
   readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     asistentes: this.attendeesValid(),
-    revisar: true,
+    revisar: !this.promoBusy(),
   }));
 
   /** La selección de la línea del carrito: el evento que se compra, aunque la ficha no esté cargada. */
@@ -2302,6 +2306,12 @@ export class EventosElementComponent implements OnInit {
     const cotizada = await cotizarCompraDeEventos(this.#host, cuerpoDeLaCompra(this.#store.getValidSession(), codigo));
     this.promoBusy.set(false);
 
+    // Mientras se cotizaba, la compra salió (un clic en «Pagar» en el mismo tic, antes de que el
+    // asistente viera el código en vuelo): lo que abrir autorizó es SIN este código. La vista previa
+    // ya no vale, y pintarla mostraría un descuento que nadie autorizó.
+    if (this.cuponFijado()) {
+      return;
+    }
     if (!cotizada.ok) {
       this.#rechazarPromo(cotizada.rechazo);
       return;

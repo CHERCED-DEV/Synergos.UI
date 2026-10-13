@@ -176,10 +176,22 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       email: attendee.email,
       details: { document: attendee.document },
     }));
+    // Lo que la sesión dice tras abrir es lo que se ABRIÓ: el total del servidor y, del cupón, sólo la
+    // línea del código que viajó (la de la foto que se mandó). Una línea `promo:` que llegara a la
+    // sesión mientras abrir estaba en vuelo pintaría un descuento que nadie autorizó.
+    const lineaDelCupon = codigo
+      ? request.session.pricing.breakdown.filter((linea) => linea.code.startsWith(PREFIJO_DEL_CUPON))
+      : [];
     this.#store.setSession({
       ...sesion,
       parties,
-      pricing: { ...sesion.pricing, currency: compra.moneda, totalAmount: total, balanceDue: total },
+      pricing: {
+        ...sesion.pricing,
+        currency: compra.moneda,
+        totalAmount: total,
+        balanceDue: total,
+        breakdown: [...sesion.pricing.breakdown.filter((linea) => !linea.code.startsWith(PREFIJO_DEL_CUPON)), ...lineaDelCupon],
+      },
     });
 
     if (compra.estado === 'Completed') {

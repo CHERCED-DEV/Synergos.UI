@@ -962,6 +962,101 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(abrir.map((vista) => vista.llave)).toEqual([sesion.sessionId]);
   });
 
+  // ── El cupón con «Pagar y confirmar» en vuelo (ADR 0140, el cupón endurecido) ──────────────
+  //
+  // La vista previa y el pago viajan a la vez (el coordinador sólo junta pedidos idénticos). Si el
+  // código se valida mientras abrir sale SIN él, la pantalla no puede terminar mostrando un descuento
+  // que nadie autorizó, ni el asistente anotar un importe distinto del que se cobra.
+  /** El borde, con los pedidos a `cotizar` retenidos hasta `soltar()`: la vista previa en vuelo. */
+  function conCotizarEnVuelo(borde: ReturnType<typeof bordeDeEventos>): { readonly soltar: () => void } {
+    const enEspera: (() => void)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<FetchDoble>((url, init) =>
+        String(url).includes('/eventos.compra/cotizar')
+          ? new Promise<Response>((resolver) => enEspera.push(() => resolver(borde.fetchDoble(url, init))))
+          : borde.fetchDoble(url, init),
+      ),
+    );
+    return { soltar: () => enEspera.splice(0).forEach((seguir) => seguir()) };
+  }
+
+  it('con un código validándose, «Pagar y confirmar» espera: no abre sin el cupón que se acaba de pedir', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 171_360 });
+    const cotizar = conCotizarEnVuelo(borde);
+    await createComponent();
+    const wizard = await alRevisar();
+
+    const aplicando = component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    expect(wizard.nextDisabled()).toBe(true);
+    wizard.next();
+    await flushMicrotasks(20);
+    expect(borde.llamadas('POST abrir')).toBe(0);
+
+    cotizar.soltar();
+    await aplicando;
+    fixture.detectChanges();
+    expect(wizard.nextDisabled()).toBe(false);
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const abrir = borde.vistas().filter((vista) => vista.clave === 'POST abrir');
+    expect(abrir).toHaveLength(1);
+    expect(abrir[0]!.cuerpo['promotionCode']).toBe('BIENVENIDA10');
+    expect(component.view()).toBe('confirmed');
+  });
+
+  it('una vista previa que vuelve con la compra YA en vuelo no se pinta: lo anotado y lo mostrado son lo autorizado', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    const cotizar = conCotizarEnVuelo(borde);
+    await createComponent();
+    const wizard = await alRevisar();
+
+    // «Aplicar» y «Pagar y confirmar» en el mismo tic: el asistente todavía no vio el código en
+    // vuelo (no hubo detección de cambios), así que abrir sale SIN él.
+    const aplicando = component.applyPromo('BIENVENIDA10');
+    wizard.next();
+    await flushMicrotasks(20);
+    const abrir = borde.vistas().find((vista) => vista.clave === 'POST abrir')!;
+    expect(abrir.cuerpo['promotionCode']).toBeUndefined();
+
+    cotizar.soltar();
+    await aplicando;
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const sesion = TestBed.inject(SessionStore).session();
+    expect(component.promo()).toBeNull();
+    expect(sesion.pricing.totalAmount).toBe(aMenores(201_600, 'COP'));
+    expect(sesion.payments.map((pago) => pago.amount)).toEqual([aMenores(201_600, 'COP')]);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('la estrategia: tras abrir, la sesión sólo lleva la línea del cupón que VIAJÓ', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    const store = TestBed.inject(SessionStore);
+    const foto = store.session();
+    // La foto que se manda va SIN cupón; mientras abrir está en vuelo, la sesión gana una línea `promo:`.
+    await component.applyPromo('BIENVENIDA10');
+    expect(component.promo()).not.toBeNull();
+    const estrategia = TestBed.inject(FULFILLMENT_STRATEGIES).find((s) => s instanceof EventosFulfillmentStrategy)!;
+
+    await estrategia.pay({ session: foto, instrument: component.checkoutInstrument() });
+
+    expect(borde.vistas().find((vista) => vista.clave === 'POST abrir')!.cuerpo['promotionCode']).toBeUndefined();
+    expect(component.promo()).toBeNull();
+    expect(store.pricing().totalAmount).toBe(aMenores(201_600, 'COP'));
+  });
+
   it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos();
