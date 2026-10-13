@@ -75,7 +75,9 @@ interface PeticionVista {
  *
  *  - `POST abrir` → `/api/flujos/eventos.compra/abrir`: 201 `TicketPurchaseResponse` (la saga
  *    `pta-77`, `Running`, con el total DEL SERVIDOR y lo apartado). La misma llave devuelve la
- *    misma saga, y una saga deshecha se reabre con ella: lo que hace el orquestador.
+ *    misma saga, y una saga deshecha se reabre con ella: lo que hace el orquestador. Y OTRA llave
+ *    abre OTRA saga (`pta-78`…), que aparta y autoriza otra vez: `cobradas()` dice cuáles capturó
+ *    cerrar, que es donde se ve un doble cobro.
  *  - `POST cerrar` → `/api/flujos/eventos.compra/cerrar?id=…`: 200 `Completed`.
  *  - `GET consultar` → `/api/flujos/eventos.compra/consultar?id=…`: la saga en su estado de ese momento.
  *  - `POST asistentes` y `GET entradas` → el artefacto, `/api/eventos/compras/{id}/…`.
@@ -108,6 +110,13 @@ function bordeDeEventos(
   readonly llamadas: (clave: string) => number;
   readonly vistas: () => readonly PeticionVista[];
   readonly encender: (clave: string) => void;
+  /**
+   * Las sagas que CERRAR capturó, en orden: lo que de verdad se cobró. Dos sagas aquí para la misma
+   * selección es el doble cobro (ADR 0140, el cupón endurecido).
+   */
+  readonly cobradas: () => readonly string[];
+  /** Las sagas que abrió el borde, una por llave distinta: `pta-77`, `pta-78`… */
+  readonly abiertas: () => readonly string[];
 } {
   const caidas = new Set(opciones.caidas ?? []);
   const rechazos = new Map(Object.entries(opciones.rechazos ?? {}).map(([clave, lista]) => [clave, [...lista]]));
@@ -115,18 +124,34 @@ function bordeDeEventos(
   const quemadas = new Set<string>();
   const cortados = new Set(opciones.cortados ?? []);
   const total = opciones.total ?? 201_600;
-  let apartadas: { tier: string; seat: string | null; quantity: number }[] = [];
-  let estado = 'Running';
+  /**
+   * Una saga por LLAVE, como el orquestador: la misma llave devuelve la misma saga (y reabre la
+   * deshecha); otra llave abre OTRA, que aparta y autoriza otra vez. La primera es `pta-77`.
+   */
+  interface SagaDelBorde {
+    readonly id: string;
+    estado: string;
+    apartadas: { tier: string; seat: string | null; quantity: number }[];
+  }
+  const sagas = new Map<string, SagaDelBorde>();
+  const porLlave = new Map<string, string>();
+  const cobradas: string[] = [];
+  let ultima: SagaDelBorde = { id: 'pta-77', estado: 'Running', apartadas: [] };
+  const sagaDe = (id: string | null): SagaDelBorde => (id ? sagas.get(id) : undefined) ?? ultima;
+  const cobrar = (saga: SagaDelBorde): void => {
+    if (saga.estado !== 'Completed' && !cobradas.includes(saga.id)) cobradas.push(saga.id);
+    saga.estado = 'Completed';
+  };
   const responder = (status: number, body: unknown, tipo = 'application/json'): Promise<Response> =>
     Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': tipo } }));
-  const compra = () => ({
-    id: 'pta-77',
+  const compra = (saga: SagaDelBorde) => ({
+    id: saga.id,
     buyerKind: 'eventos.comprador',
     buyerId: 'm-1',
     eventId: 'evt_1',
-    status: estado,
+    status: saga.estado,
     total: { amount: total, currency: 'COP' },
-    held: apartadas,
+    held: saga.apartadas,
     pendingCompensations: 0,
     lastError: null,
   });
@@ -165,9 +190,11 @@ function bordeDeEventos(
     if (caidas.has(clave)) {
       return Promise.reject(new TypeError('offline'));
     }
+    // La saga de la que se habla: la del `?id=` (cerrar, consultar) o la de la ruta del artefacto.
+    const idPedido = direccion.searchParams.get('id') ?? /^\/api\/eventos\/compras\/([^/]+)\//.exec(direccion.pathname)?.[1] ?? null;
     if (cortados.delete(clave)) {
       // El servidor hizo su trabajo y la conexión se cortó a mitad del cuerpo.
-      if (clave === 'POST cerrar') estado = 'Completed';
+      if (clave === 'POST cerrar') cobrar(sagaDe(idPedido));
       return Promise.resolve(new Response('{"id":"pta-77","sta', { status: 200, headers: { 'content-type': 'application/json' } }));
     }
     const enCola = rechazos.get(clave)?.shift();
@@ -175,7 +202,9 @@ function bordeDeEventos(
       if (clave === 'POST cerrar' && !enCola.transient) {
         // Un «no» del orquestador al cerrar DESHACE la saga (compensa); los otros dos casos son los
         // que no implican eso (ver `RechazoDelBorde.cobro`).
-        estado = enCola.cobro === 'hecho' ? 'Completed' : enCola.cobro === 'en_curso' ? estado : 'Compensated';
+        const saga = sagaDe(idPedido);
+        if (enCola.cobro === 'hecho') cobrar(saga);
+        else if (enCola.cobro !== 'en_curso') saga.estado = 'Compensated';
       }
       return responder(
         enCola.status,
@@ -186,12 +215,24 @@ function bordeDeEventos(
     switch (clave) {
       case 'POST abrir': {
         const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
-        apartadas = lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity }));
-        estado = opciones.yaCerrada ? 'Completed' : 'Running';
-        return responder(201, compra());
+        const llave = cabeceras.get('Idempotency-Key') ?? '';
+        const conocida = porLlave.get(llave);
+        let saga = conocida ? sagas.get(conocida) : undefined;
+        if (!saga) {
+          // Otra llave, otra saga: aparta y autoriza OTRA vez.
+          saga = { id: `pta-${77 + sagas.size}`, estado: 'Running', apartadas: [] };
+          sagas.set(saga.id, saga);
+          porLlave.set(llave, saga.id);
+          saga.apartadas = lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity }));
+        }
+        // La misma llave devuelve su saga; la deshecha se reabre.
+        if (saga.estado === 'Compensated') saga.estado = 'Running';
+        if (opciones.yaCerrada) saga.estado = 'Completed';
+        ultima = saga;
+        return responder(201, compra(saga));
       }
       case 'GET consultar':
-        return responder(200, compra());
+        return responder(200, compra(sagaDe(idPedido)));
       case 'POST cotizar': {
         // La vista previa del cupón (ADR 0140): el orquestador cotiza sin apartar ni autorizar nada.
         const c = opciones.cotizacion ?? { subtotal: 168_000, descuento: 16_800, comision: 20_160, total: 171_360 };
@@ -207,19 +248,23 @@ function bordeDeEventos(
           promotionCode: codigo,
         });
       }
-      case 'POST asistentes':
-        if (estado !== 'Running') {
+      case 'POST asistentes': {
+        const saga = sagaDe(idPedido);
+        if (saga.estado !== 'Running') {
           return responder(409, { title: 'Conflict', status: 409, code: 'eventos.compra_ya_cerrada', transient: false }, 'application/problem+json');
         }
-        return responder(200, { id: 'pta-77', asistentes: Array.isArray(cuerpo['attendees']) ? cuerpo['attendees'].length : 0 });
-      case 'POST cerrar':
-        if (estado !== 'Running' && estado !== 'Completed') {
+        return responder(200, { id: saga.id, asistentes: Array.isArray(cuerpo['attendees']) ? cuerpo['attendees'].length : 0 });
+      }
+      case 'POST cerrar': {
+        const saga = sagaDe(idPedido);
+        if (saga.estado !== 'Running' && saga.estado !== 'Completed') {
           return responder(409, { title: 'Conflict', status: 409, code: 'eventos.not_confirmable', transient: false }, 'application/problem+json');
         }
-        estado = 'Completed';
-        return responder(200, compra());
+        cobrar(saga);
+        return responder(200, compra(saga));
+      }
       case 'GET entradas': {
-        const cuantas = Math.max(1, apartadas.reduce((n, a) => n + a.quantity, 0));
+        const cuantas = Math.max(1, sagaDe(idPedido).apartadas.reduce((n, a) => n + a.quantity, 0));
         return responder(200, { status: 'Confirmed', tickets: Array.from({ length: cuantas }, (_sin, i) => entrada(i + 1, 'valid')) });
       }
       case 'POST /ticket/{id}/transfer':
@@ -261,6 +306,8 @@ function bordeDeEventos(
     encender: (clave) => {
       caidas.delete(clave);
     },
+    cobradas: () => cobradas,
+    abiertas: () => [...sagas.keys()],
   };
 }
 
@@ -702,6 +749,217 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     const abrir = borde.vistas().find((vista) => vista.clave === 'POST abrir')!;
     expect(abrir.cuerpo['promotionCode']).toBe('BIENVENIDA10');
+  });
+
+  // ── El cupón FIJADO por la compra en curso (ADR 0140, el cupón endurecido) ──────────────────
+  //
+  // Cambiar el código cambia la llave de la intención (`llaveDeLaIntencion`), y otra llave es OTRA
+  // saga: aparta y autoriza otra vez, y cerrar la captura. Con una saga ya abierta —cobrada o por
+  // cobrar—, aplicar o quitar el cupón en «revisar» y volver a pulsar cobraba DOS veces, justo debajo
+  // del aviso que promete «no se te cobrará dos veces». Una vez abierta la saga de la intención, el
+  // cupón queda fijado para ella hasta que se deshaga; lo que se mira es lo que capturó el borde.
+  const notaDelCupon = (): string =>
+    ((fixture.nativeElement as HTMLElement).querySelector('.eventos__review .syn-promo__locked')?.textContent ?? '').trim();
+  /** Las entradas no llegan DESPUÉS de cerrar: la compra queda cobrada y el asistente en «revisar». */
+  const entradasCaidas = { 'GET entradas': [{ status: 500, code: 'eventos.error_interno', title: 'Internal Server Error' }] };
+
+  it('aplicar el cupón con la compra YA COBRADA (las entradas no llegaron) no abre otra saga: un solo cobro', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: entradasCaidas });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    const totalCobrado = component.cartTotalMinor();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).not.toBe('confirmed');
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'pta-77')]);
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    // El cupón no entra: ni se cotiza, ni cambia el total que ya se cobró, y el campo dice por qué.
+    expect(borde.llamadas('POST cotizar')).toBe(0);
+    expect(component.promo()).toBeNull();
+    expect(component.cartTotalMinor()).toBe(totalCobrado);
+    expect(notaDelCupon()).toBe('Tu compra ya está en curso: el código de descuento no se puede cambiar.');
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('una sesión guardada ANTES de retener la llave (un pago anotado, sin holdRef) también fija el cupón', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: entradasCaidas });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    // Como la dejó el bundle anterior: el pago capturado en la sesión, las líneas sin la llave.
+    const store = TestBed.inject(SessionStore);
+    const sesion = store.session();
+    store.setSession({ ...sesion, items: sesion.items.map(({ holdRef: _sinLlave, ...linea }) => linea) });
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    expect(borde.llamadas('POST cotizar')).toBe(0);
+    expect(component.promo()).toBeNull();
+  });
+
+  it('quitar el cupón con la compra ya cobrada CON él tampoco abre otra: el total cobrado se queda', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 171_360, rechazos: entradasCaidas });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    await component.applyPromo('BIENVENIDA10');
+    const cupon = component.promo();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(borde.cobradas()).toEqual(['pta-77']);
+
+    component.removePromo();
+    fixture.detectChanges();
+
+    expect(component.promo()).toEqual(cupon);
+    expect(component.cartTotalMinor()).toBe(aMenores(171_360, 'COP'));
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('con la compra abierta y sin anotar (los asistentes fallaron) el cupón también queda fijo: el reintento vuelve a la MISMA saga', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST asistentes': [{ status: 500, code: 'eventos.error_interno', title: 'Internal Server Error' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    // Apartada y autorizada, sin cobrar; la sesión todavía no tiene un pago anotado.
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(TestBed.inject(SessionStore).session().payments).toEqual([]);
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+    expect(borde.llamadas('POST cotizar')).toBe(0);
+    expect(component.promo()).toBeNull();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    const llaves = borde.vistas().filter((vista) => vista.clave === 'POST abrir').map((vista) => vista.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[1]).toBe(llaves[0]);
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('un abrir sin respuesta (504: la saga pudo quedar abierta) también fija el cupón, y el reintento va con la MISMA llave', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(component.view()).not.toBe('confirmed');
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+    expect(borde.llamadas('POST cotizar')).toBe(0);
+    expect(component.promo()).toBeNull();
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    const llaves = borde.vistas().filter((vista) => vista.clave === 'POST abrir').map((vista) => vista.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[1]).toBe(llaves[0]);
+  });
+
+  it('una saga DESHECHA suelta el cupón: tras un pago rechazado se puede aplicar, y abrir va con su llave nueva', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 402, code: 'payments.payment_declined', title: 'Payment Required' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    const sessionId = TestBed.inject(SessionStore).session().sessionId;
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(borde.cobradas()).toEqual([]);
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+    expect(component.promo()).toEqual({ codigo: 'BIENVENIDA10', descuentoMinor: aMenores(16_800, 'COP') });
+    expect(notaDelCupon()).toBe('');
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    const ultima = borde.vistas().filter((vista) => vista.clave === 'POST abrir').at(-1)!;
+    expect(ultima.llave!.startsWith(`${sessionId}~`)).toBe(true);
+    // La primera se deshizo (no se cobró); sólo la del cupón se cobra.
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+  });
+
+  it('la estrategia: con una saga retenida, abrir va con SU llave aunque el cupón de la sesión haya cambiado', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    await component.applyPromo('BIENVENIDA10');
+    const store = TestBed.inject(SessionStore);
+    const sesion = store.session();
+    // La saga de esta intención se abrió SIN cupón (su llave es la de la sesión) y algo cambió el
+    // cupón después: la llave no se mueve, así que el orquestador devuelve esa saga y no abre otra.
+    const retenida = { ...sesion, items: sesion.items.map((item) => ({ ...item, holdRef: sesion.sessionId })) };
+    store.setSession(retenida);
+    const estrategia = TestBed.inject(FULFILLMENT_STRATEGIES).find((s) => s instanceof EventosFulfillmentStrategy)!;
+
+    await estrategia.pay({ session: retenida, instrument: component.checkoutInstrument() });
+
+    const abrir = borde.vistas().filter((vista) => vista.clave === 'POST abrir');
+    expect(abrir.map((vista) => vista.llave)).toEqual([sesion.sessionId]);
   });
 
   it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {

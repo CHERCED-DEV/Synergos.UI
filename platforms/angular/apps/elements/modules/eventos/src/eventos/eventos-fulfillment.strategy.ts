@@ -23,7 +23,14 @@ import {
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
-import { aMenores, abrirCompraDeEventos, cerrarCompraDeEventos, consultarCompraDeEventos } from '@synergos/vitals-core';
+import {
+  aMenores,
+  abrirCompraDeEventos,
+  cerrarCompraDeEventos,
+  clasificarRechazo,
+  consultarCompraDeEventos,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
 
 /** Criteria the shell hands the strategy on `search`. */
 interface EventosSearchCriteria {
@@ -132,6 +139,11 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    *
    * Con cupón la intención es OTRA (`llaveDeLaIntencion`): con la misma llave, una saga abierta antes
    * sin el código devolvería su total sin descuento, y se cobraría lo que la pantalla ya no dice.
+   *
+   * **Y una vez enviado abrir, la llave queda RETENIDA en las líneas** (`holdRef`, lo que las aparta)
+   * hasta saber que su saga no puede cobrar —un «no» que no deja saga, o la saga deshecha—. Mientras
+   * tanto el elemento fija el cupón y cada reintento abre con ESA llave: otra llave es otra saga, que
+   * aparta y autoriza otra vez y que cerrar capturaría (el doble cobro de la revisión del cupón).
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
@@ -145,12 +157,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     // El cupón sale de la SESIÓN (regla 20): lo dejó la vista previa en su pricing, y sobrevive a la
     // recarga y al login. Sólo viaja el CÓDIGO; el descuento lo vuelve a calcular Pricing al abrir.
     const codigo = cuponDeLaSesion(request.session.pricing)?.codigo ?? null;
-    const abierta = await abrirCompraDeEventos(
-      host,
-      cuerpoDeLaCompra(request.session, codigo),
-      llaveDeLaIntencion(request.session.sessionId, codigo),
-    );
+    const llave = llaveRetenida(request.session) ?? llaveDeLaIntencion(request.session.sessionId, codigo);
+    this.retener(llave);
+    const abierta = await abrirCompraDeEventos(host, cuerpoDeLaCompra(request.session, codigo), llave);
     if (!abierta.ok) {
+      if (abrirNoDejoSaga(abierta.rechazo)) {
+        this.soltar();
+      }
       return { accepted: false, reason: abierta.rechazo.code };
     }
     const compra = abierta.valor;
@@ -264,8 +277,12 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     return leida.ok ? leida.valor.estado : '';
   }
 
-  /** El último pago de la sesión, `failed`: lo que el servidor deshizo ya no está cobrado. */
+  /**
+   * El último pago de la sesión, `failed`: lo que el servidor deshizo ya no está cobrado. Y la llave se
+   * SUELTA: una saga deshecha no cobra, así que el cupón vuelve a poder cambiarse.
+   */
   private marcarElPagoFallido(): void {
+    this.soltar();
     const sesion = this.#store.getValidSession();
     const ultimo = sesion.payments.length - 1;
     if (ultimo < 0) {
@@ -274,6 +291,27 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     this.#store.setSession({
       ...sesion,
       payments: sesion.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
+    });
+  }
+
+  /** Las líneas quedan apartadas bajo `llave`: su saga puede estar viva desde que abrir salió. */
+  private retener(llave: string): void {
+    const sesion = this.#store.getValidSession();
+    if (sesion.items.every((item) => item.holdRef === llave)) {
+      return;
+    }
+    this.#store.setSession({ ...sesion, items: sesion.items.map((item) => ({ ...item, holdRef: llave })) });
+  }
+
+  /** Ninguna saga de esta intención puede cobrar: las líneas dejan de estar retenidas. */
+  private soltar(): void {
+    const sesion = this.#store.getValidSession();
+    if (!sesion.items.some((item) => item.holdRef !== undefined)) {
+      return;
+    }
+    this.#store.setSession({
+      ...sesion,
+      items: sesion.items.map(({ holdRef: _suelta, ...linea }) => linea),
     });
   }
 
@@ -344,6 +382,26 @@ export function llaveDeLaIntencion(sessionId: string, codigo: string | null): st
     huella = Math.imul(huella, 0x01000193) >>> 0;
   }
   return `${sessionId}~${huella.toString(16).padStart(8, '0')}`;
+}
+
+/**
+ * La llave con la que se envió abrir y cuya saga todavía puede cobrar, o `null` (ADR 0140, el cupón
+ * endurecido). Vive en las LÍNEAS (`holdRef`): sobrevive a la recarga y al login, como el cupón.
+ */
+export function llaveRetenida(session: SessionData): string | null {
+  return session.items.find((item) => typeof item.holdRef === 'string' && item.holdRef !== '')?.holdRef ?? null;
+}
+
+/**
+ * ¿Un «no» de abrir garantiza que no quedó ninguna saga que cobrar con esa llave? Sí cuando lo dijo
+ * el negocio —el orquestador rechaza antes de apartar o deshace lo apartado: `negado`—, y cuando la
+ * puerta ni lo reenvió (`sesion`, `no_disponible`). Lo transitorio y lo ilegible (un 504, un 502
+ * `puerta.respuesta_invalida`, un cuerpo cortado) pueden llegar con la saga ABIERTA: la llave se
+ * queda retenida y el reintento la recupera, en vez de abrir otra al lado.
+ */
+export function abrirNoDejoSaga(rechazo: RechazoDelFlujo): boolean {
+  const clase = clasificarRechazo(rechazo);
+  return clase === 'negado' || clase === 'sesion' || clase === 'no_disponible';
 }
 
 /** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */

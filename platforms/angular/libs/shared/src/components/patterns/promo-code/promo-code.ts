@@ -60,6 +60,11 @@ export interface PromoCodeConfig {
   readonly appliedLabel?: string;
   /** Mensaje por motivo. El dominio los escribe porque sólo él sabe su negocio. */
   readonly messages?: Partial<Record<PromoRejection, string>>;
+  /**
+   * Por qué el código ya no se puede cambiar (ver `locked`). Lo escribe el dominio: sólo él sabe
+   * qué lo fijó —una compra en curso, un pedido ya enviado—. Sin texto, el control se bloquea igual.
+   */
+  readonly lockedMessage?: string;
 }
 
 const MENSAJES: Readonly<Record<PromoRejection, string>> = {
@@ -90,8 +95,9 @@ const MENSAJES: Readonly<Record<PromoRejection, string>> = {
         <button
           type="button"
           class="syn-promo__remove"
-          [disabled]="busy()"
-          (click)="remove.emit(promo.code)"
+          [disabled]="busy() || locked()"
+          [attr.aria-describedby]="lockedNote() ? fieldId + '-locked' : null"
+          (click)="onRemove(promo.code)"
         >
           {{ config().removeLabel || 'Quitar' }}
         </button>
@@ -109,9 +115,10 @@ const MENSAJES: Readonly<Record<PromoRejection, string>> = {
             spellcheck="false"
             [id]="fieldId"
             [value]="code()"
+            [disabled]="locked()"
             [attr.placeholder]="config().placeholder || 'Ej. BIENVENIDA10'"
             [attr.aria-invalid]="rejection() ? 'true' : null"
-            [attr.aria-describedby]="rejection() ? fieldId + '-error' : null"
+            [attr.aria-describedby]="describedBy()"
             (input)="onInput($event)"
           />
           <button type="submit" class="syn-promo__apply" [disabled]="!canApply()">
@@ -123,6 +130,11 @@ const MENSAJES: Readonly<Record<PromoRejection, string>> = {
           <p class="syn-promo__error" [id]="fieldId + '-error'" role="alert">{{ texto }}</p>
         }
       </form>
+    }
+    @if (lockedNote(); as nota) {
+      <!-- Bloqueado: el control dice POR QUÉ, con el texto del dominio. Un botón gris sin razón se
+           lee como una avería. -->
+      <p class="syn-promo__locked" [id]="fieldId + '-locked'">{{ nota }}</p>
     }
   `,
 })
@@ -142,6 +154,12 @@ export class PromoCodeComponent {
    * mínimo, que es lo único accionable de `minimum-not-met`. Se añade al mensaje.
    */
   readonly rejectionDetail = input('');
+  /**
+   * El código ya NO se puede cambiar: ni escribir, ni aplicar, ni quitar. Lo decide el dominio —p. ej.
+   * su compra ya está en curso con ese código, y cambiarlo cambiaría lo que se cobra—; el control
+   * sólo lo cumple y, si el dominio lo dice (`config.lockedMessage`), explica por qué.
+   */
+  readonly locked = input(false);
 
   readonly apply = output<string>();
   readonly remove = output<string>();
@@ -149,10 +167,21 @@ export class PromoCodeComponent {
   readonly code = signal('');
 
   /**
-   * Sin código no se aplica, y **con uno en vuelo tampoco**: mandar dos veces el
-   * mismo cupón es la forma más simple de que el servidor aplique dos descuentos.
+   * Sin código no se aplica, **con uno en vuelo tampoco** —mandar dos veces el mismo cupón es la
+   * forma más simple de que el servidor aplique dos descuentos— y **bloqueado, nunca**.
    */
-  readonly canApply = computed(() => this.code().trim().length > 0 && !this.busy());
+  readonly canApply = computed(() => this.code().trim().length > 0 && !this.busy() && !this.locked());
+
+  /** La razón del bloqueo, si la hay y el control está bloqueado. */
+  readonly lockedNote = computed(() => (this.locked() ? (this.config().lockedMessage ?? '').trim() : ''));
+
+  readonly describedBy = computed(() => {
+    const ids = [
+      this.rejection() ? `${this.fieldId}-error` : '',
+      this.lockedNote() ? `${this.fieldId}-locked` : '',
+    ].filter(Boolean);
+    return ids.length > 0 ? ids.join(' ') : null;
+  });
 
   readonly message = computed(() => {
     const motivo = this.rejection();
@@ -176,6 +205,13 @@ export class PromoCodeComponent {
       return;
     }
     this.apply.emit(this.code().trim());
+  }
+
+  onRemove(code: string): void {
+    if (this.busy() || this.locked()) {
+      return;
+    }
+    this.remove.emit(code);
   }
 
   /** Lo llama el dominio cuando el servidor aceptó: el campo ya no hace falta. */

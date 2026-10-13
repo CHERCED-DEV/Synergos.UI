@@ -71,7 +71,7 @@ import type { EventosProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
-import { PREFIJO_DEL_CUPON, cuerpoDeLaCompra, cuponDeLaSesion } from './eventos-fulfillment.strategy';
+import { PREFIJO_DEL_CUPON, cuerpoDeLaCompra, cuponDeLaSesion, llaveRetenida } from './eventos-fulfillment.strategy';
 
 /**
  * El reloj de la ficha: la hora contra la que se decide si una localidad «aún no» abre (#195).
@@ -2255,6 +2255,18 @@ export class EventosElementComponent implements OnInit {
   /** El cupón aplicado, de la sesión; nulo sin cupón. */
   readonly promo = computed(() => cuponDeLaSesion(this.#store.pricing()));
 
+  /**
+   * El cupón queda FIJADO mientras la compra pueda estar en curso con él (ADR 0140, el cupón
+   * endurecido): desde que abrir salió con su llave (la estrategia la deja retenida en las líneas)
+   * o desde que hay un pago anotado, y hasta que esa saga se deshaga. Cambiar el código cambia la
+   * llave de la intención, y otra llave es otra saga: aparta, autoriza y cerrar la captura —el doble
+   * cobro—. Sale de la SESIÓN, así que sigue fijado tras recargar.
+   */
+  readonly cuponFijado = computed(() => {
+    const sesion = this.#store.session();
+    return llaveRetenida(sesion) !== null || sesion.payments.some((pago) => pago.status === 'captured');
+  });
+
   readonly promoLabel = computed(() => this.#etiquetaDelCupon(this.promo()?.codigo ?? ''));
   readonly promoValueLabel = computed(() => `−${this.formatMinor(this.promo()?.descuentoMinor ?? 0)}`);
 
@@ -2271,6 +2283,7 @@ export class EventosElementComponent implements OnInit {
       'not-applicable': t('Events.Purchase.PromoNotApplicable', 'No pudimos aplicar el código a esta compra.'),
       failed: t('Events.Purchase.PromoFailed', 'No pudimos validar el código. Intenta de nuevo.'),
     },
+    lockedMessage: t('Events.Purchase.PromoLocked', 'Tu compra ya está en curso: el código de descuento no se puede cambiar.'),
   };
 
   #etiquetaDelCupon(codigo: string): string {
@@ -2279,7 +2292,7 @@ export class EventosElementComponent implements OnInit {
 
   async applyPromo(code: string): Promise<void> {
     const codigo = code.trim();
-    if (this.promoBusy() || !codigo || !this.hasCart() || this.isFreeEvent()) {
+    if (this.cuponFijado() || this.promoBusy() || !codigo || !this.hasCart() || this.isFreeEvent()) {
       return;
     }
     this.promoBusy.set(true);
@@ -2303,6 +2316,9 @@ export class EventosElementComponent implements OnInit {
   }
 
   removePromo(): void {
+    if (this.cuponFijado()) {
+      return;
+    }
     this.promoRejection.set(null);
     this.promoDetail.set('');
     this.reprice();

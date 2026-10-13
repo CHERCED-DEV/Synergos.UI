@@ -26,6 +26,7 @@ import {
       [busy]="busy()"
       [rejection]="rejection()"
       [rejectionDetail]="detail()"
+      [locked]="locked()"
       (apply)="applyLog.push($event)"
       (remove)="removeLog.push($event)"
     />
@@ -38,6 +39,7 @@ class Host {
   readonly busy = signal(false);
   readonly rejection = signal<PromoRejection | null>(null);
   readonly detail = signal('');
+  readonly locked = signal(false);
   readonly applyLog: string[] = [];
   readonly removeLog: string[] = [];
 }
@@ -135,6 +137,43 @@ describe('syn-promo-code', () => {
     expect(
       (fixture.nativeElement.querySelector('.syn-promo__remove') as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  // ─── bloqueado: el dominio fijó el código (ADR 0140, el cupón endurecido) ──
+  // Una compra en curso con un código no puede cambiarlo: cambiaría lo que se cobra y, con otra llave,
+  // abriría otra compra. El control no sabe de compras; sólo cumple el bloqueo y dice por qué.
+  it('bloqueado: no deja escribir, aplicar ni quitar, y dice por qué con el texto del dominio', () => {
+    const { fixture, host } = mount();
+    escribir(fixture, 'BIENVENIDA10');
+    host.config.set({ lockedMessage: 'Tu compra ya está en curso.' });
+    host.locked.set(true);
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('.syn-promo__input') as HTMLInputElement;
+    const boton = fixture.nativeElement.querySelector('.syn-promo__apply') as HTMLButtonElement;
+    expect(input.disabled).toBe(true);
+    expect(boton.disabled).toBe(true);
+    (fixture.nativeElement.querySelector('.syn-promo__form') as HTMLFormElement).dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+    expect(host.applyLog).toEqual([]);
+    const nota = fixture.nativeElement.querySelector('.syn-promo__locked') as HTMLElement;
+    expect(nota.textContent?.trim()).toBe('Tu compra ya está en curso.');
+    expect(input.getAttribute('aria-describedby')).toBe(nota.id);
+
+    host.applied.set({ code: 'BIENVENIDA10', discountLabel: '−$1' });
+    fixture.detectChanges();
+    const quitar = fixture.nativeElement.querySelector('.syn-promo__remove') as HTMLButtonElement;
+    expect(quitar.disabled).toBe(true);
+    quitar.click();
+    fixture.detectChanges();
+    expect(host.removeLog).toEqual([]);
+    expect(texto(fixture, '.syn-promo__locked')).toBe('Tu compra ya está en curso.');
+
+    // Desbloqueado vuelve a ser el de siempre, sin nota.
+    host.locked.set(false);
+    fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector('.syn-promo__remove') as HTMLButtonElement).disabled).toBe(false);
+    expect(fixture.nativeElement.querySelector('.syn-promo__locked')).toBeNull();
   });
 
   // ─── EL caso: cada motivo dice lo suyo ──────────────────────────────────────

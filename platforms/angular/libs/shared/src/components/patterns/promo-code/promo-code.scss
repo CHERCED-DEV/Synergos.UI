@@ -79,6 +79,12 @@
   color: var(--syn-promo-danger);
 }
 
+.syn-promo__locked {
+  margin: syn.$space-xxs 0 0;
+  font-size: syn.$font-size-sm;
+  color: var(--syn-promo-muted);
+}
+
 .syn-promo__applied {
   display: flex;
   flex-wrap: wrap;
