@@ -21,8 +21,9 @@
  * `Synergos.Api.*` los lee el orquestador, y su compatibilidad la cruza el CMS
  * (`ContratoConsumidorEventosTests`). Y el navegador no habla con las rutas del BFF sino con la
  * puerta del CMS: `GET|POST /api/flujos/{flujo}/{operacion}`. Por eso sale un mapa por flujo y
- * por el NOMBRE EN LA PUERTA —el vocabulario fijo de saga: abrir, cerrar, cancelar, consultar—
- * y no por operationId: el front sólo necesita la clave del flujo.
+ * por el NOMBRE EN LA PUERTA —el vocabulario fijo de saga: abrir, cerrar, cancelar, consultar, y
+ * desde el cupón cotizar, la vista previa de la fase que abre sin reservar nada— y no por
+ * operationId: el front sólo necesita la clave del flujo.
  *
  * Sólo salen las operaciones que el orquestador marca con `x-synergos-flujo` ({flujo,
  * operacion}), y sólo los esquemas que ellas alcanzan: lo demás (reintentar, compensaciones,
@@ -110,8 +111,12 @@ export const MARCA_DEL_FLUJO = 'x-synergos-flujo';
 /** La marca de una cabecera que pone la puerta y no el navegador. */
 export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
 
-/** El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6). */
-export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar'];
+/**
+ * El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6).
+ * `cotizar` lo suma el cupón: la fase que abre, anticipada sin saga (`FlowRunner.AnticiparAsync`).
+ * Es la misma lista que `EnLaPuertaExtensions.Operaciones` y `TablaDeLaPuerta.Operaciones` del CMS.
+ */
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar'];
 
 /** Los métodos que la puerta pasa. */
 const METODOS_DE_LA_PUERTA = new Set(['get', 'post']);

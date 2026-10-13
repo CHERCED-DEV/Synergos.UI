@@ -500,6 +500,23 @@ describe('la tabla de ejecución y el rechazo de la puerta (ADR 0140 F4, el «cl
     expect(t).toMatch(/\} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;\n$/);
   });
 
+  it('cotizar es del vocabulario: la vista previa de la fase que abre, POST con cuerpo y sin llave (ADR 0140, el cupón)', () => {
+    const d = documento();
+    d.paths['/v1/cotizaciones'] = {
+      post: {
+        operationId: 'Cotizar',
+        'x-synergos-flujo': { flujo: 'prueba.compra', operacion: 'cotizar' },
+        parameters: [{ name: 'X-Synergos-Sujeto', in: 'header', schema: { type: 'string' }, 'x-synergos-puerta': true }],
+        requestBody: { ...json(ref('CompraRequest')), required: true },
+        responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 401: sinCuerpo, 404: rechazo('NotFound') },
+      },
+    };
+    expect(validarDocumento(d)).toEqual([]);
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly cotizar: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "ninguna">;');
+    expect(tabla(ts)).toContain('cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },');
+  });
+
   it('una operación que gana un parámetro de consulta cambia la tabla, no sólo el tipo (M8 del plan de la F4)', () => {
     const d = documento();
     d.paths['/v1/compras'].post.parameters.push({ name: 'canal', in: 'query', required: true, schema: { type: 'string' } });
