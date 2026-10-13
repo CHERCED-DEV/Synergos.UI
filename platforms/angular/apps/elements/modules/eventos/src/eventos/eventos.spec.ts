@@ -1057,6 +1057,66 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(store.pricing().totalAmount).toBe(aMenores(201_600, 'COP'));
   });
 
+  // ── El tope de códigos que no sirven (ADR 0140, el cupón endurecido) ────────────────────────
+  //
+  // `Bff.Eventos` corta «cotizar» y «abrir» CON código a quien probó demasiados códigos que no sirven:
+  // 503 `eventos.demasiados_codigos`, transitorio, antes de llamar a Pricing. Reintentar YA no sirve:
+  // se dice que hay que esperar, y como el corte va antes de apartar, no deja saga.
+  const demasiadosCodigos = { status: 503, code: 'eventos.demasiados_codigos', transient: true, title: 'Service Unavailable' };
+  const TEXTO_DEMASIADOS =
+    'Probaste demasiados códigos que no sirven. Espera unos minutos para volver a intentarlo, o sigue sin código.';
+
+  it('la vista previa cortada por el tope dice que hay que esperar, no «intenta de nuevo», y no toca el total', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: { 'POST cotizar': [demasiadosCodigos] } });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    const antes = component.cartTotalMinor();
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    expect(component.promoRejection()).toBe('too-many-attempts');
+    expect(alertas()).toEqual([TEXTO_DEMASIADOS]);
+    expect(component.promo()).toBeNull();
+    expect(component.cartTotalMinor()).toBe(antes);
+  });
+
+  it('abrir cortado por el tope lo dice una vez y SUELTA la llave: se puede quitar el cupón y comprar sin él', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: { 'POST abrir': [demasiadosCodigos] } });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    const sessionId = TestBed.inject(SessionStore).session().sessionId;
+    await component.applyPromo('BIENVENIDA10');
+    const fallos = motivosDe();
+    fallos.escuchar(wizard);
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(fallos.motivos).toEqual(['eventos.demasiados_codigos']);
+    expect(alertas()).toEqual([TEXTO_DEMASIADOS]);
+    // El cupón sigue (vale); lo que falta es esperar o pagar sin él, y nada quedó apartado.
+    expect(component.promo()).not.toBeNull();
+    expect(component.cuponFijado()).toBe(false);
+
+    component.removePromo();
+    fixture.detectChanges();
+    expect(component.promo()).toBeNull();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    const abrir = borde.vistas().filter((vista) => vista.clave === 'POST abrir');
+    expect(abrir.at(-1)!.llave).toBe(sessionId);
+    expect(abrir.at(-1)!.cuerpo['promotionCode']).toBeUndefined();
+    expect(component.view()).toBe('confirmed');
+  });
+
   it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos();

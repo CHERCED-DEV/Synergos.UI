@@ -397,6 +397,12 @@ export function llaveDeLaIntencion(sessionId: string, codigo: string | null): st
 }
 
 /**
+ * El rechazo del tope de códigos de promoción que no sirven (`IntentosDeCodigo` de `Bff.Eventos`,
+ * ADR 0140, el cupón endurecido): «cotizar» o «abrir» CON código, cortados antes de llamar a Pricing.
+ */
+export const CODIGO_DEMASIADOS_CODIGOS = 'eventos.demasiados_codigos';
+
+/**
  * La llave con la que se envió abrir y cuya saga todavía puede cobrar, o `null` (ADR 0140, el cupón
  * endurecido). Vive en las LÍNEAS (`holdRef`): sobrevive a la recarga y al login, como el cupón.
  */
@@ -412,6 +418,10 @@ export function llaveRetenida(session: SessionData): string | null {
  * queda retenida y el reintento la recupera, en vez de abrir otra al lado.
  */
 export function abrirNoDejoSaga(rechazo: RechazoDelFlujo): boolean {
+  // El tope de códigos que no sirven corta ANTES de cotizar: transitorio, pero sin saga.
+  if (rechazo.code === CODIGO_DEMASIADOS_CODIGOS) {
+    return true;
+  }
   const clase = clasificarRechazo(rechazo);
   return clase === 'negado' || clase === 'sesion' || clase === 'no_disponible';
 }

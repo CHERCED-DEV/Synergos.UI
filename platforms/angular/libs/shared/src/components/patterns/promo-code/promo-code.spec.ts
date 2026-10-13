@@ -186,6 +186,8 @@ describe('syn-promo-code', () => {
       ['not-applicable', 'no aplica'],
       ['already-used', 'ya se usó'],
       ['failed', 'Intenta de nuevo'],
+      // Reintentar YA no sirve: lo único accionable es esperar (ADR 0140, el cupón endurecido).
+      ['too-many-attempts', 'Espera unos minutos'],
     ];
     for (const [motivo, fragmento] of esperado) {
       host.rejection.set(motivo);

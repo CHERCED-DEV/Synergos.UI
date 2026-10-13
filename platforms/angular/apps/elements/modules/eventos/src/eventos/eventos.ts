@@ -71,7 +71,13 @@ import type { EventosProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
-import { PREFIJO_DEL_CUPON, cuerpoDeLaCompra, cuponDeLaSesion, llaveRetenida } from './eventos-fulfillment.strategy';
+import {
+  CODIGO_DEMASIADOS_CODIGOS,
+  PREFIJO_DEL_CUPON,
+  cuerpoDeLaCompra,
+  cuponDeLaSesion,
+  llaveRetenida,
+} from './eventos-fulfillment.strategy';
 
 /**
  * El reloj de la ficha: la hora contra la que se decide si una localidad «aún no» abre (#195).
@@ -805,6 +811,13 @@ export class EventosElementComponent implements OnInit {
         return t(
           'Events.Purchase.PromoRemoved',
           'Tu código de descuento ya no aplica y lo quitamos: no se te cobró nada. Revisa el total y vuelve a intentarlo.',
+        );
+      case CODIGO_DEMASIADOS_CODIGOS:
+        // Abrir con el código, cortado ANTES de cotizar: no se apartó ni se autorizó nada, y el cupón
+        // no se quita (vale; lo que falta es esperar o pagar sin él).
+        return t(
+          'Events.Purchase.PromoTooMany',
+          'Probaste demasiados códigos que no sirven. Espera unos minutos para volver a intentarlo, o sigue sin código.',
         );
       case 'payments.payment_declined':
       case 'payments.payment_failed':
@@ -2286,6 +2299,10 @@ export class EventosElementComponent implements OnInit {
       expired: t('Events.Purchase.PromoExpired', 'Ese código ya venció.'),
       'not-applicable': t('Events.Purchase.PromoNotApplicable', 'No pudimos aplicar el código a esta compra.'),
       failed: t('Events.Purchase.PromoFailed', 'No pudimos validar el código. Intenta de nuevo.'),
+      'too-many-attempts': t(
+        'Events.Purchase.PromoTooMany',
+        'Probaste demasiados códigos que no sirven. Espera unos minutos para volver a intentarlo, o sigue sin código.',
+      ),
     },
     lockedMessage: t('Events.Purchase.PromoLocked', 'Tu compra ya está en curso: el código de descuento no se puede cambiar.'),
   };
@@ -2359,6 +2376,11 @@ export class EventosElementComponent implements OnInit {
         return;
       case 'pricing.promotion_currency_mismatch':
         this.promoRejection.set('not-applicable');
+        return;
+      case CODIGO_DEMASIADOS_CODIGOS:
+        // El tope de códigos que no sirven (ADR 0140, el cupón endurecido): transitorio, pero
+        // reintentar YA no sirve; lo único accionable es esperar, o seguir sin código.
+        this.promoRejection.set('too-many-attempts');
         return;
       default:
         break;

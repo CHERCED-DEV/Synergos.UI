@@ -39,7 +39,9 @@ export type PromoRejection =
   /** Ya se usó. */
   | 'already-used'
   /** No se pudo consultar. Reintentar. */
-  | 'failed';
+  | 'failed'
+  /** Demasiados intentos con códigos que no sirven: hay que esperar, reintentar YA no sirve. */
+  | 'too-many-attempts';
 
 /** El cupón que el servidor aceptó. */
 export interface AppliedPromo {
@@ -74,6 +76,7 @@ const MENSAJES: Readonly<Record<PromoRejection, string>> = {
   'not-applicable': 'Ese código no aplica a lo que llevas en el carrito.',
   'already-used': 'Ese código ya se usó.',
   failed: 'No pudimos validar el código. Intenta de nuevo.',
+  'too-many-attempts': 'Probaste demasiados códigos. Espera unos minutos para volver a intentarlo.',
 };
 
 @Component({
