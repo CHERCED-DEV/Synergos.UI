@@ -13,6 +13,7 @@
 export interface BuyTicketsRequest {
   readonly eventId?: string | null;
   readonly lines?: readonly TicketLineRequest[] | null;
+  readonly promotionCode?: string | null;
 }
 
 export interface HeldSeatResponse {
