@@ -361,6 +361,7 @@
         [stepTemplate]="checkoutStep"
         [validity]="checkoutValidity()"
         [instrument]="checkoutInstrument()"
+        [summaryRows]="resumenDelAsistente()"
         (completed)="onCheckoutCompleted($event)"
         (failed)="onCheckoutFailed($event)"
         (exit)="navigate('cart')"

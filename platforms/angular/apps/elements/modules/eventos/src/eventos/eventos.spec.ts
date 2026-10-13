@@ -1117,6 +1117,52 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.view()).toBe('confirmed');
   });
 
+  // ── «Tu orden» explica el total, y el signo no se separa de la cifra (ADR 0140, el cupón endurecido) ──
+  //
+  // Verificación en vivo: con el cupón, el resumen lateral del asistente bajaba el total sin la fila
+  // del descuento (ni la de los cargos), y a 375 px «−$ 13.500» partía el signo en otro renglón.
+  const filaDeTuOrden = (id: string): string | undefined =>
+    (fixture.nativeElement as HTMLElement).querySelector(`.syn-wizard__summary [data-row="${id}"] .syn-wizard__line-amount`)?.textContent ?? undefined;
+
+  it('«Tu orden» del asistente explica el total: los cargos y, con cupón, el descuento, entre las líneas y el total', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: 171_360 });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    fixture.detectChanges();
+    expect(filaDeTuOrden('fees')).toBe(component.feesLabel());
+    expect(filaDeTuOrden('promo')).toBeUndefined();
+
+    await component.applyPromo('BIENVENIDA10');
+    fixture.detectChanges();
+
+    const resumen = (fixture.nativeElement as HTMLElement).querySelector('.syn-wizard__summary') as HTMLElement;
+    const orden = Array.from(resumen.querySelectorAll('.syn-wizard__line, .syn-wizard__adjustment, .syn-wizard__total')).map(
+      (fila) => fila.getAttribute('data-row') ?? fila.className,
+    );
+    expect(orden).toEqual(['syn-wizard__line', 'fees', 'promo', 'syn-wizard__total']);
+    expect(filaDeTuOrden('promo')).toBe(component.promoValueLabel());
+    expect(resumen.querySelector('[data-row="promo"] .syn-wizard__line-label')?.textContent).toBe('Descuento (BIENVENIDA10)');
+  });
+
+  it('el descuento no se parte: el signo va pegado a la cifra, sin un punto de corte en medio', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+
+    await component.applyPromo('BIENVENIDA10');
+
+    // «−» (U+2212) y word joiner (U+2060) delante del importe, y ningún espacio normal en todo él
+    // (entre la moneda y la cifra, Intl pone el duro).
+    const etiqueta = component.promoValueLabel();
+    expect(etiqueta.startsWith('\u2212\u2060')).toBe(true);
+    expect(etiqueta).toMatch(/\d\.\d{3}$/);
+    expect(etiqueta).not.toMatch(/ /);
+  });
+
   it('tras pagar, la confirmación toma el foco: el encabezado «¡Compra confirmada!» y no BODY', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos();

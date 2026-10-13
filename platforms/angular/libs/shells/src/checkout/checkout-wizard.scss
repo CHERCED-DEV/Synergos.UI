@@ -157,12 +157,21 @@
     font-size: syn.$font-size-sm;
   }
 
+  &__adjustment {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+  }
+
   &__line-label {
     color: var(--shw-text-secondary);
   }
 
   &__line-amount {
     font-variant-numeric: tabular-nums;
+    // Un importe no se parte: «−$ 9.000» en dos renglones deja el signo solo arriba.
+    white-space: nowrap;
   }
 
   &__total {

@@ -90,6 +90,7 @@ export {
   AVISOS_DE_UN_COBRO,
   CheckoutWizardComponent,
   type CheckoutStepContext,
+  type CheckoutSummaryRow,
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
   type CheckoutWizardStep,

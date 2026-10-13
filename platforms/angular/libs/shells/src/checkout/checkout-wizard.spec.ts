@@ -16,6 +16,7 @@ import {
 import {
   AVISOS_DE_UN_COBRO,
   CheckoutWizardComponent,
+  type CheckoutSummaryRow,
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
 } from './checkout-wizard';
@@ -100,6 +101,7 @@ const THREE_STEPS: CheckoutWizardConfig = {
       [config]="config()"
       [stepTemplate]="step"
       [validity]="validity()"
+      [summaryRows]="rows()"
       [instrument]="{ provider: 'spec-psp' }"
       (stepchange)="stepLog.push($event)"
       (completed)="result = $event"
@@ -111,6 +113,7 @@ const THREE_STEPS: CheckoutWizardConfig = {
 class HostComponent {
   readonly config = signal<CheckoutWizardConfig>(THREE_STEPS);
   readonly validity = signal<Readonly<Record<string, boolean>>>({});
+  readonly rows = signal<readonly CheckoutSummaryRow[]>([]);
   readonly stepLog: string[] = [];
   result: CheckoutWizardResult | null = null;
   failure = '';
@@ -228,6 +231,30 @@ describe(CheckoutWizardComponent.name, () => {
     expect(store.session().status).toBe('confirmed');
     // The generic payment record carries the instrument's provider.
     expect(store.session().payments.at(-1)?.provider).toBe('spec-psp');
+  });
+
+  // ── las filas que explican el total (ADR 0140, el cupón endurecido) ─────────
+  // «Tu orden» de Eventos bajaba el total con un cupón sin una fila que lo explicara: un total más
+  // bajo sin la línea que lo explica se lee como un error de precio.
+  it('las filas que da el dominio salen entre las líneas y el total, con su importe tal cual', async () => {
+    const fixture = await createHost();
+    store.addItem(cartItem('a', 90_000));
+    fixture.componentInstance.rows.set([
+      { id: 'fees', label: 'Cargos por servicio (12 %)', value: '$ 10.800' },
+      { id: 'promo', label: 'Descuento (BIENVENIDA10)', value: '\u2212\u2060$ 9.000' },
+    ]);
+    fixture.detectChanges();
+
+    const resumen = fixture.nativeElement.querySelector('.syn-wizard__summary') as HTMLElement;
+    const orden = Array.from(resumen.querySelectorAll('.syn-wizard__line, .syn-wizard__adjustment, .syn-wizard__total')).map(
+      (fila) => fila.getAttribute('data-row') ?? fila.className,
+    );
+    expect(orden).toEqual(['syn-wizard__line', 'fees', 'promo', 'syn-wizard__total']);
+    expect(resumen.querySelector('[data-row="promo"] .syn-wizard__line-amount')?.textContent).toBe('\u2212\u2060$ 9.000');
+    // Sin filas, el resumen de siempre: líneas y total.
+    fixture.componentInstance.rows.set([]);
+    fixture.detectChanges();
+    expect(resumen.querySelectorAll('.syn-wizard__adjustment')).toHaveLength(0);
   });
 
   // ── filter ──────────────────────────────────────────────────────────────────

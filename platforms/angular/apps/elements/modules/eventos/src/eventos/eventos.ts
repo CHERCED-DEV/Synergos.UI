@@ -39,6 +39,7 @@ import {
   TrackingTimelineComponent,
   type AccountShellConfig,
   type AuthoringWizardConfig,
+  type CheckoutSummaryRow,
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
   type ConsoleColumn,
@@ -1649,6 +1650,17 @@ export class EventosElementComponent implements OnInit {
   });
 
   /**
+   * Lo que explica el total en «Tu orden» del asistente (SH-3), entre las líneas y el total: los cargos
+   * y, con cupón, el descuento. Las mismas filas que el carrito, sin el subtotal (las líneas ya lo
+   * dicen) ni el total (lo pinta el asistente).
+   */
+  readonly resumenDelAsistente = computed<readonly CheckoutSummaryRow[]>(() =>
+    this.cartSummary()
+      .filter((fila) => fila.id === 'fees' || fila.id === 'promo')
+      .map((fila) => ({ id: fila.id, label: fila.label, value: fila.value })),
+  );
+
+  /**
    * El aforo apartado vence solo. Esta vista se declaraba desde el primer día
    * como «carrito + fees + hold countdown» y el countdown no existía: alguien
    * apartaba butacas, se iba a buscar la tarjeta y volvía a un cupo muerto sin
@@ -2285,7 +2297,12 @@ export class EventosElementComponent implements OnInit {
   });
 
   readonly promoLabel = computed(() => this.#etiquetaDelCupon(this.promo()?.codigo ?? ''));
-  readonly promoValueLabel = computed(() => `−${this.formatMinor(this.promo()?.descuentoMinor ?? 0)}`);
+  /**
+   * El descuento con su signo, PEGADO a la cifra: el «−» (U+2212) y el «$» admiten un corte de línea
+   * entre ellos, y a 375 px el signo quedaba solo arriba. U+2060 (word joiner) no se ve ni se lee, y
+   * no deja partir; entre «$» y la cifra ya va el espacio duro de Intl.
+   */
+  readonly promoValueLabel = computed(() => `\u2212\u2060${this.formatMinor(this.promo()?.descuentoMinor ?? 0)}`);
 
   readonly appliedPromo = computed<AppliedPromo | null>(() => {
     const promo = this.promo();

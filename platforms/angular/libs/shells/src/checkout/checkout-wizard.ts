@@ -104,6 +104,17 @@ export const AVISOS_DE_UN_COBRO = {
     'Vuelve a intentarlo: no se te cobrará de nuevo.',
 } as const satisfies Pick<CheckoutWizardConfig, 'payFailedMessage' | 'confirmFailedMessage'>;
 
+/**
+ * Una fila del resumen que EXPLICA el total sin ser una línea del carrito: los cargos, un descuento,
+ * un impuesto. El importe va ya formateado por el dominio (el signo también): el asistente no sabe
+ * qué es un cupón (ADR 0140, el cupón endurecido).
+ */
+export interface CheckoutSummaryRow {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+}
+
 /** Template context handed to the per-step template. */
 export interface CheckoutStepContext {
   readonly $implicit: CheckoutWizardStep;
@@ -180,6 +191,14 @@ export interface CheckoutWizardResult {
                   <span class="syn-wizard__line-amount">{{ lineTotalLabel(item) }}</span>
                 </li>
               }
+              <!-- Lo que explica el total sin ser una línea: un total que baja sin la fila que lo
+                   explica se lee como un error de precio. -->
+              @for (fila of summaryRows(); track fila.id) {
+                <li class="syn-wizard__adjustment" [attr.data-row]="fila.id">
+                  <span class="syn-wizard__line-label">{{ fila.label }}</span>
+                  <span class="syn-wizard__line-amount">{{ fila.value }}</span>
+                </li>
+              }
             </ul>
             <p class="syn-wizard__total">
               <span>{{ config().totalLabel || 'Total' }}</span>
@@ -204,6 +223,11 @@ export class CheckoutWizardComponent {
   /** Opaque payload handed to `IFulfillmentStrategy.pay` (PSP token, customer…). */
   readonly instrument = input<Readonly<Record<string, unknown>>>({});
   readonly showSummary = input(true);
+  /**
+   * Las filas que explican el total en el resumen, entre las líneas y el total (los cargos, un
+   * descuento). Sin ellas el resumen sólo tiene líneas y total, como siempre.
+   */
+  readonly summaryRows = input<readonly CheckoutSummaryRow[]>([]);
   /** Override the built-in es-CO Intl price formatting (minor units in). */
   readonly priceFormatter = input<((minorUnits: number, currency: string) => string) | null>(null);
 

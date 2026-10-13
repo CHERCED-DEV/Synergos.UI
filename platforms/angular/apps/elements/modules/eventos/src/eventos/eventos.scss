@@ -672,6 +672,11 @@
       margin: 0;
     }
 
+    // Un importe no se parte: a 375 px «−$ 13.500» dejaba el signo solo en un renglón.
+    dd {
+      white-space: nowrap;
+    }
+
     &--total {
       padding-top: syn.$space-xxs;
       margin-top: syn.$space-xxs;
