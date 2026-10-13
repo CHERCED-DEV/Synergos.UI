@@ -23,7 +23,7 @@ import {
   type CoordinadorDelFlujo,
   type DetalleDeResultado,
 } from './coordinador';
-import { abrirCompraDeEventos, cerrarCompraDeEventos, leerCompra } from './eventos-compra';
+import { abrirCompraDeEventos, cerrarCompraDeEventos, cotizarCompraDeEventos, leerCompra } from './eventos-compra';
 import { clasificarRechazo, elegirMensaje } from './rechazos';
 
 /**
@@ -406,6 +406,48 @@ describe('<synergos-flujo>: el coordinador', () => {
       ['POST', '/api/flujos/eventos.compra/abrir', 'sess-1'],
       ['POST', '/api/flujos/eventos.compra/cerrar?id=saga1', null],
     ]);
+  });
+
+  it('cotizar la compra de Eventos (el cupón): POST con el cuerpo tal cual y SIN llave, leída con el contrato generado', async () => {
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    const cop = (amount: number) => ({ amount, currency: 'COP' });
+    const cotizada = {
+      eventId: 'ev1',
+      subtotal: cop(200000),
+      discount: cop(20000),
+      tax: cop(0),
+      serviceFee: cop(24000),
+      total: cop(204000),
+      promotionCode: 'BIENVENIDA10',
+    };
+    const { f, llamadas } = falsoFetch([json(200, cotizada)]);
+    conFetch('#c', f);
+    const cuerpo = { eventId: 'ev1', lines: [{ quantity: 2, tier: 'GEN' }], promotionCode: 'BIENVENIDA10' };
+
+    const r = await cotizarCompraDeEventos(document.getElementById('p')!, cuerpo);
+
+    expect(r.ok && r.valor).toEqual({
+      subtotal: 200000, descuento: 20000, impuesto: 0, comision: 24000, total: 204000, moneda: 'COP', codigo: 'BIENVENIDA10',
+    });
+    expect(llamadas.map((l) => [l.init.method, l.url, cabecera(l, 'Idempotency-Key')])).toEqual([
+      ['POST', '/api/flujos/eventos.compra/cotizar', null],
+    ]);
+    expect(JSON.parse(String(llamadas[0]!.init.body))).toEqual(cuerpo);
+  });
+
+  it('un cupón que no existe vuelve como su code de Pricing, y es una negativa: no se reintenta', async () => {
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    const { f, llamadas } = falsoFetch([
+      json(404, { type: 'about:blank', title: 'Not Found', status: 404, detail: 'x', code: 'pricing.promotion_not_found', transient: false }, 'application/problem+json'),
+    ]);
+    conFetch('#c', f);
+
+    const r = await cotizarCompraDeEventos(document.getElementById('p')!, { eventId: 'ev1', lines: [{ quantity: 1, tier: 'GEN' }], promotionCode: 'NO' });
+
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.rechazo.code).toBe('pricing.promotion_not_found');
+    expect(!r.ok && clasificarRechazo(r.rechazo)).toBe('negado');
+    expect(llamadas).toHaveLength(1);
   });
 });
 

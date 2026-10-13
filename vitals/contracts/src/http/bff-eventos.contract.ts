@@ -58,6 +58,16 @@ export interface TicketPurchaseResponse {
   readonly lastError: string | null;
 }
 
+export interface TicketQuoteResponse {
+  readonly eventId: string;
+  readonly subtotal: MoneyDto;
+  readonly discount: MoneyDto;
+  readonly tax: MoneyDto;
+  readonly serviceFee: MoneyDto;
+  readonly total: MoneyDto;
+  readonly promotionCode: string | null;
+}
+
 /**
  * Una operación por la puerta: con qué método, qué va en la consulta (los parámetros de ruta del
  * orquestador viajan ahí, con su nombre), el cuerpo que se manda (`undefined` si no lleva), lo
@@ -79,6 +89,7 @@ export interface OperacionesDeLaPuerta {
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
     readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TicketPurchaseResponse, "ninguna">;
+    readonly cotizar: OperacionDeLaPuerta<"POST", undefined, BuyTicketsRequest, TicketQuoteResponse, "ninguna">;
   };
 }
 
@@ -109,5 +120,6 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

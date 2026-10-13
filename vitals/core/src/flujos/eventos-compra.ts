@@ -61,6 +61,49 @@ export async function consultarCompraDeEventos(desde: Element, id: string): Prom
   return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'consultar', { consulta: { id } }));
 }
 
+/**
+ * Lo que la pantalla necesita de una cotización (ADR 0140, el cupón): cada importe en unidades MAYORES
+ * de su moneda, como los publica el contrato. Lo calcula el servidor —Pricing el descuento, el
+ * orquestador la comisión—; la pantalla sólo lo pinta.
+ */
+export interface CotizacionLeida {
+  readonly subtotal: number;
+  readonly descuento: number;
+  readonly impuesto: number;
+  readonly comision: number;
+  /** Lo que abrir autorizaría con esas mismas líneas y ese mismo código. */
+  readonly total: number;
+  readonly moneda: string;
+  /** El código que se cotizó, como lo recortó el orquestador; `null` sin código. */
+  readonly codigo: string | null;
+}
+
+export function leerCotizacion(r: BffEventos.TicketQuoteResponse): CotizacionLeida {
+  return {
+    subtotal: r.subtotal.amount,
+    descuento: r.discount.amount,
+    impuesto: r.tax.amount,
+    comision: r.serviceFee.amount,
+    total: r.total.amount,
+    moneda: r.total.currency,
+    codigo: r.promotionCode,
+  };
+}
+
+/**
+ * Cotiza la compra SIN abrirla (ADR 0140, el cupón): el orquestador corre la fase que abre hasta
+ * antes de apartar —revisar, cotizar contra Pricing con el código, sumar la comisión— y no guarda
+ * nada. Es la vista previa honesta del descuento; abrir vuelve a cotizar entero, así que una
+ * promoción que vence entre medias la rechaza abrir con su `code`. Sin llave: no crea nada.
+ */
+export async function cotizarCompraDeEventos(
+  desde: Element,
+  cuerpo: BffEventos.BuyTicketsRequest,
+): Promise<ResultadoDelFlujo<CotizacionLeida>> {
+  const r = await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cotizar', { cuerpo });
+  return r.ok ? { ...r, valor: leerCotizacion(r.valor) } : r;
+}
+
 /** Cierra la compra: captura y la da por completa. Idempotente sobre una compra ya completa. */
 export async function cerrarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
   return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cerrar', { consulta: { id } }));
