@@ -73,6 +73,7 @@ import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
 import {
+  CODIGO_COMPRA_SIN_ACUSE,
   CODIGO_DEMASIADOS_CODIGOS,
   PREFIJO_DEL_CUPON,
   compraPendiente,
@@ -2030,7 +2031,27 @@ export class EventosElementComponent implements OnInit {
       this.sesionVencida.set(true);
     } else if (motivo === 'cliente.sin_coordinador') {
       this.sinCoordinador.set(true);
+    } else if (motivo === CODIGO_COMPRA_SIN_ACUSE) {
+      void this.#mostrarLasComprasSinAcuse();
     }
+  }
+
+  /**
+   * `pay` no abrió porque el servidor sabe de compras del miembro para este evento sin acuse que esta
+   * sesión no ve (ADR 0140, el cupón endurecido, fase D): se piden y se pinta la primera con el mismo
+   * panel de la compra pendiente —primero la cobrada, que se muestra con sus entradas; si no, la que
+   * sigue en curso, que se puede cancelar; si no, la que no se pudo leer—. No son de esta sesión: no se
+   * terminan desde aquí. Si la lista ya no llega, queda el aviso del asistente.
+   */
+  async #mostrarLasComprasSinAcuse(): Promise<void> {
+    const eventId = this.#seleccionDelCarrito()['eventId'];
+    const r = await this.#api.comprasPendientes(this.apiBase(), typeof eventId === 'string' ? eventId : '');
+    if (!r.ok || r.valor.length === 0) {
+      return;
+    }
+    const compra =
+      r.valor.find((c) => c.estado === 'Completed') ?? r.valor.find((c) => c.estado === 'Running') ?? r.valor[0]!;
+    await this.#segunComoQuedo(compra.id, compra.estado, false);
   }
 
   onCheckoutCompleted(result: CheckoutWizardResult): void {

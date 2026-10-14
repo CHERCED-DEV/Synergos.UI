@@ -90,6 +90,8 @@ interface PeticionVista {
  *  - `POST cancelar` → `/api/flujos/eventos.compra/cancelar?id=…`: una saga en curso queda `Compensated`;
  *    una completa contesta 409 `eventos.already_completed`.
  *  - `POST asistentes` y `GET entradas` → el artefacto, `/api/eventos/compras/{id}/…`.
+ *  - `GET /compras/pendientes?eventId=` → el artefacto: las compras con asistentes anotados y sin
+ *    entradas emitidas, en curso o cobradas (la fase D del cupón endurecido).
  *  - `POST /ticket/{id}/transfer`, `POST /event` y `POST /checkin`, como antes. El check-in lleva
  *    ESTADO: `valid`, después `already-used`, y lo que no emitió es `invalid`.
  *
@@ -145,6 +147,9 @@ function bordeDeEventos(
   const sagas = new Map<string, SagaDelBorde>();
   const porLlave = new Map<string, string>();
   const cobradas: string[] = [];
+  /** Las sagas con asistentes anotados (el artefacto guarda su orden) y las que ya tienen acuse (sus entradas). */
+  const anotadas = new Set<string>();
+  const conAcuse = new Set<string>();
   let ultima: SagaDelBorde = { id: 'pta-77', estado: 'Running', apartadas: [] };
   const sagaDe = (id: string | null): SagaDelBorde => (id ? sagas.get(id) : undefined) ?? ultima;
   const cobrar = (saga: SagaDelBorde): void => {
@@ -281,6 +286,7 @@ function bordeDeEventos(
         if (saga.estado !== 'Running') {
           return responder(409, { title: 'Conflict', status: 409, code: 'eventos.compra_ya_cerrada', transient: false }, 'application/problem+json');
         }
+        anotadas.add(saga.id);
         return responder(200, { id: saga.id, asistentes: Array.isArray(cuerpo['attendees']) ? cuerpo['attendees'].length : 0 });
       }
       case 'POST cerrar': {
@@ -292,8 +298,20 @@ function bordeDeEventos(
         return responder(200, compra(saga));
       }
       case 'GET entradas': {
+        conAcuse.add(sagaDe(idPedido).id);
         const cuantas = Math.max(1, sagaDe(idPedido).apartadas.reduce((n, a) => n + a.quantity, 0));
         return responder(200, { status: 'Confirmed', tickets: Array.from({ length: cuantas }, (_sin, i) => entrada(i + 1, 'valid')) });
+      }
+      case 'GET /compras/pendientes': {
+        // Las compras del miembro sin acuse (fase D): con asistentes anotados y sin entradas emitidas, y
+        // reconciliadas con la saga: las deshechas no salen. Sin evento no hay lista.
+        if (!direccion.searchParams.get('eventId')) {
+          return responder(400, { title: 'Bad Request', status: 400, code: 'eventos.evento_requerido', transient: false }, 'application/problem+json');
+        }
+        const pendientes = [...sagas.values()]
+          .filter((saga) => anotadas.has(saga.id) && !conAcuse.has(saga.id) && (saga.estado === 'Running' || saga.estado === 'Completed'))
+          .map((saga) => ({ id: saga.id, status: saga.estado }));
+        return responder(200, { compras: pendientes });
       }
       case 'POST /ticket/{id}/transfer':
         return responder(200, {
@@ -2270,6 +2288,118 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(store.session().sessionId).toBe(antes.sessionId);
     expect(store.session().items.map((linea) => linea.holdRef)).toEqual(antes.items.map((linea) => linea.holdRef));
     expect(store.session().payments).toEqual(antes.payments);
+  });
+
+  // ── Las compras sin acuse que sabe el SERVIDOR (ADR 0140, el cupón endurecido, fase D) ────────
+  //
+  // La guarda de arriba vive en la sesión: otro dispositivo, los datos del sitio borrados o más de 24 h
+  // no la ven. Antes de abrir con una llave NUEVA, `pay` pregunta al artefacto del CMS por las compras
+  // del miembro para el evento sin acuse; con alguna no abre, y el elemento la pinta con el mismo
+  // panel. Si la pregunta no se contesta, se degrada por AUSENCIA: se abre como siempre.
+  const pendientesPedidas = (borde: ReturnType<typeof bordeDeEventos>): string[] =>
+    borde.vistas().filter((vista) => vista.clave === 'GET /compras/pendientes').map((vista) => vista.url);
+
+  /** El mismo comprador en OTRO dispositivo: el borde (el servidor) es el mismo; la sesión, nueva. */
+  async function enOtroDispositivo(): Promise<void> {
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    installMemoryStorage();
+    await createComponent();
+    expect(TestBed.inject(SessionStore).session().payments).toEqual([]);
+  }
+
+  it('desde OTRO dispositivo, con una compra cobrada sin acuse, pagar no abre otra: muestra las entradas de la cobrada', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    expect(borde.cobradas()).toEqual(['pta-77']);
+
+    await enOtroDispositivo();
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(avisoDeLaPendiente()).toBe(COMPLETADA);
+    // No es la compra de ESTA sesión: su selección no queda confirmada por la de otro dispositivo.
+    expect(TestBed.inject(SessionStore).session().status).not.toBe('confirmed');
+    const pedidas = pendientesPedidas(borde);
+    expect(pedidas.length).toBeGreaterThan(0);
+    expect(pedidas.every((url) => /^\/api\/eventos\/compras\/pendientes\?eventId=[^&]+$/.test(url))).toBe(true);
+  });
+
+  it('desde OTRO dispositivo, con una compra en curso, pagar la ofrece cancelar (no terminar: no es de esta sesión) y, cancelada, cobra sólo la nueva', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar() });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await enOtroDispositivo();
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('cart');
+    expect(component.pendiente()).toEqual({ tipo: 'en-curso', referencia: 'pta-77', propia: false });
+    expect(botonesDeLaPendiente()).toEqual(['Cancelar esa compra']);
+
+    await pulsar('Cancelar esa compra');
+    expect(component.pendiente()).toBeNull();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+  });
+
+  it('si el servidor no contesta por las compras sin acuse, se degrada por AUSENCIA: se abre como siempre', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ caidas: ['GET /compras/pendientes'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    const wizard = await alRevisar();
+    wizard.next();
+    // La lectura caída se reintenta con su retroceso de verdad (~1 s) antes de rendirse.
+    await vi.waitFor(() => expect(component.view()).toBe('confirmed'), { timeout: 4_000, interval: 20 });
+    fixture.detectChanges();
+
+    expect(pendientesPedidas(borde).length).toBeGreaterThan(1);
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('con la llave ya retenida no se pregunta otra vez: el reintento vuelve a SU saga', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(pendientesPedidas(borde)).toHaveLength(1);
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(pendientesPedidas(borde)).toHaveLength(1);
+    expect(borde.abiertas()).toEqual(['pta-77']);
   });
 
   // ── reserved seating: seat-map selection drives the ticket count ──────────────

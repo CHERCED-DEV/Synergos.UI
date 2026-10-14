@@ -146,6 +146,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * tanto el elemento fija el cupón y cada reintento abre con ESA llave: otra llave es otra saga, que
    * aparta y autoriza otra vez y que cerrar capturaría (el doble cobro de la revisión del cupón). Y
    * mientras está retenida la sesión no vence a los 30 min: tiene el plazo de una compra pendiente.
+   *
+   * Antes de abrir con una llave NUEVA se pregunta al servidor por las compras sin acuse del miembro
+   * para el evento (fase D): las que esta sesión no ve —otro dispositivo, los datos del sitio borrados,
+   * más allá del plazo—. Con alguna no se abre: `eventos.compra_sin_acuse`, y el elemento las pinta.
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
@@ -159,7 +163,11 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     // El cupón sale de la SESIÓN (regla 20): lo dejó la vista previa en su pricing, y sobrevive a la
     // recarga y al login. Sólo viaja el CÓDIGO; el descuento lo vuelve a calcular Pricing al abrir.
     const codigo = cuponDeLaSesion(request.session.pricing)?.codigo ?? null;
-    const llave = llaveRetenida(request.session) ?? llaveDeLaIntencion(request.session.sessionId, codigo);
+    const retenida = llaveRetenida(request.session);
+    if (retenida === null && (await this.hayComprasSinAcuse(instrument.apiBase ?? apiBaseOf(request.session), request.session))) {
+      return { accepted: false, reason: CODIGO_COMPRA_SIN_ACUSE };
+    }
+    const llave = retenida ?? llaveDeLaIntencion(request.session.sessionId, codigo);
     this.retener(llave);
     const abierta = await abrirCompraDeEventos(host, cuerpoDeLaCompra(request.session, codigo), llave);
     if (!abierta.ok) {
@@ -285,6 +293,18 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     };
   }
 
+  /**
+   * ¿El miembro tiene, para este evento, compras sin acuse —en curso, o cobradas sin entradas— que el
+   * servidor conoce y esta sesión no? (ADR 0140, el cupón endurecido, fase D.) Se pregunta sólo antes
+   * de abrir con una llave NUEVA: la retenida es la de la compra de esta sesión, y abrir con ella
+   * devuelve su saga. Si la pregunta no se puede contestar, se degrada por AUSENCIA: no se sabe de
+   * ninguna, y se abre como siempre (la guarda de la sesión sigue).
+   */
+  private async hayComprasSinAcuse(apiBase: string, session: SessionData): Promise<boolean> {
+    const pendientes = await this.#api.comprasPendientes(apiBase, eventIdOf(session));
+    return pendientes.ok && pendientes.valor.length > 0;
+  }
+
   /** El estado de la saga según el orquestador (`Completed`, `Compensated`…), o '' si no se pudo leer. */
   private async estadoDeLaCompra(host: Element, id: string): Promise<string> {
     const leida = await consultarCompraDeEventos(host, id);
@@ -396,6 +416,13 @@ export function llaveDeLaIntencion(sessionId: string, codigo: string | null): st
  * ADR 0140, el cupón endurecido): «cotizar» o «abrir» CON código, cortados antes de llamar a Pricing.
  */
 export const CODIGO_DEMASIADOS_CODIGOS = 'eventos.demasiados_codigos';
+
+/**
+ * El motivo con que `pay` NO abre (ADR 0140, el cupón endurecido, fase D): el servidor sabe de otra
+ * compra del miembro para el evento sin acuse —en curso, o cobrada sin entradas—, y abrir con una llave
+ * nueva la duplicaría. No sale del servidor: lo pone la estrategia, y el elemento pinta esas compras.
+ */
+export const CODIGO_COMPRA_SIN_ACUSE = 'eventos.compra_sin_acuse';
 
 /**
  * La llave con la que se envió abrir y cuya saga todavía puede cobrar, o `null` (ADR 0140, el cupón

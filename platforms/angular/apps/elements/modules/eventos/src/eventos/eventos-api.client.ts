@@ -35,10 +35,12 @@ import {
  *  - `GET  /api/eventos/event/{id}`                         → `{ event, tiers:[...], seatmap }`
  *  - `POST /api/eventos/compras/{id}/asistentes` `{ attendees }` → `{ id, asistentes }`
  *  - `GET  /api/eventos/compras/{id}/entradas`               → `{ status, tickets:[{id, qr}] }`
+ *  - `GET  /api/eventos/compras/pendientes?eventId=`         → `{ compras:[{ id, status }] }`
  *
  * La compra —abrir y cerrar— NO pasa por este cliente: va por la puerta, con el coordinador
- * (`<synergos-flujo>`, ADR 0140 F4). Las dos rutas de arriba son el ARTEFACTO que el CMS agrega a
- * esa compra (quién se sienta y las entradas con su QR), y van por el mismo transporte que la puerta.
+ * (`<synergos-flujo>`, ADR 0140 F4). Las tres rutas de `compras` de arriba son el ARTEFACTO que el CMS
+ * agrega a esa compra (quién se sienta, las entradas con su QR y las compras sin acuse), y van por el
+ * mismo transporte que la puerta.
  *  - `GET  /api/eventos/manage/{eventId}`                   → `{ attendees:[...], capacity, sold }`
  *  - `POST /api/eventos/checkin`  `{ ticketId }`            → `{ status }`
  *
@@ -214,6 +216,33 @@ export class EventosApiClient {
     }
     this.seedWallet(confirmation.tickets, attendees, id, context);
     return { ...r, valor: confirmation };
+  }
+
+  /**
+   * `GET {apiBase}/compras/pendientes?eventId=` — las compras del miembro para ese evento que no tienen
+   * acuse: nadie emitió sus entradas (ADR 0140, el cupón endurecido, fase D). El artefacto las reconcilia
+   * con el orquestador: `Running`, `Completed` (cobrada y sin entradas) o `Unknown` (no se pudo leer). Es
+   * la defensa del lado del servidor contra abrir OTRA con una llave nueva desde otro dispositivo, con
+   * los datos del sitio borrados o pasado el plazo de la sesión. No lanza: devuelve el rechazo.
+   */
+  async comprasPendientes(apiBase: string, eventId: string): Promise<ResultadoDelFlujo<readonly CompraSinAcuse[]>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
+    }
+    const url = `${apiBase}/compras/pendientes?eventId=${encodeURIComponent(eventId)}`;
+    const r = await this.#transporte({ metodo: 'GET', url, cabeceras: {}, etiqueta: 'eventos/pendientes' });
+    if (!r.ok) {
+      return r;
+    }
+    const compras = normalizeComprasPendientes(r.valor);
+    if (!compras) {
+      return {
+        ok: false,
+        correlacion: r.correlacion,
+        rechazo: rechazoLocal('cliente.respuesta_ilegible', 'las compras pendientes no traen la forma esperada', false, 'forma', r.estado),
+      };
+    }
+    return { ...r, valor: compras };
   }
 
   /** Append the issued tickets to the in-memory wallet ("mis tickets"). */
@@ -447,6 +476,13 @@ export class EventosApiClient {
     this.#logger.warn(`Eventos API "${endpoint}" unavailable — nothing was saved.`, error);
     throw new EventosWriteFailedError(endpoint, error);
   }
+}
+
+/** Una compra del miembro sin acuse (fase D): su id —la referencia— y en qué quedó en el orquestador. */
+export interface CompraSinAcuse {
+  readonly id: string;
+  /** `Running`, `Completed` o `Unknown` (el artefacto no la pudo leer). */
+  readonly estado: string;
 }
 
 /** El evento de una compra, para que la billetera lea con sentido las entradas que emitió el servidor. */
@@ -747,6 +783,17 @@ function normalizeConfirm(value: unknown): ConfirmResult | null {
     status: readString(value['status']).trim() || 'confirmed',
     tickets,
   };
+}
+
+/** `{ compras: [{ id, status }] }`; sin la lista no hay respuesta que leer (una vacía sí lo es). */
+function normalizeComprasPendientes(value: unknown): readonly CompraSinAcuse[] | null {
+  if (!isRecord(value) || !Array.isArray(value['compras'])) {
+    return null;
+  }
+  return value['compras']
+    .filter(isRecord)
+    .map((compra) => ({ id: readString(compra['id']).trim(), estado: readString(compra['status']).trim() }))
+    .filter((compra) => compra.id !== '');
 }
 
 function normalizeAttendee(value: unknown): ManagedAttendee | null {
