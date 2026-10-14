@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, writeFileSync, statSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync, rmSync } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -22,6 +22,7 @@ import {
   escribirAtomico,
   revisarPorContenido,
   leerModoDeUrls,
+  publicarRuntime,
 } from './runtime-por-contenido.mjs';
 import { HUELLA_EN_NOMBRE } from './cdn-cache-policy.mjs';
 import { FICHEROS_POR_FRAMEWORK, importsDelRuntime } from './mapa-del-runtime.mjs';
@@ -372,5 +373,178 @@ describe('leerModoDeUrls', () => {
   it('un valor que no se entiende es un error, no «el de siempre»', () => {
     expect(leerModoDeUrls(['--urls=por-hash'], {}).error).toMatch(/por-hash.*por-contenido \| por-nombre/);
     expect(leerModoDeUrls([], { SYNERGOS_RUNTIME_URLS: 'plano' }).error).toMatch(/SYNERGOS_RUNTIME_URLS=plano/);
+  });
+});
+
+// ── Publicar ────────────────────────────────────────────────────────────────
+
+/**
+ * Un `dist/runtime/<framework>/<versión>/` de mentira en un disco de verdad,
+ * con los ficheros que declara la tabla y un contenido que se puede cambiar.
+ */
+function distFalso(raiz, framework, version, cambios = {}) {
+  const dir = path.join(raiz, 'dist', framework, version);
+  mkdirSync(dir, { recursive: true });
+  for (const fichero of FICHEROS_POR_FRAMEWORK[framework]) {
+    writeFileSync(path.join(dir, fichero), cambios[fichero] ?? `// ${framework} ${version} ${fichero}\n`);
+  }
+  return dir;
+}
+
+/** `node:fs/promises` con las escrituras espiadas, en orden. */
+function fsEspiado() {
+  const escrituras = [];
+  const fs = {
+    readFile: fsp.readFile,
+    rm: fsp.rm,
+    mkdir: async (...args) => {
+      escrituras.push(['mkdir', args[0]]);
+      return fsp.mkdir(...args);
+    },
+    writeFile: async (...args) => {
+      escrituras.push(['writeFile', args[0]]);
+      return fsp.writeFile(...args);
+    },
+    rename: async (de, a) => {
+      escrituras.push(['rename', a]);
+      return fsp.rename(de, a);
+    },
+  };
+  return { fs, escrituras };
+}
+
+describe('publicarRuntime — el runtime por contenido, sobre un disco de verdad', { timeout: 30_000 }, () => {
+  const VER = '21.1.6';
+  const BASE = `/synergos/runtime/angular/${VER}`;
+  let raiz;
+  let cdn;
+  let rt;
+
+  beforeEach(() => {
+    raiz = carpetaTemporal();
+    cdn = path.join(raiz, 'cdn');
+    rt = path.join(cdn, 'synergos', 'runtime', 'angular');
+  });
+  afterEach(() => rmSync(raiz, { recursive: true, force: true }));
+
+  const publicar = (dist, extra = {}) =>
+    publicarRuntime({ framework: 'angular', version: VER, dist, cdn, base: BASE, fs: fsp, ...extra });
+  const leerJson = (...p) => JSON.parse(readFileSync(path.join(rt, ...p), 'utf8'));
+
+  it('la 1.ª publicación deja los planos, los ficheros con huella, el libro y los dos mapas', async () => {
+    const dist = distFalso(raiz, 'angular', VER);
+    const { errores, nombres } = await publicar(dist, { ahora: () => '2026-10-13T00:00:00.000Z' });
+
+    expect(errores).toEqual([]);
+    for (const fichero of FICHEROS_POR_FRAMEWORK.angular) {
+      expect(readdirSync(path.join(rt, VER))).toContain(fichero);
+      expect(readdirSync(path.join(rt, VER))).toContain(nombres[fichero]);
+      expect(readdirSync(path.join(rt, 'latest'))).toContain(fichero);
+      expect(nombres[fichero]).toBe(nombreConHuella(fichero, huellaDe(readFileSync(path.join(dist, fichero)))));
+    }
+
+    const mapa = leerJson('latest', 'import-map.json');
+    expect(mapa).toEqual(leerJson(VER, 'import-map.json'));
+    expect(mapa.imports['@synergos/shared']).toBe(`${BASE}/${nombres['sg-shared.js']}`);
+    expect(mapa.imports['@synergos/angular-shared']).toBe(mapa.imports['@synergos/shared']);
+    // «integrity» sigue por nombre de fichero, como siempre.
+    expect(Object.keys(mapa.integrity).sort()).toEqual([...FICHEROS_POR_FRAMEWORK.angular].sort());
+
+    const libro = leerJson('latest', LIBRO);
+    expect(libro.entradas).toHaveLength(FICHEROS_POR_FRAMEWORK.angular.length);
+    expect(libro.entradas.every((e) => e.desde === '2026-10-13T00:00:00.000Z')).toBe(true);
+  });
+
+  it('la 2.ª, con sg-shared cambiado, añade el fichero nuevo y deja el anterior INTACTO', async () => {
+    const primera = await publicar(distFalso(raiz, 'angular', VER));
+    const anterior = path.join(rt, VER, primera.nombres['sg-shared.js']);
+    const { mtimeMs } = statSync(anterior);
+    const shaAnterior = sha256De(readFileSync(anterior));
+
+    const segunda = await publicar(distFalso(raiz, 'angular', VER, { 'sg-shared.js': '// libs/shared cambió\n' }));
+
+    expect(segunda.errores).toEqual([]);
+    expect(segunda.nombres['sg-shared.js']).not.toBe(primera.nombres['sg-shared.js']);
+    expect(statSync(anterior).mtimeMs).toBe(mtimeMs);
+    expect(sha256De(readFileSync(anterior))).toBe(shaAnterior);
+    // Lo único que cambia de nombre es lo que cambió de bytes.
+    expect(segunda.nombres['ng-core.js']).toBe(primera.nombres['ng-core.js']);
+
+    const mapa = leerJson('latest', 'import-map.json');
+    expect(mapa.imports['@synergos/shared']).toBe(`${BASE}/${segunda.nombres['sg-shared.js']}`);
+    expect(readFileSync(path.join(rt, 'latest', 'sg-shared.js'), 'utf8')).toBe('// libs/shared cambió\n');
+
+    const urls = leerJson('latest', LIBRO).entradas.map((e) => e.url);
+    expect(urls).toContain(`${BASE}/${primera.nombres['sg-shared.js']}`);
+    expect(urls).toContain(`${BASE}/${segunda.nombres['sg-shared.js']}`);
+  });
+
+  it('la 3.ª, idéntica, no escribe NADA: ni ficheros, ni planos, ni libro, ni mapas', async () => {
+    const dist = distFalso(raiz, 'angular', VER);
+    await publicar(dist, { ahora: () => '2026-10-13T00:00:00.000Z' });
+    await publicar(dist, { ahora: () => '2026-10-14T00:00:00.000Z' });
+
+    const { fs, escrituras } = fsEspiado();
+    const tercera = await publicar(dist, { fs, ahora: () => '2026-10-15T00:00:00.000Z' });
+
+    expect(tercera.errores).toEqual([]);
+    expect(tercera.escritos).toEqual([]);
+    expect(escrituras).toEqual([]);
+  });
+
+  it('latest/import-map.json es la ÚLTIMA escritura: es el volteo', async () => {
+    await publicar(distFalso(raiz, 'angular', VER));
+    const { fs, escrituras } = fsEspiado();
+    await publicar(distFalso(raiz, 'angular', VER, { 'sg-shared.js': '// otra generación\n' }), { fs });
+
+    const destinos = escrituras.filter(([op]) => op === 'rename').map(([, a]) => path.relative(rt, a));
+    expect(destinos.length).toBeGreaterThan(3);
+    expect(destinos.at(-1)).toBe(path.join('latest', 'import-map.json'));
+    expect(destinos.indexOf(path.join('latest', LIBRO))).toBeLessThan(destinos.length - 1);
+    expect(destinos.some((d) => HUELLA_EN_NOMBRE.test(path.basename(d)))).toBe(true);
+  });
+
+  it('--urls=por-nombre da el mapa de antes; los ficheros con huella y el libro se publican igual', async () => {
+    const { errores } = await publicar(distFalso(raiz, 'angular', VER), { modo: 'por-nombre' });
+
+    expect(errores).toEqual([]);
+    expect(leerJson('latest', 'import-map.json').imports).toEqual(importsDelRuntime('angular', BASE));
+    expect(leerJson('latest', LIBRO).entradas).toHaveLength(FICHEROS_POR_FRAMEWORK.angular.length);
+  });
+
+  it('--dry-run no escribe nada, y dice lo que escribiría', async () => {
+    const { fs, escrituras } = fsEspiado();
+    const { escritos } = await publicar(distFalso(raiz, 'angular', VER), { fs, dryRun: true });
+
+    expect(escrituras).toEqual([]);
+    expect(escritos.map((r) => path.relative(rt, r))).toContain(path.join('latest', 'import-map.json'));
+    expect(escritos.length).toBe(2 * FICHEROS_POR_FRAMEWORK.angular.length + FICHEROS_POR_FRAMEWORK.angular.length + 3);
+  });
+
+  it('Preact se publica igual, por su tabla y no por la de Angular', async () => {
+    const { errores, nombres } = await publicarRuntime({
+      framework: 'preact',
+      version: '10.29.8',
+      dist: distFalso(raiz, 'preact', '10.29.8'),
+      cdn,
+      base: '/synergos/runtime/preact/10.29.8',
+      fs: fsp,
+    });
+    expect(errores).toEqual([]);
+    expect(Object.keys(nombres).sort()).toEqual([...FICHEROS_POR_FRAMEWORK.preact].sort());
+  });
+
+  it('una base que no es la del runtime se rechaza antes de escribir nada', async () => {
+    await expect(publicar(distFalso(raiz, 'angular', VER), { base: '/synergos/otra-cosa' })).rejects.toThrow(
+      /tiene que terminar en \/runtime\/angular\/21\.1\.6/,
+    );
+    expect(() => statSync(rt)).toThrow();
+  });
+
+  it('un fichero que la tabla declara y el build no produjo se rechaza, no se salta', async () => {
+    const dist = distFalso(raiz, 'angular', VER);
+    rmSync(path.join(dist, 'sg-core.js'));
+    await expect(publicar(dist)).rejects.toThrow(/la tabla declara sg-core\.js/);
+    expect(() => statSync(rt)).toThrow();
   });
 });

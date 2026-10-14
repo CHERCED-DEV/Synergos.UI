@@ -75,6 +75,14 @@ export const TOPES_DECLARADOS = {
       'pero carga sus módulos y recorre `platforms/*/apps`: un proceso de node, que con `test:tools` ' +
       'en paralelo puede pasar de los 5 s de serie, como el de `cli-utils`.',
   },
+  'tools/lib/runtime-por-contenido.spec.mjs': {
+    tope: 30_000,
+    razon:
+      'publica el runtime DE VERDAD sobre un mkdtemp (ADR 0140, CMS#201): 48 escrituras atómicas ' +
+      '(temporal + rename) por publicación, y «la 3.ª no escribe nada» publica tres veces. Sola ' +
+      'tarda ~0,3 s; con los 52 ficheros de `test:tools` en paralelo se midió 5,06 s («timed out ' +
+      'in 5000ms»). El mtime que no se mueve y el rename son lo que se prueba; no se simulan.',
+  },
   'platforms/angular/libs/shop/src/lib/cart.store.registro.spec.ts': {
     tope: 30_000,
     razon:

@@ -53,7 +53,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import { HUELLA_EN_NOMBRE, RUNTIME } from './cdn-cache-policy.mjs';
-import { ALIAS_HEREDADOS, calificar } from './mapa-del-runtime.mjs';
+import { ALIAS_HEREDADOS, calificar, ficherosDelRuntime, importsDelRuntime } from './mapa-del-runtime.mjs';
 import { leerBandera } from './cli-utils.mjs';
 
 /** El libro de cada framework: `runtime/<framework>/latest/huellas.json`. */
@@ -399,6 +399,182 @@ export function revisarPorContenido({ framework, mapa, libro, existe, leerBytes,
   }
 
   return errores;
+}
+
+// ── Publicar ────────────────────────────────────────────────────────────────
+
+/** Los bytes de un fichero, o `null` si no está. Cualquier otro error sube. */
+async function leerSiExiste(fs, ruta) {
+  try {
+    return await fs.readFile(ruta);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+/**
+ * Publica el runtime de UN framework por contenido, en el orden que lo hace
+ * seguro para quien lo esté leyendo a la vez:
+ *
+ *   1. el sha256 de cada fichero de `dist/`;
+ *   2. `<versión>/<stem>.<huella>.js`, una sola vez;
+ *   3. los planos a `<versión>/` y `latest/` SÓLO si cambian los bytes (se
+ *      siguen publicando; copiarlos igual movería su mtime, que es el ETag del
+ *      montaje local del CMS);
+ *   4. `<versión>/import-map.json`, con el mismo contenido que el de `latest/`;
+ *   5. `latest/huellas.json`, releído y fusionado (sólo crece);
+ *   6. `latest/import-map.json` EL ÚLTIMO y atómico: es el volteo;
+ *   7. `revisarPorContenido` sobre lo que quedó en el destino.
+ *
+ * Una republicación sin cambios no escribe NADA. El modo `por-nombre` sólo
+ * cambia el mapa —vuelve a los nombres planos—: los ficheros con huella y el
+ * libro se escriben igual, así que ir y volver no pierde generaciones.
+ *
+ * @param {{ framework: string, version: string, dist: string, cdn: string,
+ *           base: string, modo?: string, fs: object, ahora?: () => string,
+ *           dryRun?: boolean, log?: (linea: string) => void }} entrada
+ *   `cdn` es la raíz del CDN (la que contiene `synergos/`); `base`, la URL de
+ *   `runtime/<framework>/<versión>` que nombra el mapa.
+ * @returns {Promise<{ escritos: string[], errores: string[], nombres: Record<string,string> }>}
+ */
+export async function publicarRuntime({
+  framework,
+  version,
+  dist,
+  cdn,
+  base,
+  modo = MODOS_DE_URL[0],
+  fs,
+  ahora = () => new Date().toISOString(),
+  dryRun = false,
+  log = () => {},
+}) {
+  if (!MODOS_DE_URL.includes(modo)) throw new Error(`modo de URLs desconocido: ${modo}`);
+
+  const ficheros = ficherosDelRuntime(framework);
+  const raiz = path.join(cdn, 'synergos', RUNTIME, framework);
+  const dirVersion = path.join(raiz, version);
+  const dirLatest = path.join(raiz, 'latest');
+  const b = String(base).replace(/\/$/, '');
+  const escritos = [];
+
+  // La URL del mapa es también la llave del libro: si no se traduce a
+  // `runtime/<framework>/<versión>/`, nadie puede conservar ni revisar lo publicado.
+  if (rutaEnElRuntime(`${b}/x.js`, framework)?.version !== version) {
+    throw new Error(
+      `la base «${base}» tiene que terminar en /${RUNTIME}/${framework}/${version}: es la URL que ` +
+        `nombra el mapa, y el libro la traduce a su fichero.`,
+    );
+  }
+
+  // 1. El contenido manda: sin él no hay nombre.
+  const contenidos = {};
+  const shas = {};
+  const nombres = {};
+  for (const fichero of ficheros) {
+    const bytes = await leerSiExiste(fs, path.join(dist, fichero));
+    if (bytes === null) {
+      // Un fichero que la tabla declara y el build no produjo deja un bare
+      // import sin resolver: 200 y nada hidrata. Se rechaza, no se salta.
+      throw new Error(
+        `${framework}: la tabla declara ${fichero} y no está en ${dist}.\n` +
+          `  → O lo produce el build de esa plataforma, o sobra en FICHEROS_POR_FRAMEWORK.`,
+      );
+    }
+    contenidos[fichero] = bytes;
+    shas[fichero] = sha256De(bytes);
+    nombres[fichero] = nombreConHuella(fichero, shas[fichero].slice(0, LARGO_DE_LA_HUELLA));
+  }
+
+  const escribir = async (ruta, bytes) => {
+    escritos.push(ruta);
+    if (!dryRun) await escribirAtomico(fs, ruta, bytes);
+  };
+  const siCambia = async (ruta, bytes) => {
+    const actual = await leerSiExiste(fs, ruta);
+    if (actual === null || !Buffer.from(actual).equals(Buffer.from(bytes))) await escribir(ruta, bytes);
+  };
+
+  // 2. Cada fichero con huella, una sola vez.
+  for (const fichero of ficheros) {
+    const ruta = path.join(dirVersion, nombres[fichero]);
+    if (dryRun) {
+      const actual = await leerSiExiste(fs, ruta);
+      const plan = planificarEscritura({
+        existe: actual !== null,
+        sha256Existente: actual === null ? null : sha256De(actual),
+        sha256Nuevo: shas[fichero],
+      });
+      if (plan === 'escribir') escritos.push(ruta);
+    } else if ((await escribirUnaVez(fs, ruta, contenidos[fichero])) === 'escrito') {
+      escritos.push(ruta);
+    }
+    log(`  ${escritos.includes(ruta) ? '+' : '='} ${version}/${nombres[fichero]}`);
+  }
+
+  // 3. Los planos, que se siguen publicando: sólo si cambian los bytes.
+  for (const fichero of ficheros) {
+    await siCambia(path.join(dirVersion, fichero), contenidos[fichero]);
+    await siCambia(path.join(dirLatest, fichero), contenidos[fichero]);
+  }
+
+  // 4. El mapa. «integrity» sigue por nombre de fichero, como siempre.
+  const integrity = Object.fromEntries(
+    ficheros.map((f) => [f, `sha256-${Buffer.from(shas[f], 'hex').toString('base64')}`]),
+  );
+  const nombrar = modo === 'por-contenido' ? (fichero) => nombres[fichero] : undefined;
+  const mapaJson = JSON.stringify({ imports: importsDelRuntime(framework, b, nombrar), integrity }, null, 2);
+  await siCambia(path.join(dirVersion, 'import-map.json'), Buffer.from(mapaJson));
+
+  // 5. El libro: se relee y se fusiona. Uno ilegible PARA, no se reemplaza.
+  const rutaLibro = path.join(dirLatest, LIBRO);
+  const textoLibro = await leerSiExiste(fs, rutaLibro);
+  const libroAnterior = textoLibro === null ? libroVacio(framework) : leerLibro(String(textoLibro), framework);
+  const desde = ahora();
+  const libro = fusionarLibro(
+    libroAnterior,
+    ficheros.map((fichero) => ({
+      fichero,
+      url: `${b}/${nombres[fichero]}`,
+      sha256: shas[fichero],
+      bytes: contenidos[fichero].length,
+      desde,
+    })),
+  );
+  await siCambia(rutaLibro, Buffer.from(serializarLibro(libro)));
+
+  // 6. El volteo, el último: hasta acá, quien lea el mapa lee el anterior entero.
+  await siCambia(path.join(dirLatest, 'import-map.json'), Buffer.from(mapaJson));
+
+  if (dryRun) return { escritos, errores: [], nombres };
+
+  // 7. El gate, sobre lo que quedó de verdad en el destino.
+  const mapa = JSON.parse(mapaJson);
+  const relativas = new Set();
+  for (const url of Object.values(mapa.imports)) {
+    const ruta = rutaEnElRuntime(url, framework);
+    if (!ruta) continue;
+    relativas.add(ruta.relativa);
+    relativas.add(`latest/${planoDelNombre(ruta.nombre)}`);
+  }
+  for (const entrada of libro.entradas) {
+    const ruta = rutaEnElRuntime(entrada.url, framework);
+    if (ruta) relativas.add(ruta.relativa);
+  }
+  const disco = new Map();
+  for (const relativa of relativas) disco.set(relativa, await leerSiExiste(fs, path.join(raiz, relativa)));
+
+  const errores = revisarPorContenido({
+    framework,
+    mapa,
+    libro: leerLibro(String(await fs.readFile(rutaLibro)), framework),
+    existe: (r) => disco.get(r) != null,
+    leerBytes: (r) => disco.get(r),
+    modo,
+  });
+
+  return { escritos, errores, nombres };
 }
 
 // ── La línea de órdenes ─────────────────────────────────────────────────────

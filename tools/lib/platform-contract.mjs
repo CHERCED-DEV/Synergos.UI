@@ -22,9 +22,10 @@
  *     con el `dist/` hecho. Lo comprueban `publish.mjs` (que falla si el bundle
  *     no está donde se prometió) y `cdn-size-budget` (que mide lo publicado).
  *     Acá se comprueba lo estático: que la plataforma **declare** un build.
- *   - **(6) el runtime publicado con su `import-map.json` y su `latest/`** — lo
- *     comprueba `cdn-runtime-check` contra el árbol del CDN, por framework
- *     publicado, desde #61.
+ *   - **(6) el runtime publicado por contenido, con su `import-map.json` y su
+ *     `latest/`** — lo comprueba `cdn-runtime-check` contra el árbol del CDN,
+ *     por framework publicado, desde #61; y que cada fichero lleve la huella de
+ *     sus bytes en el nombre, `revisarPorContenido` (ADR 0140, CMS#201).
  *
  * Y la 6 destapó algo al derivar el contrato, así que va escrito en vez de
  * resuelto por el camino corto: **hoy no tiene expresión estática por
@@ -61,7 +62,7 @@ export const OBLIGACIONES = [
   { n: 3, titulo: 'fuentes en platforms/<nombre>/apps/**/src/main.<ext>' },
   { n: 4, titulo: 'un build declarado, que escriba donde resolveBundlePath promete' },
   { n: 5, titulo: 'un cdn.config.mjs con sus externals — el contrato del navegador' },
-  { n: 6, titulo: 'runtime publicado con su import-map.json y un puntero latest/' },
+  { n: 6, titulo: 'runtime publicado por contenido, con su import-map.json y un puntero latest/' },
   { n: 7, titulo: 'vitals/core-assets traducido a su lenguaje de estilos, con su comprobación' },
   { n: 8, titulo: 'un adaptador de montaje que implementa ElementProtocol, y es el ÚNICO que registra' },
 ];

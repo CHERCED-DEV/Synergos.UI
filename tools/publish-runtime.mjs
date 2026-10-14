@@ -1,23 +1,33 @@
 /**
  * publish-runtime.mjs
  *
- * Copies the pre-built Synergos shared runtime from dist/runtime/angular/{version}/
- * to the CDN directory and writes an import-map.json with the real CDN base URL.
+ * Publica el runtime compartido ya construido —`dist/runtime/<framework>/<versión>/`,
+ * de cada framework— en el CDN, POR CONTENIDO (ADR 0140, CMS#201): cada fichero
+ * con la huella de sus bytes en el nombre (`sg-shared.<huella>.js`), escrito una
+ * sola vez; el libro `latest/huellas.json`, que sólo crece; y el import map, que
+ * nombra esos ficheros y se voltea el último. Los planos de `<versión>/` y
+ * `latest/` se siguen publicando, pero ningún mapa los nombra.
  *
  * Usage (las dos formas de cada bandera valen: `--cdn RUTA` y `--cdn=RUTA`):
  *   node tools/publish-runtime.mjs
  *   node tools/publish-runtime.mjs --cdn D:\MyCDN
  *   node tools/publish-runtime.mjs --base https://cdn.example.com/synergos
+ *   node tools/publish-runtime.mjs --urls por-nombre     (la vuelta atrás: el mapa plano de antes)
  *   node tools/publish-runtime.mjs --dry-run
+ *
+ * `--urls` también se lee de `SYNERGOS_RUNTIME_URLS`. Un valor que no se entiende
+ * sale con 2 antes de tocar nada.
  */
 
-import { readdir, readFile, writeFile, mkdir, copyFile, stat } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
+import * as fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 
 import { leerBandera, revisarBanderas } from './lib/cli-utils.mjs';
-import { ficherosDelRuntime, importsDelRuntime } from './lib/mapa-del-runtime.mjs';
+import { HUELLA_EN_NOMBRE } from './lib/cdn-cache-policy.mjs';
+import { ficherosDelRuntime } from './lib/mapa-del-runtime.mjs';
+import { leerModoDeUrls, publicarRuntime } from './lib/runtime-por-contenido.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -30,12 +40,17 @@ const ROOT      = path.resolve(__dirname, '..');
 // errata como `--cnd`, una bandera sin su valor, un argumento suelto— sale con 2 ANTES de
 // tocar nada, en vez de convertirse en «publicá donde siempre».
 const argv = process.argv.slice(2);
-const erroresDeUso = revisarBanderas(argv, { conValor: ['cdn', 'base'], sinValor: ['dry-run'] });
+const USO = '  Uso: node tools/publish-runtime.mjs [--cdn RUTA] [--base URL] [--urls por-contenido|por-nombre] [--dry-run]';
+const erroresDeUso = revisarBanderas(argv, { conValor: ['cdn', 'base', 'urls'], sinValor: ['dry-run'] });
 if (erroresDeUso.length > 0) {
-  console.error(
-    `[publish-runtime] ${erroresDeUso.join('\n  ')}\n` +
-      '  Uso: node tools/publish-runtime.mjs [--cdn RUTA] [--base URL] [--dry-run]',
-  );
+  console.error(`[publish-runtime] ${erroresDeUso.join('\n  ')}\n${USO}`);
+  process.exit(2);
+}
+
+// El modo de URLs, con la misma regla: un valor desconocido NO cae a «el de siempre».
+const modoDeUrls = leerModoDeUrls(argv, process.env);
+if (modoDeUrls.error) {
+  console.error(`[publish-runtime] ${modoDeUrls.error}\n${USO}`);
   process.exit(2);
 }
 
@@ -121,10 +136,8 @@ async function resolverRuntimes() {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function publicarUno({ framework, version, dir }) {
-  const RUNTIME_FILES = ficherosDelRuntime(framework);
-
-  const cdnVersionedDir = path.join(CDN_ROOT, 'synergos', 'runtime', framework, version);
-  const cdnLatestDir    = path.join(CDN_ROOT, 'synergos', 'runtime', framework, 'latest');
+  const ficheros = ficherosDelRuntime(framework);
+  const raiz = path.join(CDN_ROOT, 'synergos', 'runtime', framework);
 
   const base = baseArg
     ? `${baseArg.replace(/\/$/, '')}/runtime/${framework}/${version}`
@@ -132,67 +145,41 @@ async function publicarUno({ framework, version, dir }) {
 
   console.log(`\nSynergos Runtime Publish — ${framework}${isDryRun ? ' (dry-run)' : ''}`);
   console.log(`  Source  : dist/runtime/${framework}/${version}/`);
-  console.log(`  CDN     : ${cdnVersionedDir}`);
-  console.log(`  Latest  : ${cdnLatestDir}`);
+  console.log(`  CDN     : ${path.join(raiz, version)}`);
+  console.log(`  Latest  : ${path.join(raiz, 'latest')}`);
+  console.log(`  URLs    : ${modoDeUrls.modo} (${modoDeUrls.origen})`);
   console.log('─'.repeat(72));
 
-  for (const file of RUNTIME_FILES) {
-    const src = path.join(dir, file);
-    try {
-      await stat(src);
-    } catch {
-      // ⚠ Esto era `console.warn` + `continue`, o sea publicar un runtime
-      // INCOMPLETO informando «Done». Un fichero que la tabla declara y el
-      // build no produjo deja un bare import sin resolver, que es 200 y nada
-      // hidrata. Lo que no se puede copiar se rechaza, no se salta (regla 25c).
-      throw new Error(
-        `[publish-runtime] ${framework}: la tabla declara ${file} y no está en ` +
-        `dist/runtime/${framework}/${version}/.\n` +
-        `  → O lo produce el build de esa plataforma, o sobra en FICHEROS_POR_FRAMEWORK.`,
-      );
-    }
+  // Todo lo que importa del orden —ficheros con huella una vez, planos sólo si
+  // cambian, libro, y el mapa EL ÚLTIMO— vive en `publicarRuntime`, que es lo que
+  // tiene tests. Acá sólo se dice qué pasó.
+  const { escritos, errores } = await publicarRuntime({
+    framework,
+    version,
+    dist: dir,
+    cdn: CDN_ROOT,
+    base,
+    modo: modoDeUrls.modo,
+    fs,
+    dryRun: isDryRun,
+    log: (linea) => console.log(linea),
+  });
 
-    if (isDryRun) {
-      console.log(`  [dry-run] ${file} → ${cdnVersionedDir}/${file}`);
-    } else {
-      await mkdir(cdnVersionedDir, { recursive: true });
-      await mkdir(cdnLatestDir,    { recursive: true });
-      await copyFile(src, path.join(cdnVersionedDir, file));
-      await copyFile(src, path.join(cdnLatestDir,    file));
-      console.log(`  ✓ ${file}`);
-    }
+  // Los ficheros con huella ya salieron arriba (+ nuevo, = ya estaba); acá va el resto.
+  const verbo = isDryRun ? 'escribiría' : 'escritos';
+  console.log(`  ${escritos.length === 0 ? '= sin cambios: no se escribió nada' : `✓ ${escritos.length} ${verbo}`}`);
+  for (const ruta of escritos.filter((r) => !HUELLA_EN_NOMBRE.test(path.basename(r)))) {
+    console.log(`    ${isDryRun ? '[dry-run] ' : ''}${path.relative(raiz, ruta)}`);
   }
 
-  // Write import-map.json with real CDN URLs + SRI integrity hashes
-  const integrityMap = {};
-  for (const file of RUNTIME_FILES) {
-    const filePath = path.join(dir, file);
-    try {
-      const content = await readFile(filePath);
-      const hash = createHash('sha256').update(content).digest('base64');
-      integrityMap[file] = `sha256-${hash}`;
-    } catch { /* file may not exist — skip */ }
+  if (errores.length > 0) {
+    throw new Error(
+      `${framework}: lo publicado no cuadra por contenido:\n` +
+        errores.map((e) => `  ✗ ${e}`).join('\n'),
+    );
   }
 
-  // La tabla la da `tools/lib/mapa-del-runtime.mjs`: acá estaba escrita por
-  // segunda vez, y con dos copias el alias heredado de #58 se publica en una
-  // y no en la otra — el mapa de `dist/` y el del CDN discrepando sobre el
-  // MISMO runtime, sin que nada falle.
-  const importMap = {
-    imports: importsDelRuntime(framework, base),
-    integrity: integrityMap,
-  };
-  const importMapJson = JSON.stringify(importMap, null, 2);
-
-  if (isDryRun) {
-    console.log(`  [dry-run] import-map.json → ${cdnVersionedDir}/import-map.json`);
-  } else {
-    await writeFile(path.join(cdnVersionedDir, 'import-map.json'), importMapJson);
-    await writeFile(path.join(cdnLatestDir,    'import-map.json'), importMapJson);
-    console.log(`  ✓ import-map.json`);
-  }
-
-  console.log(`  ✓ ${framework} ${version} — ${RUNTIME_FILES.length} ficheros + import-map.json`);
+  console.log(`  ✓ ${framework} ${version} — ${ficheros.length} ficheros por contenido + latest/huellas.json + import-map.json`);
 }
 
 async function main() {

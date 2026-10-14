@@ -21,7 +21,11 @@
  *
  * `runtime/angular/21.1.6/` lleva la versión de Angular; ésta lleva la de
  * Preact. Es lo que hace que el `latest/` de cada framework se pueda mover por
- * separado y que un `immutable` sobre la carpeta versionada sea cierto.
+ * separado. Lo que NO hace es que la carpeta sea inmutable: su contenido cambia
+ * con `libs/shared` sin que cambie la versión del framework. El `immutable` lo
+ * hace cierto la huella del nombre con que `publish-runtime` publica cada
+ * fichero (`sg-preact-core.<huella>.js`, ADR 0140, CMS#201); el mapa que
+ * escribe este build, con los nombres planos, es el de `dist/` y `dev:cdn`.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
