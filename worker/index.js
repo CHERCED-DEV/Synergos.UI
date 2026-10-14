@@ -1,4 +1,4 @@
-import { cacheControlFor, corsFor } from '../tools/lib/cdn-cache-policy.mjs';
+import { decorarRespuesta } from '../tools/lib/cdn-cache-policy.mjs';
 
 /**
  * El CDN de Synergos, servido desde Cloudflare Workers.
@@ -31,16 +31,18 @@ export default {
 
     // Un 404 no lleva cabeceras de caché: cachear un "no existe" es cómo se
     // consigue que un bundle recién publicado siga sin existir para alguien.
-    if (!respuesta.ok) return respuesta;
+    // El 304 SÍ (ADR 0140, CMS#201): es la respuesta a una revalidación y lleva
+    // la misma política y el mismo CORS que el 200 que revalida. Con `!ok` a
+    // secas salía desnudo.
+    if (!respuesta.ok && respuesta.status !== 304) return respuesta;
 
     const { pathname } = new URL(request.url);
+    const cabeceras = decorarRespuesta(respuesta.status, pathname);
+    if (!cabeceras) return respuesta;
 
     // La respuesta de ASSETS es inmutable; hay que clonarla para tocar cabeceras.
     const salida = new Response(respuesta.body, respuesta);
-    salida.headers.set('Cache-Control', cacheControlFor(pathname));
-
-    const cors = corsFor(pathname);
-    if (cors) salida.headers.set('Access-Control-Allow-Origin', cors);
+    for (const [nombre, valor] of Object.entries(cabeceras)) salida.headers.set(nombre, valor);
 
     return salida;
   },

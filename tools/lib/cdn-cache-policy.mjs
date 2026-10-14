@@ -51,6 +51,25 @@ const SE_MUEVE = /^(latest|v\d+)$/;
 const VERSION_EXACTA = /^\d+\.\d+\.\d+(?:[-+][\w.]+)?$/;
 
 /**
+ * La carpeta del CDN que no es un elemento: el runtime compartido. Es el mismo
+ * nombre que `RUNTIME` de `frameworks.mjs` y `CARPETA_RUNTIME` de
+ * `mapa-del-runtime.mjs` (el spec los cruza); se repite acá para que el Worker
+ * no cargue esas tablas.
+ */
+export const RUNTIME = 'runtime';
+
+/**
+ * Un fichero del runtime con la huella de sus bytes en el nombre:
+ * `<stem>.<16 hex en minúsculas>.js` (`sg-shared.18a9decbae7fffb0.js`).
+ *
+ * Es UNA regex para la política y para el publicador
+ * (`runtime-por-contenido.mjs`), y la misma que `PoliticaDeCacheDelCdnLocal`
+ * del CMS: lo que el publicador nombra con huella es exactamente lo que las dos
+ * políticas sirven `immutable` (ADR 0140, CMS#201).
+ */
+export const HUELLA_EN_NOMBRE = /^[a-z0-9-]+\.[0-9a-f]{16}\.m?js$/;
+
+/**
  * La cabecera `Cache-Control` que le corresponde a una ruta.
  *
  * @param {string} pathname Ruta de la petición, con barra inicial.
@@ -73,6 +92,19 @@ export function cacheControlFor(pathname) {
     return `public, max-age=${CORTO}, must-revalidate`;
   }
 
+  // El runtime compartido es la excepción a «versión exacta = inmutable». Su
+  // carpeta (`runtime/angular/21.1.6/`) lleva la versión de su FRAMEWORK, no la
+  // de su contenido: `publish:runtime` la reescribe cada vez que cambia
+  // `libs/shared`, y con la regla de abajo salía `immutable` por tener forma de
+  // versión — quien ya tenía el `sg-shared.js` viejo se quedaba con él un año
+  // (ADR 0140, CMS#201). Acá sólo la huella del nombre prueba el contenido: con
+  // ella, un año; sin ella (los planos, su `import-map.json`), corto.
+  if (segmentos[1] === RUNTIME) {
+    return HUELLA_EN_NOMBRE.test(segmentos.at(-1) ?? '')
+      ? `public, max-age=${UN_ANO}, immutable`
+      : `public, max-age=${CORTO}, must-revalidate`;
+  }
+
   // Inmutable SOLO si algo en la ruta dice qué versión exacta es. Sin esa
   // prueba positiva no se promete nada: el default es el conservador.
   if (segmentos.some((s) => VERSION_EXACTA.test(s))) {
@@ -91,4 +123,28 @@ export function cacheControlFor(pathname) {
  */
 export function corsFor(pathname) {
   return pathname.startsWith('/synergos/') ? '*' : null;
+}
+
+/**
+ * Las cabeceras que el Worker le pone a una respuesta, o `null` si no lleva.
+ *
+ * El 304 lleva LAS MISMAS que el 200 (ADR 0140, CMS#201). Es la respuesta a
+ * una revalidación —`latest/import-map.json`, un plano del runtime—, y el
+ * navegador actualiza con sus cabeceras las que tenía guardadas: un 304 sin
+ * política ni CORS es una revalidación que llega distinta del 200 que la
+ * precedió. Un 404 (o un 5xx) no lleva ninguna: cachear un «no existe» es
+ * cómo se consigue que un bundle recién publicado siga sin existir para alguien.
+ *
+ * @param {number} status El estado de la respuesta de los assets.
+ * @param {string} pathname Ruta de la petición, con barra inicial.
+ * @returns {Record<string,string> | null}
+ */
+export function decorarRespuesta(status, pathname) {
+  const exito = status >= 200 && status < 300;
+  if (!exito && status !== 304) return null;
+
+  const cabeceras = { 'Cache-Control': cacheControlFor(pathname) };
+  const cors = corsFor(pathname);
+  if (cors) cabeceras['Access-Control-Allow-Origin'] = cors;
+  return cabeceras;
 }
