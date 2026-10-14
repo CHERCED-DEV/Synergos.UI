@@ -36,7 +36,10 @@ import {
   muestrasPorFramework,
   runtimeDelImportMap,
   juzgar,
+  juzgarHuella,
+  juzgarEntradaDelLibro,
 } from './lib/cdn-smoke.mjs';
+import { LIBRO, huellaDelNombre, leerLibro, rutaEnElRuntime } from './lib/runtime-por-contenido.mjs';
 
 // La URL viene de FUERA, siempre, y sin valor por defecto. Un default —aunque
 // fuera el de producción— es la puerta por la que entra el humo contra sí mismo:
@@ -123,6 +126,8 @@ const { registry, muestras } = await esperarDespliegue();
 // no dice nada sobre si el otro llegó.
 let fallos = 0;
 const runtimes = new Map();
+const libros = new Map();
+const aviso = (m) => console.log(`⚠ ${m}`);
 
 for (const { framework } of muestras) {
   const importMap = await pedir(`/synergos/runtime/${framework}/latest/import-map.json`);
@@ -136,6 +141,21 @@ for (const { framework } of muestras) {
     mal(`[${framework}] ${e.message}`);
     process.exit(1);
   }
+
+  // El libro del runtime por contenido (ADR 0140, CMS#201). Un 404 es un CDN anterior a él:
+  // se avisa en su comprobación, no se pone rojo. Cualquier otra cosa sí.
+  const libro = await pedir(`/synergos/runtime/${framework}/latest/${LIBRO}`);
+  if (libro.estado === 200) {
+    try {
+      libros.set(framework, leerLibro(await libro.res.text(), framework));
+    } catch (e) {
+      mal(`[${framework}] latest/${LIBRO}: ${e.message}`);
+      fallos += 1;
+    }
+  } else if (libro.estado !== 404) {
+    mal(`[${framework}] latest/${LIBRO} contesta ${libro.estado}: no se sabe qué generaciones hay publicadas`);
+    fallos += 1;
+  }
 }
 
 const resumen = muestras
@@ -146,6 +166,7 @@ console.log('');
 
 // ── 3. Las comprobaciones ────────────────────────────────────────────────────
 const comprobar = async (esperado) => {
+  if (esperado.aviso) aviso(esperado.aviso);
   const real = await pedir(esperado.ruta);
   const motivos = juzgar(esperado, real);
 
@@ -161,9 +182,52 @@ const comprobar = async (esperado) => {
 for (const esperado of comprobacionesGlobales()) await comprobar(esperado);
 
 for (const muestra of muestras) {
-  for (const esperado of comprobacionesDeFramework(muestra, runtimes.get(muestra.framework))) {
+  const cdn = { conLibro: libros.has(muestra.framework) };
+  for (const esperado of comprobacionesDeFramework(muestra, runtimes.get(muestra.framework), cdn)) {
     await comprobar(esperado);
   }
+}
+
+// ── 4. El runtime por contenido (ADR 0140, CMS#201) ──────────────────────────
+//
+// Que la URL con huella sirva los bytes de su nombre —si no, alguien sobrescribió un fichero que
+// se sirve inmutable un año—, y que CADA generación que el libro declara siga contestando con sus
+// bytes: una perdida es un 404 para quien aún tenga el mapa que la nombra.
+const motivosDe = (que, motivos) => {
+  if (motivos.length === 0) {
+    ok(que);
+    return;
+  }
+  mal(que);
+  for (const m of motivos) console.log(`    ${m}`);
+  fallos += motivos.length;
+};
+
+for (const { framework } of muestras) {
+  const { ruta } = runtimes.get(framework);
+  if (huellaDelNombre(ruta.split('/').at(-1)) !== null) {
+    const real = await pedir(ruta);
+    const bytes = real.estado === 200 ? new Uint8Array(await real.res.arrayBuffer()) : new Uint8Array();
+    motivosDe(`${ruta} — [${framework}] sirve los bytes de la huella de su nombre`, juzgarHuella(ruta, bytes));
+  }
+
+  const libro = libros.get(framework);
+  if (!libro) continue;
+  let malas = 0;
+  for (const entrada of libro.entradas) {
+    const enElRuntime = rutaEnElRuntime(entrada.url, framework);
+    const destino = enElRuntime
+      ? `/synergos/runtime/${framework}/${enElRuntime.relativa}`
+      : String(entrada.url);
+    const respuesta = await pedir(destino);
+    const cuerpo = respuesta.estado === 200 ? new Uint8Array(await respuesta.res.arrayBuffer()) : undefined;
+    const motivos = juzgarEntradaDelLibro(entrada, { estado: respuesta.estado, bytes: cuerpo });
+    if (motivos.length > 0) {
+      malas += 1;
+      motivosDe(`${destino} — [${framework}] declarada en latest/${LIBRO}`, motivos);
+    }
+  }
+  if (malas === 0) ok(`[${framework}] las ${libro.entradas.length} entradas de latest/${LIBRO} contestan con sus bytes`);
 }
 
 // El índice tiene que traer elementos DENTRO. Un registry de dos líneas

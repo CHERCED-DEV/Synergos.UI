@@ -9,8 +9,11 @@ import {
   comprobacionesDeFramework,
   runtimeDelImportMap,
   juzgar,
+  juzgarHuella,
+  juzgarEntradaDelLibro,
 } from './cdn-smoke.mjs';
 import { UN_ANO, CORTO, INDICE } from './cdn-cache-policy.mjs';
+import { huellaDe, sha256De } from './runtime-por-contenido.mjs';
 
 /**
  * El humo del CDN (issue #9).
@@ -265,6 +268,69 @@ describe('las comprobaciones cubren lo que sólo se ve en vivo', () => {
   it('una muestra sin framework NO cae a angular: se para', () => {
     expect(() => comprobacionesDeFramework({ nombre: 'x', version: '1' }, RUNTIME_NG)).toThrow(
       /de qué framework/,
+    );
+  });
+});
+
+/**
+ * El runtime por contenido (ADR 0140, CMS#201).
+ *
+ * El humo exigía `immutable` a `runtime/angular/21.1.6/ng-core.js` por tener
+ * forma de versión: certificaba, en cada corrida, la promesa que dejaba al
+ * navegador con el `sg-shared.js` de hace un año. La carpeta lleva la versión del
+ * framework; sólo la huella del nombre prueba el contenido.
+ */
+describe('el runtime por contenido', () => {
+  const H = '18a9decbae7fffb0';
+  const CON_HUELLA = { version: '21.1.6', ruta: `/synergos/runtime/angular/21.1.6/sg-shared.${H}.js` };
+  const delRuntime = (runtime, cdn) =>
+    comprobacionesDeFramework(MUESTRA, runtime, cdn).find((c) => c.ruta === runtime.ruta);
+  const cabeceras = (cc) => new Map([['cache-control', cc], ['access-control-allow-origin', '*']]);
+  const INMUTABLE = `public, max-age=${UN_ANO}, immutable`;
+  const CORTA = `public, max-age=${CORTO}, must-revalidate`;
+
+  it('la ruta CON huella se exige inmutable un año, con CORS', () => {
+    const esperado = delRuntime(CON_HUELLA, { conLibro: true });
+    expect(esperado).toMatchObject({ maxAge: UN_ANO, inmutable: true, cors: true });
+    expect(esperado.aviso).toBeUndefined();
+    expect(juzgar(esperado, { estado: 200, cabeceras: cabeceras(INMUTABLE) })).toEqual([]);
+  });
+
+  it('la PLANA con libro se exige CORTA: la carpeta se reescribe', () => {
+    const esperado = delRuntime(RUNTIME_NG, { conLibro: true });
+    expect(esperado).toMatchObject({ maxAge: CORTO, inmutable: false, cors: true });
+    expect(juzgar(esperado, { estado: 200, cabeceras: cabeceras(CORTA) })).toEqual([]);
+    // Y la promesa de antes sobre esa ruta es justo el fallo que se busca.
+    expect(juzgar(esperado, { estado: 200, cabeceras: cabeceras(INMUTABLE) }).join(' ')).toContain('SE MUEVE');
+  });
+
+  it('contra un CDN anterior SIN libro: lo de antes y un aviso, sin rojo', () => {
+    // El humo programado corre contra el CDN de producción, que puede no haberse
+    // vuelto a desplegar todavía: ponerlo rojo por eso sería ruido.
+    const esperado = delRuntime(RUNTIME_NG, { conLibro: false });
+    expect(esperado).toMatchObject({ maxAge: UN_ANO, inmutable: true });
+    expect(esperado.aviso).toMatch(/anterior al runtime por contenido/);
+    expect(juzgar(esperado, { estado: 200, cabeceras: cabeceras(INMUTABLE) })).toEqual([]);
+    expect(delRuntime(RUNTIME_NG)).toEqual(esperado);
+  });
+
+  it('los bytes de una URL con huella tienen que ser los de su nombre', () => {
+    const contenido = Buffer.from('el sg-shared publicado');
+    const h = huellaDe(contenido);
+    const ruta = `/synergos/runtime/angular/21.1.6/sg-shared.${h}.js`;
+    expect(juzgarHuella(ruta, contenido)).toEqual([]);
+    expect(juzgarHuella(ruta, Buffer.from('otra cosa')).join(' ')).toContain('se sobrescribió');
+    // Una ruta plana no tiene huella que comprobar.
+    expect(juzgarHuella(RUNTIME_NG.ruta, Buffer.from('lo que sea'))).toEqual([]);
+  });
+
+  it('cada entrada del libro contesta 200 con los bytes de su sha256', () => {
+    const contenido = Buffer.from('una generación anterior');
+    const entrada = { url: '/x', sha256: sha256De(contenido) };
+    expect(juzgarEntradaDelLibro(entrada, { estado: 200, bytes: contenido })).toEqual([]);
+    expect(juzgarEntradaDelLibro(entrada, { estado: 404 }).join(' ')).toContain('ya no sirve');
+    expect(juzgarEntradaDelLibro(entrada, { estado: 200, bytes: Buffer.from('otra') }).join(' ')).toContain(
+      'el libro dice',
     );
   });
 });

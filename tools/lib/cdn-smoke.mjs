@@ -23,8 +23,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { UN_ANO, CORTO, INDICE } from './cdn-cache-policy.mjs';
+import { UN_ANO, CORTO, INDICE, HUELLA_EN_NOMBRE } from './cdn-cache-policy.mjs';
 import { frameworksDelRegistry } from './frameworks.mjs';
+import { LARGO_DE_LA_HUELLA, huellaDelNombre, sha256De } from './runtime-por-contenido.mjs';
 
 /**
  * Lee `max-age` de un `Cache-Control`.
@@ -120,8 +121,11 @@ export function comprobacionesGlobales() {
  * @param {{ nombre: string, version: string, framework: string }} elemento
  * @param {{ version: string, ruta: string }} runtimeVersion Lo que devuelve
  *        `runtimeDelImportMap` para ESE framework.
+ * @param {{ conLibro?: boolean }} [cdn] Si el CDN sirve `latest/huellas.json`
+ *        de ese framework: es lo que distingue un CDN publicado por contenido
+ *        de uno anterior (ADR 0140, CMS#201).
  */
-export function comprobacionesDeFramework(elemento, runtimeVersion) {
+export function comprobacionesDeFramework(elemento, runtimeVersion, { conLibro = false } = {}) {
   const { nombre, version, framework } = elemento;
 
   if (!framework) {
@@ -147,17 +151,10 @@ export function comprobacionesDeFramework(elemento, runtimeVersion) {
       inmutable: true,
       cors: true,
     },
-    {
-      que: `[${framework}] el runtime compartido — sin él los bundles cargan y se rompen al arrancar`,
-      // La ruta la dice el import-map, no este fichero: `ng-core.js` es el
-      // nombre que le pone el runtime de Angular, y otro framework le pondrá
-      // otro. Escribirlo acá habría sido cambiar un cableado por otro.
-      ruta: runtimeVersion.ruta,
-      estado: 200,
-      maxAge: UN_ANO,
-      inmutable: true,
-      cors: true,
-    },
+    // La ruta la dice el import-map, no este fichero: `ng-core.js` es el
+    // nombre que le pone el runtime de Angular, y otro framework le pondrá
+    // otro. Escribirlo acá habría sido cambiar un cableado por otro.
+    comprobacionDelRuntime(framework, runtimeVersion.ruta, conLibro),
     {
       que: `[${framework}] una ruta que no existe — un 404 cacheado es un bundle nuevo que no existe para alguien`,
       ruta: `/synergos/no-existe-jamas-de-los-jamases/${framework}/latest/main.js`,
@@ -165,6 +162,79 @@ export function comprobacionesDeFramework(elemento, runtimeVersion) {
       sinCache: true,
     },
   ];
+}
+
+/**
+ * Lo que se le exige a la ruta del runtime que nombra el mapa (ADR 0140, CMS#201).
+ *
+ * La carpeta del runtime lleva la versión de su FRAMEWORK, no la de su
+ * contenido, así que sólo la huella del nombre prueba que la URL no cambia:
+ *
+ *   - con huella → inmutable un año, con CORS;
+ *   - plana y con libro (`--urls=por-nombre`, la vuelta atrás) → corta: la
+ *     política nueva no promete nada sobre una ruta que se reescribe;
+ *   - plana y SIN libro → un CDN anterior al runtime por contenido. Se le pide
+ *     lo de antes y se AVISA, para que el humo programado no se ponga rojo
+ *     sobre un CDN que todavía no se volvió a desplegar.
+ */
+function comprobacionDelRuntime(framework, ruta, conLibro) {
+  const base = { ruta, estado: 200, cors: true };
+  if (HUELLA_EN_NOMBRE.test(String(ruta).split('/').at(-1) ?? '')) {
+    return {
+      ...base,
+      que: `[${framework}] el runtime compartido, con la huella de sus bytes en el nombre — inmutable, un año`,
+      maxAge: UN_ANO,
+      inmutable: true,
+    };
+  }
+  if (conLibro) {
+    return {
+      ...base,
+      que: `[${framework}] el runtime compartido por su nombre plano — la carpeta es la versión del framework, así que se revalida`,
+      maxAge: CORTO,
+      inmutable: false,
+    };
+  }
+  return {
+    ...base,
+    que: `[${framework}] el runtime compartido — sin él los bundles cargan y se rompen al arrancar`,
+    maxAge: UN_ANO,
+    inmutable: true,
+    aviso:
+      `[${framework}] el CDN no sirve runtime/${framework}/latest/huellas.json: es anterior al runtime por ` +
+      `contenido (ADR 0140). Se le pide lo de antes; el despliegue siguiente lo pone al día.`,
+  };
+}
+
+/**
+ * Que los bytes servidos en una URL con huella son los que su nombre dice.
+ *
+ * @returns {string[]} Los motivos por los que falla. Vacío = pasa.
+ */
+export function juzgarHuella(ruta, bytes) {
+  const huella = huellaDelNombre(String(ruta).split('/').at(-1) ?? '');
+  if (huella === null) return [];
+  const real = sha256De(bytes).slice(0, LARGO_DE_LA_HUELLA);
+  return real === huella
+    ? []
+    : [`sirve bytes con huella ${real} en una URL que dice ${huella}: se sobrescribió un fichero inmutable`];
+}
+
+/**
+ * Una entrada del libro `latest/huellas.json`, pedida al CDN: tiene que contestar
+ * 200 con los bytes cuyo sha256 declara. Una generación perdida es un 404 para
+ * quien aún tenga el mapa que la nombra.
+ *
+ * @param {{ url: string, sha256: string }} entrada
+ * @param {{ estado: number, bytes?: Uint8Array }} real
+ * @returns {string[]}
+ */
+export function juzgarEntradaDelLibro(entrada, real) {
+  if (real.estado !== 200) {
+    return [`estado ${real.estado}, se esperaba 200: una generación que el libro declara y el CDN ya no sirve`];
+  }
+  const sha = sha256De(real.bytes ?? new Uint8Array());
+  return sha === entrada.sha256 ? [] : [`sha256 ${sha}, el libro dice ${entrada.sha256}`];
 }
 
 /**
