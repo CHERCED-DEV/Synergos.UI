@@ -374,6 +374,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // La puerta de `wrangler deploy` (ADR 0140, CMS#201): mira si la salida lleva la marca de un
   // `build:cdn` sin conservar. No sabe de frameworks.
   'cdn-desplegable.mjs',
+  // La puerta de enlace de `publish.mjs` (ADR 0140, revisión de D1): enlaza los bundles contra el
+  // import map que le pasan; el framework le llega como la ruta de ese mapa.
+  'lib/puerta-de-enlace.mjs',
 ];
 
 /**

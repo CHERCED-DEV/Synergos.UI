@@ -91,6 +91,14 @@ export const TOPES_DECLARADOS = {
       'de disco que `runtime-por-contenido.spec`, que con `test:tools` en paralelo pasó de los 5 s ' +
       'de serie. Lo que se prueba es que los bytes vuelven y nada se borra; no se simula el disco.',
   },
+  'tools/lib/puerta-de-enlace.spec.mjs': {
+    tope: 30_000,
+    razon:
+      'enlaza con esbuild DE VERDAD sobre un CDN de mentira en un mkdtemp (ADR 0140, revisión de D1): ' +
+      'es esbuild quien dice «No matching export», como el navegador, y simularlo no probaría el ' +
+      'enlace. Cada caso arranca el servicio de esbuild; con `test:tools` en paralelo eso puede pasar ' +
+      'de los 5 s de serie.',
+  },
   'platforms/angular/libs/shop/src/lib/cart.store.registro.spec.ts': {
     tope: 30_000,
     razon:

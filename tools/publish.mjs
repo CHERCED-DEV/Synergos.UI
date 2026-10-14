@@ -36,6 +36,8 @@ import { buildManifest, buildContracts, validateManifest } from './lib/manifest-
 import { resolvePublishVersion } from './lib/cdn-registry.mjs';
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 import { elegirPlataforma } from './lib/element-sources.mjs';
+import { revisarEnlace } from './lib/puerta-de-enlace.mjs';
+import { build as esbuild } from 'esbuild';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +60,14 @@ try { GIT_SHA = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString()
 /** Strip the `synergos-` prefix off a tag to get the conventional element name */
 function stripSynergosPrefix(tag) {
   return tag.startsWith('synergos-') ? tag.slice('synergos-'.length) : tag;
+}
+
+/** El bundle de un elemento en una plataforma: el suyo, o el compartido por su tag; null si no hay. */
+function bundleDe(entry, platform) {
+  const ownPath = platform.resolveBundlePath(entry.name);
+  const sharedPath = platform.resolveBundlePath(stripSynergosPrefix(entry.tag));
+  const bundlePath = existsSync(ownPath) ? ownPath : sharedPath;
+  return existsSync(bundlePath) ? bundlePath : null;
 }
 
 /** Compute SHA-256 integrity string (SRI format) for a file */
@@ -119,6 +129,43 @@ if (!DRY_RUN) {
   if (estado !== RUNTIME_OK) {
     for (const linea of lineas) console.warn(`${LOG_PREFIX}   ⚠ ${linea}`);
     console.warn('');
+  }
+}
+
+// ── La puerta de enlace (ADR 0140, revisión de D1) ───────────────────────────
+// Lo que cada elemento importa del runtime tiene que estar en el runtime que su import map
+// PUBLICADO nombra; si no, el módulo no enlaza en el navegador y la app no hidrata, sin un rojo.
+// Pasaba al publicar elementos sin publicar el runtime que necesitan (release-cdn
+// --scope=elements). Se enlazan todos de una vez por framework, con esbuild; sin mapa publicado no
+// hay contra qué, y eso ya lo avisa el gate de arriba.
+{
+  const porFramework = new Map();
+  for (const entry of registry) {
+    const eleccion = elegirPlataforma(entry, PLATFORMS, existsSync);
+    if (eleccion.error) continue;
+    for (const platform of eleccion.plataformas) {
+      if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
+      const ruta = bundleDe(entry, platform);
+      if (!ruta) continue;
+      const lista = porFramework.get(platform.name) ?? [];
+      if (!lista.some((e) => e.ruta === ruta)) lista.push({ nombre: entry.name, ruta });
+      porFramework.set(platform.name, lista);
+    }
+  }
+  for (const [framework, elementos] of porFramework) {
+    const rutaDelMapa = `/synergos/runtime/${framework}/latest/import-map.json`;
+    const mapa = join(CDN_SYNERGOS, 'runtime', framework, 'latest', 'import-map.json');
+    if (!existsSync(mapa)) continue;
+    const imports = JSON.parse(readFileSync(mapa, 'utf8')).imports ?? {};
+    const errores = await revisarEnlace({ elementos, imports, raizCdn: CDN_ROOT, rutaDelMapa, build: esbuild });
+    if (errores.length > 0) {
+      console.error(`
+❌ ${errores.length} import(s) de ${framework} no enlazan contra el runtime publicado (${mapa}):`);
+      for (const linea of errores) console.error(`   - ${linea}`);
+      console.error('   Publicá primero el runtime que los trae (npm run publish:runtime, o release-cdn --scope=runtime).');
+      process.exit(1);
+    }
+    console.log(`${LOG_PREFIX}   🔗 ${elementos.length} bundle(s) de ${framework} enlazan contra el runtime publicado`);
   }
 }
 

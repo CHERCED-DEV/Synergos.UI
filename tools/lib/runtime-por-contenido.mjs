@@ -13,6 +13,21 @@
  * rojo en ningún sitio. Vaciar la caché lo «arreglaba» en la máquina de quien
  * miraba, y en la de nadie más.
  *
+ * LO QUE ESTO NO CIERRA, dicho para no mentir sobre su alcance (revisión de D1).
+ * Lo de arriba es la caché del NAVEGADOR. «Un export nuevo que no enlaza» tiene
+ * otras dos vías, que no son ésta:
+ *
+ *   - publicar un elemento sin el runtime que necesita (`release-cdn
+ *     --scope=elements`): el mapa sigue nombrando el `sg-shared` anterior. Lo
+ *     cierra la puerta de enlace de `publish.mjs` (`puerta-de-enlace.mjs`), que
+ *     no publica un elemento cuyo import no está en el runtime publicado.
+ *   - la ventana del CMS en modo Http: el mapa vive en la caché del proceso
+ *     hasta su refresco —que desde la revisión va con el del registry— y el
+ *     `main.js` de un elemento se publica en una ruta que se SOBRESCRIBE, así que
+ *     un navegador puede bajar el elemento nuevo con el mapa viejo. Eso lo
+ *     cierra publicar los elementos por contenido, como el runtime; sigue
+ *     abierto.
+ *
  * ─────────────────────────────────────────────────────────────────────────────
  * LA SALIDA: QUE LA URL NOMBRE LOS BYTES.
  *
