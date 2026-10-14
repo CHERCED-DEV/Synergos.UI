@@ -364,6 +364,10 @@ const CIEGAS_AL_FRAMEWORK = [
   // `appsettings.json` del CMS. Ninguno de los dos lados tiene framework de este.
   'avisos-de-los-flujos.mjs',
   'lib/avisos-de-los-flujos.mjs',
+  // El runtime publicado por contenido (ADR 0140, CMS#201): la huella, el libro y su gate. Todo
+  // por framework, desde `FICHEROS_POR_FRAMEWORK` y el mapa de `importsDelRuntime`; el framework
+  // le llega como dato, y las rutas que mira son las de `runtime/<framework>/`.
+  'lib/runtime-por-contenido.mjs',
 ];
 
 /**
