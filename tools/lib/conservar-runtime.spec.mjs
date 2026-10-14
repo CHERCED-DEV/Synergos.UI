@@ -12,6 +12,9 @@ import {
   leerLibroVivo,
   bajarDelOrigen,
   restaurarDespuesDeLimpiar,
+  MARCA_SIN_CONSERVAR,
+  marcarSinConservar,
+  revisarDesplegable,
 } from './conservar-runtime.mjs';
 import {
   LIBRO,
@@ -61,7 +64,10 @@ function fetchDe(arbol, pedidas = []) {
 }
 
 const libroAngularCon = (...entradas) => serializarLibro(fusionarLibro(libroVacio('angular'), entradas));
-const sinLibros = { '/synergos/runtime/preact/latest/huellas.json': { status: 404 } };
+/** Lo que prueba que el origen ES un CDN de Synergos: su registry. */
+const conRegistry = { '/synergos/registry.json': { status: 200, cuerpo: '{"elements":[]}' } };
+/** El CDN, con su registry, sin libro de Preact. */
+const sinLibros = { ...conRegistry, '/synergos/runtime/preact/latest/huellas.json': { status: 404 } };
 
 describe('de dónde se conserva', () => {
   it('sin decir nada, del CDN PÚBLICO del proyecto: no hace falta configurar nada para conservar', () => {
@@ -87,6 +93,14 @@ describe('de dónde se conserva', () => {
     expect(porBandera).toEqual({ conservar: false, porque: '--sin-conservar' });
     expect(porVariable).toEqual({ conservar: false, porque: 'SYNERGOS_CDN_CONSERVAR=no' });
     expect(lineaDeNoConservar(porVariable.porque)).toMatch(/SYNERGOS_CDN_CONSERVAR=no.*NO se conservan.*no debe desplegarse/s);
+  });
+
+  it('el origen es un ORIGEN, como lo lee el humo: una ruta se ignora y se dice (no se pide <ruta>/synergos/…)', () => {
+    const conRuta = configuracionDeConservar(['--conservar-desde=https://cdn.example/synergos/'], {});
+    expect(conRuta).toMatchObject({ conservar: true, origen: 'https://cdn.example', deDonde: '--conservar-desde' });
+    expect(conRuta.aviso).toMatch(/trae una ruta: se conserva desde su origen https:\/\/cdn\.example, que es lo que mira el humo/);
+    // Lo mismo que hace el humo con su base.
+    expect(new URL('/synergos/registry.json', 'https://cdn.example/synergos/').href).toBe(`${conRuta.origen}/synergos/registry.json`);
   });
 
   it('lo que no se entiende es un error, no «conservá» ni «no conserves»', () => {
@@ -231,14 +245,45 @@ describe('guardar, bajar y restaurar — sobre un disco de verdad', { timeout: 3
     const avisos = [];
     const pedidas = [];
 
-    const resumen = await bajarDelOrigen({ tmp, origen: ORIGEN, fetch: fetchDe({}, pedidas), fs: fsp, log: (l) => avisos.push(l) });
+    const resumen = await bajarDelOrigen({ tmp, origen: ORIGEN, fetch: fetchDe(conRegistry, pedidas), fs: fsp, log: (l) => avisos.push(l) });
 
     expect(resumen.angular).toMatchObject({ vivo: false, bajados: 0 });
     expect(avisos.join('\n')).toMatch(/⚠ angular: .*no tiene latest\/huellas\.json \(404\).*primer despliegue/);
+    // El registry se pregunta UNA vez: es lo que prueba que el 404 lo dio el CDN y no otro sitio.
     expect(pedidas).toEqual([
       `${ORIGEN}/synergos/runtime/angular/latest/huellas.json`,
+      `${ORIGEN}/synergos/registry.json`,
       `${ORIGEN}/synergos/runtime/preact/latest/huellas.json`,
     ]);
+  });
+
+  it('un 404 de un sitio que NO es el CDN (sin registry, o con uno que no lo es) PARA: no es «primer despliegue»', async () => {
+    await expect(bajarDelOrigen({ tmp, origen: ORIGEN, fetch: fetchDe({}), fs: fsp })).rejects.toThrow(
+      /no tiene el libro del runtime, y .*registry\.json contesta 404: no parece el CDN de Synergos/,
+    );
+    const html = fetchDe({ '/synergos/registry.json': { status: 200, cuerpo: '<!doctype html><p>otro sitio</p>' } });
+    await expect(bajarDelOrigen({ tmp, origen: ORIGEN, fetch: html, fs: fsp })).rejects.toThrow(/no es un registry/);
+    expect(() => statSync(path.join(tmp, 'angular'))).toThrow();
+  });
+
+  it('con una ruta en la URL configurada se conserva igual: el libro se pide en su origen, donde está', async () => {
+    // La reproducción de la revisión: con `…/synergos` el libro se pedía en /synergos/synergos/…, daba
+    // 404 y se publicaba sin conservar mientras el humo, que ignora la ruta, salía verde.
+    const viejo = bytes('// la generación del CDN vivo\n');
+    const entrada = entradaPara('angular', VER, 'sg-shared.js', viejo);
+    const pedidas = [];
+    const arbol = {
+      ...sinLibros,
+      ...conRegistry,
+      '/synergos/runtime/angular/latest/huellas.json': { status: 200, cuerpo: libroAngularCon(entrada) },
+      [new URL(entrada.url, ORIGEN).pathname]: { status: 200, cuerpo: viejo },
+    };
+    const { origen } = configuracionDeConservar([], { SYNERGOS_CDN_CONSERVAR_DESDE: `${ORIGEN}/synergos` });
+
+    const resumen = await bajarDelOrigen({ tmp, origen, fetch: fetchDe(arbol, pedidas), fs: fsp });
+
+    expect(resumen.angular).toMatchObject({ vivo: true, entradas: 1, bajados: 1 });
+    expect(pedidas.some((u) => u.includes('/synergos/synergos/'))).toBe(false);
   });
 
   it('con libro vivo, baja lo que falta, VERIFICADO, y lo deja listo para restaurar', async () => {
@@ -299,5 +344,43 @@ describe('guardar, bajar y restaurar — sobre un disco de verdad', { timeout: 3
     const nombres = await publicarEnSalida('angular', VER);
     writeFileSync(rt(VER, nombres['ng-core.js']), '// alguien lo tocó\n');
     await expect(guardarAntesDeLimpiar({ salida, tmp, fs: fsp })).rejects.toThrow(/su sha256 es/);
+  });
+});
+
+describe('la marca de un CDN construido sin conservar, y la puerta de wrangler deploy', () => {
+  let raiz;
+  beforeEach(() => {
+    raiz = mkdtempSync(path.join(tmpdir(), 'cdn-desplegable-'));
+  });
+  afterEach(() => rmSync(raiz, { recursive: true, force: true }));
+
+  it('una salida sin marca se despliega; con la marca NO, y el motivo dice por qué y qué hacer', async () => {
+    expect(await revisarDesplegable({ salida: raiz, fs: fsp })).toEqual({ ok: true });
+
+    await marcarSinConservar({ salida: raiz, fs: fsp, porque: 'SYNERGOS_CDN_CONSERVAR=no', ahora: new Date('2026-10-14T00:00:00Z') });
+
+    expect(JSON.parse(readFileSync(path.join(raiz, MARCA_SIN_CONSERVAR), 'utf8'))).toEqual({
+      porque: 'SYNERGOS_CDN_CONSERVAR=no',
+      cuando: '2026-10-14T00:00:00.000Z',
+      desplegable: false,
+    });
+    const r = await revisarDesplegable({ salida: raiz, fs: fsp });
+    expect(r.ok).toBe(false);
+    expect(r.motivo).toMatch(/SIN conservar .*\(SYNERGOS_CDN_CONSERVAR=no\).*npm run build:cdn/s);
+  });
+
+  it('cableado: build:cdn deja la marca cuando no conserva, y cada wrangler deploy corre la puerta', () => {
+    const raizDelRepo = path.resolve(import.meta.dirname, '..', '..');
+    const buildCdn = readFileSync(path.join(raizDelRepo, 'tools', 'build-cdn.mjs'), 'utf8');
+    expect(buildCdn).toMatch(/if \(!CONSERVAR\.conservar\) \{\s*await marcarSinConservar\(\{ salida: SALIDA/);
+
+    const wrangler = JSON.parse(
+      readFileSync(path.join(raizDelRepo, 'wrangler.jsonc'), 'utf8')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//'))
+        .join('\n'),
+    );
+    expect(wrangler.build?.command).toBe('node tools/cdn-desplegable.mjs');
+    expect(readFileSync(path.join(raizDelRepo, 'tools', 'cdn-desplegable.mjs'), 'utf8')).toMatch(/revisarDesplegable\(/);
   });
 });

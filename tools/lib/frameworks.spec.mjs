@@ -371,6 +371,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // `build:cdn` conserva las generaciones del runtime ya publicadas (ADR 0140, CMS#201): recorre
   // los frameworks de `FICHEROS_POR_FRAMEWORK` y lee el libro de cada uno; no nombra ninguno.
   'lib/conservar-runtime.mjs',
+  // La puerta de `wrangler deploy` (ADR 0140, CMS#201): mira si la salida lleva la marca de un
+  // `build:cdn` sin conservar. No sabe de frameworks.
+  'cdn-desplegable.mjs',
 ];
 
 /**

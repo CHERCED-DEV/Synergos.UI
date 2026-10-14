@@ -46,6 +46,7 @@ import {
   configuracionDeConservar,
   guardarAntesDeLimpiar,
   lineaDeNoConservar,
+  marcarSinConservar,
   restaurarDespuesDeLimpiar,
 } from './lib/conservar-runtime.mjs';
 import { LIBRO, leerLibro, leerModoDeUrls, revisarPorContenido } from './lib/runtime-por-contenido.mjs';
@@ -90,6 +91,7 @@ const log = (m) => console.log(`[build-cdn] ${m}`);
 // Va LO PRIMERO, antes de compilar y de borrar: si el origen no contesta se sabe en un segundo,
 // y la salida anterior sigue intacta. No se publica sin conservar.
 let CONSERVADO = null;
+if (CONSERVAR.aviso) log(`⚠ ${CONSERVAR.aviso}`);
 if (CONSERVAR.conservar) {
   CONSERVADO = await mkdtemp(join(tmpdir(), 'synergos-conservar-'));
   try {
@@ -190,6 +192,12 @@ for (const { name } of PLATFORMS) {
 log(`limpiando ${SALIDA}`);
 await rm(SALIDA, { recursive: true, force: true });
 await mkdir(SALIDA, { recursive: true });
+
+// Sin conservar, la salida lleva su marca: la puerta de `wrangler deploy` (tools/cdn-desplegable.mjs)
+// no la deja publicar. Antes nada distinguía este `public/` de uno bueno.
+if (!CONSERVAR.conservar) {
+  await marcarSinConservar({ salida: SALIDA, fs: fsp, porque: CONSERVAR.porque });
+}
 
 // Y lo conservado vuelve ANTES de publicar el runtime de hoy (paso 2): `publish-runtime` relee
 // el libro de cada framework y le suma su generación, así que las anteriores siguen declaradas.

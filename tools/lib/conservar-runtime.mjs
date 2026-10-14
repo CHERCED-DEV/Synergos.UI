@@ -22,15 +22,24 @@
  *
  * LAS REGLAS, Y TODAS FALLAN SEGURO:
  *
+ *   - el origen es un ORIGEN (esquema y host), como lo lee el humo: una ruta
+ *     que traiga se ignora y se dice. Con ella, el libro se pedía en
+ *     `<ruta>/synergos/…`, daba 404 y se tomaba por «primer despliegue»
+ *     mientras el humo, que la ignora, salía verde.
  *   - el origen contesta y NO tiene libro (404) → no hay nada que conservar: es
- *     el primer despliegue por contenido. Se avisa y se sigue.
+ *     el primer despliegue por contenido. Se avisa y se sigue. PERO sólo si el
+ *     origen es un CDN de Synergos —sirve su `registry.json`—: un host que
+ *     contesta 404 a todo (otro Worker, una errata) no prueba que no haya nada
+ *     que conservar, y PARA.
  *   - tiene libro → se baja cada fichero que falte, y uno cuyo sha256 no casa
  *     con el libro o con su nombre PARA.
  *   - el origen no contesta (red, 5xx, cualquier otro estado) → PARA, con lo
  *     que hay que hacer. No se publica sin conservar.
  *   - `--sin-conservar` o `SYNERGOS_CDN_CONSERVAR=no` → no se conserva nada, y
  *     se dice en voz alta. Es para un CDN que no se despliega (el humo conectado
- *     del CMS), no para producción.
+ *     del CMS), no para producción; y la salida lleva la MARCA
+ *     (`MARCA_SIN_CONSERVAR`), que la puerta de `wrangler deploy`
+ *     (`tools/cdn-desplegable.mjs`) no deja publicar.
  *
  * Se hace al EMPEZAR `build:cdn`, antes de compilar y de borrar nada: si el
  * origen no contesta, se sabe en un segundo y la salida anterior sigue intacta.
@@ -88,10 +97,24 @@ export function configuracionDeConservar(argv, env = {}) {
       ? [variable, 'SYNERGOS_CDN_CONSERVAR_DESDE']
       : [ORIGEN_POR_DEFECTO, 'por defecto'];
 
-  if (!/^https?:\/\/[^/]/.test(origen)) {
+  let url = null;
+  try {
+    url = /^https?:\/\/[^/]/.test(origen) ? new URL(origen) : null;
+  } catch {
+    url = null;
+  }
+  if (!url) {
     return { error: `${deDonde}=${origen} no es una URL http(s) del CDN del que conservar.` };
   }
-  return { conservar: true, origen: origen.replace(/\/+$/, ''), deDonde };
+  // Su ORIGEN, como lo lee el humo (`new URL('/synergos/…', base)` ignora la ruta): los dos miran el
+  // mismo sitio. Una ruta se dice, no se usa.
+  const ruta = url.pathname.replace(/\/+$/, '');
+  return {
+    conservar: true,
+    origen: url.origin,
+    deDonde,
+    ...(ruta || url.search ? { aviso: `${deDonde}=${origen} trae una ruta: se conserva desde su origen ${url.origin}, que es lo que mira el humo.` } : {}),
+  };
 }
 
 /** La línea, ruidosa a propósito, de un `build:cdn` que no conserva nada. */
@@ -100,6 +123,44 @@ export function lineaDeNoConservar(porque) {
     `⚠ ${porque}: NO se conservan las generaciones del runtime ya publicadas. Este CDN no debe ` +
     `desplegarse: quien aún tenga un mapa anterior pediría URLs que acá no existen.`
   );
+}
+
+/**
+ * La marca que deja en la salida un `build:cdn` que no conservó. Sin ella nada distinguía ese
+ * `public/` de uno bueno: un `wrangler deploy` a mano lo publicaba, y el despliegue siguiente
+ * tomaba su libro truncado por la verdad.
+ */
+export const MARCA_SIN_CONSERVAR = 'sin-conservar.json';
+
+/** Deja la marca en la raíz de la salida: por qué no se conservó y cuándo. */
+export async function marcarSinConservar({ salida, fs, porque, ahora = new Date() }) {
+  const marca = { porque, cuando: ahora.toISOString(), desplegable: false };
+  await escribirAtomico(fs, path.join(salida, MARCA_SIN_CONSERVAR), Buffer.from(`${JSON.stringify(marca, null, 2)}\n`));
+}
+
+/**
+ * Si la salida se puede desplegar: no lo es una construida sin conservar. Es lo que corre la puerta
+ * de `wrangler deploy` (`wrangler.jsonc`, `build.command`).
+ *
+ * @returns {Promise<{ ok: true } | { ok: false, motivo: string }>}
+ */
+export async function revisarDesplegable({ salida, fs }) {
+  const marca = await leerSiExiste(fs, path.join(salida, MARCA_SIN_CONSERVAR));
+  if (marca === null) return { ok: true };
+  let porque = '';
+  try {
+    porque = JSON.parse(String(marca)).porque ?? '';
+  } catch {
+    porque = '';
+  }
+  return {
+    ok: false,
+    motivo:
+      `${path.join(salida, MARCA_SIN_CONSERVAR)}: esta salida se construyó SIN conservar el runtime ya ` +
+      `publicado${porque ? ` (${porque})` : ''}. Desplegarla borraría las generaciones que aún nombra ` +
+      `quien tenga un mapa anterior, y el despliegue siguiente tomaría su libro truncado por la verdad. ` +
+      `Constrúyela otra vez con npm run build:cdn, que conserva.`,
+  };
 }
 
 /** Los bytes de un fichero, o `null` si no está. Cualquier otro error sube. */
@@ -214,6 +275,30 @@ export async function leerLibroVivo({ origen, framework, fetch, reintentos }) {
 }
 
 /**
+ * Que el origen ES un CDN de Synergos: sirve su `registry.json`, con sus elementos. Sin esto, el 404
+ * del libro no dice nada —un host que contesta 404 a todo también lo da— y se tomaba por «primer
+ * despliegue»: se publicaba sin conservar, sin un solo rojo. LANZA si no lo es o no se sabe.
+ */
+export async function comprobarQueEsElCdn({ origen, fetch, reintentos }) {
+  const url = `${origen}/synergos/registry.json`;
+  const respuesta = await pedirAlOrigen(fetch, url, reintentos);
+  const texto = respuesta.status === 200 ? await respuesta.text() : null;
+  if (texto === null) await respuesta.body?.cancel?.();
+  let registro = null;
+  try {
+    registro = texto === null ? null : JSON.parse(texto);
+  } catch {
+    registro = null;
+  }
+  if (!Array.isArray(registro?.elements)) {
+    throw new Error(
+      `${origen} no tiene el libro del runtime, y ${url} ${texto === null ? `contesta ${respuesta.status}` : 'no es un registry'}: ` +
+        `no parece el CDN de Synergos (¿una errata en la URL, otro Worker?). Su 404 no prueba que no haya nada que conservar.`,
+    );
+  }
+}
+
+/**
  * Completa `tmp` con el CDN vivo: fusiona su libro con el de la salida anterior
  * y baja, verificando, cada fichero que falte.
  *
@@ -221,6 +306,7 @@ export async function leerLibroVivo({ origen, framework, fetch, reintentos }) {
  */
 export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAMEWORKS, log = () => {}, reintentos }) {
   const resumen = {};
+  let esElCdn = false;
   for (const framework of frameworks) {
     const vivo = await leerLibroVivo({ origen, framework, fetch, reintentos });
     const rutaLibro = path.join(tmp, framework, 'latest', LIBRO);
@@ -228,6 +314,11 @@ export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAM
     const local = textoLocal === null ? libroVacio(framework) : leerLibro(String(textoLocal), framework);
 
     if (vivo === null) {
+      // Un 404 sólo es «primer despliegue» si quien lo contesta es el CDN: se pregunta una vez.
+      if (!esElCdn) {
+        await comprobarQueEsElCdn({ origen, fetch, reintentos });
+        esElCdn = true;
+      }
       log(
         `⚠ ${framework}: ${origen} no tiene latest/${LIBRO} (404). No hay generaciones vivas que conservar: ` +
           `es el primer despliegue del runtime por contenido.`,

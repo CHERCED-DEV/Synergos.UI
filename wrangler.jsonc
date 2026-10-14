@@ -15,6 +15,15 @@
   "main": "worker/index.js",
   "compatibility_date": "2026-08-01",
 
+  // La puerta de CADA `wrangler deploy`, también el tecleado a mano (ADR 0140,
+  // CMS#201): no compila nada, sólo se niega a publicar un `public/` que
+  // `build:cdn` construyó SIN conservar el runtime ya publicado —lleva su
+  // marca—. Desplegarlo borraba las generaciones que aún nombra quien tenga un
+  // mapa anterior. Una salida construida conservando pasa sin más.
+  "build": {
+    "command": "node tools/cdn-desplegable.mjs"
+  },
+
   "assets": {
     // Lo produce `npm run build:cdn`. NO está versionado: se genera en cada
     // despliegue a partir de las fuentes, que es lo que hace que el contenido
