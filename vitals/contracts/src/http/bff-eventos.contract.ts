@@ -56,6 +56,7 @@ export interface TicketPurchaseResponse {
   readonly held: readonly HeldSeatResponse[];
   readonly pendingCompensations: number;
   readonly lastError: string | null;
+  readonly refundPending: boolean;
 }
 
 export interface TicketQuoteResponse {
