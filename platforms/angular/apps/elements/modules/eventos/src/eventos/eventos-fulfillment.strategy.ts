@@ -132,7 +132,8 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * Step 3 — ABRIR la compra por la puerta y anotar sus asistentes.
    *
    * La llave de idempotencia es la de la INTENCIÓN: `SessionData.sessionId`, nueva en cada
-   * selección y persistida, así que sobrevive a la recarga y al login. Con la misma llave y una
+   * selección —salvo con una compra pendiente, que el elemento resuelve ANTES de reemplazar la sesión
+   * (`compraPendiente`)— y persistida, así que sobrevive a la recarga y al login. Con la misma llave y una
    * saga en curso el orquestador devuelve esa saga; con una deshecha, la reabre. El total que se
    * cobra es el del servidor —con su comisión y el descuento del cupón—, y la sesión pasa a decirlo:
    * es el que el asistente anota y compara después. Devuelve como referencia el id de la saga.
@@ -143,7 +144,8 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * **Y una vez enviado abrir, la llave queda RETENIDA en las líneas** (`holdRef`, lo que las aparta)
    * hasta saber que su saga no puede cobrar —un «no» que no deja saga, o la saga deshecha—. Mientras
    * tanto el elemento fija el cupón y cada reintento abre con ESA llave: otra llave es otra saga, que
-   * aparta y autoriza otra vez y que cerrar capturaría (el doble cobro de la revisión del cupón).
+   * aparta y autoriza otra vez y que cerrar capturaría (el doble cobro de la revisión del cupón). Y
+   * mientras está retenida la sesión no vence a los 30 min: tiene el plazo de una compra pendiente.
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
@@ -294,25 +296,18 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * SUELTA: una saga deshecha no cobra, así que el cupón vuelve a poder cambiarse.
    */
   private marcarElPagoFallido(): void {
-    this.soltar();
-    const sesion = this.#store.getValidSession();
-    const ultimo = sesion.payments.length - 1;
-    if (ultimo < 0) {
-      return;
-    }
-    this.#store.setSession({
-      ...sesion,
-      payments: sesion.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
-    });
+    this.#store.setSession(sinCompraPendiente(this.#store.getValidSession()));
   }
 
-  /** Las líneas quedan apartadas bajo `llave`: su saga puede estar viva desde que abrir salió. */
+  /**
+   * Las líneas quedan apartadas bajo `llave`: su saga puede estar viva desde que abrir salió. Y la sesión
+   * pasa a vencer con el plazo de una compra pendiente, también si la llave ya estaba retenida: con los
+   * 30 min de la sesión, la compra se olvidaba antes que el barrido de abandono del orquestador.
+   */
   private retener(llave: string): void {
     const sesion = this.#store.getValidSession();
-    if (sesion.items.every((item) => item.holdRef === llave)) {
-      return;
-    }
-    this.#store.setSession({ ...sesion, items: sesion.items.map((item) => ({ ...item, holdRef: llave })) });
+    const vence = Math.max(sesion.expiresAt, Date.now() + PLAZO_DE_UNA_COMPRA_PENDIENTE_MS);
+    this.#store.setSession({ ...sesion, expiresAt: vence, items: sesion.items.map((item) => ({ ...item, holdRef: llave })) });
   }
 
   /** Ninguna saga de esta intención puede cobrar: las líneas dejan de estar retenidas. */
@@ -408,6 +403,51 @@ export const CODIGO_DEMASIADOS_CODIGOS = 'eventos.demasiados_codigos';
  */
 export function llaveRetenida(session: SessionData): string | null {
   return session.items.find((item) => typeof item.holdRef === 'string' && item.holdRef !== '')?.holdRef ?? null;
+}
+
+/**
+ * Cuánto vive una sesión con una compra pendiente (ADR 0140, el cupón endurecido): más que los 60 min
+ * del barrido de abandono del orquestador. Con los 30 min de la sesión, la compra se olvidaba antes.
+ */
+export const PLAZO_DE_UNA_COMPRA_PENDIENTE_MS = 24 * 60 * 60 * 1000;
+
+/** Una compra de la sesión que pudo cobrar y no se confirmó: su llave y, si abrir contestó, su id. */
+export interface CompraPendiente {
+  readonly llave: string | null;
+  /** El id de su saga (el del último pago anotado); `null` si abrir no contestó: nadie lo tiene. */
+  readonly referencia: string | null;
+}
+
+/**
+ * La compra pendiente de la sesión, o `null` (ADR 0140, el cupón endurecido). Lo es la que salió a
+ * abrir (llave retenida) o la que tiene un pago anotado, mientras la sesión no esté confirmada: el
+ * asistente anota el pago en cuanto `pay` acepta, y sólo el éxito de `confirm` pone `confirmed`. Es la
+ * condición de `cuponFijado`, más el estado: comprar dos veces a propósito, tras confirmar, no lo es.
+ */
+export function compraPendiente(session: SessionData): CompraPendiente | null {
+  if (session.status === 'confirmed') {
+    return null;
+  }
+  const llave = llaveRetenida(session);
+  const ultimo = session.payments[session.payments.length - 1];
+  const referencia = ultimo?.status === 'captured' && ultimo.reference ? ultimo.reference : null;
+  if (llave === null && referencia === null) {
+    return null;
+  }
+  return { llave, referencia };
+}
+
+/**
+ * La sesión SIN su compra pendiente: las líneas sin la llave retenida y el último pago `failed`. Para
+ * cuando su saga ya no puede cobrar —se deshizo, se canceló— o se eligen otras entradas sin su id.
+ */
+export function sinCompraPendiente(session: SessionData): SessionData {
+  const ultimo = session.payments.length - 1;
+  return {
+    ...session,
+    items: session.items.map(({ holdRef: _suelta, ...linea }) => linea),
+    payments: session.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
+  };
 }
 
 /**

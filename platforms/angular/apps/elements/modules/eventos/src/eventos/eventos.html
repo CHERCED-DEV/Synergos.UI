@@ -50,6 +50,10 @@
     <p class="eventos__error" role="alert">{{ errorMessage() }}</p>
   }
 
+  <!-- La compra pendiente (ADR 0140, el cupón endurecido): región viva que existe SIEMPRE y sólo
+       cambia su texto (regla 42); vacía no ocupa sitio. -->
+  <p class="eventos__pendiente-aviso" role="status" aria-live="polite">{{ avisoDeLaCompraPendiente() }}</p>
+
   <!-- ═══════════════════════════════ ASISTENTE ═══════════════════════════════ -->
   @if (role() === 'attendee') {
     <!-- ─── CATALOG: SH-1 discovery-shell ─────────────────────────────────── -->
@@ -323,6 +327,21 @@
     <!-- ─── CART: ítems + fees + total ────────────────────────────────────── -->
     <!-- ─── CARRITO: SH-12 syn-cart-shell (#22) ──────────────────────────── -->
     @if (view() === 'cart') {
+      @if (pendiente(); as compra) {
+        <!-- Lo que se puede hacer con la compra pendiente; lo que dice va en la región viva de arriba.
+             El carrito de debajo sigue siendo el suyo: elegir otra vez no lo reemplazó. -->
+        <div class="eventos__pendiente">
+          @if (compra.propia && compra.tipo !== 'desconocida') {
+            <button type="button" class="eventos__btn eventos__btn--primary" (click)="terminarLaCompraPendiente()">{{ textosDeLaPendiente.terminar }}</button>
+          }
+          @if (compra.tipo === 'en-curso') {
+            <button type="button" class="eventos__btn" [disabled]="cancelandoLaPendiente()" (click)="cancelarLaCompraPendiente()">{{ textosDeLaPendiente.cancelar }}</button>
+          }
+          @if (compra.tipo === 'sin-respuesta') {
+            <button type="button" class="eventos__btn" (click)="elegirOtrasEntradas()">{{ textosDeLaPendiente.elegirOtras }}</button>
+          }
+        </div>
+      }
       <syn-cart-shell
         [config]="cartConfig()"
         [lines]="cartLines()"

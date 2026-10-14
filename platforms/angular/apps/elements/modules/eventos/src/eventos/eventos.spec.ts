@@ -55,9 +55,16 @@ interface RechazoDelBorde {
    * Qué le pasó a la saga cuando `POST cerrar` contesta este «no» sin ser transitorio. Por defecto
    * `deshecho` (`Compensated`), lo que hace el orquestador con sus propios rechazos; `hecho` es la
    * captura que SÍ ocurrió y cuya respuesta se perdió (un 502 `puerta.respuesta_invalida`), y
-   * `en_curso` un fallo a mitad de cerrar que deja la saga `Running`.
+   * `en_curso` un fallo a mitad de cerrar que deja la saga `Running`. Un rechazo TRANSITORIO (un 504
+   * de la puerta) no toca la saga salvo que se declare: `hecho` es entonces el 504 con la captura
+   * hecha, como el `route.fetch` + `fulfill 504` de la verificación en vivo del cupón endurecido.
    */
   readonly cobro?: 'deshecho' | 'hecho' | 'en_curso';
+  /**
+   * Sólo en `POST abrir`: el orquestador SÍ abrió la saga de esa llave —apartó y autorizó— y la
+   * respuesta se perdió. Nadie tiene su id.
+   */
+  readonly abierta?: boolean;
 }
 
 /** Lo que el borde vio de cada petición. */
@@ -80,6 +87,8 @@ interface PeticionVista {
  *    cerrar, que es donde se ve un doble cobro.
  *  - `POST cerrar` → `/api/flujos/eventos.compra/cerrar?id=…`: 200 `Completed`.
  *  - `GET consultar` → `/api/flujos/eventos.compra/consultar?id=…`: la saga en su estado de ese momento.
+ *  - `POST cancelar` → `/api/flujos/eventos.compra/cancelar?id=…`: una saga en curso queda `Compensated`;
+ *    una completa contesta 409 `eventos.already_completed`.
  *  - `POST asistentes` y `GET entradas` → el artefacto, `/api/eventos/compras/{id}/…`.
  *  - `POST /ticket/{id}/transfer`, `POST /event` y `POST /checkin`, como antes. El check-in lleva
  *    ESTADO: `valid`, después `already-used`, y lo que no emitió es `invalid`.
@@ -142,6 +151,21 @@ function bordeDeEventos(
     if (saga.estado !== 'Completed' && !cobradas.includes(saga.id)) cobradas.push(saga.id);
     saga.estado = 'Completed';
   };
+  /** La saga de esa llave: la que ya tiene o, con otra llave, OTRA, que aparta y autoriza otra vez. */
+  const abrirPorLlave = (llave: string, cuerpo: Record<string, unknown>): SagaDelBorde => {
+    const conocida = porLlave.get(llave);
+    const ya = conocida ? sagas.get(conocida) : undefined;
+    if (ya) return ya;
+    const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
+    const saga: SagaDelBorde = {
+      id: `pta-${77 + sagas.size}`,
+      estado: 'Running',
+      apartadas: lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity })),
+    };
+    sagas.set(saga.id, saga);
+    porLlave.set(llave, saga.id);
+    return saga;
+  };
   const responder = (status: number, body: unknown, tipo = 'application/json'): Promise<Response> =>
     Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': tipo } }));
   const compra = (saga: SagaDelBorde) => ({
@@ -174,6 +198,7 @@ function bordeDeEventos(
     if (ruta === '/api/flujos/eventos.compra/abrir') return `${metodo} abrir`;
     if (ruta === '/api/flujos/eventos.compra/cerrar') return `${metodo} cerrar`;
     if (ruta === '/api/flujos/eventos.compra/consultar') return `${metodo} consultar`;
+    if (ruta === '/api/flujos/eventos.compra/cancelar') return `${metodo} cancelar`;
     if (ruta === '/api/flujos/eventos.compra/cotizar') return `${metodo} cotizar`;
     if (/^\/api\/eventos\/compras\/[^/]+\/asistentes$/.test(ruta)) return `${metodo} asistentes`;
     if (/^\/api\/eventos\/compras\/[^/]+\/entradas$/.test(ruta)) return `${metodo} entradas`;
@@ -199,12 +224,16 @@ function bordeDeEventos(
     }
     const enCola = rechazos.get(clave)?.shift();
     if (enCola) {
-      if (clave === 'POST cerrar' && !enCola.transient) {
+      if (clave === 'POST cerrar') {
         // Un «no» del orquestador al cerrar DESHACE la saga (compensa); los otros dos casos son los
-        // que no implican eso (ver `RechazoDelBorde.cobro`).
+        // que no implican eso (ver `RechazoDelBorde.cobro`). Un transitorio no la toca salvo que se
+        // declare qué le pasó.
         const saga = sagaDe(idPedido);
         if (enCola.cobro === 'hecho') cobrar(saga);
-        else if (enCola.cobro !== 'en_curso') saga.estado = 'Compensated';
+        else if (enCola.cobro === 'deshecho' || (!enCola.transient && enCola.cobro !== 'en_curso')) saga.estado = 'Compensated';
+      }
+      if (clave === 'POST abrir' && enCola.abierta) {
+        abrirPorLlave(cabeceras.get('Idempotency-Key') ?? '', cuerpo);
       }
       return responder(
         enCola.status,
@@ -214,22 +243,21 @@ function bordeDeEventos(
     }
     switch (clave) {
       case 'POST abrir': {
-        const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
-        const llave = cabeceras.get('Idempotency-Key') ?? '';
-        const conocida = porLlave.get(llave);
-        let saga = conocida ? sagas.get(conocida) : undefined;
-        if (!saga) {
-          // Otra llave, otra saga: aparta y autoriza OTRA vez.
-          saga = { id: `pta-${77 + sagas.size}`, estado: 'Running', apartadas: [] };
-          sagas.set(saga.id, saga);
-          porLlave.set(llave, saga.id);
-          saga.apartadas = lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity }));
-        }
+        const saga = abrirPorLlave(cabeceras.get('Idempotency-Key') ?? '', cuerpo);
         // La misma llave devuelve su saga; la deshecha se reabre.
         if (saga.estado === 'Compensated') saga.estado = 'Running';
         if (opciones.yaCerrada) saga.estado = 'Completed';
         ultima = saga;
         return responder(201, compra(saga));
+      }
+      case 'POST cancelar': {
+        // Cancelar compensa una saga en curso; una completa no se cancela: se devuelve (#183).
+        const saga = sagaDe(idPedido);
+        if (saga.estado === 'Completed') {
+          return responder(409, { title: 'Conflict', status: 409, code: 'eventos.already_completed', transient: false }, 'application/problem+json');
+        }
+        saga.estado = 'Compensated';
+        return responder(200, compra(saga));
       }
       case 'GET consultar':
         return responder(200, compra(sagaDe(idPedido)));
@@ -1866,6 +1894,382 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks();
 
     expect(component.cartItems().length).toBe(1);
+  });
+
+  // ── Elegir otra vez con una compra pendiente (ADR 0140, el cupón endurecido) ─────────────────
+  //
+  // Verificación en vivo: tras un «cerrar» cuya respuesta se perdió con la captura HECHA, volver a la
+  // ficha y elegir otra vez reemplazaba la sesión entera (`SessionStore.reset()`): otra llave, otra
+  // saga, y cerrar la cobraba al lado de la ya cobrada —dos cargos, mismo comprador y evento— debajo
+  // de «no se te cobrará dos veces». Ahora la pendiente se resuelve primero, por su id. Lo que se mira
+  // es lo que abrió y capturó el borde.
+  const sinRespuestaAlCerrar = (cobro?: 'hecho') => ({
+    'POST cerrar': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', ...(cobro ? { cobro } : {}) }],
+  });
+  const avisoDeLaPendiente = (): string =>
+    (fixture.nativeElement as HTMLElement).querySelector('.eventos__pendiente-aviso')?.textContent?.trim() ?? '';
+  const vecesQueSeDice = (texto: string): number => ((fixture.nativeElement as HTMLElement).textContent ?? '').split(texto).length - 1;
+  const botonesDeLaPendiente = (): string[] =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.eventos__pendiente button')).map(
+      (boton) => boton.textContent?.trim() ?? '',
+    );
+  const COMPLETADA = 'Tu compra anterior (referencia pta-77) sí se completó: estas son tus entradas. No abrimos otra.';
+
+  /** La compra que se pagó y no se confirmó: «Pagar y confirmar» en «revisar», y su fallo. */
+  async function pagarSinAcuse(cupon: string | null = null): Promise<void> {
+    const wizard = await alRevisar();
+    if (cupon) {
+      await component.applyPromo(cupon);
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(component.view()).not.toBe('confirmed');
+  }
+
+  /** Vuelve a la ficha y elige OTRA selección (dos entradas): lo que hace quien no vio el acuse. */
+  async function elegirOtraVez(): Promise<void> {
+    const event = component.events().find((e) => e.mode === 'general' && e.fromAmount > 0) ?? component.events()[0];
+    component.openEvent(event);
+    await flushMicrotasks();
+    component.startSelection();
+    component.incrementQty();
+    await component.proceedToCart();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  /** Pulsa un botón del panel de la compra pendiente por su texto, y deja que termine lo que pide. */
+  async function pulsar(texto: string): Promise<void> {
+    const boton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.eventos__pendiente button')).find(
+      (b) => b.textContent?.trim() === texto,
+    );
+    expect(boton).toBeDefined();
+    boton!.click();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+  }
+
+  /**
+   * Lo que la persona puede hacer desde la vista que tiene delante: si es el carrito sin nada que
+   * resolver, pagar lo que dice; si es la confirmación de la compra anterior, no hay nada que pagar.
+   */
+  async function pagarSiElCarritoLoOfrece(): Promise<void> {
+    if (component.view() !== 'cart' || component.pendiente() !== null) {
+      return;
+    }
+    component.attendees().forEach((_fila, indice) => {
+      component.setAttendeeField(indice, 'name', 'Ada Lovelace');
+      component.setAttendeeField(indice, 'email', 'ada@example.com');
+    });
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+  }
+
+  it.each([
+    ['sin cupón', null],
+    ['con cupón', 'BIENVENIDA10'],
+  ] as const)('elegir otra vez tras un cerrar sin respuesta que SÍ cobró (%s) no abre otra saga: muestra las entradas de la cobrada', async (_caso, cupon) => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ total: cupon ? 171_360 : 201_600, rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse(cupon);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    const antes = { abrir: borde.llamadas('POST abrir'), consultar: borde.llamadas('GET consultar'), entradas: borde.llamadas('GET entradas') };
+
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(borde.llamadas('GET consultar') - antes.consultar).toBe(1);
+    expect(borde.llamadas('POST abrir') - antes.abrir).toBe(0);
+    expect(borde.llamadas('GET entradas') - antes.entradas).toBe(1);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(TestBed.inject(SessionStore).session().status).toBe('confirmed');
+    expect(avisoDeLaPendiente()).toBe(COMPLETADA);
+    expect(vecesQueSeDice(COMPLETADA)).toBe(1);
+  });
+
+  it('lo mismo tras recargar la página (F5): la compra pendiente vive en la sesión, y elegir otra vez no abre otra saga', async () => {
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    // Como en «recarga en checkout»: la sesión persistida, leída por una instancia NUEVA del elemento.
+    const guardada = almacen.get(`syn.txn.session.eventos.${component.instanceId}`);
+    const siguiente = component.instanceId + 1;
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    almacen.set(`syn.txn.session.eventos.${siguiente}`, guardada!);
+    await createComponent();
+    expect(component.instanceId).toBe(siguiente);
+
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+  });
+
+  it('lo mismo desde OTRA pestaña: la sesión llega por el evento storage, y elegir otra vez allí tampoco abre otra saga', async () => {
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const guardada = almacen.get(`syn.txn.session.eventos.${component.instanceId}`)!;
+
+    // La otra pestaña: su elemento, con su sesión vacía, adopta la que escribió la primera.
+    const otra = component.instanceId + 1;
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    await createComponent();
+    const store = TestBed.inject(SessionStore);
+    expect(store.session().payments).toEqual([]);
+    const clave = `syn.txn.session.eventos.${otra}`;
+    almacen.set(clave, guardada);
+    window.dispatchEvent(new StorageEvent('storage', { key: clave, newValue: guardada }));
+    expect(store.session().payments).toHaveLength(1);
+
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+  });
+
+  it('la sesión con una compra pendiente no vence a los 30 min: 31 min después, elegir otra vez tampoco abre otra saga', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    const reloj = Date.now.bind(Date);
+    vi.spyOn(Date, 'now').mockImplementation(() => reloj() + 31 * 60 * 1000);
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+  });
+
+  it('con la compra EN CURSO (cerrar sin respuesta y sin captura), elegir otra vez ofrece terminarla o cancelarla y no reemplaza el carrito; «Terminar» cobra ÉSA', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar() });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    expect(borde.cobradas()).toEqual([]);
+    const lineas = component.cartItems();
+
+    await elegirOtraVez();
+
+    expect(component.view()).toBe('cart');
+    expect(component.pendiente()).toEqual({ tipo: 'en-curso', referencia: 'pta-77', propia: true });
+    expect(avisoDeLaPendiente()).toBe(
+      'Tienes una compra en curso (referencia pta-77). Termínala o cancélala antes de elegir otras entradas.',
+    );
+    expect(botonesDeLaPendiente()).toEqual(['Terminar mi compra', 'Cancelar esa compra']);
+    expect(component.cartItems()).toEqual(lineas);
+    expect(borde.llamadas('POST abrir')).toBe(1);
+
+    await pulsar('Terminar mi compra');
+    expect(component.view()).toBe('checkout');
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('con la compra EN CURSO, «Cancelar esa compra» la cancela por su id y sigue con lo elegido: se cobra sólo la nueva', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar() });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await elegirOtraVez();
+    await pulsar('Cancelar esa compra');
+
+    expect(borde.vistas().filter((vista) => vista.clave === 'POST cancelar').map((vista) => [vista.url, vista.llave])).toEqual([
+      ['/api/flujos/eventos.compra/cancelar?id=pta-77', null],
+    ]);
+    expect(component.view()).toBe('cart');
+    expect(component.pendiente()).toBeNull();
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
+
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+  });
+
+  it('si no se puede leer en qué quedó (consultar no contesta), elegir otra vez no abre otra: lo dice, y el carrito sigue siendo el suyo', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ caidas: ['GET consultar'], rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const lineas = component.cartItems();
+
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.llamadas('POST abrir')).toBe(1);
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(component.cartItems()).toEqual(lineas);
+    expect(component.pendiente()).toEqual({ tipo: 'desconocida', referencia: 'pta-77', propia: true });
+    expect(avisoDeLaPendiente()).toBe(
+      'No pudimos comprobar cómo quedó tu compra anterior (referencia pta-77). Vuelve a intentarlo en un momento: mientras tanto no abrimos otra.',
+    );
+    expect(botonesDeLaPendiente()).toEqual([]);
+  });
+
+  it('una compra DESHECHA (pago rechazado) no es pendiente: elegir otra vez aplica sin panel, y se cobra sólo la nueva', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 402, code: 'payments.payment_declined', title: 'Payment Required' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const consultas = borde.llamadas('GET consultar');
+
+    await elegirOtraVez();
+    expect(component.pendiente()).toBeNull();
+    expect(borde.llamadas('GET consultar')).toBe(consultas);
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+  });
+
+  it('comprar dos veces A PROPÓSITO sigue igual: tras una compra confirmada, elegir y pagar abre y cobra otra, sin panel', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await purchaseFirstGeneralEvent();
+    expect(component.view()).toBe('confirmed');
+
+    await elegirOtraVez();
+    expect(component.pendiente()).toBeNull();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-77', 'pta-78']);
+  });
+
+  it('con abrir sin respuesta (nadie tiene el id), elegir otra vez ofrece terminarla o elegir otras; «Terminar» abre con la MISMA llave', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', abierta: true }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const llave = borde.vistas().find((vista) => vista.clave === 'POST abrir')!.llave;
+
+    await elegirOtraVez();
+
+    expect(component.pendiente()).toEqual({ tipo: 'sin-respuesta', referencia: null, propia: true });
+    expect(avisoDeLaPendiente()).toBe(
+      'Tu compra anterior no alcanzó a confirmarse. Termínala, o elige otras entradas: esa quedará anulada sin cobro.',
+    );
+    expect(botonesDeLaPendiente()).toEqual(['Terminar mi compra', 'Elegir otras entradas']);
+    expect(borde.llamadas('POST abrir')).toBe(1);
+
+    await pulsar('Terminar mi compra');
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.vistas().filter((vista) => vista.clave === 'POST abrir').map((vista) => vista.llave)).toEqual([llave, llave]);
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('con abrir sin respuesta, «Elegir otras entradas» abre con una llave nueva y cobra sólo la nueva: la vieja no se cierra', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', abierta: true }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const llave = borde.vistas().find((vista) => vista.clave === 'POST abrir')!.llave;
+
+    await elegirOtraVez();
+    await pulsar('Elegir otras entradas');
+    expect(component.pendiente()).toBeNull();
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    const llaves = borde.vistas().filter((vista) => vista.clave === 'POST abrir').map((vista) => vista.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[1]).not.toBe(llave);
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+    expect(borde.vistas().filter((vista) => vista.clave === 'POST cerrar').map((vista) => vista.url)).toEqual([
+      '/api/flujos/eventos.compra/cerrar?id=pta-78',
+    ]);
+  });
+
+  it('«Explorar más eventos» con una compra pendiente no vacía la sesión: su llave y su pago siguen', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const store = TestBed.inject(SessionStore);
+    const antes = store.session();
+    expect(antes.payments).toHaveLength(1);
+
+    component.startOver();
+
+    expect(component.view()).toBe('catalog');
+    expect(store.session().sessionId).toBe(antes.sessionId);
+    expect(store.session().items.map((linea) => linea.holdRef)).toEqual(antes.items.map((linea) => linea.holdRef));
+    expect(store.session().payments).toEqual(antes.payments);
   });
 
   // ── reserved seating: seat-map selection drives the ticket count ──────────────

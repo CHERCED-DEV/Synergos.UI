@@ -75,9 +75,11 @@ import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './e
 import {
   CODIGO_DEMASIADOS_CODIGOS,
   PREFIJO_DEL_CUPON,
+  compraPendiente,
   cuerpoDeLaCompra,
   cuponDeLaSesion,
   llaveRetenida,
+  sinCompraPendiente,
 } from './eventos-fulfillment.strategy';
 
 /**
@@ -121,7 +123,9 @@ import {
   FLUJO_COMPRA_DE_EVENTOS,
   aMenores,
   baseDeRuta,
+  cancelarCompraDeEventos,
   clasificarRechazo,
+  consultarCompraDeEventos,
   cotizarCompraDeEventos,
   desdeMenores,
   formatearImporte,
@@ -272,6 +276,18 @@ function consumirCompraDelEnlace(): void {
   window.history.replaceState(window.history.state, '', `${window.location.pathname}${consultaSinLaCompra()}${window.location.hash}`);
 }
 
+/**
+ * La compra pendiente que el carrito pide resolver antes de elegir otra vez (ADR 0140, el cupón
+ * endurecido): `sin-respuesta` (abrir no contestó, así que nadie tiene su id), `en-curso` (su saga
+ * sigue `Running`) o `desconocida` (no se pudo leer en qué quedó). `propia` si es la de ESTA sesión
+ * —su llave o su pago—: sólo ésa se puede terminar desde aquí.
+ */
+export interface CompraPendienteEnPantalla {
+  readonly tipo: 'sin-respuesta' | 'en-curso' | 'desconocida';
+  readonly referencia: string | null;
+  readonly propia: boolean;
+}
+
 let eventosInstanceId = 0;
 
 @Component({
@@ -343,6 +359,31 @@ export class EventosElementComponent implements OnInit {
    * esta página. Se dice, y no se toca la red; NUNCA se vuelve a la ruta vieja.
    */
   readonly sinCoordinador = signal(false);
+
+  /**
+   * La compra pendiente que se resuelve antes de elegir otra vez, con lo que se puede hacer con ella
+   * (ADR 0140, el cupón endurecido); `null` sin ella. Lo que dice va en `avisoDeLaCompraPendiente`.
+   */
+  readonly pendiente = signal<CompraPendienteEnPantalla | null>(null);
+
+  /**
+   * Lo que se dice de la compra pendiente: la región viva del elemento, que existe SIEMPRE y sólo
+   * cambia su texto (regla 42). También «sí se completó» al mostrar sus entradas.
+   */
+  readonly avisoDeLaCompraPendiente = signal('');
+
+  /** «Cancelar esa compra» en vuelo: no se pide dos veces. */
+  readonly cancelandoLaPendiente = signal(false);
+
+  /** Los botones de la compra pendiente, del diccionario (sección `Events.Purchase`). */
+  readonly textosDeLaPendiente = {
+    terminar: t('Events.Purchase.PendingResume', 'Terminar mi compra'),
+    cancelar: t('Events.Purchase.PendingCancel', 'Cancelar esa compra'),
+    elegirOtras: t('Events.Purchase.PendingChooseOther', 'Elegir otras entradas'),
+  };
+
+  /** La selección que se pidió con una compra pendiente: se aplica sólo si aquélla queda sin cobro. */
+  #seleccionEnEspera: TierSelectionPayload | null = null;
 
   /**
    * La compra del enlace del aviso, ya fuera de la URL: sólo el panel del enlace sin sesión la
@@ -1161,6 +1202,10 @@ export class EventosElementComponent implements OnInit {
       return;
     }
     this.#compraDelEnlace = '';
+    // La compra del enlace es la pendiente de esta sesión: ya tiene sus entradas, y deja de estarlo.
+    if (compraPendiente(this.#store.getValidSession())?.referencia === id) {
+      this.#store.setStatus('confirmed');
+    }
     this.trasPagar.set(false);
     this.#confirmadaGratis.set(false);
     this.orderRef.set(id);
@@ -1260,6 +1305,11 @@ export class EventosElementComponent implements OnInit {
 
   private applyRoute(view: EventosView, param: string): void {
     this.errorMessage.set('');
+    // Lo de una compra pendiente vale en la vista que lo pidió: al cambiar de vista se calla. Sólo al
+    // CAMBIAR: el `hashchange` de una navegación propia puede llegar después, con la vista ya puesta.
+    if (view !== this.view()) {
+      this.#callarLaPendiente();
+    }
     switch (view) {
       case 'event':
         if (param && param !== this.detail()?.event.slug && param !== this.detail()?.event.id) {
@@ -1565,9 +1615,20 @@ export class EventosElementComponent implements OnInit {
     this.navigate('event', this.detail()?.event.slug || this.detail()?.event.id || '');
   }
 
-  /** Selección confirmed → seed attendee rows + cart line, go to cart. */
-  proceedToCart(): void {
+  /**
+   * Selección confirmed → seed attendee rows + cart line, go to cart.
+   *
+   * Con una compra pendiente en la sesión, la selección NO la reemplaza: primero se resuelve aquélla
+   * (ADR 0140, el cupón endurecido). Sin ella, lo de siempre, sin una petición más.
+   */
+  async proceedToCart(): Promise<void> {
     if (!this.canProceedSelection()) {
+      return;
+    }
+    const seleccion = this.#seleccionDeLaFicha();
+    if (seleccion && compraPendiente(this.#store.getValidSession()) !== null) {
+      this.#seleccionEnEspera = seleccion;
+      await this.#resolverLaCompraPendiente();
       return;
     }
     const count = this.ticketCount();
@@ -1581,13 +1642,27 @@ export class EventosElementComponent implements OnInit {
   }
 
   private async selectIntoCart(): Promise<void> {
+    const seleccion = this.#seleccionDeLaFicha();
+    if (!seleccion) {
+      return;
+    }
+    // La guarda también aquí, justo antes de reemplazar la sesión: venga por donde venga la selección.
+    if (compraPendiente(this.#store.getValidSession()) !== null) {
+      this.#seleccionEnEspera = seleccion;
+      await this.#resolverLaCompraPendiente();
+      return;
+    }
+    await this.#ponerEnElCarrito(seleccion);
+  }
+
+  /** Lo elegido en la ficha, como la línea que se pide al carrito; `null` sin ficha o sin localidad. */
+  #seleccionDeLaFicha(): TierSelectionPayload | null {
     const detail = this.detail();
     const tier = this.selectedTier();
     if (!detail || !tier) {
-      return;
+      return null;
     }
-    const session = this.#store.getValidSession();
-    const payload: TierSelectionPayload = {
+    return {
       eventId: detail.event.id,
       eventTitle: detail.event.title,
       tierId: tier.id,
@@ -1600,20 +1675,217 @@ export class EventosElementComponent implements OnInit {
       // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
       apiBase: this.apiBase(),
     };
+  }
+
+  /** La selección, al carrito: REEMPLAZA la sesión (el carrito de Eventos es de un solo evento). */
+  async #ponerEnElCarrito(payload: TierSelectionPayload): Promise<void> {
     const selection = await this.#fulfillment.select(
       {
-        productRef: detail.event.id,
+        productRef: payload.eventId,
         kind: 'ticket',
-        label: detail.event.title,
+        label: payload.eventTitle,
         amount: payload.amount,
         selection: payload as unknown as Readonly<Record<string, unknown>>,
       },
-      session,
+      this.#store.getValidSession(),
     );
     // Single-event cart: one tier line per order (replace prior selection).
     this.#store.reset();
     this.#store.addItem(selection.item);
     this.reprice();
+  }
+
+  // ─── La compra pendiente (ADR 0140, el cupón endurecido) ─────────────────────
+  //
+  // Elegir otra vez reemplazaba la sesión entera, y con ella la llave retenida y el pago anotado: la
+  // llave nueva abría OTRA saga y cerrar la cobraba al lado de una ya cobrada cuya respuesta se había
+  // perdido (verificación en vivo: dos cargos, mismo comprador y evento, debajo de «no se te cobrará
+  // dos veces»). Ahora la pendiente se resuelve primero, por su id.
+
+  /**
+   * Resuelve la compra pendiente de la sesión antes de aplicar la selección en espera:
+   *  - sin id (abrir no contestó): se ofrece terminarla con la MISMA llave, o elegir otras;
+   *  - `Completed`: se muestran SUS entradas, y la selección nueva no se aplica;
+   *  - `Running`: se ofrece terminarla o cancelarla;
+   *  - deshecha, o que no existe: se suelta y se aplica la selección;
+   *  - la sesión venció: el panel de sesión; cualquier otra cosa: se dice, y no se abre otra.
+   */
+  async #resolverLaCompraPendiente(): Promise<void> {
+    const pendiente = compraPendiente(this.#store.getValidSession());
+    if (!pendiente) {
+      await this.#aplicarLaSeleccionEnEspera();
+      return;
+    }
+    if (!pendiente.referencia) {
+      this.#mostrarLaPendiente({ tipo: 'sin-respuesta', referencia: null, propia: true });
+      return;
+    }
+    const leida = await consultarCompraDeEventos(this.#host, pendiente.referencia);
+    if (leida.ok) {
+      await this.#segunComoQuedo(pendiente.referencia, leida.valor.estado, true);
+      return;
+    }
+    if (leida.rechazo.code === 'eventos.purchase_not_found') {
+      await this.#soltarYAplicar();
+      return;
+    }
+    this.#noSeSupo(leida.rechazo, pendiente.referencia, true);
+  }
+
+  /** Lo que se hace con una compra pendiente según en qué quedó su saga. */
+  async #segunComoQuedo(referencia: string, estado: string, propia: boolean): Promise<void> {
+    switch (estado) {
+      case 'Completed':
+        await this.#abrirLaCompraCompletada(referencia, propia);
+        return;
+      case 'Running':
+        this.#mostrarLaPendiente({ tipo: 'en-curso', referencia, propia });
+        return;
+      case 'Compensated':
+      case 'Compensating':
+      case 'CompensationFailed':
+        if (propia) {
+          await this.#soltarYAplicar();
+        } else {
+          this.#callarLaPendiente();
+        }
+        return;
+      default:
+        this.#mostrarLaPendiente({ tipo: 'desconocida', referencia, propia });
+    }
+  }
+
+  /** No se supo en qué quedó: la sesión vencida lleva a su panel; lo demás se dice, y no se abre otra. */
+  #noSeSupo(rechazo: RechazoDelFlujo, referencia: string, propia: boolean): void {
+    if (clasificarRechazo(rechazo) === 'sesion') {
+      this.sesionVencida.set(true);
+      this.navigate('checkout');
+      return;
+    }
+    this.#mostrarLaPendiente({ tipo: 'desconocida', referencia, propia });
+  }
+
+  /**
+   * La compra pendiente SÍ se cobró: sus entradas, como las del enlace del aviso, y lo dice una vez. La
+   * selección nueva no se aplica: «No abrimos otra». La de esta sesión queda confirmada.
+   */
+  async #abrirLaCompraCompletada(referencia: string, propia: boolean): Promise<void> {
+    const titular = { name: this.#identidad.displayName(), email: this.#identidad.email(), document: '' };
+    const r = await this.#api.entradas(this.apiBase(), referencia, titular.email ? [titular] : [], {});
+    if (!r.ok) {
+      this.#noSeSupo(r.rechazo, referencia, propia);
+      return;
+    }
+    if (propia) {
+      this.#store.setStatus('confirmed');
+    }
+    this.#seleccionEnEspera = null;
+    this.trasPagar.set(false);
+    this.#confirmadaGratis.set(false);
+    this.orderRef.set(referencia);
+    this.tickets.set(r.valor.tickets);
+    this.walletLoaded.set(false);
+    this.navigate('confirmed');
+    this.avisoDeLaCompraPendiente.set(
+      t(
+        'Events.Purchase.PendingCompleted',
+        'Tu compra anterior (referencia {referencia}) sí se completó: estas son tus entradas. No abrimos otra.',
+        { referencia },
+      ),
+    );
+  }
+
+  /** En el carrito —que sigue siendo el de la compra pendiente—, lo que se puede hacer con ella. */
+  #mostrarLaPendiente(pendiente: CompraPendienteEnPantalla): void {
+    this.navigate('cart');
+    this.pendiente.set(pendiente);
+    this.avisoDeLaCompraPendiente.set(this.#fraseDeLaPendiente(pendiente));
+  }
+
+  #fraseDeLaPendiente(pendiente: CompraPendienteEnPantalla): string {
+    const referencia = pendiente.referencia ?? '';
+    switch (pendiente.tipo) {
+      case 'sin-respuesta':
+        return t(
+          'Events.Purchase.PendingUnanswered',
+          'Tu compra anterior no alcanzó a confirmarse. Termínala, o elige otras entradas: esa quedará anulada sin cobro.',
+        );
+      case 'en-curso':
+        return t(
+          'Events.Purchase.PendingOpen',
+          'Tienes una compra en curso (referencia {referencia}). Termínala o cancélala antes de elegir otras entradas.',
+          { referencia },
+        );
+      default:
+        return t(
+          'Events.Purchase.PendingUnknown',
+          'No pudimos comprobar cómo quedó tu compra anterior (referencia {referencia}). Vuelve a intentarlo en un momento: mientras tanto no abrimos otra.',
+          { referencia },
+        );
+    }
+  }
+
+  #callarLaPendiente(): void {
+    this.pendiente.set(null);
+    this.avisoDeLaCompraPendiente.set('');
+  }
+
+  /** La pendiente ya no puede cobrar (deshecha, cancelada, o sin id): se suelta y se sigue con lo elegido. */
+  async #soltarYAplicar(): Promise<void> {
+    this.#store.setSession(sinCompraPendiente(this.#store.getValidSession()));
+    await this.#aplicarLaSeleccionEnEspera();
+  }
+
+  async #aplicarLaSeleccionEnEspera(): Promise<void> {
+    const seleccion = this.#seleccionEnEspera;
+    this.#seleccionEnEspera = null;
+    this.#callarLaPendiente();
+    if (seleccion) {
+      const entradas = Math.max(1, seleccion.seats.length || seleccion.quantity);
+      const previas = this.attendees();
+      this.attendees.set(
+        Array.from({ length: entradas }, (_sin, indice) => previas[indice] ?? { name: '', email: '', document: '' }),
+      );
+      await this.#ponerEnElCarrito(seleccion);
+    }
+    this.navigate('cart');
+  }
+
+  /** «Terminar mi compra»: al checkout con la MISMA sesión: pagar reabre con su llave, o sólo cierra si ya hay pago. */
+  terminarLaCompraPendiente(): void {
+    this.#seleccionEnEspera = null;
+    this.navigate('checkout');
+  }
+
+  /** «Elegir otras entradas», cuando abrir no contestó: esa compra no se puede cobrar sin su id. */
+  async elegirOtrasEntradas(): Promise<void> {
+    if (this.pendiente()?.tipo !== 'sin-respuesta') {
+      return;
+    }
+    await this.#soltarYAplicar();
+  }
+
+  /**
+   * «Cancelar esa compra»: la compensa el orquestador y, deshecha, se sigue con lo elegido. Si ya se
+   * había completado (`eventos.already_completed`), se muestran sus entradas; si no se supo, se dice.
+   */
+  async cancelarLaCompraPendiente(): Promise<void> {
+    const pendiente = this.pendiente();
+    if (!pendiente?.referencia || this.cancelandoLaPendiente()) {
+      return;
+    }
+    this.cancelandoLaPendiente.set(true);
+    const r = await cancelarCompraDeEventos(this.#host, pendiente.referencia);
+    this.cancelandoLaPendiente.set(false);
+    if (r.ok) {
+      await this.#segunComoQuedo(pendiente.referencia, r.valor.estado, pendiente.propia);
+      return;
+    }
+    if (r.rechazo.code === 'eventos.already_completed') {
+      await this.#abrirLaCompraCompletada(pendiente.referencia, pendiente.propia);
+      return;
+    }
+    this.#noSeSupo(r.rechazo, pendiente.referencia, pendiente.propia);
   }
 
   // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
@@ -1796,7 +2068,11 @@ export class EventosElementComponent implements OnInit {
   startOver(): void {
     this.trasPagar.set(false);
     this.#confirmadaGratis.set(false);
-    this.#store.reset();
+    // Con una compra pendiente la sesión no se vacía: su llave y su pago son lo único que la encuentra
+    // (ADR 0140, el cupón endurecido). Se resuelve al elegir otra vez.
+    if (compraPendiente(this.#store.getValidSession()) === null) {
+      this.#store.reset();
+    }
     this.detail.set(null);
     this.selectedTierId.set('');
     this.quantity.set(1);

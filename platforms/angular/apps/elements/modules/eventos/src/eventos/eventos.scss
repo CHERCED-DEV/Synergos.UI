@@ -152,6 +152,27 @@
     border-radius: syn.$radius-md;
   }
 
+  // La compra pendiente (ADR 0140, el cupón endurecido). La región viva existe antes que su texto
+  // (regla 42): vacía sigue en el árbol de accesibilidad, pero no ocupa sitio ni suma un hueco.
+  &__pendiente-aviso {
+    margin: 0;
+    padding: syn.$space-sm syn.$space-md;
+    font-size: syn.px-to-rem(14);
+    color: var(--ev-text);
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+
+    &:empty {
+      @include syn.visually-hidden;
+    }
+  }
+
+  &__pendiente {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
   // ─── Hero ────────────────────────────────────────────────────────────────────
   &__hero {
     padding: syn.$space-xl syn.$space-lg;
