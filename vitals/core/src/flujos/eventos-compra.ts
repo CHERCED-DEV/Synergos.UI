@@ -23,6 +23,12 @@ export interface CompraLeida {
   readonly gratis: boolean;
   /** Cuántas entradas quedaron apartadas: tantos asistentes como esto pide el artefacto. */
   readonly apartadas: number;
+  /**
+   * Si se está deshaciendo DESPUÉS de cobrar: hay plata del comprador sin devolver (ADR 0140, el cupón
+   * endurecido). `Compensating` y `CompensationFailed` se llaman igual antes y después de capturar;
+   * sin esto, «no se te cobró nada» podía ser falso. Un orquestador de antes no lo manda: `false`.
+   */
+  readonly porDevolver: boolean;
 }
 
 export function leerCompra(r: BffEventos.TicketPurchaseResponse): CompraLeida {
@@ -33,6 +39,7 @@ export function leerCompra(r: BffEventos.TicketPurchaseResponse): CompraLeida {
     moneda: r.total.currency,
     gratis: r.total.amount === 0,
     apartadas: r.held.reduce((n, h) => n + h.quantity, 0),
+    porDevolver: r.refundPending === true,
   };
 }
 

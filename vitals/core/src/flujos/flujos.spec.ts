@@ -206,6 +206,14 @@ describe('cliente de la puerta (la tabla generada)', () => {
     expect(cabecera(llamadas[1]!, 'Idempotency-Key')).toBeNull();
   });
 
+  it('leerCompra dice si hay plata por devolver: sólo con refundPending; un orquestador de antes no lo manda', () => {
+    // ADR 0140, el cupón endurecido: Compensating se llama igual antes y después de capturar.
+    const deshaciendose = { ...compra, status: 'Compensating', pendingCompensations: 1 };
+    expect(leerCompra({ ...deshaciendose, refundPending: true })).toMatchObject({ estado: 'Compensating', porDevolver: true });
+    expect(leerCompra({ ...deshaciendose, refundPending: false }).porDevolver).toBe(false);
+    expect(leerCompra(deshaciendose as unknown as Parameters<typeof leerCompra>[0]).porDevolver).toBe(false);
+  });
+
   it('esFlujo valida contra la tabla: lo del DOM no es frontera', () => {
     expect(esFlujo('eventos.compra')).toBe(true);
     expect(esFlujo('../admin')).toBe(false);
@@ -399,7 +407,7 @@ describe('<synergos-flujo>: el coordinador', () => {
     conFetch('#c', f);
     const p = document.getElementById('p')!;
     const abierta = await abrirCompraDeEventos(p, { eventId: 'ev1', lines: [{ quantity: 2, tier: 'GEN' }] }, 'sess-1');
-    expect(abierta.ok && abierta.valor).toEqual({ id: 'saga1', estado: 'Running', importe: 100800, moneda: 'COP', gratis: false, apartadas: 2 });
+    expect(abierta.ok && abierta.valor).toEqual({ id: 'saga1', estado: 'Running', importe: 100800, moneda: 'COP', gratis: false, apartadas: 2, porDevolver: false });
     const cerrada = await cerrarCompraDeEventos(p, 'saga1');
     expect(cerrada.ok && cerrada.valor.estado).toBe('Completed');
     expect(llamadas.map((l) => [l.init.method, l.url, cabecera(l, 'Idempotency-Key')])).toEqual([
@@ -420,7 +428,7 @@ describe('<synergos-flujo>: el coordinador', () => {
     const cancelada = await cancelarCompraDeEventos(p, 'saga1');
     const completa = await cancelarCompraDeEventos(p, 'saga2');
 
-    expect(cancelada.ok && cancelada.valor).toEqual({ id: 'saga1', estado: 'Compensated', importe: 100800, moneda: 'COP', gratis: false, apartadas: 2 });
+    expect(cancelada.ok && cancelada.valor).toEqual({ id: 'saga1', estado: 'Compensated', importe: 100800, moneda: 'COP', gratis: false, apartadas: 2, porDevolver: false });
     expect(!completa.ok && completa.rechazo.code).toBe('eventos.already_completed');
     expect(!completa.ok && clasificarRechazo(completa.rechazo)).toBe('negado');
     expect(llamadas.map((l) => [l.init.method, l.url, cabecera(l, 'Idempotency-Key')])).toEqual([

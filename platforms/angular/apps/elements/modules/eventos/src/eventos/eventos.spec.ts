@@ -58,8 +58,10 @@ interface RechazoDelBorde {
    * `en_curso` un fallo a mitad de cerrar que deja la saga `Running`. Un rechazo TRANSITORIO (un 504
    * de la puerta) no toca la saga salvo que se declare: `hecho` es entonces el 504 con la captura
    * hecha, como el `route.fetch` + `fulfill 504` de la verificación en vivo del cupón endurecido.
+   * `devolviendo` y `sin_devolver` son el cobro HECHO que después se deshace —el apartado venció entre
+   * capturar y consumir—: `Compensating` o `CompensationFailed` con `refundPending` (la revisión).
    */
-  readonly cobro?: 'deshecho' | 'hecho' | 'en_curso';
+  readonly cobro?: 'deshecho' | 'hecho' | 'en_curso' | 'devolviendo' | 'sin_devolver';
   /**
    * Sólo en `POST abrir`: el orquestador SÍ abrió la saga de esa llave —apartó y autorizó— y la
    * respuesta se perdió. Nadie tiene su id.
@@ -143,6 +145,8 @@ function bordeDeEventos(
     readonly id: string;
     estado: string;
     apartadas: { tier: string; seat: string | null; quantity: number }[];
+    /** Se deshace con plata cobrada sin devolver (`refundPending`). */
+    porDevolver?: boolean;
   }
   const sagas = new Map<string, SagaDelBorde>();
   const porLlave = new Map<string, string>();
@@ -183,6 +187,7 @@ function bordeDeEventos(
     held: saga.apartadas,
     pendingCompensations: 0,
     lastError: null,
+    refundPending: saga.porDevolver === true,
   });
   const entrada = (indice: number, estadoDeLaEntrada: string) => ({
     id: `tkt_77_${indice}`,
@@ -235,7 +240,11 @@ function bordeDeEventos(
         // declare qué le pasó.
         const saga = sagaDe(idPedido);
         if (enCola.cobro === 'hecho') cobrar(saga);
-        else if (enCola.cobro === 'deshecho' || (!enCola.transient && enCola.cobro !== 'en_curso')) saga.estado = 'Compensated';
+        else if (enCola.cobro === 'devolviendo' || enCola.cobro === 'sin_devolver') {
+          cobrar(saga);
+          saga.estado = enCola.cobro === 'devolviendo' ? 'Compensating' : 'CompensationFailed';
+          saga.porDevolver = true;
+        } else if (enCola.cobro === 'deshecho' || (!enCola.transient && enCola.cobro !== 'en_curso')) saga.estado = 'Compensated';
       }
       if (clave === 'POST abrir' && enCola.abierta) {
         abrirPorLlave(cabeceras.get('Idempotency-Key') ?? '', cuerpo);
@@ -309,7 +318,12 @@ function bordeDeEventos(
           return responder(400, { title: 'Bad Request', status: 400, code: 'eventos.evento_requerido', transient: false }, 'application/problem+json');
         }
         const pendientes = [...sagas.values()]
-          .filter((saga) => anotadas.has(saga.id) && !conAcuse.has(saga.id) && (saga.estado === 'Running' || saga.estado === 'Completed'))
+          .filter(
+            (saga) =>
+              anotadas.has(saga.id) &&
+              !conAcuse.has(saga.id) &&
+              (saga.estado === 'Running' || saga.estado === 'Completed' || (saga.porDevolver === true && saga.estado.startsWith('Compensat'))),
+          )
           .map((saga) => ({ id: saga.id, status: saga.estado }));
         return responder(200, { compras: pendientes });
       }
@@ -2272,6 +2286,42 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     ]);
   });
 
+  // La revisión: «cerrar» captura y luego consume el aforo; con el apartado vencido la compra se deshace
+  // con el cobro HECHO, y lo que se deshace es una devolución. La guarda la soltaba callada y el asistente
+  // decía «Tu reserva venció»: un cobro sin devolver al lado de la compra nueva, sin que nadie lo dijera.
+  const DEVOLUCION = 'Tu compra (referencia pta-77) no se completó, pero alcanzamos a cobrarla: ya estamos tramitando la devolución de ese dinero. Puedes elegir tus entradas otra vez.';
+  const alertaDelAsistente = (): string =>
+    (fixture.nativeElement as HTMLElement).querySelector('.syn-wizard__error')?.textContent?.trim() ?? '';
+
+  it.each([
+    ['devolviendo', 'Compensating'],
+    ['sin_devolver', 'CompensationFailed'],
+  ] as const)('cerrar que cobra y se deshace (%s → %s): se dice que hay una devolución, y elegir otra vez lo repite y sigue con lo elegido', async (cobro, _estado) => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 409, code: 'inventory.hold_expired', title: 'Conflict', cobro }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(alertaDelAsistente()).toBe(DEVOLUCION);
+    expect(vecesQueSeDice('no se te cobró nada')).toBe(0);
+
+    await elegirOtraVez();
+
+    expect(component.pendiente()).toBeNull();
+    expect(component.view()).toBe('cart');
+    expect(avisoDeLaPendiente()).toBe(DEVOLUCION);
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
+
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+  });
+
   it('«Explorar más eventos» con una compra pendiente no vacía la sesión: su llave y su pago siguen', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
@@ -2361,6 +2411,35 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.view()).toBe('confirmed');
     expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
     expect(borde.cobradas()).toEqual(['pta-78']);
+  });
+
+  it('desde OTRO dispositivo, con una compra que se deshizo DESPUÉS de cobrar, pagar lo dice una vez y, la segunda, abre la nueva', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 409, code: 'inventory.hold_expired', title: 'Conflict', cobro: 'sin_devolver' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await enOtroDispositivo();
+    const antes = pendientesPedidas(borde).length;
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('cart');
+    expect(component.pendiente()).toBeNull();
+    expect(avisoDeLaPendiente()).toBe(DEVOLUCION);
+
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    // Pagar (frena), la lista que se pinta, y pagar otra vez (ya avisada, no frena).
+    expect(pendientesPedidas(borde).length - antes).toBe(3);
   });
 
   it('si el servidor no contesta por las compras sin acuse, se degrada por AUSENCIA: se abre como siempre', async () => {

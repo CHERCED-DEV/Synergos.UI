@@ -73,12 +73,14 @@ import { HostIdentityService } from '@synergos/core';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
 import {
+  CODIGO_COBRO_POR_DEVOLVER,
   CODIGO_COMPRA_SIN_ACUSE,
   CODIGO_DEMASIADOS_CODIGOS,
   PREFIJO_DEL_CUPON,
   compraPendiente,
   cuerpoDeLaCompra,
   cuponDeLaSesion,
+  esPorDevolver,
   llaveRetenida,
   sinCompraPendiente,
 } from './eventos-fulfillment.strategy';
@@ -375,6 +377,12 @@ export class EventosElementComponent implements OnInit {
 
   /** «Cancelar esa compra» en vuelo: no se pide dos veces. */
   readonly cancelandoLaPendiente = signal(false);
+
+  /**
+   * Las compras con un cobro por devolver que ya se le dijeron a la persona (ADR 0140, el cupón
+   * endurecido): viajan en el instrumento, y `pay` no vuelve a frenar por ellas.
+   */
+  readonly #comprasAvisadas = signal<readonly string[]>([]);
 
   /** Los botones de la compra pendiente, del diccionario (sección `Events.Purchase`). */
   readonly textosDeLaPendiente = {
@@ -842,8 +850,11 @@ export class EventosElementComponent implements OnInit {
    * propia (`null`) a los avisos de arriba, que nombran lo que QUEDÓ: nada cobrado, o una compra
    * apartada con su referencia. Nunca se decide por `title`: la puerta pone ahí la frase HTTP.
    */
-  readonly #mensajeDeFallo = (motivo: string): string | null => {
+  readonly #mensajeDeFallo = (motivo: string, referencia = ''): string | null => {
     switch (motivo) {
+      case CODIGO_COBRO_POR_DEVOLVER:
+        // Se deshizo DESPUÉS de cobrar: hay plata por devolver, y «no se te cobró nada» sería falso.
+        return this.#fraseDeLaDevolucion(referencia);
       case 'inventory.insufficient_stock':
       case 'inventory.unit_taken':
         return t('Events.Purchase.SoldOut', 'No quedan entradas suficientes para tu selección.');
@@ -921,6 +932,7 @@ export class EventosElementComponent implements OnInit {
         document: a.document.trim(),
       })),
       provider: this.isFreeEvent() ? 'eventos-free' : 'eventos',
+      comprasAvisadas: this.#comprasAvisadas(),
     };
   });
 
@@ -1723,7 +1735,7 @@ export class EventosElementComponent implements OnInit {
     }
     const leida = await consultarCompraDeEventos(this.#host, pendiente.referencia);
     if (leida.ok) {
-      await this.#segunComoQuedo(pendiente.referencia, leida.valor.estado, true);
+      await this.#segunComoQuedo(pendiente.referencia, leida.valor.estado, true, leida.valor.porDevolver);
       return;
     }
     if (leida.rechazo.code === 'eventos.purchase_not_found') {
@@ -1733,8 +1745,12 @@ export class EventosElementComponent implements OnInit {
     this.#noSeSupo(leida.rechazo, pendiente.referencia, true);
   }
 
-  /** Lo que se hace con una compra pendiente según en qué quedó su saga. */
-  async #segunComoQuedo(referencia: string, estado: string, propia: boolean): Promise<void> {
+  /**
+   * Lo que se hace con una compra pendiente según en qué quedó su saga. Deshecha o deshaciéndose ya no
+   * puede cobrar; pero si se deshace DESPUÉS de cobrar (`porDevolver`) hay plata por devolver, y eso se
+   * DICE antes de seguir: soltarla callada era «no se te cobró nada» con un cobro sin devolver.
+   */
+  async #segunComoQuedo(referencia: string, estado: string, propia: boolean, porDevolver = false): Promise<void> {
     switch (estado) {
       case 'Completed':
         await this.#abrirLaCompraCompletada(referencia, propia);
@@ -1749,6 +1765,12 @@ export class EventosElementComponent implements OnInit {
           await this.#soltarYAplicar();
         } else {
           this.#callarLaPendiente();
+        }
+        if (porDevolver && esPorDevolver(estado)) {
+          // Se dice una vez, y la compra que se elija después no la vuelve a frenar.
+          this.#comprasAvisadas.update((ya) => (ya.includes(referencia) ? ya : [...ya, referencia]));
+          this.navigate('cart');
+          this.avisoDeLaCompraPendiente.set(this.#fraseDeLaDevolucion(referencia));
         }
         return;
       default:
@@ -1826,6 +1848,14 @@ export class EventosElementComponent implements OnInit {
     }
   }
 
+  #fraseDeLaDevolucion(referencia: string): string {
+    return t(
+      'Events.Purchase.RefundInProgress',
+      'Tu compra (referencia {referencia}) no se completó, pero alcanzamos a cobrarla: ya estamos tramitando la devolución de ese dinero. Puedes elegir tus entradas otra vez.',
+      { referencia },
+    );
+  }
+
   #callarLaPendiente(): void {
     this.pendiente.set(null);
     this.avisoDeLaCompraPendiente.set('');
@@ -1879,7 +1909,7 @@ export class EventosElementComponent implements OnInit {
     const r = await cancelarCompraDeEventos(this.#host, pendiente.referencia);
     this.cancelandoLaPendiente.set(false);
     if (r.ok) {
-      await this.#segunComoQuedo(pendiente.referencia, r.valor.estado, pendiente.propia);
+      await this.#segunComoQuedo(pendiente.referencia, r.valor.estado, pendiente.propia, r.valor.porDevolver);
       return;
     }
     if (r.rechazo.code === 'eventos.already_completed') {
@@ -2049,9 +2079,13 @@ export class EventosElementComponent implements OnInit {
     if (!r.ok || r.valor.length === 0) {
       return;
     }
-    const compra =
-      r.valor.find((c) => c.estado === 'Completed') ?? r.valor.find((c) => c.estado === 'Running') ?? r.valor[0]!;
-    await this.#segunComoQuedo(compra.id, compra.estado, false);
+    const avisadas = this.#comprasAvisadas();
+    const frenan = r.valor.filter((c) => !(esPorDevolver(c.estado) && avisadas.includes(c.id)));
+    const compra = frenan.find((c) => c.estado === 'Completed') ?? frenan.find((c) => c.estado === 'Running') ?? frenan[0];
+    if (compra) {
+      // El servidor sólo informa una que se deshace si es con un cobro por devolver.
+      await this.#segunComoQuedo(compra.id, compra.estado, false, true);
+    }
   }
 
   onCheckoutCompleted(result: CheckoutWizardResult): void {

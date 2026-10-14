@@ -29,6 +29,7 @@ import {
   cerrarCompraDeEventos,
   clasificarRechazo,
   consultarCompraDeEventos,
+  type CompraLeida,
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 
@@ -54,6 +55,8 @@ interface EventosPayInstrument {
   readonly eventTitle?: string;
   readonly venueName?: string;
   readonly startsAt?: string;
+  /** Las compras con un cobro por devolver que el elemento ya le dijo a la persona: no frenan otra vez. */
+  readonly comprasAvisadas?: readonly string[];
 }
 
 /**
@@ -164,7 +167,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     // recarga y al login. Sólo viaja el CÓDIGO; el descuento lo vuelve a calcular Pricing al abrir.
     const codigo = cuponDeLaSesion(request.session.pricing)?.codigo ?? null;
     const retenida = llaveRetenida(request.session);
-    if (retenida === null && (await this.hayComprasSinAcuse(instrument.apiBase ?? apiBaseOf(request.session), request.session))) {
+    if (retenida === null && (await this.hayComprasSinAcuse(instrument.apiBase ?? apiBaseOf(request.session), request.session, instrument.comprasAvisadas ?? []))) {
       return { accepted: false, reason: CODIGO_COMPRA_SIN_ACUSE };
     }
     const llave = retenida ?? llaveDeLaIntencion(request.session.sessionId, codigo);
@@ -231,6 +234,8 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    *  - `Compensated`: la saga se deshizo. El último pago se marca `failed` y el siguiente clic vuelve
    *    a `pay`, que abre con la MISMA llave y el orquestador reabre la saga deshecha.
    *  - `Completed`: cerrar sí cobró; se sigue a las entradas como si hubiera contestado bien.
+   *  - deshaciéndose DESPUÉS de cobrar (`porDevolver`: el apartado venció entre capturar y consumir):
+   *    `eventos.cobro_por_devolver`, y el pago se queda —su referencia va en el aviso—.
    *  - cualquier otro (o sin respuesta): no se afirma nada; el pago se queda y se dice lo que quedó
    *    apartado, con su referencia.
    */
@@ -246,12 +251,14 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     }
     const cerrada = await cerrarCompraDeEventos(host, id);
     if (!cerrada.ok) {
-      const estado = cerrada.rechazo.transient ? '' : await this.estadoDeLaCompra(host, id);
-      if (estado !== 'Completed') {
-        if (estado === 'Compensated') {
+      const leida = cerrada.rechazo.transient ? null : await this.compraLeida(host, id);
+      if (leida?.estado !== 'Completed') {
+        if (leida?.estado === 'Compensated') {
           this.marcarElPagoFallido();
         }
-        return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
+        // Deshaciéndose DESPUÉS de cobrar (el apartado venció entre capturar y consumir): el pago se
+        // queda —el aviso lleva su referencia— y se dice que hay una devolución, no «no se te cobró».
+        return { confirmed: false, reason: leida?.porDevolver ? CODIGO_COBRO_POR_DEVOLVER : cerrada.rechazo.code, vouchers: [] };
       }
     }
 
@@ -300,15 +307,17 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * devuelve su saga. Si la pregunta no se puede contestar, se degrada por AUSENCIA: no se sabe de
    * ninguna, y se abre como siempre (la guarda de la sesión sigue).
    */
-  private async hayComprasSinAcuse(apiBase: string, session: SessionData): Promise<boolean> {
+  private async hayComprasSinAcuse(apiBase: string, session: SessionData, avisadas: readonly string[]): Promise<boolean> {
     const pendientes = await this.#api.comprasPendientes(apiBase, eventIdOf(session));
-    return pendientes.ok && pendientes.valor.length > 0;
+    // Una que se deshace con un cobro por devolver no se duplica comprando otra: se dice UNA vez
+    // (el elemento la anota en `avisadas`) y después no frena.
+    return pendientes.ok && pendientes.valor.some((c) => !(esPorDevolver(c.estado) && avisadas.includes(c.id)));
   }
 
-  /** El estado de la saga según el orquestador (`Completed`, `Compensated`…), o '' si no se pudo leer. */
-  private async estadoDeLaCompra(host: Element, id: string): Promise<string> {
+  /** La saga según el orquestador (su estado y si hay plata por devolver), o `null` si no se pudo leer. */
+  private async compraLeida(host: Element, id: string): Promise<CompraLeida | null> {
     const leida = await consultarCompraDeEventos(host, id);
-    return leida.ok ? leida.valor.estado : '';
+    return leida.ok ? leida.valor : null;
   }
 
   /**
@@ -423,6 +432,20 @@ export const CODIGO_DEMASIADOS_CODIGOS = 'eventos.demasiados_codigos';
  * nueva la duplicaría. No sale del servidor: lo pone la estrategia, y el elemento pinta esas compras.
  */
 export const CODIGO_COMPRA_SIN_ACUSE = 'eventos.compra_sin_acuse';
+
+/**
+ * El motivo con que `confirm` NO confirma cuando la compra se deshace DESPUÉS de cobrar (ADR 0140, el
+ * cupón endurecido): `cerrar` capturó y el apartado ya había vencido, así que lo que se deshace es una
+ * devolución. No sale del servidor: lo pone la estrategia con `refundPending`, y el elemento dice que
+ * hay plata por devolver en vez de «no se te cobró nada».
+ */
+export const CODIGO_COBRO_POR_DEVOLVER = 'eventos.cobro_por_devolver';
+
+/**
+ * Los estados en que el servidor informa una compra SÓLO si se deshace con un cobro por devolver
+ * (`GET …/compras/pendientes`); en una compra leída lo dice `porDevolver`.
+ */
+export const esPorDevolver = (estado: string): boolean => estado === 'Compensating' || estado === 'CompensationFailed';
 
 /**
  * La llave con la que se envió abrir y cuya saga todavía puede cobrar, o `null` (ADR 0140, el cupón
