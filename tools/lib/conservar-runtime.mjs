@@ -224,34 +224,45 @@ export async function guardarAntesDeLimpiar({ salida, tmp, fs, frameworks = FRAM
 }
 
 /**
- * Un GET al origen que aguanta un parpadeo de la red.
+ * Un GET al origen que aguanta un parpadeo de la red, CUERPO INCLUIDO.
  *
  * Sin respuesta o con un 5xx se reintenta un par de veces antes de rendirse:
  * medido en la integración, un `fetch failed` suelto contra el CDN público
- * paraba un `build:cdn` que un segundo después habría pasado. Un 404, un 200
- * o cualquier otro 4xx SON respuestas y se devuelven en el acto. Agotados los
- * intentos, sin red LANZA y con un 5xx lo devuelve: quien llama para igual.
+ * paraba un `build:cdn` que un segundo después habría pasado. Y el cuerpo de un
+ * 200 se lee DENTRO del intento: `fetch` se resuelve con las cabeceras, así que
+ * un corte a mitad de la descarga —o el `AbortSignal.timeout` de quien llama,
+ * que también aborta la lectura— lanzaba fuera de los reintentos, al primero
+ * (revisión de la conservación, CMS#201). Un 404 o cualquier otro 4xx SON
+ * respuestas y se devuelven en el acto, sin cuerpo. Agotados los intentos, sin
+ * red LANZA y con un 5xx lo devuelve: quien llama para igual.
  *
  * @param {{ intentos?: number, espera?: number, esperar?: (ms: number) => Promise<void> }} [reintentos]
+ * @returns {Promise<{ status: number, cuerpo: Buffer | null }>} el cuerpo, sólo de un 200
  */
 async function pedirAlOrigen(fetch, url, { intentos = 3, espera = 1000, esperar } = {}) {
   const dormir = esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   for (let intento = 1; ; intento += 1) {
-    let respuesta = null;
+    let status = 0;
+    let cuerpo = null;
     let error = null;
     try {
-      respuesta = await fetch(url);
+      const respuesta = await fetch(url);
+      status = respuesta.status;
+      if (status === 200) {
+        cuerpo = Buffer.from(await respuesta.arrayBuffer());
+      } else {
+        await respuesta.body?.cancel?.();
+      }
     } catch (err) {
       error = err;
     }
-    const reintentable = error !== null || respuesta.status >= 500;
+    const reintentable = error !== null || status >= 500;
     if (!reintentable || intento >= intentos) {
       if (error !== null) {
         throw new Error(`el origen no contesta (${url}): ${error?.message ?? error} (${intento} intento(s)).`);
       }
-      return respuesta;
+      return { status, cuerpo };
     }
-    await respuesta?.body?.cancel?.();
     await dormir(espera * intento);
   }
 }
@@ -262,16 +273,12 @@ async function pedirAlOrigen(fetch, url, { intentos = 3, espera = 1000, esperar 
  */
 export async function leerLibroVivo({ origen, framework, fetch, reintentos }) {
   const url = `${origen}/synergos/${RUNTIME}/${framework}/latest/${LIBRO}`;
-  const respuesta = await pedirAlOrigen(fetch, url, reintentos);
-  if (respuesta.status === 404) {
-    await respuesta.body?.cancel?.();
-    return null;
+  const { status, cuerpo } = await pedirAlOrigen(fetch, url, reintentos);
+  if (status === 404) return null;
+  if (status !== 200) {
+    throw new Error(`el origen contesta ${status} a ${url}: no se sabe qué tiene publicado.`);
   }
-  if (respuesta.status !== 200) {
-    await respuesta.body?.cancel?.();
-    throw new Error(`el origen contesta ${respuesta.status} a ${url}: no se sabe qué tiene publicado.`);
-  }
-  return leerLibro(await respuesta.text(), framework);
+  return leerLibro(cuerpo.toString('utf8'), framework);
 }
 
 /**
@@ -282,8 +289,7 @@ export async function leerLibroVivo({ origen, framework, fetch, reintentos }) {
 export async function comprobarQueEsElCdn({ origen, fetch, reintentos }) {
   const url = `${origen}/synergos/registry.json`;
   const respuesta = await pedirAlOrigen(fetch, url, reintentos);
-  const texto = respuesta.status === 200 ? await respuesta.text() : null;
-  if (texto === null) await respuesta.body?.cancel?.();
+  const texto = respuesta.status === 200 ? respuesta.cuerpo.toString('utf8') : null;
   let registro = null;
   try {
     registro = texto === null ? null : JSON.parse(texto);
@@ -333,15 +339,13 @@ export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAM
       if ((await leerSiExiste(fs, destino)) !== null) continue;
 
       const url = `${origen}/synergos/${RUNTIME}/${framework}/${ruta.relativa}`;
-      const respuesta = await pedirAlOrigen(fetch, url, reintentos);
-      if (respuesta.status !== 200) {
-        await respuesta.body?.cancel?.();
+      const { status, cuerpo: bytes } = await pedirAlOrigen(fetch, url, reintentos);
+      if (status !== 200) {
         throw new Error(
-          `el libro declara ${ruta.relativa} y el origen contesta ${respuesta.status} (${url}). ` +
+          `el libro declara ${ruta.relativa} y el origen contesta ${status} (${url}). ` +
             `Una generación publicada que no se puede recuperar no se da por perdida en silencio.`,
         );
       }
-      const bytes = Buffer.from(await respuesta.arrayBuffer());
       verificar(entrada, ruta, bytes, url);
       await escribirAtomico(fs, destino, bytes);
       bajados += 1;

@@ -64,6 +64,18 @@ function fetchDe(arbol, pedidas = []) {
 }
 
 const libroAngularCon = (...entradas) => serializarLibro(fusionarLibro(libroVacio('angular'), entradas));
+
+/** Un 200 cuyo cuerpo se corta a mitad: las cabeceras llegan, la lectura lanza («terminated»). */
+const cuerpoQueSeCorta = (prefijo) =>
+  new Response(
+    new ReadableStream({
+      start(c) {
+        c.enqueue(typeof prefijo === 'string' ? bytes(prefijo) : prefijo);
+        c.error(new TypeError('terminated'));
+      },
+    }),
+    { status: 200 },
+  );
 /** Lo que prueba que el origen ES un CDN de Synergos: su registry. */
 const conRegistry = { '/synergos/registry.json': { status: 200, cuerpo: '{"elements":[]}' } };
 /** El CDN, con su registry, sin libro de Preact. */
@@ -163,6 +175,34 @@ describe('el libro del CDN vivo', () => {
     const [noEsta, leerNoEsta] = contar(() => new Response(null, { status: 404 }));
     expect(await leerNoEsta()).toBeNull();
     expect(noEsta.n).toBe(1);
+  });
+
+  it('un corte a mitad del CUERPO también se reintenta: fetch se resuelve con las cabeceras', async () => {
+    // La revisión: un corte a mitad de la descarga —o el AbortSignal.timeout de build-cdn, que aborta
+    // también la lectura— lanzaba fuera de los reintentos y paraba build:cdn al primer intento.
+    const libro = libroAngularCon(entradaPara('angular', '21.1.6', 'sg-shared.js', bytes('sg-shared de ayer')));
+    let llamadas = 0;
+    const fetch = async () => {
+      llamadas += 1;
+      return llamadas === 1 ? cuerpoQueSeCorta(libro.slice(0, 20)) : new Response(libro, { status: 200 });
+    };
+
+    const vivo = await leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA });
+
+    expect(vivo.entradas).toHaveLength(1);
+    expect(llamadas).toBe(2);
+  });
+
+  it('…y un cuerpo que se corta SIEMPRE para con «no contesta» a los tres intentos', async () => {
+    let llamadas = 0;
+    const fetch = async () => {
+      llamadas += 1;
+      return cuerpoQueSeCorta('{"framework":');
+    };
+    await expect(leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA })).rejects.toThrow(
+      /no contesta .*terminated.*\(3 intento\(s\)\)/,
+    );
+    expect(llamadas).toBe(3);
   });
 
   it('un 200 da el libro, y uno con una entrada cuyo nombre no es su huella LANZA', async () => {
@@ -301,6 +341,31 @@ describe('guardar, bajar y restaurar — sobre un disco de verdad', { timeout: 3
     await restaurarDespuesDeLimpiar({ salida, tmp, fs: fsp });
     expect(readFileSync(rt(VER, entrada.url.split('/').at(-1)))).toEqual(viejo);
     expect(JSON.parse(readFileSync(rt('latest', LIBRO), 'utf8')).entradas).toEqual([entrada]);
+  });
+
+  it('el fichero grande cuya descarga se corta a mitad se pide otra vez y se conserva VERIFICADO', async () => {
+    // El caso con más exposición de la revisión: bajar sg-shared.<h>.js (~800 KB) y que el socket se
+    // corte a los 100 KB. El segundo GET lo habría servido entero, y antes ni se intentaba.
+    const grande = Buffer.alloc(800 * 1024, 7);
+    const entrada = entradaPara('angular', VER, 'sg-shared.js', grande);
+    const rutaDelFichero = new URL(entrada.url, ORIGEN).pathname;
+    const arbol = fetchDe({
+      ...sinLibros,
+      '/synergos/runtime/angular/latest/huellas.json': { status: 200, cuerpo: libroAngularCon(entrada) },
+      [rutaDelFichero]: { status: 200, cuerpo: grande },
+    });
+    let delFichero = 0;
+    const fetch = async (url) => {
+      if (new URL(url).pathname === rutaDelFichero && ++delFichero === 1) return cuerpoQueSeCorta(grande.subarray(0, 100 * 1024));
+      return arbol(url);
+    };
+
+    const resumen = await bajarDelOrigen({ tmp, origen: ORIGEN, fetch, fs: fsp, reintentos: SIN_ESPERA });
+
+    expect(resumen.angular).toMatchObject({ vivo: true, entradas: 1, bajados: 1 });
+    expect(delFichero).toBe(2);
+    await restaurarDespuesDeLimpiar({ salida, tmp, fs: fsp });
+    expect(readFileSync(rt(VER, entrada.url.split('/').at(-1)))).toEqual(grande);
   });
 
   it('un fichero del origen cuyo sha256 NO casa con el libro PARA, y no se conserva', async () => {
