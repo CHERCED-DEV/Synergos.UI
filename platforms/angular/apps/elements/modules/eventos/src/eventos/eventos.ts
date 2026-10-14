@@ -1389,6 +1389,7 @@ export class EventosElementComponent implements OnInit {
         // Sin coordinador arriba no hay a quién pedirle la compra por la puerta: se dice antes de los
         // asistentes. La ruta directa no lo necesita.
         this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_COMPRA_DE_EVENTOS));
+        this.#sinElCuponQueNoViaja();
         this.sembrarAsistentes();
         this.view.set('checkout');
         return;
@@ -2791,6 +2792,20 @@ export class EventosElementComponent implements OnInit {
     this.promoRejection.set(null);
     this.promoDetail.set('');
     this.reprice();
+  }
+
+  /**
+   * Por la ruta directa no viaja ningún código (ADR 0140): una línea `promo:` que quedara en la sesión
+   * —la cotizó la puerta antes de que el CMS cambiara de camino, y la sesión sobrevive a la recarga— se
+   * quita al llegar al checkout, y el total vuelve a ser el de las entradas con sus cargos. Si no, el
+   * carrito no pintaba el descuento pero «Tu orden» sí lo restaba, sin la fila que lo explica, y el pago
+   * se anotaba por ese total mientras `/checkout` cobraba el completo. Ni el campo lo dejaba quitar: con
+   * «directa» no se pinta. Lo que ya salió no se toca (`cuponFijado`): sigue por su camino.
+   */
+  #sinElCuponQueNoViaja(): void {
+    if (!this.porLaPuerta() && !this.cuponFijado() && cuponDeLaSesion(this.#store.pricing()) !== null) {
+      this.reprice();
+    }
   }
 
   /** Lo que contestó el servidor, a la sesión: sus importes, no unos calculados acá. */

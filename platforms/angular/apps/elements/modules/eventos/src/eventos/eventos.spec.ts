@@ -3251,7 +3251,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(borde.llamadas('POST /confirm')).toBe(2);
   });
 
-  it('camino «directa»: el cupón no se ofrece ni se cotiza, y uno que quedara en la sesión no se pinta (esa ruta no recibe códigos)', async () => {
+  it('camino «directa»: el cupón no se ofrece ni se cotiza (esa ruta no recibe códigos)', async () => {
     caminoDirecto = true;
     installMemoryStorage();
     const borde = bordeDeEventos({ rutaDirecta: true });
@@ -3263,17 +3263,42 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('syn-promo-code')).toBeNull();
     await component.applyPromo('BIENVENIDA10');
     expect(borde.llamadas('POST cotizar')).toBe(0);
+  });
 
-    // Una línea `promo:` de antes —la sesión sobrevive a un cambio de camino—: ni se pinta ni baja el total.
-    const store = TestBed.inject(SessionStore);
-    store.setPricing({
-      ...store.pricing(),
-      breakdown: [...store.pricing().breakdown, { code: 'promo:BIENVENIDA10', label: 'Descuento', amount: -16_800 }],
-    });
+  it('camino «directa» tras recargar con un cupón que cotizó la puerta: al llegar al checkout se quita, y el carrito, «Tu orden» y el pago dicen el mismo total', async () => {
+    // La revisión del camino de compra: el carrito dejaba de pintar el descuento, pero el total de «Tu
+    // orden» seguía siendo el de la sesión —con el descuento del servidor, sin la fila que lo explica— y el
+    // pago se anotaba por él, mientras `/checkout` cobra el completo. El cupón se aplica de verdad (lo
+    // cotiza la puerta y baja el total de la sesión), no se pega una línea a mano.
+    caminoDirecto = true;
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await alRevisar();
+    await component.applyPromo('BIENVENIDA10');
     fixture.detectChanges();
-    expect(component.promo()).toBeNull();
-    expect(component.cartSummary().map((fila) => fila.id)).not.toContain('promo');
-    expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
+    const descontado = TestBed.inject(SessionStore).pricing().totalAmount;
+    expect(component.promo()?.codigo).toBe('BIENVENIDA10');
+
+    await recargarCon(DIRECTA, almacen);
+    component.goToCheckout();
+    fixture.detectChanges();
+
+    const store = TestBed.inject(SessionStore);
+    const completo = component.cartSubtotalMinor() + component.feesMinor();
+    expect(completo).not.toBe(descontado);
+    expect(store.pricing().totalAmount).toBe(completo);
+    expect(store.pricing().breakdown.map((linea) => linea.code).filter((code) => code.startsWith('promo:'))).toEqual([]);
+    expect(component.cartTotalMinor()).toBe(completo);
+    expect(asistente().totalLabel()).toBe(component.cartTotalLabel());
+    expect(component.resumenDelAsistente().map((fila) => fila.id)).not.toContain('promo');
+
+    await reintentarElPago();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(store.session().payments.at(-1)?.amount).toBe(completo);
   });
 
   // La revisión del camino de compra: con «directa», elegir otra vez descartaba la orden con un pago
