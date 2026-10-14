@@ -2414,6 +2414,10 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.view()).toBe('cart');
     expect(component.pendiente()).toEqual({ tipo: 'en-curso', referencia: 'pta-77', propia: false });
     expect(botonesDeLaPendiente()).toEqual(['Cancelar esa compra']);
+    // Sin «Termínala» a secas: desde aquí no se termina (la revisión).
+    expect(avisoDeLaPendiente()).toBe(
+      'Tienes otra compra en curso para este evento (referencia pta-77) que no empezaste aquí. Termínala donde la empezaste, o cancélala aquí, antes de elegir otras entradas.',
+    );
 
     await pulsar('Cancelar esa compra');
     expect(component.pendiente()).toBeNull();
@@ -2482,6 +2486,33 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
     // Pagar (frena), la lista que se pinta, y pagar otra vez (ya avisada, no frena).
     expect(pendientesPedidas(borde).length - antes).toBe(3);
+  });
+
+  it('desde OTRO dispositivo, una compra que el servidor no pudo leer se dice sin prometer «no abrimos otra»', async () => {
+    // La revisión: la frase de la guarda de la sesión prometía «mientras tanto no abrimos otra», y la
+    // siguiente pregunta al servidor puede no contestarse y degradar por ausencia. Desde aquí no se promete.
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar() });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await enOtroDispositivo();
+    vi.stubGlobal('fetch', ((url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).includes('/compras/pendientes')
+        ? Promise.resolve(new Response(JSON.stringify({ compras: [{ id: 'pta-77', status: 'Unknown' }] }), { status: 200, headers: { 'content-type': 'application/json' } }))
+        : borde.fetchDoble(url, init)) as typeof fetch);
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.pendiente()).toEqual({ tipo: 'desconocida', referencia: 'pta-77', propia: false });
+    expect(avisoDeLaPendiente()).toBe(
+      'No pudimos comprobar cómo quedó otra compra tuya para este evento (referencia pta-77). Vuelve a intentarlo en un momento.',
+    );
+    expect(vecesQueSeDice('no abrimos otra')).toBe(0);
+    expect(botonesDeLaPendiente()).toEqual([]);
   });
 
   it('si el servidor no contesta por las compras sin acuse, se degrada por AUSENCIA: se abre como siempre', async () => {

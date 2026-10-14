@@ -1840,18 +1840,33 @@ export class EventosElementComponent implements OnInit {
           'Events.Purchase.PendingUnanswered',
           'Tu compra anterior no alcanzó a confirmarse. Termínala, o elige otras entradas: esa quedará anulada sin cobro.',
         );
+      // Una que no es de esta sesión (la fase D) no se termina desde aquí —sólo se cancela—, y su «no
+      // abrimos otra» no lo sostiene ninguna guarda: la siguiente pregunta puede no contestarse. Cada
+      // frase dice sólo lo que el código hace.
       case 'en-curso':
-        return t(
-          'Events.Purchase.PendingOpen',
-          'Tienes una compra en curso (referencia {referencia}). Termínala o cancélala antes de elegir otras entradas.',
-          { referencia },
-        );
+        return pendiente.propia
+          ? t(
+              'Events.Purchase.PendingOpen',
+              'Tienes una compra en curso (referencia {referencia}). Termínala o cancélala antes de elegir otras entradas.',
+              { referencia },
+            )
+          : t(
+              'Events.Purchase.PendingOpenElsewhere',
+              'Tienes otra compra en curso para este evento (referencia {referencia}) que no empezaste aquí. Termínala donde la empezaste, o cancélala aquí, antes de elegir otras entradas.',
+              { referencia },
+            );
       default:
-        return t(
-          'Events.Purchase.PendingUnknown',
-          'No pudimos comprobar cómo quedó tu compra anterior (referencia {referencia}). Vuelve a intentarlo en un momento: mientras tanto no abrimos otra.',
-          { referencia },
-        );
+        return pendiente.propia
+          ? t(
+              'Events.Purchase.PendingUnknown',
+              'No pudimos comprobar cómo quedó tu compra anterior (referencia {referencia}). Vuelve a intentarlo en un momento: mientras tanto no abrimos otra.',
+              { referencia },
+            )
+          : t(
+              'Events.Purchase.PendingUnknownElsewhere',
+              'No pudimos comprobar cómo quedó otra compra tuya para este evento (referencia {referencia}). Vuelve a intentarlo en un momento.',
+              { referencia },
+            );
     }
   }
 
