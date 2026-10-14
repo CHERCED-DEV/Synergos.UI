@@ -163,17 +163,45 @@ export async function guardarAntesDeLimpiar({ salida, tmp, fs, frameworks = FRAM
 }
 
 /**
+ * Un GET al origen que aguanta un parpadeo de la red.
+ *
+ * Sin respuesta o con un 5xx se reintenta un par de veces antes de rendirse:
+ * medido en la integración, un `fetch failed` suelto contra el CDN público
+ * paraba un `build:cdn` que un segundo después habría pasado. Un 404, un 200
+ * o cualquier otro 4xx SON respuestas y se devuelven en el acto. Agotados los
+ * intentos, sin red LANZA y con un 5xx lo devuelve: quien llama para igual.
+ *
+ * @param {{ intentos?: number, espera?: number, esperar?: (ms: number) => Promise<void> }} [reintentos]
+ */
+async function pedirAlOrigen(fetch, url, { intentos = 3, espera = 1000, esperar } = {}) {
+  const dormir = esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  for (let intento = 1; ; intento += 1) {
+    let respuesta = null;
+    let error = null;
+    try {
+      respuesta = await fetch(url);
+    } catch (err) {
+      error = err;
+    }
+    const reintentable = error !== null || respuesta.status >= 500;
+    if (!reintentable || intento >= intentos) {
+      if (error !== null) {
+        throw new Error(`el origen no contesta (${url}): ${error?.message ?? error} (${intento} intento(s)).`);
+      }
+      return respuesta;
+    }
+    await respuesta?.body?.cancel?.();
+    await dormir(espera * intento);
+  }
+}
+
+/**
  * El libro del CDN vivo, o `null` si el origen contesta que no lo tiene (404).
  * Cualquier otra cosa —sin red, un 5xx, un 403— LANZA: no saber no es «no hay».
  */
-export async function leerLibroVivo({ origen, framework, fetch }) {
+export async function leerLibroVivo({ origen, framework, fetch, reintentos }) {
   const url = `${origen}/synergos/${RUNTIME}/${framework}/latest/${LIBRO}`;
-  let respuesta;
-  try {
-    respuesta = await fetch(url);
-  } catch (err) {
-    throw new Error(`el origen no contesta (${url}): ${err?.message ?? err}.`);
-  }
+  const respuesta = await pedirAlOrigen(fetch, url, reintentos);
   if (respuesta.status === 404) {
     await respuesta.body?.cancel?.();
     return null;
@@ -191,10 +219,10 @@ export async function leerLibroVivo({ origen, framework, fetch }) {
  *
  * @returns {Promise<Record<string, { vivo: boolean, entradas: number, bajados: number }>>}
  */
-export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAMEWORKS, log = () => {} }) {
+export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAMEWORKS, log = () => {}, reintentos }) {
   const resumen = {};
   for (const framework of frameworks) {
-    const vivo = await leerLibroVivo({ origen, framework, fetch });
+    const vivo = await leerLibroVivo({ origen, framework, fetch, reintentos });
     const rutaLibro = path.join(tmp, framework, 'latest', LIBRO);
     const textoLocal = await leerSiExiste(fs, rutaLibro);
     const local = textoLocal === null ? libroVacio(framework) : leerLibro(String(textoLocal), framework);
@@ -214,12 +242,7 @@ export async function bajarDelOrigen({ tmp, origen, fetch, fs, frameworks = FRAM
       if ((await leerSiExiste(fs, destino)) !== null) continue;
 
       const url = `${origen}/synergos/${RUNTIME}/${framework}/${ruta.relativa}`;
-      let respuesta;
-      try {
-        respuesta = await fetch(url);
-      } catch (err) {
-        throw new Error(`el origen no contesta (${url}): ${err?.message ?? err}.`);
-      }
+      const respuesta = await pedirAlOrigen(fetch, url, reintentos);
       if (respuesta.status !== 200) {
         await respuesta.body?.cancel?.();
         throw new Error(

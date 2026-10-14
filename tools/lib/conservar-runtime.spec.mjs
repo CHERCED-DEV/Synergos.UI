@@ -36,6 +36,8 @@ import { FICHEROS_POR_FRAMEWORK } from './mapa-del-runtime.mjs';
 
 const bytes = (texto) => Buffer.from(texto, 'utf8');
 const ORIGEN = 'https://cdn.example';
+/** Los reintentos sin esperar de verdad: lo que se prueba es cuántas veces, no cuánto. */
+const SIN_ESPERA = { esperar: async () => {} };
 
 /** Una entrada del libro para unos bytes, en la versión dada. */
 const entradaPara = (framework, version, fichero, b, desde = '2026-10-01T00:00:00.000Z') => ({
@@ -100,14 +102,53 @@ describe('el libro del CDN vivo', () => {
 
   it('sin red LANZA: no saber no es «no hay»', async () => {
     const fetch = fetchDe({ '/synergos/runtime/angular/latest/huellas.json': new TypeError('fetch failed') });
-    await expect(leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch })).rejects.toThrow(/no contesta/);
+    await expect(leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA })).rejects.toThrow(
+      /no contesta/,
+    );
   });
 
   it.each([500, 503, 403])('un %s LANZA', async (status) => {
     const fetch = fetchDe({ '/synergos/runtime/angular/latest/huellas.json': { status, cuerpo: 'x' } });
-    await expect(leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch })).rejects.toThrow(
+    await expect(leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA })).rejects.toThrow(
       new RegExp(`contesta ${status}`),
     );
+  });
+
+  it('un parpadeo de la red se reintenta: sin respuesta UNA vez, y después el 404 de siempre', async () => {
+    const pedidas = [];
+    let fallos = 1;
+    const fetch = async (url) => {
+      pedidas.push(url);
+      if (fallos-- > 0) throw new TypeError('fetch failed');
+      return new Response(null, { status: 404 });
+    };
+    expect(await leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA })).toBeNull();
+    expect(pedidas).toHaveLength(2);
+  });
+
+  it('…pero no sin fin: sin red tres veces, o un 5xx tres veces, PARA; y un 404 no se reintenta', async () => {
+    const contar = (respuesta) => {
+      const llamadas = { n: 0 };
+      const fetch = async () => {
+        llamadas.n += 1;
+        return respuesta();
+      };
+      return [llamadas, (f) => leerLibroVivo({ origen: ORIGEN, framework: 'angular', fetch, reintentos: SIN_ESPERA, ...f })];
+    };
+
+    const [sinRed, leerSinRed] = contar(() => {
+      throw new TypeError('fetch failed');
+    });
+    await expect(leerSinRed()).rejects.toThrow(/no contesta .*\(3 intento\(s\)\)/);
+    expect(sinRed.n).toBe(3);
+
+    const [caido, leerCaido] = contar(() => new Response(null, { status: 503 }));
+    await expect(leerCaido()).rejects.toThrow(/contesta 503/);
+    expect(caido.n).toBe(3);
+
+    const [noEsta, leerNoEsta] = contar(() => new Response(null, { status: 404 }));
+    expect(await leerNoEsta()).toBeNull();
+    expect(noEsta.n).toBe(1);
   });
 
   it('un 200 da el libro, y uno con una entrada cuyo nombre no es su huella LANZA', async () => {
@@ -248,7 +289,9 @@ describe('guardar, bajar y restaurar — sobre un disco de verdad', { timeout: 3
     await guardarAntesDeLimpiar({ salida, tmp, fs: fsp });
     const caido = fetchDe({ '/synergos/runtime/angular/latest/huellas.json': new TypeError('fetch failed') });
 
-    await expect(bajarDelOrigen({ tmp, origen: ORIGEN, fetch: caido, fs: fsp })).rejects.toThrow(/no contesta/);
+    await expect(bajarDelOrigen({ tmp, origen: ORIGEN, fetch: caido, fs: fsp, reintentos: SIN_ESPERA })).rejects.toThrow(
+      /no contesta/,
+    );
     expect(readdirSync(rt(VER)).length).toBeGreaterThan(0);
   });
 
