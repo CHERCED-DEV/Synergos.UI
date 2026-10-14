@@ -140,7 +140,26 @@ Para no repetir trabajo, y para no insinuar que está probado lo que no:
 - **No hace falta configurar caché en Cloudflare.** La política es código con tests
   (`tools/lib/cdn-cache-policy.mjs`) y la aplica `worker/index.js`, porque un `_headers` **fusiona**
   las reglas que se solapan y las tres rutas hermanas de cada elemento habrían producido
-  `Cache-Control: max-age=60, max-age=31536000, immutable`.
+  `Cache-Control: max-age=60, max-age=31536000, immutable`. La tabla, que es la misma que aplica
+  el montaje local del CMS (`PoliticaDeCacheDelCdnLocal`):
+
+  | Ruta | `Cache-Control` | Por qué |
+  |---|---|---|
+  | `synergos/registry.json` | `max-age=60, must-revalidate` | El índice: hay que releerlo para saber que salió algo. |
+  | `…/latest/…` y `…/vN/…` (elementos y runtime, `huellas.json` incluido) | `max-age=300, must-revalidate` | Se mueven. |
+  | `synergos/<elemento>/<fw>/<x.y.z>/…` | `max-age=31536000, immutable` | La versión exacta de un elemento no cambia nunca. |
+  | `synergos/runtime/<fw>/<ver>/<stem>.<huella>.js` | `max-age=31536000, immutable` | El runtime por contenido (ADR 0140, CMS#201): la huella son los 16 primeros hex del sha256 de sus bytes. Es lo que nombra el import map. |
+  | `synergos/runtime/<fw>/<ver>/` plano (`sg-shared.js`, `import-map.json`) | `max-age=300, must-revalidate` | `<ver>` es la versión del FRAMEWORK, no la del contenido: cambia con `libs/shared`. Se sigue publicando y ningún mapa lo nombra. |
+
+  El 304 de una revalidación sale con la misma política y el mismo CORS que el 200; un 404, sin
+  ninguna de las dos.
+- **No hace falta borrar ni purgar nada del runtime.** Cada despliegue conserva las generaciones
+  anteriores: `build:cdn` baja del CDN vivo el libro `runtime/<fw>/latest/huellas.json` y cada
+  fichero que lista, verifica su huella y los vuelve a publicar con la generación nueva. Sin libro
+  en el origen (404) es el primer despliegue por contenido y sigue; con el origen caído (red, 5xx)
+  **se para**: no se publica sin conservar. El origen por defecto es el CDN público;
+  `SYNERGOS_CDN_CONSERVAR_DESDE` lo cambia y `SYNERGOS_CDN_CONSERVAR=no` lo apaga, sólo para un CDN
+  que no se despliega (el humo conectado del CMS).
 
 ---
 

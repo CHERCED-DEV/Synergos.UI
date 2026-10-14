@@ -162,9 +162,18 @@ jobs:
       # `public/` NO está versionado: sale de las fuentes en cada despliegue, y
       # eso es lo único que impide que el repo y lo publicado divergan. El
       # `meta.json` de cada elemento lleva el commit — es lo que el humo espera.
+      #
+      # Y conserva las generaciones del runtime ya publicadas (ADR 0140, CMS#201):
+      # el import map nombra cada fichero por su huella, y lo que el despliegue
+      # anterior publicó lo sigue pidiendo quien aún tenga ese mapa. `build:cdn`
+      # las baja del CDN vivo y verifica cada huella; sin la variable va al CDN
+      # público por defecto. Se le pasa el MISMO origen que mira el humo, para
+      # que un `SYNERGOS_CDN_URL` propio conserve de donde se publica.
       - if: steps.config.outputs.listo == 'si'
         name: Construir el CDN
         working-directory: Synergos.UI
+        env:
+          SYNERGOS_CDN_CONSERVAR_DESDE: ${{ vars.SYNERGOS_CDN_URL || 'https://synergos-ui.synergos-labs.workers.dev' }}
         run: npm run build:cdn
 
       # ── 3. Publicar ──────────────────────────────────────────────────────

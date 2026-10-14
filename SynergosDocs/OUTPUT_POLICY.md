@@ -195,5 +195,7 @@ These are all gitignored and regenerated automatically:
 | Committing `dist/` to git | Binaries in git history; merge conflicts |
 | Writing to CDN without `publish.mjs` | Bypasses versioning, manifest generation, registry update |
 | Overwriting an exact semver slot | Semver slots are immutable audit trails |
+| Sobrescribir un fichero del runtime con huella (`runtime/<fw>/<ver>/<stem>.<huella>.js`) | Se sirve `immutable` un año: quien ya lo tiene no lo vuelve a pedir. Un fichero con huella se escribe una sola vez; `publish-runtime` se para si el mismo nombre trae otros bytes (ADR 0140, CMS#201) |
+| Perder una generación publicada del runtime (borrar `public/` y publicar sólo la de hoy) | Quien aún tenga un import map que la nombre pide un 404 y no hidrata nada. `latest/huellas.json` declara todo lo publicado y sólo crece; `build:cdn` lo restaura antes de publicar (ADR 0140, CMS#201) |
 | Serving elements directly from `dist/` in production | Not versioned; breaks on next build |
 | Mixing build artifacts across frameworks in one directory | Impossible to clean selectively |

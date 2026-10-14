@@ -20,10 +20,19 @@
  *
  *   node tools/build-cdn.mjs
  *   node tools/build-cdn.mjs --salida public      (o --salida=public: las dos formas valen)
+ *   node tools/build-cdn.mjs --conservar-desde https://otro-cdn.example
+ *   node tools/build-cdn.mjs --sin-conservar      (un CDN que NO se despliega: un humo, una prueba)
+ *
+ * Conserva las generaciones del runtime ya publicadas (ADR 0140, CMS#201): ver
+ * `tools/lib/conservar-runtime.mjs`. El origen por defecto es el CDN público del
+ * proyecto; `--conservar-desde` o `SYNERGOS_CDN_CONSERVAR_DESDE` lo sobrescriben, y
+ * `--sin-conservar` o `SYNERGOS_CDN_CONSERVAR=no` lo apagan, en voz alta.
  */
-import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
+import { rm, mkdir, copyFile, access, readdir, mkdtemp } from 'node:fs/promises';
+import * as fsp from 'node:fs/promises';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,20 +41,87 @@ import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mj
 import { getArg, revisarBanderas } from './lib/cli-utils.mjs';
 import { correrNpm } from './lib/npm.mjs';
 import { PLATFORMS } from './lib/synergos-config.mjs';
+import {
+  bajarDelOrigen,
+  configuracionDeConservar,
+  guardarAntesDeLimpiar,
+  lineaDeNoConservar,
+  restaurarDespuesDeLimpiar,
+} from './lib/conservar-runtime.mjs';
+import { LIBRO, leerLibro, leerModoDeUrls, revisarPorContenido } from './lib/runtime-por-contenido.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // `--salida` se leía con `argv.indexOf('--salida')`: `--salida=RUTA` se ignoraba y se construía
 // en `public/` sin decir nada, la misma forma que UI#69 midió en `publish-runtime`. Hoy valen
 // las dos formas, y lo que no se entiende sale con 2 antes de borrar o construir nada.
-const erroresDeUso = revisarBanderas(process.argv.slice(2), { conValor: ['salida'] });
+const USO = '  Uso: node tools/build-cdn.mjs [--salida RUTA] [--conservar-desde URL] [--sin-conservar]';
+const erroresDeUso = revisarBanderas(process.argv.slice(2), {
+  conValor: ['salida', 'conservar-desde'],
+  sinValor: ['sin-conservar'],
+});
 if (erroresDeUso.length > 0) {
-  console.error(`[build-cdn] ${erroresDeUso.join('\n  ')}\n  Uso: node tools/build-cdn.mjs [--salida RUTA]`);
+  console.error(`[build-cdn] ${erroresDeUso.join('\n  ')}\n${USO}`);
   process.exit(2);
 }
 const SALIDA = resolve(ROOT, getArg('salida', 'public'));
 
+// De dónde se conservan las generaciones del runtime, y con qué modo de URLs lo publica
+// `publish-runtime` (que lee el mismo `SYNERGOS_RUNTIME_URLS`). Lo que no se entiende sale con 2
+// aquí, antes de compilar nada.
+const CONSERVAR = configuracionDeConservar(process.argv.slice(2), process.env);
+const MODO_DE_URLS = leerModoDeUrls([], process.env);
+for (const { error } of [CONSERVAR, MODO_DE_URLS]) {
+  if (error) {
+    console.error(`[build-cdn] ${error}\n${USO}`);
+    process.exit(2);
+  }
+}
+
 const log = (m) => console.log(`[build-cdn] ${m}`);
+
+// ── 0.a Conservar el runtime ya publicado (ADR 0140, CMS#201) ───────────────
+//
+// El runtime se publica por contenido: el import map nombra `sg-shared.<huella>.js`, y esa URL
+// es inmutable un año. Este script arma la salida DESDE CERO (paso 1), así que sin esto el
+// despliegue siguiente borraría la generación anterior, y quien aún tenga un mapa que la nombre
+// pediría un 404. Se recupera de la salida anterior y del CDN vivo, verificando cada huella.
+//
+// Va LO PRIMERO, antes de compilar y de borrar: si el origen no contesta se sabe en un segundo,
+// y la salida anterior sigue intacta. No se publica sin conservar.
+let CONSERVADO = null;
+if (CONSERVAR.conservar) {
+  CONSERVADO = await mkdtemp(join(tmpdir(), 'synergos-conservar-'));
+  try {
+    const locales = await guardarAntesDeLimpiar({ salida: SALIDA, tmp: CONSERVADO, fs: fsp });
+    const vivos = await bajarDelOrigen({
+      tmp: CONSERVADO,
+      origen: CONSERVAR.origen,
+      fetch: (url) => fetch(url, { signal: AbortSignal.timeout(30_000) }),
+      fs: fsp,
+      log,
+    });
+    for (const [framework, { vivo, entradas, bajados }] of Object.entries(vivos)) {
+      log(
+        `runtime de ${framework}: ${entradas} fichero(s) con huella que conservar ` +
+          `(${locales[framework]?.ficheros ?? 0} de la salida anterior, ${bajados} bajados de ` +
+          `${CONSERVAR.origen}${vivo ? '' : ', que aún no tiene libro'}; origen ${CONSERVAR.deDonde}).`,
+      );
+    }
+  } catch (err) {
+    await rm(CONSERVADO, { recursive: true, force: true });
+    console.error(`[build-cdn] ✗ no se pudieron conservar las generaciones del runtime ya publicadas:`);
+    console.error(`[build-cdn]   ${err.message}`);
+    console.error(
+      '[build-cdn]   No se publica sin conservarlas: quien aún tenga un mapa que las nombre pediría un 404.\n' +
+        `[build-cdn]   - si el CDN publicado está en otra URL: --conservar-desde URL o SYNERGOS_CDN_CONSERVAR_DESDE\n` +
+        `[build-cdn]   - si este CDN no se despliega (un humo, una prueba local): SYNERGOS_CDN_CONSERVAR=no`,
+    );
+    process.exit(1);
+  }
+} else {
+  console.warn(`[build-cdn] ${lineaDeNoConservar(CONSERVAR.porque)}`);
+}
 
 async function existe(p) {
   try { await access(p); return true; } catch { return false; }
@@ -114,6 +190,25 @@ for (const { name } of PLATFORMS) {
 log(`limpiando ${SALIDA}`);
 await rm(SALIDA, { recursive: true, force: true });
 await mkdir(SALIDA, { recursive: true });
+
+// Y lo conservado vuelve ANTES de publicar el runtime de hoy (paso 2): `publish-runtime` relee
+// el libro de cada framework y le suma su generación, así que las anteriores siguen declaradas.
+// Lo único que se borra es la copia temporal propia, nunca la salida.
+if (CONSERVADO) {
+  let restaurados;
+  try {
+    restaurados = await restaurarDespuesDeLimpiar({ salida: SALIDA, tmp: CONSERVADO, fs: fsp });
+  } catch (err) {
+    console.error(`[build-cdn] ✗ no se pudo restaurar el runtime conservado: ${err.message}`);
+    process.exitCode = 1;
+  } finally {
+    await rm(CONSERVADO, { recursive: true, force: true });
+  }
+  if (!restaurados) process.exit(1);
+  for (const [framework, { entradas }] of Object.entries(restaurados)) {
+    log(`runtime de ${framework}: ${entradas} fichero(s) con huella restaurados, con su libro.`);
+  }
+}
 
 // ── 2. El runtime compartido, con URLs RELATIVAS ─────────────────────────────
 //
@@ -259,6 +354,30 @@ if (problemas.length > 0) {
   console.error('[build-cdn] ✗ los import maps publicados no se pueden componer:');
   for (const linea of problemas) console.error(`[build-cdn]   ${linea}`);
   console.error('[build-cdn]   El CMS no emitiría ningún <script type="importmap">.');
+  process.exit(1);
+}
+
+// ── 5.ter. Que el runtime esté publicado POR CONTENIDO (ADR 0140, CMS#201) ───
+//
+// Componer no basta: el mapa tiene que nombrar ficheros con la huella de sus bytes, que existan
+// y casen con su nombre, y cada generación que el libro declara tiene que estar en la salida —es
+// lo que el paso 0.a restauró—. Un plano en el mapa vuelve a dejar al navegador con el
+// `sg-shared.js` de hace un año.
+const porContenido = mapas.mapas.flatMap(({ framework, imports }) => {
+  const raiz = join(SALIDA, 'synergos', 'runtime', framework);
+  const rutaLibro = join(raiz, 'latest', LIBRO);
+  return revisarPorContenido({
+    framework,
+    mapa: { imports },
+    libro: existsSync(rutaLibro) ? leerLibro(readFileSync(rutaLibro, 'utf8'), framework) : null,
+    existe: (r) => existsSync(join(raiz, r)),
+    leerBytes: (r) => readFileSync(join(raiz, r)),
+    modo: MODO_DE_URLS.modo,
+  });
+});
+if (porContenido.length > 0) {
+  console.error('[build-cdn] ✗ el runtime publicado no cuadra por contenido:');
+  for (const linea of porContenido) console.error(`[build-cdn]   ${linea}`);
   process.exit(1);
 }
 

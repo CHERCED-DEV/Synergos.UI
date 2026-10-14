@@ -368,6 +368,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // por framework, desde `FICHEROS_POR_FRAMEWORK` y el mapa de `importsDelRuntime`; el framework
   // le llega como dato, y las rutas que mira son las de `runtime/<framework>/`.
   'lib/runtime-por-contenido.mjs',
+  // `build:cdn` conserva las generaciones del runtime ya publicadas (ADR 0140, CMS#201): recorre
+  // los frameworks de `FICHEROS_POR_FRAMEWORK` y lee el libro de cada uno; no nombra ninguno.
+  'lib/conservar-runtime.mjs',
 ];
 
 /**

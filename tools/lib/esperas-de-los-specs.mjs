@@ -83,6 +83,14 @@ export const TOPES_DECLARADOS = {
       'tarda ~0,3 s; con los 52 ficheros de `test:tools` en paralelo se midió 5,06 s («timed out ' +
       'in 5000ms»). El mtime que no se mueve y el rename son lo que se prueba; no se simulan.',
   },
+  'tools/lib/conservar-runtime.spec.mjs': {
+    tope: 30_000,
+    razon:
+      'arma una salida anterior con el publicador DE VERDAD sobre un mkdtemp y la guarda, la borra ' +
+      'y la restaura (ADR 0140, CMS#201): dos publicaciones y tres copias por caso. Es el mismo coste ' +
+      'de disco que `runtime-por-contenido.spec`, que con `test:tools` en paralelo pasó de los 5 s ' +
+      'de serie. Lo que se prueba es que los bytes vuelven y nada se borra; no se simula el disco.',
+  },
   'platforms/angular/libs/shop/src/lib/cart.store.registro.spec.ts': {
     tope: 30_000,
     razon:
