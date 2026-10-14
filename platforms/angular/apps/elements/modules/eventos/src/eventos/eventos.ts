@@ -855,6 +855,13 @@ export class EventosElementComponent implements OnInit {
       case CODIGO_COBRO_POR_DEVOLVER:
         // Se deshizo DESPUÉS de cobrar: hay plata por devolver, y «no se te cobró nada» sería falso.
         return this.#fraseDeLaDevolucion(referencia);
+      case CODIGO_COMPRA_SIN_ACUSE:
+        // La fase D no abrió porque el servidor sabe de OTRA compra sin resolver —quizá cobrada—: ni «no
+        // se te cobró nada» ni «intenta de nuevo». La compra se pinta abajo; si no llega, esto queda.
+        return t(
+          'Events.Purchase.PendingFound',
+          'Tienes otra compra para este evento sin resolver, así que no abrimos una nueva. Vuelve a intentarlo en un momento para verla.',
+        );
       case 'inventory.insufficient_stock':
       case 'inventory.unit_taken':
         return t('Events.Purchase.SoldOut', 'No quedan entradas suficientes para tu selección.');

@@ -2424,6 +2424,37 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(borde.cobradas()).toEqual(['pta-78']);
   });
 
+  it('cuando la fase D frena el pago, el aviso del asistente lo dice —no «no se te cobró nada»—, también si la lista ya no llega', async () => {
+    // La revisión: sin texto propio para eventos.compra_sin_acuse, el asistente anunciaba (role=alert)
+    // «No pudimos completar tu compra y no se te cobró nada. Intenta de nuevo.» frente a una compra
+    // cobrada; y si la segunda lectura caía, se quedaba para siempre.
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await enOtroDispositivo();
+    let lecturas = 0;
+    vi.stubGlobal('fetch', ((url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).includes('/compras/pendientes') && ++lecturas > 1
+        ? Promise.reject(new TypeError('offline'))
+        : borde.fetchDoble(url, init)) as typeof fetch);
+    const wizard = await alRevisar();
+    wizard.next();
+    // La lista que se pinta cae, con sus reintentos de verdad (~1 s), y se rinde.
+    await vi.waitFor(() => expect(lecturas).toBeGreaterThan(2), { timeout: 4_000, interval: 20 });
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('checkout');
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(alertaDelAsistente()).toBe(
+      'Tienes otra compra para este evento sin resolver, así que no abrimos una nueva. Vuelve a intentarlo en un momento para verla.',
+    );
+    expect(vecesQueSeDice('no se te cobró nada')).toBe(0);
+  });
+
   it('desde OTRO dispositivo, con una compra que se deshizo DESPUÉS de cobrar, pagar lo dice una vez y, la segunda, abre la nueva', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos({
