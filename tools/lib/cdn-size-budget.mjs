@@ -112,7 +112,15 @@ export const TECHO_POR_TIER = {
 export const EXCEPCIONES = {
   academy: { techo: 484 * KB, razon: 'vertical completa: cursos, matrícula, progreso. 449 KB medidos, 257 de shells (57 %)' },
   realty: { techo: 428 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas. 397 KB medidos, 229 de shells (58 %)' },
-  eventos: { techo: 420 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map. 390 KB medidos, 231 de shells (59 %)' },
+  // Resubido el 2026-10-14 (ADR 0140, CMS#201): 423,1 KB medidos, 233 de shells (55 %) y 144 del
+  // propio componente. Lo que entró desde los 390 es la compra por la PUERTA (F4: abrir/cerrar,
+  // asistentes y entradas por el artefacto, la sesión que vence), el cupón de verdad y su
+  // endurecimiento (la compra pendiente que se resuelve antes de elegir otra vez, la fase D y sus
+  // frases): funcionalidad, no código muerto. Se miró qué reducir antes de subirlo: ninguna
+  // duplicación de más de 1,2 KB, y el grueso evitable NO es de eventos sino del build —26 KB de
+  // los 423 son escapes `\uXXXX` de los `ɵɵ` de Angular (esbuild sale en ASCII), que `charset:
+  // 'utf8'` quitaría a TODOS los elementos—; eso es otra decisión, no un recorte de este vertical.
+  eventos: { techo: 440 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map, compra por la puerta, cupón y compra pendiente. 423 KB medidos el 2026-10-14, 233 de shells (55 %)' },
   blogs: { techo: 356 * KB, razon: 'vertical completa: índice, artículo, comentarios. 329 KB medidos, 142 de shells (43 %)' },
   gov: { techo: 344 * KB, razon: 'vertical completa: trámites, formularios, expediente. 319 KB medidos, 181 de shells (57 %)' },
   ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas. 288 KB medidos, 109 de shells (38 %)' },
