@@ -366,8 +366,8 @@
         </div>
       </div>
     } @else if (view() === 'checkout' && sinCoordinador()) {
-      <!-- Sin <synergos-flujo> arriba la compra no está abierta en esta página: se dice y no se
-           toca la red. NUNCA se vuelve a la ruta vieja (ADR 0140 F4). -->
+      <!-- Por la puerta y sin <synergos-flujo> arriba la compra no está abierta en esta página: se dice
+           y no se toca la red. No se cae a la ruta directa: ésa la declara el CMS (ADR 0140). -->
       <div class="eventos__denied">
         <p class="eventos__denied-text">{{ textosNoDisponible.texto }}</p>
         <div class="eventos__denied-actions">
@@ -429,17 +429,19 @@
               @if (!isFreeEvent()) {
                 <!-- El cupón, antes de pagar y con la sesión ya pedida: la vista previa la cotiza el
                      orquestador por la puerta, sin apartar nada, y la puerta es de miembros. Un registro
-                     gratis no tiene qué descontar. -->
-                <syn-promo-code
-                  [config]="promoConfig"
-                  [applied]="appliedPromo()"
-                  [busy]="promoBusy()"
-                  [locked]="cuponFijado()"
-                  [rejection]="promoRejection()"
-                  [rejectionDetail]="promoDetail()"
-                  (apply)="applyPromo($event)"
-                  (remove)="removePromo()"
-                />
+                     gratis no tiene qué descontar, y la ruta directa no recibe códigos (ADR 0140). -->
+                @if (porLaPuerta()) {
+                  <syn-promo-code
+                    [config]="promoConfig"
+                    [applied]="appliedPromo()"
+                    [busy]="promoBusy()"
+                    [locked]="cuponFijado()"
+                    [rejection]="promoRejection()"
+                    [rejectionDetail]="promoDetail()"
+                    (apply)="applyPromo($event)"
+                    (remove)="removePromo()"
+                  />
+                }
                 <!-- Un registro gratis no cobra nada: avisar de que «no se realiza un cobro real» es hablarle de un pago. -->
                 <p class="eventos__notice">Demostración: no se realiza un cobro real.</p>
               }

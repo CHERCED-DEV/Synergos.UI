@@ -438,6 +438,8 @@ export interface EventosProps {
   readonly feePercent: number;
   /** negocio */
   readonly platformFeePercent: number;
+  /** negocio */
+  readonly purchasePath: string;
 }
 
 /** <synergos-fab> · pieza · diccionario: Fab */
@@ -1339,7 +1341,7 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   record: "EventosProps",
   diccionario: ["Events.Sale","Events.Purchase"],
   claves: ["Events.Purchase.AttendeesInvalid","Events.Purchase.BackToEvents","Events.Purchase.ConfirmPending","Events.Purchase.Failed","Events.Purchase.FreeConfirmPending","Events.Purchase.FreeContinue","Events.Purchase.FreeFailed","Events.Purchase.FreeReceived","Events.Purchase.HoldExpired","Events.Purchase.InProgress","Events.Purchase.LinkSignIn","Events.Purchase.NotCompleted","Events.Purchase.NotFound","Events.Purchase.NotOnSale","Events.Purchase.OverLimit","Events.Purchase.PaymentDeclined","Events.Purchase.PendingCancel","Events.Purchase.PendingChooseOther","Events.Purchase.PendingCompleted","Events.Purchase.PendingFound","Events.Purchase.PendingOpen","Events.Purchase.PendingOpenElsewhere","Events.Purchase.PendingResume","Events.Purchase.PendingUnanswered","Events.Purchase.PendingUnknown","Events.Purchase.PendingUnknownElsewhere","Events.Purchase.PromoDiscount","Events.Purchase.PromoExpired","Events.Purchase.PromoFailed","Events.Purchase.PromoLocked","Events.Purchase.PromoNotApplicable","Events.Purchase.PromoRemoved","Events.Purchase.PromoTooMany","Events.Purchase.PromoUnknown","Events.Purchase.RefundInProgress","Events.Purchase.Retry","Events.Purchase.SessionRequired","Events.Purchase.SignIn","Events.Purchase.SignInText","Events.Purchase.SignInTitle","Events.Purchase.SoldOut","Events.Purchase.Unavailable","Events.Sale.Closed","Events.Sale.NotYet"],
-  campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent"],
+  campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent","purchasePath"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -1349,7 +1351,8 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
     "role": "organizer",
     "apiBase": "/api/eventos",
     "feePercent": 12,
-    "platformFeePercent": 10
+    "platformFeePercent": 10,
+    "purchasePath": "directa"
   },
 };
 

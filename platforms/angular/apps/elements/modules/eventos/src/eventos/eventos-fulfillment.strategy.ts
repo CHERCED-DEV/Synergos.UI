@@ -19,7 +19,12 @@ import {
   EVENTOS_FLOW,
   EVENTOS_KIND,
   type Attendee,
+  type Buyer,
+  type CaminoDeCompra,
   type CatalogCriteria,
+  type CheckoutItem,
+  type CheckoutResult,
+  type ConfirmResult,
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
@@ -57,6 +62,13 @@ interface EventosPayInstrument {
   readonly startsAt?: string;
   /** Las compras con un cobro por devolver que el elemento ya le dijo a la persona: no frenan otra vez. */
   readonly comprasAvisadas?: readonly string[];
+  /**
+   * Por dónde compra, como lo DECLARA el CMS (`purchasePath`, ADR 0140). Viaja por llamada, como `host`:
+   * la estrategia es una por página. Sin él, la puerta.
+   */
+  readonly camino?: CaminoDeCompra;
+  /** Quien compra, para la ruta directa (la puerta lo pone desde la sesión). */
+  readonly buyer?: Buyer;
 }
 
 /**
@@ -65,12 +77,14 @@ interface EventosPayInstrument {
  * shell calls the engine's <c>FulfillmentContext</c> and never knows this class
  * answered; the provider routes by `flow === 'eventos'`.
  *
- * **La compra va por la puerta** (ADR 0140 F4): `pay` la ABRE —aparta y autoriza— y anota los
- * asistentes; `confirm` la CIERRA —captura— y pide las entradas. Abrir y cerrar no salen de acá:
- * se le piden al `<synergos-flujo>` ancestro del elemento, que las lleva a la puerta con el
- * cliente generado. Sin coordinador la compra contesta que no, con `cliente.sin_coordinador`, y
- * **nunca vuelve a la ruta vieja** (`/api/eventos/checkout|confirm`): dos caminos para la misma
- * intención abren dos órdenes, y el retiro exige cero usos. Los rechazos vuelven como su `code`.
+ * **La compra va por el camino que DECLARA el CMS** (`instrument.camino`, ADR 0140; ninguno se
+ * retira). Por la **puerta** —sin declaración, lo de siempre desde la F4—: `pay` la ABRE —aparta y
+ * autoriza— y anota los asistentes; `confirm` la CIERRA —captura— y pide las entradas. Abrir y cerrar
+ * no salen de acá: se le piden al `<synergos-flujo>` ancestro del elemento, que las lleva a la puerta
+ * con el cliente generado. Sin coordinador la compra contesta que no, con `cliente.sin_coordinador`.
+ * Los rechazos vuelven como su `code`. Por la **directa**: `pay` abre la orden en
+ * `/api/eventos/checkout` y `confirm` la confirma en `/api/eventos/confirm`. Nunca se cae de un camino
+ * al otro —ni ante un 503 de la puerta—: dos caminos para la misma intención abren dos órdenes.
  */
 @Injectable()
 export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
@@ -159,6 +173,9 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
     if (request.session.items.length === 0) {
       return { accepted: false, reason: 'empty-cart' };
+    }
+    if (caminoDeLaCompra(instrument.camino) === 'directa') {
+      return this.pagarPorLaRutaDirecta(request, instrument);
     }
     const host = instrument.host;
     if (!(host instanceof Element)) {
@@ -251,6 +268,9 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     instrument?: Readonly<Record<string, unknown>>,
   ): Promise<FulfillmentConfirmation> {
     const datos = (instrument ?? {}) as Partial<EventosPayInstrument>;
+    if (caminoDeLaCompra(datos.camino) === 'directa') {
+      return this.confirmarPorLaRutaDirecta(session, datos);
+    }
     const host = datos.host;
     const id = session.payments[session.payments.length - 1]?.reference ?? '';
     if (!(host instanceof Element)) {
@@ -287,24 +307,79 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       // repite cerrar (idempotente sobre una compra completa) y vuelve a pedir las entradas.
       return { confirmed: false, reason: entradas.rechazo.code, vouchers: [] };
     }
-    const confirmation = entradas.valor;
-    return {
-      confirmed:
-        confirmation.status.toLowerCase() === 'confirmed' ||
-        confirmation.status.toLowerCase() === 'paid',
-      vouchers: confirmation.tickets.map((ticket) => ({
-        itemId: ticket.id,
-        reference: ticket.qr,
-        status: confirmation.status,
-        detail: {
-          ticketId: ticket.id,
-          qr: ticket.qr,
-          attendee: ticket.attendee ?? '',
-          tier: ticket.tier ?? '',
-          seat: ticket.seat ?? '',
-        },
-      })),
-    };
+    return aLaConfirmacion(entradas.valor);
+  }
+
+  /**
+   * Step 3 por la ruta DIRECTA (ADR 0140, superset): una orden en `POST /api/eventos/checkout` para todo
+   * el carrito —o una gratis—. Sin cupón ni llave retenida: esa ruta no recibe códigos ni abre sagas.
+   *
+   * Si el borde no abrió la orden, NO se acepta (UI#92): el cliente fabricaba un `MOCK-<ts>` con su
+   * `psp_mock_…` y esto lo daba por bueno, así que el asistente seguía a confirmar contra una orden que
+   * no existe. Nada se cobró: el asistente dice su `payFailedMessage` y volver a pulsar abre la orden
+   * otra vez.
+   */
+  private async pagarPorLaRutaDirecta(
+    request: FulfillmentPayRequest,
+    instrument: Partial<EventosPayInstrument>,
+  ): Promise<FulfillmentPayResult> {
+    const apiBase = instrument.apiBase ?? apiBaseOf(request.session);
+    const eventId = instrument.eventId ?? eventIdOf(request.session);
+    const attendees = instrument.attendees ?? [];
+    const buyer: Buyer = instrument.buyer ?? { name: '', email: '' };
+    // El asistente lleva pay→confirm desde el store: los asistentes quedan como parties, así `confirm`
+    // emite una entrada por asistente aunque la página se recargue entre medias.
+    const parties: SessionParty[] = attendees.map((attendee, index) => ({
+      id: `att-${index + 1}`,
+      fullName: attendee.name,
+      email: attendee.email,
+      details: { document: attendee.document },
+    }));
+    this.#store.setSession({ ...this.#store.getValidSession(), parties });
+
+    let checkout: CheckoutResult;
+    try {
+      checkout = await this.#api.checkout(apiBase, eventId, toCheckoutItems(request.session), attendees, buyer, request.session.pricing.currency);
+    } catch (error) {
+      void error;
+      return { accepted: false, reason: 'checkout-not-opened' };
+    }
+    return { accepted: true, reference: checkout.orderRef };
+  }
+
+  /**
+   * Step 4 por la ruta DIRECTA: confirma la orden y emite una entrada (QR) por asistente.
+   *
+   * **Si el borde no emitió las entradas, esto NO confirma** (UI#92). El asistente conserva la orden ya
+   * abierta en la sesión y dice su `confirmFailedMessage`: volver a pulsar repite SÓLO la confirmación,
+   * que el borde resuelve por `orderRef` — no abre otra orden ni otro cobro (CMS#117).
+   */
+  private async confirmarPorLaRutaDirecta(
+    session: SessionData,
+    datos: Partial<EventosPayInstrument>,
+  ): Promise<FulfillmentConfirmation> {
+    const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
+    const attendees = (session.parties ?? []).map(
+      (party): Attendee => ({
+        name: party.fullName,
+        email: party.email ?? '',
+        document: typeof party.details?.['document'] === 'string' ? party.details['document'] : '',
+      }),
+    );
+    let confirmation: ConfirmResult;
+    try {
+      confirmation = await this.#api.confirm(datos.apiBase ?? apiBaseOf(session), orderRef, attendees, {
+        eventId: datos.eventId ?? eventIdOf(session),
+        eventTitle: datos.eventTitle ?? eventSelectionTitle(session),
+        venueName: datos.venueName ?? '',
+        startsAt: datos.startsAt ?? '',
+        ...(datos.buyer ? { buyer: datos.buyer } : {}),
+      });
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'tickets-not-issued', vouchers: [] };
+    }
+    return aLaConfirmacion(confirmation);
   }
 
   /**
@@ -551,6 +626,35 @@ export function abrirNoDejoSaga(rechazo: RechazoDelFlujo): boolean {
   return clase === 'negado' || clase === 'sesion' || clase === 'no_disponible';
 }
 
+/**
+ * El camino de compra que viaja en el instrumento (ADR 0140): `directa` sólo si el CMS lo declaró así;
+ * cualquier otra cosa —o nada— es la puerta, lo de siempre desde la F4.
+ */
+export function caminoDeLaCompra(camino: unknown): CaminoDeCompra {
+  return camino === 'directa' ? 'directa' : 'puerta';
+}
+
+/** Las entradas que emitió el servidor, como las lee el asistente: confirmada y un voucher por entrada. */
+function aLaConfirmacion(confirmation: ConfirmResult): FulfillmentConfirmation {
+  return {
+    confirmed:
+      confirmation.status.toLowerCase() === 'confirmed' ||
+      confirmation.status.toLowerCase() === 'paid',
+    vouchers: confirmation.tickets.map((ticket) => ({
+      itemId: ticket.id,
+      reference: ticket.qr,
+      status: confirmation.status,
+      detail: {
+        ticketId: ticket.id,
+        qr: ticket.qr,
+        attendee: ticket.attendee ?? '',
+        tier: ticket.tier ?? '',
+        seat: ticket.seat ?? '',
+      },
+    })),
+  };
+}
+
 /** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */
 function apiBaseOf(session: SessionData): string {
   const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
@@ -591,4 +695,22 @@ function toLines(session: SessionData): BffEventos.TicketLineRequest[] {
     }
   }
   return lines;
+}
+
+/** El carrito como los `items` de `POST /api/eventos/checkout` (la ruta directa): uno por butaca, si no por cantidad. */
+function toCheckoutItems(session: SessionData): readonly CheckoutItem[] {
+  const items: CheckoutItem[] = [];
+  for (const line of session.items) {
+    const selection = line.selection as Record<string, unknown>;
+    const tier = typeof selection['tierId'] === 'string' ? selection['tierId'] : line.productRef;
+    const seats = Array.isArray(selection['seats']) ? (selection['seats'] as string[]) : [];
+    if (seats.length > 0) {
+      for (const seat of seats) {
+        items.push({ tier, seat, qty: 1 });
+      }
+    } else {
+      items.push({ tier, qty: Math.max(1, line.quantity) });
+    }
+  }
+  return items;
 }

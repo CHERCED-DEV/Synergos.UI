@@ -77,6 +77,7 @@ import {
   CODIGO_COMPRA_SIN_ACUSE,
   CODIGO_DEMASIADOS_CODIGOS,
   PREFIJO_DEL_CUPON,
+  caminoDeLaCompra,
   compraPendiente,
   cuerpoDeLaCompra,
   cuponDeLaSesion,
@@ -97,6 +98,7 @@ import { subscribeToChannel, type RealtimeSubscription } from './realtime-stream
 import {
   EVENTOS_FLOW,
   type Attendee,
+  type CaminoDeCompra,
   type CatalogCriteria,
   type CheckInOutcome,
   type CheckInResult,
@@ -159,9 +161,10 @@ import {
  *
  * El `config` que manda el CMS tiene la forma de `EventosProps`, GENERADO del record C# (ADR
  * 0135): lo que escribe el editor —título, subtítulo, cara inicial— y la configuración de NEGOCIO
- * del sitio —dónde vive la API y las dos comisiones—, que sale de `Synergos:Features:Eventos` y
- * el editor no ve (ADR 0137, CMS#194). Ninguna de las dos comisiones está compilada acá: la que
- * el carrito muestra es la que los motores del CMS cobran, de la MISMA fuente. La moneda no es
+ * del sitio —dónde vive la API, las dos comisiones y por dónde se compra—, que sale de
+ * `Synergos:Features:Eventos` y el editor no ve (ADR 0137, CMS#194). Ninguna de las dos comisiones
+ * está compilada acá: la que el carrito muestra es la que los motores del CMS cobran, de la MISMA
+ * fuente. La moneda no es
  * configuración: llega con cada importe del catálogo. Los datos vienen siempre de la API, con
  * degradación visible a la muestra. Los shells quedan sin dominio (contrato D3).
  */
@@ -217,7 +220,13 @@ export function sanitizeEventosConfig(value: EventosConfig): EventosConfig {
     apiBase: coerceTrimmedStringInput(value.apiBase),
     feePercent: normalizeFee(value.feePercent),
     platformFeePercent: normalizeFee(value.platformFeePercent),
+    purchasePath: normalizePurchasePath(value.purchasePath),
   });
+}
+
+/** El camino de compra que declara el CMS (ADR 0140): uno de los dos, o nada (y entonces, la puerta). */
+function normalizePurchasePath(value: unknown): CaminoDeCompra | undefined {
+  return value === 'puerta' || value === 'directa' ? value : undefined;
 }
 
 function normalizeRole(value: unknown): EventosRole | undefined {
@@ -358,8 +367,9 @@ export class EventosElementComponent implements OnInit {
   );
 
   /**
-   * No hay un `<synergos-flujo>` de la compra por encima del elemento: la compra no está abierta en
-   * esta página. Se dice, y no se toca la red; NUNCA se vuelve a la ruta vieja.
+   * No hay un `<synergos-flujo>` de la compra por encima del elemento y el camino es la puerta: la
+   * compra no está abierta en esta página. Se dice, y no se toca la red; no se cae a la ruta directa,
+   * que sólo se pide cuando el CMS la declara. La ruta directa no necesita coordinador.
    */
   readonly sinCoordinador = signal(false);
 
@@ -481,6 +491,13 @@ export class EventosElementComponent implements OnInit {
   readonly feePercent = computed(() => this.config()?.feePercent ?? 0);
   /** La comisión de la plataforma sobre lo que se le liquida al organizador; sin ella, no se pinta. */
   readonly platformFeePercent = computed(() => this.config()?.platformFeePercent ?? null);
+  /**
+   * Por dónde compra (ADR 0140): lo DECLARA el CMS en `purchasePath` —la puerta, o la ruta directa
+   * `/api/eventos/checkout|confirm`—, y viaja a la estrategia en el instrumento. Sin declaración, la
+   * puerta: lo de siempre desde la F4. El elemento no lo adivina ni cae de uno al otro.
+   */
+  readonly caminoDeCompra = computed<CaminoDeCompra>(() => caminoDeLaCompra(this.config()?.purchasePath));
+  readonly porLaPuerta = computed(() => this.caminoDeCompra() === 'puerta');
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -940,6 +957,9 @@ export class EventosElementComponent implements OnInit {
       })),
       provider: this.isFreeEvent() ? 'eventos-free' : 'eventos',
       comprasAvisadas: this.#comprasAvisadas(),
+      camino: this.caminoDeCompra(),
+      // La ruta directa recibe a quien compra en el cuerpo; por la puerta lo pone ella desde la sesión.
+      ...(this.porLaPuerta() ? {} : { buyer: { name: this.miembroNombre(), email: this.miembroCorreo() } }),
     };
   });
 
@@ -1355,8 +1375,9 @@ export class EventosElementComponent implements OnInit {
         this.view.set('confirmed');
         return;
       case 'checkout':
-        // Sin coordinador arriba no hay a quién pedirle la compra: se dice antes de los asistentes.
-        this.sinCoordinador.set(!hayCoordinador(this.#host, FLUJO_COMPRA_DE_EVENTOS));
+        // Sin coordinador arriba no hay a quién pedirle la compra por la puerta: se dice antes de los
+        // asistentes. La ruta directa no lo necesita.
+        this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_COMPRA_DE_EVENTOS));
         this.sembrarAsistentes();
         this.view.set('checkout');
         return;
@@ -1682,6 +1703,11 @@ export class EventosElementComponent implements OnInit {
    * sabe de qué evento es la pendiente, se trata como del mismo: ante la duda, se resuelve primero.
    */
   #pendienteDelMismoEvento(seleccion: TierSelectionPayload): boolean {
+    // Sólo por la puerta: la ruta directa no retiene llave ni tiene a quién preguntar por su saga, y
+    // reabrir su orden lo resuelve el borde por `orderRef` (CMS#117).
+    if (!this.porLaPuerta()) {
+      return false;
+    }
     const sesion = this.#store.getValidSession();
     const evento = (sesion.items[0]?.selection as Record<string, unknown> | undefined)?.['eventId'];
     return compraPendiente(sesion) !== null && (typeof evento !== 'string' || evento === seleccion.eventId);
@@ -2157,9 +2183,9 @@ export class EventosElementComponent implements OnInit {
   startOver(): void {
     this.trasPagar.set(false);
     this.#confirmadaGratis.set(false);
-    // Con una compra pendiente la sesión no se vacía: su llave y su pago son lo único que la encuentra
-    // (ADR 0140, el cupón endurecido). Se resuelve al elegir otra vez.
-    if (compraPendiente(this.#store.getValidSession()) === null) {
+    // Con una compra pendiente por la puerta la sesión no se vacía: su llave y su pago son lo único que
+    // la encuentra (ADR 0140, el cupón endurecido). Se resuelve al elegir otra vez.
+    if (!this.porLaPuerta() || compraPendiente(this.#store.getValidSession()) === null) {
       this.#store.reset();
     }
     this.detail.set(null);
@@ -2652,8 +2678,11 @@ export class EventosElementComponent implements OnInit {
   readonly promoRejection = signal<PromoRejection | null>(null);
   readonly promoDetail = signal('');
 
-  /** El cupón aplicado, de la sesión; nulo sin cupón. */
-  readonly promo = computed(() => cuponDeLaSesion(this.#store.pricing()));
+  /**
+   * El cupón aplicado, de la sesión; nulo sin cupón. Y nulo por la ruta directa, que no recibe códigos:
+   * no se pinta un descuento que nadie cobra (ADR 0140).
+   */
+  readonly promo = computed(() => (this.porLaPuerta() ? cuponDeLaSesion(this.#store.pricing()) : null));
 
   /**
    * El cupón queda FIJADO mientras la compra pueda estar en curso con él (ADR 0140, el cupón
@@ -2701,7 +2730,7 @@ export class EventosElementComponent implements OnInit {
 
   async applyPromo(code: string): Promise<void> {
     const codigo = code.trim();
-    if (this.cuponFijado() || this.promoBusy() || !codigo || !this.hasCart() || this.isFreeEvent()) {
+    if (!this.porLaPuerta() || this.cuponFijado() || this.promoBusy() || !codigo || !this.hasCart() || this.isFreeEvent()) {
       return;
     }
     this.promoBusy.set(true);

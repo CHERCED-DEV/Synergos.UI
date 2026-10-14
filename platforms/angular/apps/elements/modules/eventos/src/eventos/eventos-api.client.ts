@@ -3,9 +3,12 @@ import { LoggerService } from '@synergos/core';
 import { rechazoLocal, transportePorDefecto, type ResultadoDelFlujo } from '@synergos/vitals-core';
 import {
   type Attendee,
+  type Buyer,
   type CatalogCriteria,
   type CatalogResult,
   type CheckInResult,
+  type CheckoutItem,
+  type CheckoutResult,
   type ConfirmResult,
   type CreateEventRequest,
   type CreateEventResult,
@@ -33,14 +36,17 @@ import {
  *
  *  - `GET  /api/eventos/events?q=`                          → `{ events:[...] }`
  *  - `GET  /api/eventos/event/{id}`                         → `{ event, tiers:[...], seatmap }`
+ *  - `POST /api/eventos/checkout` `{ eventId, items, attendees, buyer }` → `{ orderRef, paymentSessionId, amount, currency }`
+ *  - `POST /api/eventos/confirm`  `{ orderRef }`            → `{ status, tickets:[{id, qr}] }`
  *  - `POST /api/eventos/compras/{id}/asistentes` `{ attendees }` → `{ id, asistentes }`
  *  - `GET  /api/eventos/compras/{id}/entradas`               → `{ status, tickets:[{id, qr}] }`
  *  - `GET  /api/eventos/compras/pendientes?eventId=`         → `{ compras:[{ id, status }] }`
  *
- * La compra —abrir y cerrar— NO pasa por este cliente: va por la puerta, con el coordinador
- * (`<synergos-flujo>`, ADR 0140 F4). Las tres rutas de `compras` de arriba son el ARTEFACTO que el CMS
- * agrega a esa compra (quién se sienta, las entradas con su QR y las compras sin acuse), y van por el
- * mismo transporte que la puerta.
+ * La compra tiene DOS caminos y el CMS declara cuál gana (`purchasePath`, ADR 0140; ninguno se
+ * retira). Por la PUERTA —lo de siempre desde la F4—, abrir y cerrar no pasan por este cliente: van
+ * con el coordinador (`<synergos-flujo>`), y las tres rutas de `compras` son el ARTEFACTO que el CMS
+ * agrega a esa compra (quién se sienta, las entradas con su QR y las compras sin acuse), por el mismo
+ * transporte que la puerta. Por la ruta DIRECTA, `checkout` y `confirm` de arriba.
  *  - `GET  /api/eventos/manage/{eventId}`                   → `{ attendees:[...], capacity, sold }`
  *  - `POST /api/eventos/checkin`  `{ ticketId }`            → `{ status }`
  *
@@ -157,6 +163,70 @@ export class EventosApiClient {
     }
   }
 
+  // ─── La ruta directa (ADR 0140, superset) ──────────────────────────────────
+  //
+  // `POST {apiBase}/checkout` y `/confirm`, con el motor que diga `Synergos:Eventos:Mode` en el CMS.
+  // Se piden SÓLO cuando el CMS declara el camino `directa`: dos caminos para la misma intención abren
+  // dos órdenes, así que el elemento nunca cae de uno al otro —ni ante un 503 de la puerta—.
+
+  /**
+   * Abre la orden y su sesión de pago. **Lanza si el borde no la abrió** (UI#92).
+   *
+   * Devolvía una orden `MOCK-<ts>` —o `FREE-<ts>`— con un `psp_mock_…`, y la estrategia
+   * contestaba `accepted: true`: el asistente seguía a confirmar contra una orden que el
+   * servidor no conoce. **Sin `fallbackAmount`**: era la fabricación escrita en la firma
+   * (regla 19) — el total lo calcula el borde, con su comisión (CMS#194), justamente para
+   * no confiarle el precio al navegador.
+   */
+  async checkout(
+    apiBase: string,
+    eventId: string,
+    items: readonly CheckoutItem[],
+    attendees: readonly Attendee[],
+    buyer: Buyer,
+    currency: string,
+  ): Promise<CheckoutResult> {
+    const url = `${apiBase}/checkout`;
+    try {
+      const data = await this.postJson(apiBase, url, { eventId, items, attendees, buyer });
+      const result = normalizeCheckout(data, currency);
+      if (result) {
+        return result;
+      }
+      throw new Error('checkout-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/eventos/checkout', error);
+    }
+  }
+
+  /**
+   * Captura y emite las entradas. **Lanza si el borde no las emitió** (UI#92).
+   *
+   * Fabricaba una entrada por asistente con un QR «firmado» en el navegador y la sembraba
+   * en «mis entradas»: es la regla 14 en su forma más cara — la entrada es lo que alguien
+   * enseña en la puerta, y la puerta no la iba a reconocer. Las que siembra la billetera
+   * son sólo las que el servidor devolvió.
+   */
+  async confirm(
+    apiBase: string,
+    orderRef: string,
+    attendees: readonly Attendee[],
+    context?: ConfirmContext,
+  ): Promise<ConfirmResult> {
+    const url = `${apiBase}/confirm`;
+    try {
+      const data = await this.postJson(apiBase, url, { orderRef });
+      const confirmation = normalizeConfirm(data);
+      if (confirmation) {
+        this.seedWallet(confirmation.tickets, attendees, orderRef, context);
+        return confirmation;
+      }
+      throw new Error('confirm-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/eventos/confirm', error);
+    }
+  }
+
   // ─── El artefacto de una compra por la puerta (ADR 0140 F4) ─────────────────
   //
   // Abrir y cerrar la compra van por el coordinador a la puerta (`abrirCompraDeEventos`,
@@ -164,8 +234,8 @@ export class EventosApiClient {
   // propias rutas bajo la base de la API y sin contrato generado, así que lo vigilan G-6 y
   // `gate:rutas`, que leen este cliente. Va por el MISMO transporte que la puerta: correlación de
   // 32 hex, rechazo leído por `code` y reintento sólo del GET. No lanza: devuelve el rechazo, y
-  // quien llama decide por su `code` (regla 59). Sustituyen a `checkout` y `confirm`, que
-  // llamaban a la ruta vieja: el UI nunca vuelve a ella, ni ante un 503 de la puerta.
+  // quien llama decide por su `code` (regla 59). Por la puerta sustituyen a `checkout` y `confirm`,
+  // que son la ruta directa: con el camino `puerta` el UI no va a ella, ni ante un 503 de la puerta.
 
   readonly #transporte = transportePorDefecto();
 
@@ -252,7 +322,7 @@ export class EventosApiClient {
     orderRef: string,
     context?: ConfirmContext,
   ): void {
-    const holder = attendees[0]?.email || 'invitado@synergos';
+    const holder = attendees[0]?.email || context?.buyer?.email || 'invitado@synergos';
     const seeded: WalletTicket[] = tickets.map((ticket, index) => ({
       id: ticket.id,
       qr: ticket.qr,
@@ -491,6 +561,8 @@ export interface ConfirmContext {
   readonly eventTitle?: string;
   readonly venueName?: string;
   readonly startsAt?: string;
+  /** Quien compra por la ruta directa: el titular de respaldo de la billetera. */
+  readonly buyer?: Buyer;
 }
 
 // ─── Normalisers (defensive — tolerate partial/loose API shapes) ───────────────
@@ -747,6 +819,24 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): EventDetail 
         .map((entry) => normalizeZone(entry, fallbackCurrency))
         .filter((zone): zone is VenueZone => zone !== null),
     },
+  };
+}
+
+function normalizeCheckout(value: unknown, fallbackCurrency: string): CheckoutResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const orderRef = readString(value['orderRef']).trim() || readString(value['id']).trim();
+  if (!orderRef) {
+    return null;
+  }
+  const amount = readNumber(value['amount']);
+  return {
+    orderRef,
+    paymentSessionId: readString(value['paymentSessionId']).trim() || readString(value['sessionId']).trim(),
+    amount,
+    currency: readString(value['currency']).trim() || fallbackCurrency,
+    free: amount <= 0 || readBoolean(value['free']),
   };
 }
 

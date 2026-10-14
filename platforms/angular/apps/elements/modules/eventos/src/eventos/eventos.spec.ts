@@ -105,8 +105,10 @@ interface PeticionVista {
  * `pta-77`, la entrada `tkt_77_1` con el QR `QR-SERVIDOR-77-1` y el evento `evt_77`.
  *
  * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel). La
- * ruta vieja (`/checkout`, `/confirm`) no la sirve: el UI no vuelve a ella, y si la pidiera el
- * `afterEach` del bloque lo pone en rojo.
+ * ruta directa (`/checkout`, `/confirm`) sólo la sirve con `rutaDirecta` —los specs del camino que el
+ * CMS declara `directa` (ADR 0140, superset)—, con la forma de `CheckoutResponse` y `ConfirmResponse` y
+ * la orden `evord_77`; sin eso contesta 404, y si un spec de la puerta la pidiera el `afterEach` del
+ * bloque lo pone en rojo.
  */
 function bordeDeEventos(
   opciones: {
@@ -119,6 +121,8 @@ function bordeDeEventos(
     readonly yaCerrada?: boolean;
     /** Lo que contesta `POST cotizar` (el cupón, en unidades mayores): lo calcula el SERVIDOR. */
     readonly cotizacion?: { readonly subtotal: number; readonly descuento: number; readonly comision: number; readonly total: number };
+    /** Sirve la ruta directa (`POST /checkout` y `/confirm`): el camino `directa` que declara el CMS. */
+    readonly rutaDirecta?: boolean;
   } = {},
 ): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
@@ -364,8 +368,18 @@ function bordeDeEventos(
         return responder(200, { status: resultado, ticketId: 'tkt_77_1', attendee: 'Ada Lovelace' });
       }
       case 'POST /checkout':
+        if (!opciones.rutaDirecta) return responder(404, { code: 'ruta.vieja', transient: false });
+        return responder(200, {
+          orderRef: 'evord_77',
+          paymentSessionId: 'psp_77',
+          amount: 180_000,
+          amountFormatted: '$ 180.000',
+          currency: 'COP',
+          free: false,
+        });
       case 'POST /confirm':
-        return responder(404, { code: 'ruta.vieja', transient: false });
+        if (!opciones.rutaDirecta) return responder(404, { code: 'ruta.vieja', transient: false });
+        return responder(200, { status: 'Paid', tickets: [entrada(1, 'valid')] });
       default:
         return Promise.reject(new TypeError('offline'));
     }
@@ -388,8 +402,9 @@ function bordeDeEventos(
 }
 
 /**
- * Lo que la compra NO puede pedir nunca: la ruta vieja ni el cupón (ADR 0140 F4). Se mira en
- * CADA spec que puso un `fetch` de mentira, en su `afterEach`.
+ * Lo que la compra por la PUERTA no puede pedir: la ruta directa ni el cupón de antes (ADR 0140 F4).
+ * Se mira en CADA spec que puso un `fetch` de mentira, en su `afterEach`; los del camino `directa`
+ * pueden pedir `/checkout` y `/confirm`, y nada más de esto.
  */
 function rutasViejasPedidas(): string[] {
   const doble = globalThis.fetch as unknown as { mock?: { calls: readonly (readonly unknown[])[] } };
@@ -401,6 +416,8 @@ function rutasViejasPedidas(): string[] {
 describe('EventosElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<EventosElementComponent>;
   let component: EventosElementComponent;
+  /** El spec es del camino `directa` (ADR 0140): sólo ahí la compra puede pedir `/checkout` y `/confirm`. */
+  let caminoDirecto = false;
 
   /**
    * Monta el elemento como lo monta el CMS: el `config` llega DESPUÉS del constructor y ANTES
@@ -442,7 +459,8 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     // Ningún spec pide la ruta vieja ni el cupón: la compra va por la puerta (ADR 0140 F4). Se
     // lee ANTES de limpiar (el `fetch` de mentira se va con los globales) y se afirma DESPUÉS, para
     // que un rojo acá no deje sucio el spec siguiente.
-    const viejas = rutasViejasPedidas();
+    const viejas = rutasViejasPedidas().filter((ruta) => !(caminoDirecto && /\/(checkout|confirm)$/.test(ruta)));
+    caminoDirecto = false;
     document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -3106,6 +3124,179 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     component.manage.set(panel);
     expect(component.payout()).toBeNull();
   });
+
+  // ── El camino de compra lo DECLARA el CMS (ADR 0140, regla del superset) ─────────────────────
+  //
+  // La F4 dejó al elemento yendo siempre a la puerta, aunque el CMS conserva la ruta directa
+  // (`/api/eventos/checkout|confirm`). Ahora el CMS declara cuál gana en `purchasePath`: con `directa`
+  // la compra va por ella —sin coordinador, sin cupón y sin la guarda de la compra pendiente, que son de
+  // la puerta—; con `puerta`, sin declarar o con otra cosa, lo de siempre. Lo que se mira no lo produce
+  // la puerta: la orden `evord_77` de la ruta directa, contra la saga `pta-77`.
+  const DIRECTA: Record<string, unknown> = { ...NEGOCIO_DEL_CMS, purchasePath: 'directa' };
+
+  it('camino «directa»: checkout → confirm por /api/eventos con los asistentes y el comprador, sin tocar la puerta ni el artefacto', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    const compras: unknown[] = [];
+    component.purchased.subscribe((payload) => compras.push(payload));
+
+    await purchaseFirstGeneralEvent();
+
+    expect(component.caminoDeCompra()).toBe('directa');
+    const escrituras = borde.vistas().filter((vista) => !vista.clave.startsWith('GET /'));
+    expect(escrituras.map((vista) => vista.clave)).toEqual(['POST /checkout', 'POST /confirm']);
+    const [checkout, confirm] = escrituras;
+    expect(checkout!.url).toBe('/api/eventos/checkout');
+    expect(checkout!.cuerpo).toEqual({
+      eventId: expect.any(String),
+      items: [{ tier: expect.any(String), qty: 1 }],
+      attendees: [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC123' }],
+      buyer: { name: '', email: '' },
+    });
+    expect(confirm!.url).toBe('/api/eventos/confirm');
+    expect(confirm!.cuerpo).toEqual({ orderRef: 'evord_77' });
+    expect(borde.llamadas('GET /compras/pendientes')).toBe(0);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('evord_77');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(compras).toEqual([expect.objectContaining({ orderRef: 'evord_77', tickets: 1 })]);
+  });
+
+  it('camino «directa» sin <synergos-flujo> arriba: vende igual, sin el panel de «no disponible» (la ruta directa no necesita coordinador)', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA, false);
+
+    await purchaseFirstGeneralEvent();
+
+    expect(component.sinCoordinador()).toBe(false);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('evord_77');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST abrir')).toBe(0);
+  });
+
+  it('camino «directa» con el POST /checkout caído: no cobra ni emite, lo dice una vez y no anuncia la compra (UI#92)', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, caidas: ['POST /checkout'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    const compras: unknown[] = [];
+    component.purchased.subscribe((payload) => compras.push(payload));
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    // La estrategia CONTESTA que no abrió la orden; no revienta, y no cae a la puerta.
+    expect(fallos.motivos).toEqual(['checkout-not-opened']);
+    expect(component.view()).not.toBe('confirmed');
+    expect(component.tickets()).toEqual([]);
+    expect(compras).toEqual([]);
+    expect(borde.llamadas('POST /confirm')).toBe(0);
+    expect(borde.llamadas('POST abrir')).toBe(0);
+    expect(alertas()).toEqual([asistente().config().payFailedMessage]);
+  });
+
+  it('camino «directa» con el POST /confirm caído: no emite entradas; reintentar confirma la MISMA orden (CMS#117)', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, caidas: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['tickets-not-issued']);
+    expect(component.view()).not.toBe('confirmed');
+    expect(component.tickets()).toEqual([]);
+    // El aviso nombra la orden que SÍ quedó, la del servidor.
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'evord_77')]);
+
+    borde.encender('POST /confirm');
+    asistente().next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST /confirm')).toBe(2);
+  });
+
+  it('camino «directa»: el cupón no se ofrece ni se cotiza, y uno que quedara en la sesión no se pinta (esa ruta no recibe códigos)', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    await alRevisar();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('syn-promo-code')).toBeNull();
+    await component.applyPromo('BIENVENIDA10');
+    expect(borde.llamadas('POST cotizar')).toBe(0);
+
+    // Una línea `promo:` de antes —la sesión sobrevive a un cambio de camino—: ni se pinta ni baja el total.
+    const store = TestBed.inject(SessionStore);
+    store.setPricing({
+      ...store.pricing(),
+      breakdown: [...store.pricing().breakdown, { code: 'promo:BIENVENIDA10', label: 'Descuento', amount: -16_800 }],
+    });
+    fixture.detectChanges();
+    expect(component.promo()).toBeNull();
+    expect(component.cartSummary().map((fila) => fila.id)).not.toContain('promo');
+    expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
+  });
+
+  it('camino «directa»: la guarda de la compra pendiente es de la puerta; con la confirmación caída, elegir otra vez reemplaza el carrito sin preguntarle a nadie', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, caidas: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    await purchaseFirstGeneralEvent();
+    // Por la puerta esto sería una compra pendiente: un pago anotado y sin confirmar.
+    expect(TestBed.inject(SessionStore).session().payments.at(-1)?.reference).toBe('evord_77');
+
+    await elegirOtraVez();
+
+    expect(component.pendiente()).toBeNull();
+    expect(component.view()).toBe('cart');
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
+    expect(borde.llamadas('GET consultar')).toBe(0);
+    expect(borde.llamadas('POST cancelar')).toBe(0);
+  });
+
+  it.each([
+    ['sin declarar', NEGOCIO_DEL_CMS],
+    ['«puerta»', { ...NEGOCIO_DEL_CMS, purchasePath: 'puerta' }],
+    ['con un valor que no es ninguno de los dos', { ...NEGOCIO_DEL_CMS, purchasePath: 'por-ahi' }],
+  ])('camino %s: la compra va por la puerta y ofrece el cupón; nunca pide /checkout ni /confirm', async (_caso, config) => {
+    installMemoryStorage();
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(config);
+    let ofreceCupon = false;
+
+    await purchaseFirstGeneralEvent(() => {
+      fixture.detectChanges();
+      ofreceCupon = (fixture.nativeElement as HTMLElement).querySelector('syn-promo-code') !== null;
+    });
+
+    expect(component.caminoDeCompra()).toBe('puerta');
+    expect(ofreceCupon).toBe(true);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(borde.llamadas('POST abrir')).toBe(1);
+    expect(borde.llamadas('POST /checkout') + borde.llamadas('POST /confirm')).toBe(0);
+  });
 });
 
 describe('EventosApiClient', () => {
@@ -3394,6 +3585,76 @@ describe('EventosApiClient', () => {
     await expect(client.createEvent('/api/eventos', EVENTO_NUEVO)).rejects.toMatchObject({
       name: 'EventosWriteFailedError',
     });
+  });
+
+  // ── La ruta directa (ADR 0140, superset): se repone el cliente de checkout y confirm ─────────
+  it('la ruta directa: checkout abre la orden con la forma del borde y confirm siembra la billetera con las entradas del servidor', async () => {
+    vi.stubGlobal('fetch', bordeDeEventos({ rutaDirecta: true }).fetchDoble);
+    const client = createClient();
+    const ada = [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC9' }];
+
+    expect(await client.checkout('/api/eventos', 'evt_1', [{ tier: 'general', qty: 1 }], ada, { name: 'Ada', email: 'ada@example.com' }, 'COP')).toEqual({
+      orderRef: 'evord_77',
+      paymentSessionId: 'psp_77',
+      amount: 180_000,
+      currency: 'COP',
+      free: false,
+    });
+    const confirmation = await client.confirm('/api/eventos', 'evord_77', ada, CONTEXTO);
+    expect(confirmation.tickets.map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    const wallet = await client.tickets('/api/eventos', 'ada@example.com');
+    expect(wallet.tickets.find((ticket) => ticket.id === confirmation.tickets[0]!.id)?.orderRef).toBe('evord_77');
+  });
+
+  it('returns a free checkout when the order total is zero (free case)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          // `CheckoutResponse` de una orden de total cero: sin sesión de pago.
+          json: () =>
+            Promise.resolve({
+              orderRef: 'evord_free_1',
+              paymentSessionId: '',
+              amount: 0,
+              amountFormatted: '$ 0',
+              currency: 'COP',
+              free: true,
+            }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const checkout = await client.checkout(
+      '/api/eventos',
+      'EVT-FREE',
+      [{ tier: 'free', qty: 1 }],
+      [],
+      { name: 'Ada', email: 'a@b.co' },
+      'COP',
+    );
+
+    expect(checkout).toEqual({ orderRef: 'evord_free_1', paymentSessionId: '', amount: 0, currency: 'COP', free: true });
+  });
+
+  it('con la red caída, checkout y confirm de la ruta directa LANZAN y no fabrican nada (UI#92)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))));
+    const client = createClient();
+    const fallo = { name: 'EventosWriteFailedError' };
+
+    await expect(
+      client.checkout('/api/eventos', 'evt_1', [{ tier: 'vip', qty: 1 }], [], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/checkout' });
+    await expect(
+      client.confirm('/api/eventos', 'evord_77', [{ name: 'Ada', email: 'a@b.co', document: 'CC9' }], CONTEXTO),
+    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/confirm' });
+
+    expect(client.degraded).toBe(false);
+    const wallet = await client.tickets('/api/eventos', 'a@b.co');
+    expect(wallet.tickets.some((ticket) => ticket.orderRef === 'evord_77')).toBe(false);
   });
 });
 // ══ #195 · LOS ESTADOS DE VENTA DE UNA LOCALIDAD ═══════════════════════════════

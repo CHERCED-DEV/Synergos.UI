@@ -273,13 +273,50 @@ export interface TierSelectionPayload {
   readonly apiBase?: string;
 }
 
-// ─── Attendees (checkout) ────────────────────────────────────────────────────
+// ─── Attendees / buyer (checkout) ────────────────────────────────────────────
 
 /** Attendee contact captured per ticket. */
 export interface Attendee {
   readonly name: string;
   readonly email: string;
   readonly document: string;
+}
+
+/** The buyer (payer) of the order. */
+export interface Buyer {
+  readonly name: string;
+  readonly email: string;
+}
+
+// ─── El camino de compra (ADR 0140, superset) ────────────────────────────────
+
+/**
+ * Por dónde compra el elemento, como lo DECLARA el CMS (`EventosProps.purchasePath`): la puerta
+ * (`/api/flujos/eventos.compra`, con el `<synergos-flujo>` de arriba) o la ruta directa
+ * (`/api/eventos/checkout|confirm`). Sin declaración, la puerta: lo de siempre desde la F4.
+ */
+export type CaminoDeCompra = 'puerta' | 'directa';
+
+// ─── Checkout contract (API, la ruta directa) ────────────────────────────────
+
+/** One item in the `POST /api/eventos/checkout` request body. */
+export interface CheckoutItem {
+  readonly tier: string;
+  readonly seat?: string;
+  readonly qty: number;
+}
+
+/**
+ * `POST /api/eventos/checkout` response. Opens one PSP session for the order. A
+ * free order short-circuits to `amount === 0` (no payment needed).
+ */
+export interface CheckoutResult {
+  readonly orderRef: string;
+  readonly paymentSessionId: string;
+  readonly amount: number;
+  readonly currency: string;
+  /** `true` when the order total was zero → no payment, order already placed. */
+  readonly free: boolean;
 }
 
 /** One issued e-ticket — `qr` is the (signed) payload to render + scan. */
@@ -295,7 +332,10 @@ export interface ETicket {
   readonly seat?: string;
 }
 
-/** Las entradas de una compra completa (`GET /api/eventos/compras/{id}/entradas`): su estado y un e-ticket por asistente. */
+/**
+ * Las entradas de una compra completa —`GET /api/eventos/compras/{id}/entradas` por la puerta, o
+ * `POST /api/eventos/confirm` por la ruta directa—: su estado y un e-ticket por asistente.
+ */
 export interface ConfirmResult {
   readonly status: string;
   readonly tickets: readonly ETicket[];
