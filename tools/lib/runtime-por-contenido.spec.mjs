@@ -226,6 +226,18 @@ describe('el libro latest/huellas.json', () => {
     expect(tres).toBe(una);
   });
 
+  it('el mismo fichero publicado con OTRA base es UNA entrada: la primera, en cualquier orden', () => {
+    // Medido en la integración: `--base` en Git Bash se convierte en una ruta de Windows
+    // (`C:/Program Files/Git/synergos/…`), y por URL el libro contaba cada fichero dos veces.
+    const relativa = entrada('sg-shared.js', 'a', '2026-10-01T00:00:00.000Z');
+    const absoluta = { ...relativa, url: `https://synergos-static-local${relativa.url}`, desde: '2026-10-13T00:00:00.000Z' };
+
+    const una = fusionarLibro(libroVacio('angular'), [relativa, absoluta]);
+    const otra = fusionarLibro(fusionarLibro(libroVacio('angular'), [absoluta]), [relativa]);
+    expect(una.entradas).toEqual([relativa]);
+    expect(serializarLibro(otra)).toBe(serializarLibro(una));
+  });
+
   it('la misma URL con OTRO contenido no se fusiona: lanza', () => {
     const a = entrada('sg-shared.js', 'a');
     expect(() => fusionarLibro(libroVacio('angular'), [a, { ...a, sha256: 'f'.repeat(64) }])).toThrow();

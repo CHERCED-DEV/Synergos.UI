@@ -177,33 +177,38 @@ function revisarEntrada(entrada, framework) {
 /**
  * Junta entradas a un libro. SÓLO AÑADE: lo que estaba sigue, con su «desde».
  *
- * Es idempotente byte a byte y el orden no depende de cuál se fusionó antes
- * (por URL): el libro de `public/` y el del CDN vivo dan el mismo resultado
- * fusionados en cualquier orden. La misma URL con otro sha256 LANZA: un nombre
- * con huella que trae otros bytes es exactamente lo que no puede pasar.
+ * Cada entrada es UN FICHERO del CDN, y se identifica por su sitio dentro de
+ * `runtime/<framework>/` (`21.1.6/sg-shared.<h>.js`), no por la URL entera: la
+ * misma publicación con otra base (`--base`, `SYNERGOS_CDN_ORIGIN`) es el mismo
+ * fichero, y contarlo dos veces daría un libro que no dice cuántas generaciones
+ * hay. De dos entradas del mismo fichero queda la primera publicada (la de
+ * «desde» menor; a igualdad, la URL menor), así que es idempotente byte a byte
+ * y no depende del orden: el libro de `public/` y el del CDN vivo dan lo mismo
+ * fusionados en cualquier orden. El mismo fichero con otro sha256 LANZA: un
+ * nombre con huella que trae otros bytes es exactamente lo que no puede pasar.
  */
 export function fusionarLibro(libro, nuevas = []) {
   const { framework } = libro;
-  const porUrl = new Map();
+  const porFichero = new Map();
+  const antes = (a, b) => a.desde < b.desde || (a.desde === b.desde && a.url < b.url);
 
   for (const entrada of [...libro.entradas, ...nuevas]) {
     revisarEntrada(entrada, framework);
-    const previa = porUrl.get(entrada.url);
-    if (!previa) {
-      porUrl.set(entrada.url, normalizarEntrada(entrada));
-      continue;
-    }
-    if (previa.sha256 !== entrada.sha256 || previa.bytes !== entrada.bytes) {
+    const { relativa } = rutaEnElRuntime(entrada.url, framework);
+    const previa = porFichero.get(relativa);
+    if (previa && (previa.sha256 !== entrada.sha256 || previa.bytes !== entrada.bytes)) {
       throw new Error(
-        `el libro de «${framework}» tendría ${entrada.url} con dos contenidos ` +
+        `el libro de «${framework}» tendría ${relativa} con dos contenidos ` +
           `(${previa.sha256} y ${entrada.sha256}). Un fichero con huella no cambia nunca.`,
       );
     }
     // La primera publicación manda: «desde» es cuándo existió por primera vez.
-    if (entrada.desde < previa.desde) porUrl.set(entrada.url, { ...previa, desde: entrada.desde });
+    if (!previa || antes(entrada, previa)) porFichero.set(relativa, normalizarEntrada(entrada));
   }
 
-  const entradas = [...porUrl.values()].sort((a, b) => (a.url < b.url ? -1 : a.url > b.url ? 1 : 0));
+  const entradas = [...porFichero.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([, entrada]) => entrada);
   return { framework, entradas };
 }
 
