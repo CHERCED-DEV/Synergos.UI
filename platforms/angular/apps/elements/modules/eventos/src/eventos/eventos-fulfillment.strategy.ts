@@ -150,9 +150,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * aparta y autoriza otra vez y que cerrar capturaría (el doble cobro de la revisión del cupón). Y
    * mientras está retenida la sesión no vence a los 30 min: tiene el plazo de una compra pendiente.
    *
-   * Antes de abrir con una llave NUEVA se pregunta al servidor por las compras sin acuse del miembro
-   * para el evento (fase D): las que esta sesión no ve —otro dispositivo, los datos del sitio borrados,
-   * más allá del plazo—. Con alguna no se abre: `eventos.compra_sin_acuse`, y el elemento las pinta.
+   * Antes de abrir se pregunta al servidor por las compras sin acuse del miembro para el evento (fase
+   * D): las que esta sesión no ve —otro dispositivo, los datos del sitio borrados, más allá del plazo—.
+   * Con alguna que no sea la de esta sesión no se abre: `eventos.compra_sin_acuse`, y el elemento las
+   * pinta. También con la llave retenida: si su saga ya se deshizo, abrir con ella crea OTRA.
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
@@ -167,7 +168,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     // recarga y al login. Sólo viaja el CÓDIGO; el descuento lo vuelve a calcular Pricing al abrir.
     const codigo = cuponDeLaSesion(request.session.pricing)?.codigo ?? null;
     const retenida = llaveRetenida(request.session);
-    if (retenida === null && (await this.hayComprasSinAcuse(instrument.apiBase ?? apiBaseOf(request.session), request.session, instrument.comprasAvisadas ?? []))) {
+    // También con la llave retenida (revisión del cupón endurecido): si su saga ya se deshizo, abrir con
+    // ella crea OTRA, y una compra de otro dispositivo sin acuse se cobraría al lado. Lo que no frena es
+    // la compra de ESTA sesión, que abrir con su llave recupera.
+    if (await this.hayComprasSinAcuse(instrument.apiBase ?? apiBaseOf(request.session), request.session, instrument.comprasAvisadas ?? [])) {
       return { accepted: false, reason: CODIGO_COMPRA_SIN_ACUSE };
     }
     const llave = retenida ?? llaveDeLaIntencion(request.session.sessionId, codigo);
@@ -197,6 +201,9 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       : [];
     this.#store.setSession({
       ...sesion,
+      // El id de su saga, en cuanto se sabe (antes de anotar): es lo que la fase D reconoce como «la de
+      // esta sesión» y no como otra.
+      items: sesion.items.map((item) => ({ ...item, selection: { ...item.selection, [CAMPO_DE_LA_COMPRA]: compra.id } })),
       parties,
       pricing: {
         ...sesion.pricing,
@@ -302,16 +309,22 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
 
   /**
    * ¿El miembro tiene, para este evento, compras sin acuse —en curso, o cobradas sin entradas— que el
-   * servidor conoce y esta sesión no? (ADR 0140, el cupón endurecido, fase D.) Se pregunta sólo antes
-   * de abrir con una llave NUEVA: la retenida es la de la compra de esta sesión, y abrir con ella
-   * devuelve su saga. Si la pregunta no se puede contestar, se degrada por AUSENCIA: no se sabe de
-   * ninguna, y se abre como siempre (la guarda de la sesión sigue).
+   * servidor conoce y esta sesión no? (ADR 0140, el cupón endurecido, fase D.) Se pregunta antes de
+   * abrir, con llave nueva o retenida: la retenida cuya saga ya se deshizo abre OTRA (la revisión), así
+   * que lo que se excluye es la saga de esta sesión (`compraDeLaSesion`), no la pregunta. Si no se puede
+   * contestar, se degrada por AUSENCIA: no se sabe de ninguna, y se abre como siempre (la guarda de la
+   * sesión sigue).
    */
   private async hayComprasSinAcuse(apiBase: string, session: SessionData, avisadas: readonly string[]): Promise<boolean> {
     const pendientes = await this.#api.comprasPendientes(apiBase, eventIdOf(session));
-    // Una que se deshace con un cobro por devolver no se duplica comprando otra: se dice UNA vez
-    // (el elemento la anota en `avisadas`) y después no frena.
-    return pendientes.ok && pendientes.valor.some((c) => !(esPorDevolver(c.estado) && avisadas.includes(c.id)));
+    const propia = raizDeLaSaga(compraDeLaSesion(session));
+    // La de esta sesión (su saga, o la que la misma llave reabrió) no frena. Una que se deshace con un
+    // cobro por devolver tampoco se duplica comprando otra: se dice UNA vez (el elemento la anota en
+    // `avisadas`) y después no frena.
+    return (
+      pendientes.ok &&
+      pendientes.valor.some((c) => raizDeLaSaga(c.id) !== propia && !(esPorDevolver(c.estado) && avisadas.includes(c.id)))
+    );
   }
 
   /** La saga según el orquestador (su estado y si hay plata por devolver), o `null` si no se pudo leer. */
@@ -345,10 +358,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     if (!sesion.items.some((item) => item.holdRef !== undefined)) {
       return;
     }
-    this.#store.setSession({
-      ...sesion,
-      items: sesion.items.map(({ holdRef: _suelta, ...linea }) => linea),
-    });
+    this.#store.setSession({ ...sesion, items: sesion.items.map(sinLaRetenida) });
   }
 
   private lineId(payload: TierSelectionPayload): string {
@@ -488,6 +498,30 @@ export function compraPendiente(session: SessionData): CompraPendiente | null {
 }
 
 /**
+ * Dónde guarda la línea el id de la saga que abrió (ADR 0140, el cupón endurecido): se escribe en cuanto
+ * abrir contesta, antes de anotar, y se va con la llave cuando la saga ya no puede cobrar.
+ */
+const CAMPO_DE_LA_COMPRA = 'compra';
+
+/** El id de la saga de esta sesión: el que abrir contestó, o el del último pago anotado; `null` si nadie lo tiene. */
+function compraDeLaSesion(session: SessionData): string | null {
+  const enLaLinea = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DE_LA_COMPRA];
+  const ultimo = session.payments[session.payments.length - 1];
+  if (typeof enLaLinea === 'string' && enLaLinea) return enLaLinea;
+  return ultimo && ultimo.status !== 'failed' ? (ultimo.reference ?? null) : null;
+}
+
+/** La saga y las que la misma llave reabrió tras deshacerse (`<id>#2`…) son la MISMA intención. */
+const raizDeLaSaga = (id: string | null): string | null => id?.split('#')[0] ?? null;
+
+/** La línea sin lo que la ataba a su saga: la llave retenida y el id. */
+function sinLaRetenida(item: SessionItem): SessionItem {
+  const { holdRef: _suelta, ...linea } = item;
+  const { [CAMPO_DE_LA_COMPRA]: _compra, ...seleccion } = linea.selection as Record<string, unknown>;
+  return { ...linea, selection: seleccion };
+}
+
+/**
  * La sesión SIN su compra pendiente: las líneas sin la llave retenida y el último pago `failed`. Para
  * cuando su saga ya no puede cobrar —se deshizo, se canceló— o se eligen otras entradas sin su id.
  */
@@ -495,7 +529,7 @@ export function sinCompraPendiente(session: SessionData): SessionData {
   const ultimo = session.payments.length - 1;
   return {
     ...session,
-    items: session.items.map(({ holdRef: _suelta, ...linea }) => linea),
+    items: session.items.map(sinLaRetenida),
     payments: session.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
   };
 }

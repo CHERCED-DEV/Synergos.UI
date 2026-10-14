@@ -67,6 +67,8 @@ interface RechazoDelBorde {
    * respuesta se perdió. Nadie tiene su id.
    */
   readonly abierta?: boolean;
+  /** Sólo en `POST asistentes`: el artefacto SÍ anotó (su orden existe) y la respuesta se perdió. */
+  readonly anotada?: boolean;
 }
 
 /** Lo que el borde vio de cada petición. */
@@ -130,6 +132,8 @@ function bordeDeEventos(
   readonly cobradas: () => readonly string[];
   /** Las sagas que abrió el borde, una por llave distinta: `pta-77`, `pta-78`… */
   readonly abiertas: () => readonly string[];
+  /** El barrido de abandono del orquestador: la saga en curso queda `Compensated`. */
+  readonly deshacer: (id: string) => void;
 } {
   const caidas = new Set(opciones.caidas ?? []);
   const rechazos = new Map(Object.entries(opciones.rechazos ?? {}).map(([clave, lista]) => [clave, [...lista]]));
@@ -248,6 +252,9 @@ function bordeDeEventos(
       }
       if (clave === 'POST abrir' && enCola.abierta) {
         abrirPorLlave(cabeceras.get('Idempotency-Key') ?? '', cuerpo);
+      }
+      if (clave === 'POST asistentes' && enCola.anotada) {
+        anotadas.add(sagaDe(idPedido).id);
       }
       return responder(
         enCola.status,
@@ -368,6 +375,10 @@ function bordeDeEventos(
     },
     cobradas: () => cobradas,
     abiertas: () => [...sagas.keys()],
+    deshacer: (id) => {
+      const saga = sagas.get(id);
+      if (saga) saga.estado = 'Compensated';
+    },
   };
 }
 
@@ -2459,7 +2470,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(borde.cobradas()).toEqual(['pta-77']);
   });
 
-  it('con la llave ya retenida no se pregunta otra vez: el reintento vuelve a SU saga', async () => {
+  it('con la llave ya retenida también se pregunta, y el reintento vuelve a SU saga', async () => {
     installMemoryStorage();
     const borde = bordeDeEventos({
       rechazos: { 'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout' }] },
@@ -2477,8 +2488,85 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
 
     expect(component.view()).toBe('confirmed');
-    expect(pendientesPedidas(borde)).toHaveLength(1);
+    expect(pendientesPedidas(borde)).toHaveLength(2);
     expect(borde.abiertas()).toEqual(['pta-77']);
+  });
+
+  it('la compra de ESTA sesión no frena: anotada con la respuesta perdida, el servidor la informa y el reintento la termina', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST asistentes': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', anotada: true }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const wizard = await alRevisar();
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+    expect(component.view()).not.toBe('confirmed');
+
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77']);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+  });
+
+  it('con la llave retenida y su saga ya deshecha, una compra cobrada en OTRO dispositivo frena: no se abre otra con esa llave', async () => {
+    // La revisión: abrir no contestó (la llave queda retenida 24 h), el barrido deshizo esa saga, y desde
+    // otro dispositivo se cobró otra cuya respuesta se perdió. Con la llave retenida no se preguntaba, y
+    // abrir con ella creaba una saga NUEVA que se cobraba al lado.
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: {
+        'POST abrir': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', abierta: true }],
+        'POST cerrar': [{ status: 504, code: 'puerta.tiempo_agotado', transient: true, title: 'Gateway Timeout', cobro: 'hecho' }],
+      },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const enElPortatil = await alRevisar();
+    enElPortatil.next();
+    await flushMicrotasks(60);
+    const sesionDelPortatil = almacen.get(`syn.txn.session.eventos.${component.instanceId}`)!;
+    const siguiente = component.instanceId + 2;
+    borde.deshacer('pta-77');
+
+    await enOtroDispositivo();
+    const enElMovil = await alRevisar();
+    enElMovil.next();
+    await flushMicrotasks(60);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+
+    // De vuelta en el portátil, con su sesión: la llave retenida y sin id.
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    installMemoryStorage().set(`syn.txn.session.eventos.${siguiente}`, sesionDelPortatil);
+    await createComponent();
+    expect(component.instanceId).toBe(siguiente);
+    const abiertasAntes = borde.llamadas('POST abrir');
+    component.attendees().forEach((_fila, indice) => {
+      component.setAttendeeField(indice, 'name', 'Ada Lovelace');
+      component.setAttendeeField(indice, 'email', 'ada@example.com');
+    });
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+
+    expect(borde.llamadas('POST abrir')).toBe(abiertasAntes);
+    expect(borde.cobradas()).toEqual(['pta-78']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-78');
   });
 
   // ── reserved seating: seat-map selection drives the ticket count ──────────────
