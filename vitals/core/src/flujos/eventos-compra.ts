@@ -108,3 +108,13 @@ export async function cotizarCompraDeEventos(
 export async function cerrarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
   return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cerrar', { consulta: { id } }));
 }
+
+/**
+ * Cancela una compra EN CURSO por su id (ADR 0140, el cupón endurecido): el orquestador la compensa
+ * —suelta lo apartado y anula la autorización— y contesta `Compensated` (o `Compensating`). Una compra
+ * `Completed` contesta 409 `eventos.already_completed`: lo cobrado no se cancela, se devuelve (#183).
+ * Sin llave: es la compra de ESE id, y cancelarla dos veces es lo mismo que una.
+ */
+export async function cancelarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
+  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cancelar', { consulta: { id } }));
+}

@@ -23,7 +23,7 @@ import {
   type CoordinadorDelFlujo,
   type DetalleDeResultado,
 } from './coordinador';
-import { abrirCompraDeEventos, cerrarCompraDeEventos, cotizarCompraDeEventos, leerCompra } from './eventos-compra';
+import { abrirCompraDeEventos, cancelarCompraDeEventos, cerrarCompraDeEventos, cotizarCompraDeEventos, leerCompra } from './eventos-compra';
 import { clasificarRechazo, elegirMensaje } from './rechazos';
 
 /**
@@ -405,6 +405,27 @@ describe('<synergos-flujo>: el coordinador', () => {
     expect(llamadas.map((l) => [l.init.method, l.url, cabecera(l, 'Idempotency-Key')])).toEqual([
       ['POST', '/api/flujos/eventos.compra/abrir', 'sess-1'],
       ['POST', '/api/flujos/eventos.compra/cerrar?id=saga1', null],
+    ]);
+  });
+
+  it('cancelar la compra de Eventos: POST con el id y SIN llave, leída con el contrato generado; una ya completa vuelve como su code', async () => {
+    document.body.innerHTML = '<synergos-flujo id="c" flujo="eventos.compra"><span id="p"></span></synergos-flujo>';
+    const { f, llamadas } = falsoFetch([
+      json(200, { ...compra, status: 'Compensated' }),
+      json(409, { type: 'about:blank', title: 'Conflict', status: 409, detail: 'x', code: 'eventos.already_completed', transient: false }, 'application/problem+json'),
+    ]);
+    conFetch('#c', f);
+    const p = document.getElementById('p')!;
+
+    const cancelada = await cancelarCompraDeEventos(p, 'saga1');
+    const completa = await cancelarCompraDeEventos(p, 'saga2');
+
+    expect(cancelada.ok && cancelada.valor).toEqual({ id: 'saga1', estado: 'Compensated', importe: 100800, moneda: 'COP', gratis: false, apartadas: 2 });
+    expect(!completa.ok && completa.rechazo.code).toBe('eventos.already_completed');
+    expect(!completa.ok && clasificarRechazo(completa.rechazo)).toBe('negado');
+    expect(llamadas.map((l) => [l.init.method, l.url, cabecera(l, 'Idempotency-Key')])).toEqual([
+      ['POST', '/api/flujos/eventos.compra/cancelar?id=saga1', null],
+      ['POST', '/api/flujos/eventos.compra/cancelar?id=saga2', null],
     ]);
   });
 
