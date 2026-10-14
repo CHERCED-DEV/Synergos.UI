@@ -64,7 +64,8 @@ interface EventosPayInstrument {
   readonly comprasAvisadas?: readonly string[];
   /**
    * Por dónde compra, como lo DECLARA el CMS (`purchasePath`, ADR 0140). Viaja por llamada, como `host`:
-   * la estrategia es una por página. Sin él, la puerta.
+   * la estrategia es una por página. Sin él, la puerta. Una compra que ya salió no lo mira: se termina por
+   * el camino por el que salió (`caminoDeLaCompraEnCurso`).
    */
   readonly camino?: CaminoDeCompra;
   /** Quien compra, para la ruta directa (la puerta lo pone desde la sesión). */
@@ -85,6 +86,11 @@ interface EventosPayInstrument {
  * Los rechazos vuelven como su `code`. Por la **directa**: `pay` abre la orden en
  * `/api/eventos/checkout` y `confirm` la confirma en `/api/eventos/confirm`. Nunca se cae de un camino
  * al otro —ni ante un 503 de la puerta—: dos caminos para la misma intención abren dos órdenes.
+ *
+ * **Y una compra que ya salió se termina por el camino por el que salió** (`caminoDeLaCompraEnCurso`),
+ * aunque el CMS declare otro al recargar: `pay` lo anota en las líneas antes de salir a la red, y su
+ * saga o su orden sólo existen de ese lado. Leído de la página, un cambio de camino durante un
+ * incidente mandaba a cerrar una saga de la puerta a `/api/eventos/confirm`, que no la conoce.
  */
 @Injectable()
 export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
@@ -174,7 +180,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     if (request.session.items.length === 0) {
       return { accepted: false, reason: 'empty-cart' };
     }
-    if (caminoDeLaCompra(instrument.camino) === 'directa') {
+    if (caminoDeLaCompraEnCurso(request.session, instrument.camino) === 'directa') {
       return this.pagarPorLaRutaDirecta(request, instrument);
     }
     const host = instrument.host;
@@ -268,7 +274,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     instrument?: Readonly<Record<string, unknown>>,
   ): Promise<FulfillmentConfirmation> {
     const datos = (instrument ?? {}) as Partial<EventosPayInstrument>;
-    if (caminoDeLaCompra(datos.camino) === 'directa') {
+    if (caminoDeLaCompraEnCurso(session, datos.camino) === 'directa') {
       return this.confirmarPorLaRutaDirecta(session, datos);
     }
     const host = datos.host;
@@ -318,6 +324,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
    * `psp_mock_…` y esto lo daba por bueno, así que el asistente seguía a confirmar contra una orden que
    * no existe. Nada se cobró: el asistente dice su `payFailedMessage` y volver a pulsar abre la orden
    * otra vez.
+   *
+   * Antes de abrir se pregunta también aquí por las compras sin acuse (la fase D): una de la puerta
+   * —abierta antes de que el CMS cambiara de camino, o en otro dispositivo— no la ve esta sesión, y
+   * una orden directa se cobraría a su lado. Sin respuesta, se degrada por AUSENCIA, como por la puerta.
    */
   private async pagarPorLaRutaDirecta(
     request: FulfillmentPayRequest,
@@ -327,15 +337,20 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     const eventId = instrument.eventId ?? eventIdOf(request.session);
     const attendees = instrument.attendees ?? [];
     const buyer: Buyer = instrument.buyer ?? { name: '', email: '' };
+    if (await this.hayComprasSinAcuse(apiBase, request.session, instrument.comprasAvisadas ?? [])) {
+      return { accepted: false, reason: CODIGO_COMPRA_SIN_ACUSE };
+    }
     // El asistente lleva pay→confirm desde el store: los asistentes quedan como parties, así `confirm`
-    // emite una entrada por asistente aunque la página se recargue entre medias.
+    // emite una entrada por asistente aunque la página se recargue entre medias. Y las líneas dicen por
+    // dónde salió la compra, antes de salir: es por donde se termina.
     const parties: SessionParty[] = attendees.map((attendee, index) => ({
       id: `att-${index + 1}`,
       fullName: attendee.name,
       email: attendee.email,
       details: { document: attendee.document },
     }));
-    this.#store.setSession({ ...this.#store.getValidSession(), parties });
+    const sesion = this.#store.getValidSession();
+    this.#store.setSession({ ...sesion, parties, items: sesion.items.map((item) => conElCamino(item, 'directa')) });
 
     let checkout: CheckoutResult;
     try {
@@ -417,14 +432,19 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   }
 
   /**
-   * Las líneas quedan apartadas bajo `llave`: su saga puede estar viva desde que abrir salió. Y la sesión
-   * pasa a vencer con el plazo de una compra pendiente, también si la llave ya estaba retenida: con los
-   * 30 min de la sesión, la compra se olvidaba antes que el barrido de abandono del orquestador.
+   * Las líneas quedan apartadas bajo `llave`: su saga puede estar viva desde que abrir salió, y sale por
+   * la puerta, que es por donde se termina. Y la sesión pasa a vencer con el plazo de una compra
+   * pendiente, también si la llave ya estaba retenida: con los 30 min de la sesión, la compra se
+   * olvidaba antes que el barrido de abandono del orquestador.
    */
   private retener(llave: string): void {
     const sesion = this.#store.getValidSession();
     const vence = Math.max(sesion.expiresAt, Date.now() + PLAZO_DE_UNA_COMPRA_PENDIENTE_MS);
-    this.#store.setSession({ ...sesion, expiresAt: vence, items: sesion.items.map((item) => ({ ...item, holdRef: llave })) });
+    this.#store.setSession({
+      ...sesion,
+      expiresAt: vence,
+      items: sesion.items.map((item) => ({ ...conElCamino(item, 'puerta'), holdRef: llave })),
+    });
   }
 
   /** Ninguna saga de esta intención puede cobrar: las líneas dejan de estar retenidas. */
@@ -578,6 +598,40 @@ export function compraPendiente(session: SessionData): CompraPendiente | null {
  */
 const CAMPO_DE_LA_COMPRA = 'compra';
 
+/**
+ * Dónde guarda la línea el camino por el que salió su compra (ADR 0140): lo escribe `pay` antes de salir
+ * a la red —`retener` por la puerta, y la ruta directa con sus asistentes— y se va con la llave.
+ */
+const CAMPO_DEL_CAMINO = 'camino';
+
+/** La línea con el camino por el que sale su compra. */
+function conElCamino(item: SessionItem, camino: CaminoDeCompra): SessionItem {
+  return { ...item, selection: { ...item.selection, [CAMPO_DEL_CAMINO]: camino } };
+}
+
+/**
+ * El camino por el que salió la compra pendiente de la sesión, o `null` sin ella (ADR 0140). Una llave
+ * retenida sin el camino anotado —una sesión de antes— es de la puerta: la directa no retiene llave.
+ */
+export function caminoDeLaPendiente(session: SessionData): CaminoDeCompra | null {
+  if (compraPendiente(session) === null) {
+    return null;
+  }
+  const anotado = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DEL_CAMINO];
+  if (anotado === 'puerta' || anotado === 'directa') {
+    return anotado;
+  }
+  return llaveRetenida(session) !== null ? 'puerta' : null;
+}
+
+/**
+ * Por dónde va ESTA compra (ADR 0140): la que ya salió, por el camino por el que salió —su saga o su orden
+ * sólo existen de ese lado, y el otro no la encuentra—; sin ninguna en curso, por el que declara el CMS.
+ */
+export function caminoDeLaCompraEnCurso(session: SessionData, declarado: unknown): CaminoDeCompra {
+  return caminoDeLaPendiente(session) ?? caminoDeLaCompra(declarado);
+}
+
 /** El id de la saga de esta sesión: el que abrir contestó, o el del último pago anotado; `null` si nadie lo tiene. */
 function compraDeLaSesion(session: SessionData): string | null {
   const enLaLinea = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DE_LA_COMPRA];
@@ -589,10 +643,10 @@ function compraDeLaSesion(session: SessionData): string | null {
 /** La saga y las que la misma llave reabrió tras deshacerse (`<id>#2`…) son la MISMA intención. */
 const raizDeLaSaga = (id: string | null): string | null => id?.split('#')[0] ?? null;
 
-/** La línea sin lo que la ataba a su saga: la llave retenida y el id. */
+/** La línea sin lo que la ataba a su saga: la llave retenida, el id y el camino por el que salió. */
 function sinLaRetenida(item: SessionItem): SessionItem {
   const { holdRef: _suelta, ...linea } = item;
-  const { [CAMPO_DE_LA_COMPRA]: _compra, ...seleccion } = linea.selection as Record<string, unknown>;
+  const { [CAMPO_DE_LA_COMPRA]: _compra, [CAMPO_DEL_CAMINO]: _camino, ...seleccion } = linea.selection as Record<string, unknown>;
   return { ...linea, selection: seleccion };
 }
 

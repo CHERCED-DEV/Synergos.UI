@@ -106,9 +106,11 @@ interface PeticionVista {
  *
  * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel). La
  * ruta directa (`/checkout`, `/confirm`) sólo la sirve con `rutaDirecta` —los specs del camino que el
- * CMS declara `directa` (ADR 0140, superset)—, con la forma de `CheckoutResponse` y `ConfirmResponse` y
- * la orden `evord_77`; sin eso contesta 404, y si un spec de la puerta la pidiera el `afterEach` del
- * bloque lo pone en rojo.
+ * CMS declara `directa` (ADR 0140, superset)—, con la forma de `CheckoutResponse` y `ConfirmResponse`:
+ * cada checkout abre OTRA orden (`evord_77`, `evord_78`…, como el motor del CMS), y confirm cobra la
+ * pendiente una vez, repite las entradas de la confirmada y contesta 404 a la que no conoce —una saga
+ * de la puerta, como el CMS—. Sin `rutaDirecta` contesta 404, y si un spec de la puerta la pidiera el
+ * `afterEach` del bloque lo pone en rojo.
  */
 function bordeDeEventos(
   opciones: {
@@ -130,8 +132,9 @@ function bordeDeEventos(
   readonly vistas: () => readonly PeticionVista[];
   readonly encender: (clave: string) => void;
   /**
-   * Las sagas que CERRAR capturó, en orden: lo que de verdad se cobró. Dos sagas aquí para la misma
-   * selección es el doble cobro (ADR 0140, el cupón endurecido).
+   * Las sagas que CERRAR capturó, y las órdenes de la ruta directa que capturó `/confirm`, en orden: lo
+   * que de verdad se cobró. Dos aquí para la misma selección es el doble cobro (ADR 0140, el cupón
+   * endurecido).
    */
   readonly cobradas: () => readonly string[];
   /** Las sagas que abrió el borde, una por llave distinta: `pta-77`, `pta-78`… */
@@ -164,6 +167,16 @@ function bordeDeEventos(
   /** Las sagas con asistentes anotados (el artefacto guarda su orden) y las que ya tienen acuse (sus entradas). */
   const anotadas = new Set<string>();
   const conAcuse = new Set<string>();
+  /** Las órdenes de la ruta directa: una por checkout, `Pending` hasta que confirm la cobra. */
+  const ordenes = new Map<string, { confirmada: boolean }>();
+  /** Confirm de la ruta directa: cobra la pendiente UNA vez; `false` si la orden no existe. */
+  const confirmarOrden = (orderRef: unknown): boolean => {
+    const orden = typeof orderRef === 'string' ? ordenes.get(orderRef) : undefined;
+    if (!orden) return false;
+    if (!orden.confirmada) cobradas.push(orderRef as string);
+    orden.confirmada = true;
+    return true;
+  };
   let ultima: SagaDelBorde = { id: 'pta-77', evento: '', estado: 'Running', apartadas: [] };
   const sagaDe = (id: string | null): SagaDelBorde => (id ? sagas.get(id) : undefined) ?? ultima;
   const cobrar = (saga: SagaDelBorde): void => {
@@ -241,6 +254,7 @@ function bordeDeEventos(
     if (cortados.delete(clave)) {
       // El servidor hizo su trabajo y la conexión se cortó a mitad del cuerpo.
       if (clave === 'POST cerrar') cobrar(sagaDe(idPedido));
+      if (clave === 'POST /confirm' && opciones.rutaDirecta) confirmarOrden(cuerpo['orderRef']);
       return Promise.resolve(new Response('{"id":"pta-77","sta', { status: 200, headers: { 'content-type': 'application/json' } }));
     }
     const enCola = rechazos.get(clave)?.shift();
@@ -367,18 +381,23 @@ function bordeDeEventos(
         quemadas.add(codigo);
         return responder(200, { status: resultado, ticketId: 'tkt_77_1', attendee: 'Ada Lovelace' });
       }
-      case 'POST /checkout':
+      case 'POST /checkout': {
         if (!opciones.rutaDirecta) return responder(404, { code: 'ruta.vieja', transient: false });
+        const orderRef = `evord_${77 + ordenes.size}`;
+        ordenes.set(orderRef, { confirmada: false });
         return responder(200, {
-          orderRef: 'evord_77',
-          paymentSessionId: 'psp_77',
+          orderRef,
+          paymentSessionId: `psp_${77 + ordenes.size - 1}`,
           amount: 180_000,
           amountFormatted: '$ 180.000',
           currency: 'COP',
           free: false,
         });
+      }
       case 'POST /confirm':
         if (!opciones.rutaDirecta) return responder(404, { code: 'ruta.vieja', transient: false });
+        // Como el CMS: una orden que esta ruta no conoce —una saga de la puerta— es «Orden no encontrada».
+        if (!confirmarOrden(cuerpo['orderRef'])) return responder(404, { error: 'Orden no encontrada.' });
         return responder(200, { status: 'Paid', tickets: [entrada(1, 'valid')] });
       default:
         return Promise.reject(new TypeError('offline'));
@@ -3134,7 +3153,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   // la puerta: la orden `evord_77` de la ruta directa, contra la saga `pta-77`.
   const DIRECTA: Record<string, unknown> = { ...NEGOCIO_DEL_CMS, purchasePath: 'directa' };
 
-  it('camino «directa»: checkout → confirm por /api/eventos con los asistentes y el comprador, sin tocar la puerta ni el artefacto', async () => {
+  it('camino «directa»: checkout → confirm por /api/eventos con los asistentes y el comprador, sin tocar la puerta; del artefacto, sólo la fase D', async () => {
     caminoDirecto = true;
     installMemoryStorage();
     const borde = bordeDeEventos({ rutaDirecta: true });
@@ -3158,7 +3177,9 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     });
     expect(confirm!.url).toBe('/api/eventos/confirm');
     expect(confirm!.cuerpo).toEqual({ orderRef: 'evord_77' });
-    expect(borde.llamadas('GET /compras/pendientes')).toBe(0);
+    // La fase D también por la directa: antes de abrir, una vez; sin nada pendiente, se abre.
+    expect(borde.llamadas('GET /compras/pendientes')).toBe(1);
+    expect(borde.llamadas('POST asistentes') + borde.llamadas('GET entradas')).toBe(0);
     expect(component.view()).toBe('confirmed');
     expect(component.orderRef()).toBe('evord_77');
     expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
@@ -3272,6 +3293,111 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
     expect(borde.llamadas('GET consultar')).toBe(0);
     expect(borde.llamadas('POST cancelar')).toBe(0);
+  });
+
+  // ── La compra que ya salió se termina por su camino, aunque el CMS cambie de camino al recargar ──
+  //
+  // La revisión del camino de compra: los dos caminos se leían de la página ACTUAL. Con una compra de la
+  // puerta a medio cerrar y el CMS pasando a «directa» —justo lo que se hace durante un incidente—, el
+  // reintento mandaba la saga a `/api/eventos/confirm` (404 en cada clic), la guarda y «Explorar más
+  // eventos» la soltaban sin consultarla, y la compra siguiente iba por la directa sin la fase D: otra
+  // orden cobrada al lado. Lo que se mira es lo que cerró y cobró el borde.
+
+  /** F5 con OTRA configuración: la sesión persistida, leída por una instancia NUEVA del elemento. */
+  async function recargarCon(config: Record<string, unknown>, almacen: Map<string, string>): Promise<void> {
+    const guardada = almacen.get(`syn.txn.session.eventos.${component.instanceId}`);
+    const siguiente = component.instanceId + 1;
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    almacen.set(`syn.txn.session.eventos.${siguiente}`, guardada!);
+    await createComponent(config);
+    expect(component.instanceId).toBe(siguiente);
+  }
+
+  /** «Pagar y confirmar» otra vez desde el carrito que dejó la recarga. */
+  async function reintentarElPago(): Promise<void> {
+    component.attendees().forEach((_fila, indice) => {
+      component.setAttendeeField(indice, 'name', 'Ada Lovelace');
+      component.setAttendeeField(indice, 'email', 'ada@example.com');
+    });
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next();
+    await flushMicrotasks(60);
+    fixture.detectChanges();
+  }
+
+  it('una compra de la puerta a medio cerrar se termina por la puerta aunque el CMS pase a «directa»: el reintento cierra la MISMA saga y no pide /confirm', async () => {
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    expect(borde.cobradas()).toEqual(['pta-77']);
+
+    await recargarCon(DIRECTA, almacen);
+    expect(component.caminoDeCompra()).toBe('directa');
+    expect(component.porLaPuerta()).toBe(true);
+    await reintentarElPago();
+
+    expect(borde.llamadas('POST cerrar')).toBe(2);
+    expect(borde.llamadas('POST /checkout') + borde.llamadas('POST /confirm')).toBe(0);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+  });
+
+  it('con «directa» tras recargar, elegir otra vez con la compra de la puerta pendiente la consulta por la puerta: no la suelta ni abre una orden directa', async () => {
+    const almacen = installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await recargarCon(DIRECTA, almacen);
+    // «Explorar más eventos» tampoco la suelta.
+    component.startOver();
+    expect(TestBed.inject(SessionStore).session().payments.at(-1)?.reference).toBe('pta-77');
+    await elegirOtraVez();
+    await pagarSiElCarritoLoOfrece();
+
+    expect(borde.llamadas('GET consultar')).toBe(1);
+    expect(borde.llamadas('POST /checkout') + borde.llamadas('POST /confirm')).toBe(0);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(avisoDeLaPendiente()).toBe(COMPLETADA);
+  });
+
+  it('camino «directa» desde OTRO dispositivo, con una compra de la puerta cobrada sin acuse: la fase D frena el checkout y muestra sus entradas', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    fixture.destroy();
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    installMemoryStorage();
+    await createComponent(DIRECTA);
+    const fallos = motivosDe();
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['eventos.compra_sin_acuse']);
+    expect(borde.llamadas('POST /checkout') + borde.llamadas('POST /confirm')).toBe(0);
+    expect(borde.cobradas()).toEqual(['pta-77']);
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('pta-77');
+    expect(avisoDeLaPendiente()).toBe(COMPLETADA);
   });
 
   it.each([

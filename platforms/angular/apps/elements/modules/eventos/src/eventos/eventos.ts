@@ -78,6 +78,7 @@ import {
   CODIGO_DEMASIADOS_CODIGOS,
   PREFIJO_DEL_CUPON,
   caminoDeLaCompra,
+  caminoDeLaCompraEnCurso,
   compraPendiente,
   cuerpoDeLaCompra,
   cuponDeLaSesion,
@@ -497,7 +498,14 @@ export class EventosElementComponent implements OnInit {
    * puerta: lo de siempre desde la F4. El elemento no lo adivina ni cae de uno al otro.
    */
   readonly caminoDeCompra = computed<CaminoDeCompra>(() => caminoDeLaCompra(this.config()?.purchasePath));
-  readonly porLaPuerta = computed(() => this.caminoDeCompra() === 'puerta');
+  /**
+   * Si ESTA compra va por la puerta: la que ya salió, por el camino por el que salió —la sesión sobrevive
+   * a que el CMS cambie de camino, y su saga sólo la encuentra la puerta—; si no, el declarado. De esto
+   * cuelgan la guarda de la compra pendiente, el cupón y el panel «no disponible».
+   */
+  readonly porLaPuerta = computed(
+    () => caminoDeLaCompraEnCurso(this.#store.session(), this.caminoDeCompra()) === 'puerta',
+  );
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
