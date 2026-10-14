@@ -156,9 +156,13 @@ jobs:
       # casi blanco (1.046:1) durante quién sabe cuánto. Un aviso en prosa no es
       # un gate.
       #
-      # Mide 184 pares × 8 rutas: los 7 `data-theme` MÁS `prefers-color-scheme:
+      # Mide 248 pares × 8 rutas: los 7 `data-theme` MÁS `prefers-color-scheme:
       # dark` sin `data-theme`. Esa octava es justo la que se escapa de cualquier
-      # barrido que busque "los 7 temas", y es la que estaba rota.
+      # barrido que busque "los 7 temas", y es la que estaba rota. Desde la ADR
+      # 0140 (el cupón endurecido) mide también el relleno y el texto de
+      # `action-primary` y el `text-accent`: la octava ruta daba 2,39:1 en los
+      # dos con este gate en 0 fallos. Si alguno de esos tres tokens deja de
+      # resolver en una ruta, sale con 2 en vez de saltarse el par.
       #
       # El script se autotestea antes de emitir cifras (negro/blanco DEBE dar
       # 21.0000) y aborta con código 2 si su propio arnés falla — un arnés roto

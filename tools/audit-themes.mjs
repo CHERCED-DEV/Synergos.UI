@@ -31,6 +31,9 @@
  * 5. LO QUE LA NORMA EXIME. WCAG 1.4.3 exime el texto de controles DESHABILITADOS.
  *    Contarlos inflaba el resultado un 42% (88 de 208 "fallos") y habría mandado a
  *    arreglar lo que no está roto. Se excluyen y se dice que se excluyen.
+ * 6. LO QUE NO RESUELVE NO SE SALTA. El relleno y el texto de `action-primary` y el
+ *    `text-accent` no se medían, y la octava ruta daba 2,39:1 con G-5 en 0 fallos.
+ *    Hoy son el PISO: si alguno no resuelve en alguna ruta, sale con 2, como el autotest.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -197,6 +200,8 @@ const TEXTOS = [
   '--syn-color-text-primary',
   '--syn-color-text-secondary',
   '--syn-color-text-muted',
+  // El acento también es TEXTO (enlaces, cifras destacadas): 4,5 sobre cada superficie.
+  '--syn-color-text-accent',
 ];
 const FONDOS = [
   '--syn-color-surface-canvas',
@@ -209,6 +214,22 @@ const ROLES = ['state-info', 'state-success', 'state-warning', 'state-danger', '
 
 const AA_TEXTO = 4.5;
 const NO_TEXTO = 3.0; // WCAG 1.4.11 — indicador de foco, bordes de control
+
+/**
+ * El relleno del botón primario y su texto, y el texto de acento (ADR 0140, el cupón endurecido).
+ * No se medían: en la octava ruta el relleno de `action-primary` daba 2,39:1 contra el panel, y
+ * `text-accent` lo mismo siendo texto, con G-5 en 0 fallos. Estos tres son el PISO: si alguno no
+ * resuelve en alguna ruta, el arnés sale con 2 en vez de saltarse el par y seguir en verde.
+ */
+const PISO = ['--syn-color-action-primary', '--syn-color-action-primary-text', '--syn-color-text-accent'];
+
+const sinResolver = RUTAS.flatMap(({ id }) => PISO.filter((t) => !resolver(id, t)).map((t) => `${id}: ${t}`));
+if (sinResolver.length) {
+  console.error('\n  ✘ EL ARNÉS NO ENCUENTRA LO QUE DEBE MEDIR. No se reporta ninguna cifra.\n');
+  for (const f of sinResolver) console.error('    · ' + f);
+  console.error('\n  Un par que se salta en silencio deja el gate en verde sin haber medido.\n');
+  process.exit(2);
+}
 
 const resultados = [];
 
@@ -243,6 +264,25 @@ for (const { id: ruta } of RUTAS) {
       resultados.push({ ruta, fg: 'focus-ring', bg: b, ratio: r, umbral: NO_TEXTO, pasa: r >= NO_TEXTO });
     }
   }
+  // El relleno del botón primario: 1.4.11 pide 3:1 contra la superficie en que se apoya (como el
+  // anillo), y su texto, 4,5 sobre el relleno.
+  const relleno = resolver(ruta, '--syn-color-action-primary');
+  for (const b of FONDOS.slice(0, 3)) {
+    const bg = resolver(ruta, b);
+    if (!bg) continue;
+    const r = ratio(relleno, bg, lienzo);
+    resultados.push({ ruta, fg: '--syn-color-action-primary', bg: b, ratio: r, umbral: NO_TEXTO, pasa: r >= NO_TEXTO });
+  }
+  const textoDelRelleno = resolver(ruta, '--syn-color-action-primary-text');
+  const r = ratio(textoDelRelleno, relleno, lienzo);
+  resultados.push({
+    ruta,
+    fg: '--syn-color-action-primary-text',
+    bg: '--syn-color-action-primary',
+    ratio: r,
+    umbral: AA_TEXTO,
+    pasa: r >= AA_TEXTO,
+  });
 }
 
 // ─── Reporte ────────────────────────────────────────────────────────────────
