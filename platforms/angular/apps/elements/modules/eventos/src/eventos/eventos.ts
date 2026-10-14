@@ -733,6 +733,12 @@ export class EventosElementComponent implements OnInit {
     this.formatMinor(this.cartSubtotalMinor()),
   );
   readonly feesLabel = computed(() => this.formatMinor(this.feesMinor()));
+  /**
+   * Si hay una fila de cargos que pintar: por el IMPORTE, no por la comisión configurada, que es la
+   * regla de `#fijarPrecio` y la de `omitir_si_cero` del flujo. Un registro gratis de un sitio con
+   * comisión decía «Cargos por servicio (12 %) $ 0».
+   */
+  readonly hayCargos = computed(() => this.feesMinor() > 0);
   readonly cartTotalLabel = computed(() => this.formatMinor(this.cartTotalMinor()));
 
   // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
@@ -1632,8 +1638,8 @@ export class EventosElementComponent implements OnInit {
    */
   readonly cartSummary = computed<readonly CartSummaryRow[]>(() => {
     const filas: CartSummaryRow[] = [{ id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() }];
-    // Sin comisión configurada no hay fila: la misma regla con la que `reprice()` arma el cobro.
-    if (this.feePercent() > 0) {
+    // Sin cargo no hay fila: la misma regla con la que `reprice()` arma el cobro.
+    if (this.hayCargos()) {
       filas.push({
         id: 'fees',
         label: `Cargos por servicio (${this.feePercent().toLocaleString('es-CO')} %)`,

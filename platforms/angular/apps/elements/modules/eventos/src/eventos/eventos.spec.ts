@@ -1140,6 +1140,12 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
     expect(filaDeTuOrden('fees')).toBe(component.feesLabel());
     expect(filaDeTuOrden('promo')).toBeUndefined();
+    // Lo pagado CON comisión conserva la fila de cargos en las tres vistas: el carrito, «Tu orden» y
+    // «Revisa tu orden» (el control de la que se omite cuando el cargo es 0).
+    expect(component.cartSummary().find((fila) => fila.id === 'fees')?.value).toBe(component.feesLabel());
+    expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__review')?.textContent).toContain(
+      `Cargos por servicio${component.feesLabel()}`,
+    );
 
     await component.applyPromo('BIENVENIDA10');
     fixture.detectChanges();
@@ -1471,6 +1477,11 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     expect(component.cartActions().find((accion) => accion.id === 'checkout')?.label).toBe('Continuar al registro');
     expect(host.textContent).not.toContain('Continuar al pago');
+    // Sin cargo no hay fila, aunque el sitio cobre comisión: ni «Cargos por servicio (12 %) $ 0» en el
+    // carrito, ni en «Tu orden», ni en «Revisa tu orden» (verificación en vivo del cupón endurecido).
+    expect(component.feePercent()).toBeGreaterThan(0);
+    expect(component.cartSummary().map((fila) => fila.id)).not.toContain('fees');
+    expect(host.textContent).not.toContain('Cargos por servicio');
 
     component.setAttendeeField(0, 'name', 'Ada Lovelace');
     component.setAttendeeField(0, 'email', 'ada@example.com');
@@ -1483,6 +1494,9 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     }
     expect(host.querySelector('.eventos__review')).not.toBeNull();
     expect(host.querySelector('.eventos__review .eventos__notice')).toBeNull();
+    expect(host.querySelector('.eventos__review')?.textContent).not.toContain('Cargos por servicio');
+    expect(host.querySelector('.syn-wizard__summary [data-row="fees"]')).toBeNull();
+    expect(component.cartTotalMinor()).toBe(0);
 
     wizard.next();
     await flushMicrotasks(60);
@@ -2246,6 +2260,21 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.feesMinor()).toBe(0);
     expect(component.cartSummary().some((f) => f.id === 'fees')).toBe(false);
     expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor());
+  });
+
+  it('lo pagado en un sitio sin comisión tampoco pinta «Cargos por servicio $ 0» en «Revisa tu orden»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ apiBase: NEGOCIO_DEL_CMS.apiBase });
+
+    await alRevisar();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(component.isFreeEvent()).toBe(false);
+    expect(host.querySelector('.eventos__review')).not.toBeNull();
+    expect(host.querySelector('.eventos__review')?.textContent).not.toContain('Cargos por servicio');
+    expect(host.querySelector('.syn-wizard__summary [data-row="fees"]')).toBeNull();
   });
 
   it('sin la base de la API no llama a nada y degrada a la muestra, visible', async () => {
