@@ -3276,23 +3276,75 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
   });
 
-  it('camino «directa»: la guarda de la compra pendiente es de la puerta; con la confirmación caída, elegir otra vez reemplaza el carrito sin preguntarle a nadie', async () => {
+  // La revisión del camino de compra: con «directa», elegir otra vez descartaba la orden con un pago
+  // anotado y sin confirmar —«la ruta directa no tiene a quién preguntar»—, y la siguiente era OTRA orden
+  // cobrada a su lado si `/confirm` sí había capturado. Esa ruta no lee una orden sin terminarla, así que
+  // se ofrece terminarla: confirmar es idempotente por `orderRef`.
+  const CONFIRMACION_PENDIENTE = (): string => asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'evord_77');
+
+  it('camino «directa» con la respuesta de /confirm perdida DESPUÉS de cobrar: elegir otra vez no descarta la orden; «Terminar» la confirma sin otra orden ni otro cobro', async () => {
+    caminoDirecto = true;
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rutaDirecta: true, cortados: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent(DIRECTA);
+    await purchaseFirstGeneralEvent();
+    expect(borde.cobradas()).toEqual(['evord_77']);
+    expect(component.view()).not.toBe('confirmed');
+    const aviso = CONFIRMACION_PENDIENTE();
+    const lineas = component.cartItems();
+
+    // «Explorar más eventos» tampoco la suelta.
+    component.startOver();
+    expect(TestBed.inject(SessionStore).session().payments.at(-1)?.reference).toBe('evord_77');
+    await elegirOtraVez();
+
+    expect(component.view()).toBe('cart');
+    expect(component.pendiente()).toEqual({ tipo: 'sin-confirmar', referencia: 'evord_77', propia: true });
+    expect(avisoDeLaPendiente()).toBe(aviso);
+    expect(botonesDeLaPendiente()).toEqual(['Terminar mi compra']);
+    expect(component.cartItems()).toEqual(lineas);
+    expect(borde.llamadas('GET consultar') + borde.llamadas('POST cancelar')).toBe(0);
+
+    await pulsar('Terminar mi compra');
+    expect(component.view()).toBe('checkout');
+    // «Explorar más eventos» vació los asistentes de la pantalla; la orden ya lleva los suyos.
+    await reintentarElPago();
+
+    expect(component.view()).toBe('confirmed');
+    expect(component.orderRef()).toBe('evord_77');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST /confirm')).toBe(2);
+    expect(borde.cobradas()).toEqual(['evord_77']);
+
+    // Confirmada, comprar otra vez a propósito sigue igual: sin panel, y el carrito es lo elegido.
+    await elegirOtraVez();
+    expect(component.pendiente()).toBeNull();
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([component.quantity()]);
+    expect(component.cartItems()).not.toEqual(lineas);
+  });
+
+  it('camino «directa» con la confirmación caída antes de llegar: elegir otra vez tampoco la descarta (no se sabe), y «Terminar» cobra ÉSA una sola vez', async () => {
     caminoDirecto = true;
     installMemoryStorage();
     const borde = bordeDeEventos({ rutaDirecta: true, caidas: ['POST /confirm'] });
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent(DIRECTA);
     await purchaseFirstGeneralEvent();
-    // Por la puerta esto sería una compra pendiente: un pago anotado y sin confirmar.
-    expect(TestBed.inject(SessionStore).session().payments.at(-1)?.reference).toBe('evord_77');
+    expect(borde.cobradas()).toEqual([]);
 
     await elegirOtraVez();
 
-    expect(component.pendiente()).toBeNull();
-    expect(component.view()).toBe('cart');
-    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([2]);
-    expect(borde.llamadas('GET consultar')).toBe(0);
-    expect(borde.llamadas('POST cancelar')).toBe(0);
+    expect(component.pendiente()).toEqual({ tipo: 'sin-confirmar', referencia: 'evord_77', propia: true });
+    expect(component.cartItems().map((linea) => linea.quantity)).toEqual([1]);
+
+    borde.encender('POST /confirm');
+    await pulsar('Terminar mi compra');
+    await reintentarElPago();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.cobradas()).toEqual(['evord_77']);
   });
 
   // ── La compra que ya salió se termina por su camino, aunque el CMS cambie de camino al recargar ──
@@ -3324,10 +3376,12 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     component.goToCheckout();
     fixture.detectChanges();
     const wizard = asistente();
-    while (!wizard.isLastStep()) {
+    // Acotado: un paso que no deja avanzar es un rojo, no un spec que no termina.
+    for (let paso = 0; paso < wizard.steps().length && !wizard.isLastStep(); paso += 1) {
       wizard.next();
       fixture.detectChanges();
     }
+    expect(wizard.isLastStep()).toBe(true);
     wizard.next();
     await flushMicrotasks(60);
     fixture.detectChanges();

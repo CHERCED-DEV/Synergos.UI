@@ -79,6 +79,7 @@ import {
   PREFIJO_DEL_CUPON,
   caminoDeLaCompra,
   caminoDeLaCompraEnCurso,
+  caminoDeLaPendiente,
   compraPendiente,
   cuerpoDeLaCompra,
   cuponDeLaSesion,
@@ -292,11 +293,13 @@ function consumirCompraDelEnlace(): void {
 /**
  * La compra pendiente que el carrito pide resolver antes de elegir otra vez (ADR 0140, el cupón
  * endurecido): `sin-respuesta` (abrir no contestó, así que nadie tiene su id), `en-curso` (su saga
- * sigue `Running`) o `desconocida` (no se pudo leer en qué quedó). `propia` si es la de ESTA sesión
- * —su llave o su pago—: sólo ésa se puede terminar desde aquí.
+ * sigue `Running`), `desconocida` (no se pudo leer en qué quedó) o `sin-confirmar` (una orden de la
+ * ruta directa cuya confirmación no contestó: pudo cobrar, y esa ruta no tiene cómo leerla sin
+ * terminarla). `propia` si es la de ESTA sesión —su llave o su pago—: sólo ésa se puede terminar
+ * desde aquí.
  */
 export interface CompraPendienteEnPantalla {
-  readonly tipo: 'sin-respuesta' | 'en-curso' | 'desconocida';
+  readonly tipo: 'sin-respuesta' | 'en-curso' | 'desconocida' | 'sin-confirmar';
   readonly referencia: string | null;
   readonly propia: boolean;
 }
@@ -1711,11 +1714,9 @@ export class EventosElementComponent implements OnInit {
    * sabe de qué evento es la pendiente, se trata como del mismo: ante la duda, se resuelve primero.
    */
   #pendienteDelMismoEvento(seleccion: TierSelectionPayload): boolean {
-    // Sólo por la puerta: la ruta directa no retiene llave ni tiene a quién preguntar por su saga, y
-    // reabrir su orden lo resuelve el borde por `orderRef` (CMS#117).
-    if (!this.porLaPuerta()) {
-      return false;
-    }
+    // Por los dos caminos: una orden de la ruta directa con un pago anotado y sin confirmar pudo cobrar
+    // —la respuesta de `/confirm` se pierde después de capturar— y elegir otra vez la descartaba; la
+    // compra siguiente era OTRA orden, cobrada a su lado.
     const sesion = this.#store.getValidSession();
     const evento = (sesion.items[0]?.selection as Record<string, unknown> | undefined)?.['eventId'];
     return compraPendiente(sesion) !== null && (typeof evento !== 'string' || evento === seleccion.eventId);
@@ -1775,11 +1776,20 @@ export class EventosElementComponent implements OnInit {
    *  - `Running`: se ofrece terminarla o cancelarla;
    *  - deshecha, o que no existe: se suelta y se aplica la selección;
    *  - la sesión venció: el panel de sesión; cualquier otra cosa: se dice, y no se abre otra.
+   *
+   * Una orden de la ruta directa no se puede leer sin terminarla: esa ruta sólo tiene `checkout` y
+   * `confirm`, y `confirm` captura. Se ofrece terminarla —confirmar es idempotente por `orderRef`: si ya
+   * cobró, devuelve sus mismas entradas (CMS#117)— y no se abre otra mientras tanto.
    */
   async #resolverLaCompraPendiente(): Promise<void> {
-    const pendiente = compraPendiente(this.#store.getValidSession());
+    const sesion = this.#store.getValidSession();
+    const pendiente = compraPendiente(sesion);
     if (!pendiente) {
       await this.#aplicarLaSeleccionEnEspera();
+      return;
+    }
+    if (caminoDeLaPendiente(sesion) === 'directa' && pendiente.referencia) {
+      this.#mostrarLaPendiente({ tipo: 'sin-confirmar', referencia: pendiente.referencia, propia: true });
       return;
     }
     if (!pendiente.referencia) {
@@ -1881,6 +1891,10 @@ export class EventosElementComponent implements OnInit {
   #fraseDeLaPendiente(pendiente: CompraPendienteEnPantalla): string {
     const referencia = pendiente.referencia ?? '';
     switch (pendiente.tipo) {
+      case 'sin-confirmar':
+        // Lo mismo que el asistente dijo cuando la confirmación no contestó, con su referencia: la orden
+        // quedó apartada y terminarla no cobra dos veces. Ni «elige otras» ni «no se te cobró nada».
+        return this.checkoutConfig().confirmFailedMessage.replaceAll('{referencia}', referencia);
       case 'sin-respuesta':
         return t(
           'Events.Purchase.PendingUnanswered',
@@ -1950,7 +1964,10 @@ export class EventosElementComponent implements OnInit {
     this.navigate('cart');
   }
 
-  /** «Terminar mi compra»: al checkout con la MISMA sesión: pagar reabre con su llave, o sólo cierra si ya hay pago. */
+  /**
+   * «Terminar mi compra»: al checkout con la MISMA sesión: pagar reabre con su llave, o sólo cierra —o
+   * confirma, por la ruta directa— si ya hay pago.
+   */
   terminarLaCompraPendiente(): void {
     this.#seleccionEnEspera = null;
     this.navigate('checkout');
@@ -2191,9 +2208,9 @@ export class EventosElementComponent implements OnInit {
   startOver(): void {
     this.trasPagar.set(false);
     this.#confirmadaGratis.set(false);
-    // Con una compra pendiente por la puerta la sesión no se vacía: su llave y su pago son lo único que
-    // la encuentra (ADR 0140, el cupón endurecido). Se resuelve al elegir otra vez.
-    if (!this.porLaPuerta() || compraPendiente(this.#store.getValidSession()) === null) {
+    // Con una compra pendiente la sesión no se vacía, por ninguno de los dos caminos: su llave y su pago
+    // son lo único que la encuentra (ADR 0140, el cupón endurecido). Se resuelve al elegir otra vez.
+    if (compraPendiente(this.#store.getValidSession()) === null) {
       this.#store.reset();
     }
     this.detail.set(null);
