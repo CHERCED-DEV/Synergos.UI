@@ -418,7 +418,8 @@ export function llaveRetenida(session: SessionData): string | null {
  * queda retenida y el reintento la recupera, en vez de abrir otra al lado.
  */
 export function abrirNoDejoSaga(rechazo: RechazoDelFlujo): boolean {
-  // El tope de códigos que no sirven corta ANTES de cotizar: transitorio, pero sin saga.
+  // El tope de códigos que no sirven corta ANTES de cotizar: firme y sin saga. Se decide por su code
+  // y no por la clase: un orquestador de antes lo mandaba 503 transitorio, y también suelta.
   if (rechazo.code === CODIGO_DEMASIADOS_CODIGOS) {
     return true;
   }

@@ -2395,8 +2395,8 @@ export class EventosElementComponent implements OnInit {
         this.promoRejection.set('not-applicable');
         return;
       case CODIGO_DEMASIADOS_CODIGOS:
-        // El tope de códigos que no sirven (ADR 0140, el cupón endurecido): transitorio, pero
-        // reintentar YA no sirve; lo único accionable es esperar, o seguir sin código.
+        // El tope de códigos que no sirven (ADR 0140, el cupón endurecido): firme (409; antes 503
+        // transitorio), reintentar YA no sirve; lo único accionable es esperar, o seguir sin código.
         this.promoRejection.set('too-many-attempts');
         return;
       default:

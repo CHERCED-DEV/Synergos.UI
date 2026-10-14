@@ -1060,15 +1060,22 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   // ── El tope de códigos que no sirven (ADR 0140, el cupón endurecido) ────────────────────────
   //
   // `Bff.Eventos` corta «cotizar» y «abrir» CON código a quien probó demasiados códigos que no sirven:
-  // 503 `eventos.demasiados_codigos`, transitorio, antes de llamar a Pricing. Reintentar YA no sirve:
-  // se dice que hay que esperar, y como el corte va antes de apartar, no deja saga.
-  const demasiadosCodigos = { status: 503, code: 'eventos.demasiados_codigos', transient: true, title: 'Service Unavailable' };
+  // 409 `eventos.demasiados_codigos`, firme (no transitorio), antes de llamar a Pricing. Reintentar YA
+  // no sirve: se dice que hay que esperar, y como el corte va antes de apartar, no deja saga. Antes
+  // salía 503 transitorio, y la puerta lo repetía en el acto; los dos casos corren con las DOS formas,
+  // porque durante el despliegue puede contestar un orquestador de antes, y se entienden igual.
+  const demasiadosCodigos = { status: 409, code: 'eventos.demasiados_codigos', transient: false, title: 'Conflict' };
+  const demasiadosCodigosDeAntes = { status: 503, code: 'eventos.demasiados_codigos', transient: true, title: 'Service Unavailable' };
+  const FORMAS_DEL_TOPE = [
+    ['409 firme', demasiadosCodigos],
+    ['503 transitorio, la forma de antes', demasiadosCodigosDeAntes],
+  ] as const;
   const TEXTO_DEMASIADOS =
     'Probaste demasiados códigos que no sirven. Espera unos minutos para volver a intentarlo, o sigue sin código.';
 
-  it('la vista previa cortada por el tope dice que hay que esperar, no «intenta de nuevo», y no toca el total', async () => {
+  it.each(FORMAS_DEL_TOPE)('la vista previa cortada por el tope (%s) dice que hay que esperar, no «intenta de nuevo», y no toca el total', async (_forma, corte) => {
     installMemoryStorage();
-    const borde = bordeDeEventos({ rechazos: { 'POST cotizar': [demasiadosCodigos] } });
+    const borde = bordeDeEventos({ rechazos: { 'POST cotizar': [corte] } });
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
     await alRevisar();
@@ -1083,9 +1090,9 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.cartTotalMinor()).toBe(antes);
   });
 
-  it('abrir cortado por el tope lo dice una vez y SUELTA la llave: se puede quitar el cupón y comprar sin él', async () => {
+  it.each(FORMAS_DEL_TOPE)('abrir cortado por el tope (%s) lo dice una vez y SUELTA la llave: se puede quitar el cupón y comprar sin él', async (_forma, corte) => {
     installMemoryStorage();
-    const borde = bordeDeEventos({ rechazos: { 'POST abrir': [demasiadosCodigos] } });
+    const borde = bordeDeEventos({ rechazos: { 'POST abrir': [corte] } });
     vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
     const wizard = await alRevisar();
