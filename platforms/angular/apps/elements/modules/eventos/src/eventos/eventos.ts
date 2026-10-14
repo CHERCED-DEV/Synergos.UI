@@ -1646,7 +1646,7 @@ export class EventosElementComponent implements OnInit {
       return;
     }
     const seleccion = this.#seleccionDeLaFicha();
-    if (seleccion && compraPendiente(this.#store.getValidSession()) !== null) {
+    if (seleccion && this.#pendienteDelMismoEvento(seleccion)) {
       this.#seleccionEnEspera = seleccion;
       await this.#resolverLaCompraPendiente();
       return;
@@ -1667,12 +1667,24 @@ export class EventosElementComponent implements OnInit {
       return;
     }
     // La guarda también aquí, justo antes de reemplazar la sesión: venga por donde venga la selección.
-    if (compraPendiente(this.#store.getValidSession()) !== null) {
+    if (this.#pendienteDelMismoEvento(seleccion)) {
       this.#seleccionEnEspera = seleccion;
       await this.#resolverLaCompraPendiente();
       return;
     }
     await this.#ponerEnElCarrito(seleccion);
+  }
+
+  /**
+   * Si la sesión tiene una compra pendiente DEL MISMO evento que lo elegido (revisión del cupón
+   * endurecido). La guarda existe para no duplicar ESA compra; otro evento es otra compra, legítima, y la
+   * pendiente sigue protegida del lado del servidor —la fase D de su evento y «mis entradas»—. Si no se
+   * sabe de qué evento es la pendiente, se trata como del mismo: ante la duda, se resuelve primero.
+   */
+  #pendienteDelMismoEvento(seleccion: TierSelectionPayload): boolean {
+    const sesion = this.#store.getValidSession();
+    const evento = (sesion.items[0]?.selection as Record<string, unknown> | undefined)?.['eventId'];
+    return compraPendiente(sesion) !== null && (typeof evento !== 'string' || evento === seleccion.eventId);
   }
 
   /** Lo elegido en la ficha, como la línea que se pide al carrito; `null` sin ficha o sin localidad. */

@@ -147,6 +147,8 @@ function bordeDeEventos(
    */
   interface SagaDelBorde {
     readonly id: string;
+    /** El evento que se compra: el `eventId` del cuerpo de abrir. */
+    readonly evento: string;
     estado: string;
     apartadas: { tier: string; seat: string | null; quantity: number }[];
     /** Se deshace con plata cobrada sin devolver (`refundPending`). */
@@ -158,7 +160,7 @@ function bordeDeEventos(
   /** Las sagas con asistentes anotados (el artefacto guarda su orden) y las que ya tienen acuse (sus entradas). */
   const anotadas = new Set<string>();
   const conAcuse = new Set<string>();
-  let ultima: SagaDelBorde = { id: 'pta-77', estado: 'Running', apartadas: [] };
+  let ultima: SagaDelBorde = { id: 'pta-77', evento: '', estado: 'Running', apartadas: [] };
   const sagaDe = (id: string | null): SagaDelBorde => (id ? sagas.get(id) : undefined) ?? ultima;
   const cobrar = (saga: SagaDelBorde): void => {
     if (saga.estado !== 'Completed' && !cobradas.includes(saga.id)) cobradas.push(saga.id);
@@ -172,6 +174,7 @@ function bordeDeEventos(
     const lineas = (Array.isArray(cuerpo['lines']) ? cuerpo['lines'] : []) as { quantity: number; tier?: string; seat?: string }[];
     const saga: SagaDelBorde = {
       id: `pta-${77 + sagas.size}`,
+      evento: typeof cuerpo['eventId'] === 'string' ? cuerpo['eventId'] : '',
       estado: 'Running',
       apartadas: lineas.map((l) => ({ tier: l.tier ?? '', seat: l.seat ?? null, quantity: l.quantity })),
     };
@@ -321,12 +324,14 @@ function bordeDeEventos(
       case 'GET /compras/pendientes': {
         // Las compras del miembro sin acuse (fase D): con asistentes anotados y sin entradas emitidas, y
         // reconciliadas con la saga: las deshechas no salen. Sin evento no hay lista.
-        if (!direccion.searchParams.get('eventId')) {
+        const delEvento = direccion.searchParams.get('eventId');
+        if (!delEvento) {
           return responder(400, { title: 'Bad Request', status: 400, code: 'eventos.evento_requerido', transient: false }, 'application/problem+json');
         }
         const pendientes = [...sagas.values()]
           .filter(
             (saga) =>
+              saga.evento === delEvento &&
               anotadas.has(saga.id) &&
               !conAcuse.has(saga.id) &&
               (saga.estado === 'Running' || saga.estado === 'Completed' || (saga.porDevolver === true && saga.estado.startsWith('Compensat'))),
@@ -2331,6 +2336,40 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     expect(component.view()).toBe('confirmed');
     expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+  });
+
+  it('una compra pendiente de OTRO evento no detiene ni descarta lo elegido: se compra, y la pendiente la sigue viendo el servidor', async () => {
+    // La revisión: la guarda no miraba el evento. Con una compra cobrada sin acuse del evento X, elegir el
+    // evento Y mostraba las entradas de X con «No abrimos otra» y tiraba la selección de Y.
+    installMemoryStorage();
+    const borde = bordeDeEventos({ rechazos: sinRespuestaAlCerrar('hecho') });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+    const eventoX = String(component.cartItems()[0]!.productRef);
+    const eventoY = component.events().filter((e) => e.mode === 'general' && e.fromAmount > 0 && e.id !== eventoX)[0]!;
+    const consultas = borde.llamadas('GET consultar');
+
+    component.startOver();
+    component.openEvent(eventoY);
+    await flushMicrotasks();
+    component.startSelection();
+    await component.proceedToCart();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(borde.llamadas('GET consultar')).toBe(consultas);
+    expect(component.pendiente()).toBeNull();
+    expect(avisoDeLaPendiente()).toBe('');
+    expect(component.cartItems().map((linea) => linea.productRef)).toEqual([eventoY.id]);
+
+    await pagarSiElCarritoLoOfrece();
+
+    expect(component.view()).toBe('confirmed');
+    expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
+    expect(borde.cobradas()).toEqual(['pta-77', 'pta-78']);
+    // La fase D de Y pregunta por Y: la de X sigue sin acuse para el servidor, y la informa la de SU evento.
+    expect(pendientesPedidas(borde).at(-1)).toBe(`/api/eventos/compras/pendientes?eventId=${encodeURIComponent(eventoY.id)}`);
   });
 
   it('«Explorar más eventos» con una compra pendiente no vacía la sesión: su llave y su pago siguen', async () => {
