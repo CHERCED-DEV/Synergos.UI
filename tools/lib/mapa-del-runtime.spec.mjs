@@ -7,11 +7,13 @@ import {
   ALIAS_HEREDADOS,
   ficherosDelRuntime,
   calificar,
+  importsDelRuntime,
   importsDelRuntimeAngular,
   importsDelRuntimePreact,
   recorrerMapasPublicados,
   revisarMapas,
 } from './mapa-del-runtime.mjs';
+import { HUELLA_EN_NOMBRE } from './cdn-cache-policy.mjs';
 
 const RAIZ = resolve(fileURLToPath(import.meta.url), '../../..');
 
@@ -270,4 +272,94 @@ describe('los DOS mapas que se publican de verdad (#64)', () => {
       expect(declarados, url).toContain(url.split('/').at(-1));
     }
   });
+});
+
+/**
+ * El mapa nombra sus ficheros con una función (ADR 0140, CMS#201).
+ *
+ * `publish-runtime` publica el runtime por contenido: la URL lleva la huella de
+ * los bytes, porque la carpeta lleva la versión del framework y no la del
+ * contenido. Quien no pasa la función —`build-runtime`, el de Preact, `dev-cdn`,
+ * el banco— tiene que seguir recibiendo EXACTAMENTE el mapa de antes.
+ */
+describe('el mapa nombra sus ficheros con una función', () => {
+  const B_NG = '/synergos/runtime/angular/21.1.6';
+  const B_PR = '/synergos/runtime/preact/10.29.8';
+  const conHuella = (f) => f.replace(/\.js$/, '.0123456789abcdef.js');
+
+  it('sin la función, el de Angular es el de antes, entrada por entrada', () => {
+    expect(importsDelRuntime('angular', B_NG)).toEqual({
+      '@angular/core': `${B_NG}/ng-core.js`,
+      '@angular/core/rxjs-interop': `${B_NG}/ng-rxjs-interop.js`,
+      '@angular/core/primitives/di': `${B_NG}/ng-primitives-di.js`,
+      '@angular/core/primitives/signals': `${B_NG}/ng-primitives-signals.js`,
+      '@angular/core/primitives/event-dispatch': `${B_NG}/ng-primitives-event-dispatch.js`,
+      '@angular/compiler': `${B_NG}/ng-compiler.js`,
+      '@angular/common': `${B_NG}/ng-common.js`,
+      '@angular/common/http': `${B_NG}/ng-common-http.js`,
+      '@angular/elements': `${B_NG}/ng-elements.js`,
+      '@angular/forms': `${B_NG}/ng-forms.js`,
+      '@angular/platform-browser': `${B_NG}/ng-platform-browser.js`,
+      '@angular/router': `${B_NG}/ng-router.js`,
+      'rxjs': `${B_NG}/rxjs.js`,
+      'rxjs/operators': `${B_NG}/rxjs.js`,
+      '@synergos/core': `${B_NG}/sg-core.js`,
+      '@synergos/angular-core': `${B_NG}/sg-core.js`,
+      '@synergos/shared': `${B_NG}/sg-shared.js`,
+      '@synergos/angular-shared': `${B_NG}/sg-shared.js`,
+    });
+  });
+
+  it('…y el de Preact también', () => {
+    expect(importsDelRuntime('preact', B_PR)).toEqual({
+      preact: `${B_PR}/preact.js`,
+      'preact/hooks': `${B_PR}/preact-hooks.js`,
+      'preact/jsx-runtime': `${B_PR}/preact-jsx-runtime.js`,
+      '@synergos/preact-core': `${B_PR}/sg-preact-core.js`,
+      '@synergos/preact-shared': `${B_PR}/sg-preact-shared.js`,
+    });
+    expect(importsDelRuntimePreact(B_PR)).toEqual(importsDelRuntime('preact', B_PR));
+  });
+
+  it.each([['angular', B_NG, 18], ['preact', B_PR, 5]])(
+    'con la función, las %s entradas llevan la huella en el nombre',
+    (framework, base, cuantas) => {
+      const imports = importsDelRuntime(framework, base, conHuella);
+      expect(Object.keys(imports)).toHaveLength(cuantas);
+      for (const [specifier, url] of Object.entries(imports)) {
+        expect(HUELLA_EN_NOMBRE.test(url.split('/').at(-1)), `${specifier} → ${url}`).toBe(true);
+        expect(url.startsWith(`${base}/`), url).toBe(true);
+      }
+    },
+  );
+
+  it('el alias heredado y su gemelo siguen con la MISMA URL, y rxjs con rxjs/operators', () => {
+    // Si el alias saliera plano y el gemelo con huella, el compositor del CMS
+    // vería dos URLs para el mismo fichero y dejaría de deduplicarlos.
+    const imports = importsDelRuntime('angular', B_NG, conHuella);
+    expect(imports['@synergos/core']).toBe(`${B_NG}/sg-core.0123456789abcdef.js`);
+    expect(imports['@synergos/core']).toBe(imports['@synergos/angular-core']);
+    expect(imports['@synergos/shared']).toBe(imports['@synergos/angular-shared']);
+    expect(imports['rxjs/operators']).toBe(imports['rxjs']);
+  });
+
+  it('los dos mapas con huella COMPONEN: el gate no ve nada', () => {
+    expect(
+      revisarMapas([
+        mapa('angular', importsDelRuntime('angular', B_NG, conHuella)),
+        mapa('preact', importsDelRuntime('preact', B_PR, conHuella)),
+      ]),
+    ).toEqual([]);
+  });
+
+  it.each([['angular', B_NG], ['preact', B_PR]])(
+    'todo lo que nombra el de %s, quitada la huella, está en su tabla de ficheros',
+    (framework, base) => {
+      const declarados = ficherosDelRuntime(framework);
+      for (const url of Object.values(importsDelRuntime(framework, base, conHuella))) {
+        const plano = url.split('/').at(-1).replace('.0123456789abcdef.js', '.js');
+        expect(declarados, url).toContain(plano);
+      }
+    },
+  );
 });

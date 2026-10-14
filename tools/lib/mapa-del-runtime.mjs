@@ -168,32 +168,39 @@ export function calificar(specifier, framework) {
  * el composer del CMS los deduplique en vez de pararse.
  *
  * @param {string} base URL base ya sin barra final (`…/runtime/angular/21.1.6`).
+ * @param {(fichero: string) => string} [nombrar] Cómo se llama en el CDN cada
+ *   fichero del runtime. Sin ella, su nombre plano: el mapa de siempre, el que
+ *   escriben `build-runtime` y `dev-cdn`. `publish-runtime` pasa la que le pone
+ *   la huella de sus bytes (ADR 0140, CMS#201).
  * @returns {Record<string,string>} Ordenada por clave, para que el JSON no
  *   dependa del orden en que se escribió el fichero.
  */
-export function importsDelRuntimeAngular(base) {
+export function importsDelRuntimeAngular(base, nombrar = (fichero) => fichero) {
   const b = String(base).replace(/\/$/, '');
+  const url = (fichero) => `${b}/${nombrar(fichero)}`;
   const imports = {
-    '@angular/core': `${b}/ng-core.js`,
-    '@angular/core/rxjs-interop': `${b}/ng-rxjs-interop.js`,
-    '@angular/core/primitives/di': `${b}/ng-primitives-di.js`,
-    '@angular/core/primitives/signals': `${b}/ng-primitives-signals.js`,
-    '@angular/core/primitives/event-dispatch': `${b}/ng-primitives-event-dispatch.js`,
-    '@angular/compiler': `${b}/ng-compiler.js`,
-    '@angular/common': `${b}/ng-common.js`,
-    '@angular/common/http': `${b}/ng-common-http.js`,
-    '@angular/elements': `${b}/ng-elements.js`,
-    '@angular/forms': `${b}/ng-forms.js`,
-    '@angular/platform-browser': `${b}/ng-platform-browser.js`,
-    '@angular/router': `${b}/ng-router.js`,
-    'rxjs': `${b}/rxjs.js`,
-    'rxjs/operators': `${b}/rxjs.js`,
+    '@angular/core': url('ng-core.js'),
+    '@angular/core/rxjs-interop': url('ng-rxjs-interop.js'),
+    '@angular/core/primitives/di': url('ng-primitives-di.js'),
+    '@angular/core/primitives/signals': url('ng-primitives-signals.js'),
+    '@angular/core/primitives/event-dispatch': url('ng-primitives-event-dispatch.js'),
+    '@angular/compiler': url('ng-compiler.js'),
+    '@angular/common': url('ng-common.js'),
+    '@angular/common/http': url('ng-common-http.js'),
+    '@angular/elements': url('ng-elements.js'),
+    '@angular/forms': url('ng-forms.js'),
+    '@angular/platform-browser': url('ng-platform-browser.js'),
+    '@angular/router': url('ng-router.js'),
+    'rxjs': url('rxjs.js'),
+    'rxjs/operators': url('rxjs.js'),
   };
 
+  // El alias y su gemelo pasan por el MISMO `nombrar`: con la huella, la misma
+  // URL sigue siendo lo que deja al compositor del CMS deduplicarlos.
   for (const [alias, { framework, fichero }] of Object.entries(ALIAS_HEREDADOS)) {
     if (framework !== 'angular') continue;
-    imports[alias] = `${b}/${fichero}`;
-    imports[calificar(alias, framework)] = `${b}/${fichero}`;
+    imports[alias] = url(fichero);
+    imports[calificar(alias, framework)] = url(fichero);
   }
 
   return imports;
@@ -223,14 +230,15 @@ export function importsDelRuntimeAngular(base) {
  * camino que nadie recorre.
  * ─────────────────────────────────────────────────────────────────────────────
  */
-export function importsDelRuntimePreact(base) {
+export function importsDelRuntimePreact(base, nombrar = (fichero) => fichero) {
   const b = String(base).replace(/\/$/, '');
+  const url = (fichero) => `${b}/${nombrar(fichero)}`;
   return {
-    preact: `${b}/preact.js`,
-    'preact/hooks': `${b}/preact-hooks.js`,
-    'preact/jsx-runtime': `${b}/preact-jsx-runtime.js`,
-    [calificar('@synergos/core', 'preact')]: `${b}/sg-preact-core.js`,
-    [calificar('@synergos/shared', 'preact')]: `${b}/sg-preact-shared.js`,
+    preact: url('preact.js'),
+    'preact/hooks': url('preact-hooks.js'),
+    'preact/jsx-runtime': url('preact-jsx-runtime.js'),
+    [calificar('@synergos/core', 'preact')]: url('sg-preact-core.js'),
+    [calificar('@synergos/shared', 'preact')]: url('sg-preact-shared.js'),
   };
 }
 
@@ -246,8 +254,12 @@ const IMPORTS_POR_FRAMEWORK = {
  * Las dos mitades —qué ficheros se copian y qué nombres los resuelven— se piden
  * por el MISMO framework a propósito: es lo que impide que el import map nombre
  * `sg-preact-shared.js` mientras el publish copia los quince de Angular.
+ *
+ * `nombrar` dice cómo se llama cada fichero en el CDN. Sin ella sale el mapa
+ * de nombres planos, idéntico al de antes; `publish-runtime` le pasa la que
+ * pone la huella de los bytes (ADR 0140, CMS#201).
  */
-export function importsDelRuntime(framework, base) {
+export function importsDelRuntime(framework, base, nombrar = (fichero) => fichero) {
   const construir = IMPORTS_POR_FRAMEWORK[framework];
   if (!construir) {
     throw new Error(
@@ -255,7 +267,7 @@ export function importsDelRuntime(framework, base) {
         `(tools/lib/mapa-del-runtime.mjs) junto con sus ficheros.`,
     );
   }
-  return construir(base);
+  return construir(base, nombrar);
 }
 
 // ── El gate ─────────────────────────────────────────────────────────────────
