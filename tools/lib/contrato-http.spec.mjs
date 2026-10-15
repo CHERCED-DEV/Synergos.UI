@@ -586,6 +586,25 @@ describe('la selección: sólo los orquestadores', () => {
     expect(ficheros.get('index.ts')).toContain("export * as BffPrueba from './bff-prueba.contract';\n");
   });
 
+  it('el índice junta lo que la puerta expone de TODOS los orquestadores (núcleo N1)', () => {
+    const indice = generarIndice(['Synergos.Bff.Prueba.json', 'Synergos.Bff.Salud.json']);
+    expect(indice).toContain("import * as $BffPrueba from './bff-prueba.contract';\n");
+    expect(indice).toContain("import * as $BffSalud from './bff-salud.contract';\n");
+    expect(indice).toContain(
+      'export type OperacionesDeLaPuerta = $BffPrueba.OperacionesDeLaPuerta & $BffSalud.OperacionesDeLaPuerta;\n',
+    );
+    expect(indice).toContain('  ...$BffPrueba.OPERACIONES_DE_LA_PUERTA,\n  ...$BffSalud.OPERACIONES_DE_LA_PUERTA,\n');
+    expect(indice).toContain('} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;');
+  });
+
+  it('un flujo que marcan dos orquestadores no genera nada: la unión pisaría uno con otro', () => {
+    const { errores: e, ficheros } = planDeFicheros(['Synergos.Bff.Otra.json', 'Synergos.Bff.Prueba.json'], () => documento());
+    expect(e).toEqual([
+      'el flujo «prueba.compra» lo marcan dos orquestadores (Synergos.Bff.Otra.json, Synergos.Bff.Prueba.json): un flujo vive en uno solo',
+    ]);
+    expect(ficheros.size).toBe(0);
+  });
+
   it('sin documentos de orquestador RECHAZA: un --check sobre nada saldría en verde', () => {
     const { errores: e, ficheros } = planDeFicheros(['Synergos.Api.Pricing.json'], () => documento());
     expect(e.join('\n')).toContain('no hay ningún Synergos.Bff.*.json');
