@@ -10,6 +10,28 @@
 // lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
 // regla 24 de CLAUDE.md.
 
+export interface AlquilerRentaCotizacion {
+  readonly flujo: string;
+  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; };
+}
+
+export interface AlquilerRentaEntrada {
+  readonly equipo: string;
+  readonly unidades: readonly { readonly unidad: number; }[];
+  readonly ventana: { readonly start: string; readonly end: string; };
+}
+
+export interface AlquilerRentaRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 /**
  * Un rechazo, venga del orquestador o de la puerta. Se decide por `code` y `transient`: `title`
  * es texto libre, porque la puerta y el artefacto ponen la frase HTTP («Unauthorized»).
@@ -37,8 +59,16 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
   readonly llave: TLlave;
 }
 
-/** Lo que la puerta expone de este orquestador: nada todavía, ninguna operación lleva x-synergos-flujo. */
-export interface OperacionesDeLaPuerta {}
+/** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
+export interface OperacionesDeLaPuerta {
+  readonly "alquiler.renta": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, AlquilerRentaEntrada, AlquilerRentaRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, AlquilerRentaRespuesta, "ninguna">;
+    readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, AlquilerRentaRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, AlquilerRentaRespuesta, "ninguna">;
+    readonly cotizar: OperacionDeLaPuerta<"POST", undefined, AlquilerRentaEntrada, AlquilerRentaCotizacion, "ninguna">;
+  };
+}
 
 /**
  * La forma en ejecución de cada operación del mapa: el método, la llave y los nombres que viajan
@@ -61,4 +91,12 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * método va cada operación, si pide la llave y qué nombres codifica en la consulta. Sale del
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
-export const OPERACIONES_DE_LA_PUERTA = {} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;
+export const OPERACIONES_DE_LA_PUERTA = {
+  "alquiler.renta": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+  },
+} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;
