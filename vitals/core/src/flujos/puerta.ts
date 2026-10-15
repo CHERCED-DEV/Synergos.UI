@@ -1,4 +1,8 @@
-import { BffEventos } from '@synergos/contracts';
+import {
+  OPERACIONES_DE_LA_PUERTA as OPERACIONES_DE_TODOS,
+  type OperacionesDeLaPuerta as OperacionesDeTodos,
+  type TablaDeLaPuerta as TablaGenerada,
+} from '@synergos/contracts';
 import { rechazoLocal, type Enviar, type ResultadoDelFlujo } from './transporte';
 
 /**
@@ -9,12 +13,13 @@ import { rechazoLocal, type Enviar, type ResultadoDelFlujo } from './transporte'
  * de las dos (regla 23): un renombre en el orquestador se regenera allá y rompe `tsc` acá
  * (`test:tipos-vitals`, regla 24).
  *
- * Hoy la puerta expone un solo orquestador (`Synergos.Bff.Eventos`). Cuando haya otro, su mapa y
- * su tabla se suman a estos dos: el cliente es genérico sobre ellos y no nombra ningún flujo.
+ * Desde el núcleo N1 son la UNIÓN de todos los orquestadores que publican (`index.ts` del contrato
+ * generado): un flujo de otro orquestador entra al regenerar, sin tocar este fichero, y el cliente
+ * no nombra a ninguno.
  */
-export type OperacionesDeLaPuerta = BffEventos.OperacionesDeLaPuerta;
-export type TablaDeLaPuerta<TOperaciones> = BffEventos.TablaDeLaPuerta<TOperaciones>;
-export const OPERACIONES_DE_LA_PUERTA: TablaDeLaPuerta<OperacionesDeLaPuerta> = BffEventos.OPERACIONES_DE_LA_PUERTA;
+export type OperacionesDeLaPuerta = OperacionesDeTodos;
+export type TablaDeLaPuerta<TOperaciones> = TablaGenerada<TOperaciones>;
+export const OPERACIONES_DE_LA_PUERTA: TablaDeLaPuerta<OperacionesDeLaPuerta> = OPERACIONES_DE_TODOS;
 
 export const RUTA_DE_LA_PUERTA = '/api/flujos';
 

@@ -641,21 +641,64 @@ function tablaDeEjecucion(operaciones, flujos) {
  * documento trae sus propios esquemas (`MoneyDto`, `Rechazo`…): con `export *` el segundo
  * orquestador chocaría con el primero y `tsc` lo rechazaría por ambigüedad.
  *
+ * Y, desde el núcleo N1, la UNIÓN de lo que la puerta expone de todos ellos: el mapa
+ * (`OperacionesDeLaPuerta`, la intersección de los mapas de cada uno) y la tabla de ejecución
+ * (`OPERACIONES_DE_LA_PUERTA`, sus filas juntas). El cliente de la puerta la usa y deja de nombrar a
+ * un orquestador: un segundo flujo en otro orquestador entra al regenerar, sin tocar el cliente. Un
+ * flujo vive en UN orquestador (lo exige la tabla de la puerta del CMS y lo comprueba
+ * `planDeFicheros`), así que las claves de los mapas no se pisan.
+ *
  * @param {readonly string[]} documentos los `Synergos.Bff.*.json`, ya en orden.
  * @returns {string}
  */
 export function generarIndice(documentos) {
+  const piezas = documentos.map((f) => {
+    const { fichero, espacio } = nombresDe(f);
+    return { espacio, local: `$${espacio}`, modulo: `./${fichero.replace(/\.ts$/, '')}` };
+  });
   return [
     '// ─── Los contratos HTTP de los orquestadores (ADR 0140, F2) ───',
     '// GENERADO por tools/contrato-http.mjs: uno por cada `Synergos.Bff.*.json` del CMS, cada uno',
     '// en su espacio de nombres (cada documento trae sus propios esquemas). NO se edita a mano.',
     '',
-    ...documentos.map((f) => {
-      const { fichero, espacio } = nombresDe(f);
-      return `export * as ${espacio} from './${fichero.replace(/\.ts$/, '')}';`;
-    }),
+    ...piezas.map((p) => `export * as ${p.espacio} from '${p.modulo}';`),
+    '',
+    ...piezas.map((p) => `import * as ${p.local} from '${p.modulo}';`),
+    '',
+    '/**',
+    ' * Lo que la puerta expone de TODOS los orquestadores, por flujo y por su nombre en la puerta: la',
+    ' * unión de sus mapas. Un flujo vive en un solo orquestador, así que las claves no se pisan.',
+    ' */',
+    `export type OperacionesDeLaPuerta = ${piezas.map((p) => `${p.local}.OperacionesDeLaPuerta`).join(' & ')};`,
+    '',
+    '/** La forma en ejecución de cada operación de un mapa (la misma en todos los documentos). */',
+    `export type TablaDeLaPuerta<TOperaciones> = ${piezas[0].local}.TablaDeLaPuerta<TOperaciones>;`,
+    '',
+    '/** Las filas en ejecución de todos los orquestadores, juntas: lo que lee el cliente de la puerta. */',
+    `export const ${TABLA_DE_EJECUCION} = {`,
+    ...piezas.map((p) => `  ...${p.local}.${TABLA_DE_EJECUCION},`),
+    '} as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;',
     '',
   ].join('\n');
+}
+
+/**
+ * Los flujos que marca cada documento: un flujo marcado por dos orquestadores es un error (la puerta
+ * del CMS no arranca con él, y la unión del índice pisaría uno con otro).
+ *
+ * @param {ReadonlyMap<string, any>} documentos fichero → documento ya validado.
+ * @returns {string[]}
+ */
+function flujosRepetidos(documentos) {
+  const duenos = new Map();
+  for (const [f, doc] of documentos) {
+    for (const flujo of new Set(operacionesDeLaPuerta(doc).map((o) => o.flujo))) {
+      duenos.set(flujo, [...(duenos.get(flujo) ?? []), f]);
+    }
+  }
+  return [...duenos]
+    .filter(([, fs]) => fs.length > 1)
+    .map(([flujo, fs]) => `el flujo «${flujo}» lo marcan dos orquestadores (${fs.join(', ')}): un flujo vive en uno solo`);
 }
 
 /**
@@ -679,12 +722,17 @@ export function planDeFicheros(ficheros, leer) {
 
   const errores = [];
   const salida = new Map();
+  const validos = new Map();
   for (const f of documentos) {
     const doc = leer(f);
     const propios = validarDocumento(doc);
     if (propios.length > 0) errores.push(...propios.map((e) => `${f}: ${e}`));
-    else salida.set(nombresDe(f).fichero, generarTs(doc, f));
+    else {
+      validos.set(f, doc);
+      salida.set(nombresDe(f).fichero, generarTs(doc, f));
+    }
   }
+  errores.push(...flujosRepetidos(validos));
   if (errores.length > 0) return { errores, ficheros: new Map() };
 
   salida.set(INDICE, generarIndice(documentos));
