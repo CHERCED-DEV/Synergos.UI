@@ -28,6 +28,20 @@ commits contando lo que entró por el merge del 17) sin que el CDN se moviera.
 > verdad si publica el pipeline. Mientras publique una persona a mano, el CDN puede quedarse
 > atrás **sin que nada se ponga rojo** — el humo pasa igual, porque el CDN viejo está perfecto.
 
+### Medido otra vez el 2026-10-15 (CMS, línea 002-produccion)
+
+- El CDN **sigue** sirviendo `b951c77`, el build del 2026-09-12; `runtime/angular/latest/huellas.json`
+  da 404 (es anterior al runtime por contenido, ADR 0141).
+- **«Workers Builds: synergos-ui» salió rojo en 60 de 60 push a master** que lo dispararon, del
+  `94524f5` (2026-08-02) al `327b0aa` (2026-10-15). No hay un solo verde en su historia.
+- **La causa, reproducida** en una copia limpia de `327b0aa` con Node 22.16 y sin credenciales:
+  Cloudflare corre `npx wrangler deploy` **sin construir antes**; la puerta (`tools/cdn-desplegable.mjs`)
+  contestaba «se puede desplegar» sobre un `public/` que **no existía** —sólo miraba la marca de «sin
+  conservar»— y Wrangler moría con *«The directory specified by the "assets.directory" field in your
+  configuration file does not exist»*. Con Node 20 muere antes: Wrangler 4.118 pide Node 22.
+- **Decidido por el arquitecto (lote 1, decisión 2)**: un solo publicador, `despliegue-cdn.yml`, y el
+  build automático de Workers Builds **apagado sin borrar el proyecto** (§4).
+
 ---
 
 ## 1. El token de Cloudflare
@@ -79,15 +93,40 @@ le pasa. Cambiarlos rompe el despliegue en silencio, porque el paso 0 los mira p
 
 ---
 
-## 4. Desconectar Workers Builds
+## 4. Apagar el build automático de Workers Builds (sin borrar el proyecto)
 
-Si la integración de Cloudflare con GitHub sigue enganchada al repo, **desconectala**:
-*dash.cloudflare.com → Workers & Pages → `synergos-ui` → Settings → **Builds** → Disconnect*.
+La integración de Cloudflare con GitHub **sigue enganchada** (medido: un check-run rojo por cada push
+a master). Se apaga desconectando el repositorio, que **no borra nada**: el Worker, sus versiones y
+su URL siguen; sólo deja de construir en cada push.
+*dash.cloudflare.com → Workers & Pages → `synergos-ui` → Settings → **Build** → Git repository →
+**Disconnect***.
 
 No rompe nada tenerla: rompe **saber**. Dos publicadores sobre el mismo Worker construyen el
 mismo commit y el último gana, así que cuando algo salga mal no hay forma de decir cuál subió lo
 que está arriba. Este workflow lleva la puerta (contratos + presupuesto de tamaño) y el humo; el
 otro no lleva ninguno de los dos.
+
+Y si algún día se reconecta por error, ya no publica basura: la puerta de `wrangler.jsonc` exige
+el **sello** de `build:cdn` (§4.bis) y Workers Builds no construye, así que falla diciendo quién es
+el publicador en vez del error opaco de Wrangler.
+
+## 4.bis. La puerta exige una salida TERMINADA (el sello)
+
+`build:cdn` escribe `public/sello-del-cdn.json` —commit, fecha y cuántos ficheros dejó— como su
+**último acto**, después de todas sus comprobaciones (runtime, import maps, runtime por contenido,
+presupuesto). La puerta de cada `wrangler deploy` (`tools/cdn-desplegable.mjs`, el `build.command`
+de `wrangler.jsonc`) se niega si:
+
+| | por qué |
+|---|---|
+| no hay salida | es lo que veía Workers Builds: desplegar sin construir |
+| no hay sello | `build:cdn` no terminó: los assets se publican **atómicamente**, así que un `public/` a medias reemplazaría la CDN entera por lo que haya |
+| la cuenta de ficheros no cuadra | alguien la tocó después de construirla |
+| el commit del sello no es `HEAD` | sería publicar otro commit con el nombre de éste |
+| lleva la marca «sin conservar» | como antes (ADR 0141) |
+
+Lo cubren `tools/lib/sello-del-cdn.spec.mjs` (las reglas y la puerta corrida de verdad) y el ensayo
+`ensayo-cdn.yml`.
 
 ---
 
@@ -127,6 +166,7 @@ Para no repetir trabajo, y para no insinuar que está probado lo que no:
 | ✅ `npx wrangler deploy --dry-run` | 1888 ficheros leídos de `public/`, binding `env.ASSETS` resuelto, exit 0 — la configuración es correcta |
 | ✅ el humo contra la URL pública | pasa sus siete comprobaciones; el CDN está sano, sólo viejo |
 | ✅ que el job se salte sin credenciales | corrida 4 de «Despliegue del CDN»: paso 0 verde, ocho pasos `skipped` |
+| ✅ todo menos subir, en CI y sin credenciales | `ensayo-cdn.yml`: contratos → la puerta NIEGA sin construir → `build:cdn` conservando del CDN público → `wrangler deploy --dry-run` → el mismo Worker servido con `wrangler dev` → `humo-cdn.mjs` contra él con `--sha` |
 | ❌ `wrangler deploy` de verdad | **nunca se ha ejecutado desde CI** — es lo único que las credenciales destraban, y lo único que este documento no puede probar por su cuenta |
 
 ---
