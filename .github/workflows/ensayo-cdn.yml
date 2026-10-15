@@ -1,0 +1,119 @@
+name: Ensayo de la CDN
+
+# CMS 002-produccion — lo que hace `despliegue-cdn.yml`, de punta a punta y sin
+# credenciales: construir, pasar la puerta de Wrangler, servir el Worker de
+# verdad y pasarle el humo.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# LO QUE SE MIDIÓ (2026-10-15)
+#
+# «Workers Builds: synergos-ui» salió rojo en 60 de 60 push a master, del
+# 2026-08-02 al 2026-10-15: corría `wrangler deploy` sin construir y la puerta
+# decía «se puede desplegar» sobre un `public/` que no existía. Y el publicador
+# que sí construye (`despliegue-cdn.yml`) se salta sin sus dos secrets, así que
+# `wrangler deploy` NO SE HABÍA CORRIDO NUNCA desde CI, ni en seco.
+#
+# Este ensayo corre todo menos el último metro —subir a Cloudflare, lo único que
+# exige credenciales—: la puerta tiene que NEGAR una salida sin construir;
+# `build:cdn` tiene que construir conservando el runtime publicado (ADR 0141);
+# `wrangler deploy --dry-run` tiene que leer la salida; y el MISMO Worker
+# (`worker/index.js` + los assets), servido por `wrangler dev` en el runner,
+# tiene que pasar el MISMO humo que `despliegue-cdn.yml` corre contra la URL
+# pública. Lo que queda sin ensayar es la red de Cloudflare, no el código.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches-ignore: [main, master]
+    paths:
+      - wrangler.jsonc
+      - 'worker/**'
+      - tools/build-cdn.mjs
+      - tools/cdn-desplegable.mjs
+      - tools/humo-cdn.mjs
+      - tools/publish.mjs
+      - tools/publish-runtime.mjs
+      - 'tools/lib/**'
+      - .github/workflows/despliegue-cdn.yml
+      - .github/workflows/ensayo-cdn.yml
+  workflow_dispatch:
+
+concurrency:
+  group: ensayo-cdn-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ensayo:
+    name: Construir, puerta, dry-run, Worker local y humo
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout UI (este repo)
+        uses: actions/checkout@v4
+        with:
+          path: Synergos.UI
+
+      # Igual que `despliegue-cdn.yml`: el CMS hermano, en carpeta hermana y sin
+      # `token:` (es público), para los contratos.
+      - name: Checkout CMS (hermano)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Synergos.CMS
+          path: Synergos.CMS
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Dependencias
+        working-directory: Synergos.UI
+        run: npm run setup
+
+      - name: Contratos
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: npm run contracts:validate
+
+      # ── Lo que veía Workers Builds: desplegar sin construir ─────────────
+      - name: Sin construir, la puerta NIEGA (y lo dice)
+        working-directory: Synergos.UI
+        run: |
+          set -uo pipefail
+          if npx wrangler deploy --dry-run > /tmp/sin-construir.log 2>&1; then
+            cat /tmp/sin-construir.log; echo "✗ wrangler deploy aceptó desplegar sin construir"; exit 1
+          fi
+          grep -q 'despliegue-cdn.yml' /tmp/sin-construir.log \
+            || { cat /tmp/sin-construir.log; echo "✗ negó sin nombrar al publicador"; exit 1; }
+          echo "✓ sin construir: la puerta niega y nombra al publicador"
+
+      # Conservando del CDN público, como `despliegue-cdn.yml`.
+      - name: Construir el CDN
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CDN_CONSERVAR_DESDE: ${{ vars.SYNERGOS_CDN_URL || 'https://synergos-ui.synergos-labs.workers.dev' }}
+        run: npm run build:cdn
+
+      - name: wrangler deploy --dry-run
+        working-directory: Synergos.UI
+        run: npx wrangler deploy --dry-run
+
+      # El mismo Worker, servido en el runner, y el mismo humo.
+      - name: Worker local + humo
+        working-directory: Synergos.UI
+        run: |
+          set -euo pipefail
+          npx wrangler dev --port 8787 --ip 127.0.0.1 > /tmp/wrangler-dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl --silent --fail --output /dev/null http://127.0.0.1:8787/synergos/registry.json && break
+            sleep 2
+          done
+          node tools/humo-cdn.mjs http://127.0.0.1:8787 --sha "$(git rev-parse --short HEAD)" --intentos 3
+          kill %1 || true
+
+      - name: Qué dijo el Worker, si algo falló
+        if: failure()
+        run: tail -60 /tmp/wrangler-dev.log || true

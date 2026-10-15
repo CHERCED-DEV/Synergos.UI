@@ -19,7 +19,14 @@
   // CMS#201): no compila nada, sólo se niega a publicar un `public/` que
   // `build:cdn` construyó SIN conservar el runtime ya publicado —lleva su
   // marca—. Desplegarlo borraba las generaciones que aún nombra quien tenga un
-  // mapa anterior. Una salida construida conservando pasa sin más.
+  // mapa anterior.
+  //
+  // Y desde CMS 002-produccion (2026-10-15) exige además el SELLO que
+  // `build:cdn` escribe al terminar: sin salida, a medio construir, tocada
+  // después o de otro commit, no se despliega. Es lo que hacía rojo a Workers
+  // Builds en cada push (60 de 60): corría esto sin construir y la puerta
+  // decía «se puede desplegar» sobre un `public/` que no existía. El único
+  // publicador es `.github/workflows/despliegue-cdn.yml`, que construye antes.
   "build": {
     "command": "node tools/cdn-desplegable.mjs"
   },

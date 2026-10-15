@@ -372,8 +372,11 @@ const CIEGAS_AL_FRAMEWORK = [
   // los frameworks de `FICHEROS_POR_FRAMEWORK` y lee el libro de cada uno; no nombra ninguno.
   'lib/conservar-runtime.mjs',
   // La puerta de `wrangler deploy` (ADR 0140, CMS#201): mira si la salida lleva la marca de un
-  // `build:cdn` sin conservar. No sabe de frameworks.
+  // `build:cdn` sin conservar, y desde CMS 002-produccion su sello. No sabe de frameworks.
   'cdn-desplegable.mjs',
+  // El sello de `build:cdn` (CMS 002-produccion): cuenta ficheros y compara un commit. No sabe
+  // qué hay dentro de la salida, ni de qué framework es.
+  'lib/sello-del-cdn.mjs',
   // La puerta de enlace de `publish.mjs` (ADR 0140, revisión de D1): enlaza los bundles contra el
   // import map que le pasan; el framework le llega como la ruta de ese mapa.
   'lib/puerta-de-enlace.mjs',
