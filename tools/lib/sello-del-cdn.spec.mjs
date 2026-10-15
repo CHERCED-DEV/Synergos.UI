@@ -122,7 +122,9 @@ describe('revisarSalida', () => {
   });
 });
 
-describe('la puerta de `wrangler deploy` (tools/cdn-desplegable.mjs), de verdad', () => {
+// Lanza `node` (y `git`) de verdad: en una máquina cargada eso pasa de los 5 s por defecto, y un
+// rojo por tiempo no dice nada de la puerta.
+describe('la puerta de `wrangler deploy` (tools/cdn-desplegable.mjs), de verdad', { timeout: 60_000 }, () => {
   const puerta = (args) =>
     spawnSync(process.execPath, [path.join(ROOT, 'tools', 'cdn-desplegable.mjs'), ...args], { cwd: ROOT, encoding: 'utf8' });
   const head = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT }).toString().trim();
