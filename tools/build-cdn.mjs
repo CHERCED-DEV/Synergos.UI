@@ -50,6 +50,7 @@ import {
   restaurarDespuesDeLimpiar,
 } from './lib/conservar-runtime.mjs';
 import { LIBRO, leerLibro, leerModoDeUrls, revisarPorContenido } from './lib/runtime-por-contenido.mjs';
+import { SELLO, sellar } from './lib/sello-del-cdn.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -400,5 +401,21 @@ execFileSync('node', [join(ROOT, 'tools', 'check-size-budget.mjs'), '--cdn', SAL
   cwd: ROOT,
   stdio: 'inherit',
 });
+
+// ── 7. El sello: la constancia de que esta salida se TERMINÓ ─────────────────
+//
+// Es el último acto, y tiene que serlo: la puerta de `wrangler deploy`
+// (`tools/cdn-desplegable.mjs`) sólo despliega una salida sellada, para el
+// commit de HEAD y con la misma cuenta de ficheros. Sellar antes de una
+// comprobación dejaría desplegable una salida que esa comprobación iba a tirar.
+// Ver `tools/lib/sello-del-cdn.mjs` (CMS 002-produccion).
+let commitDelSello = null;
+try {
+  commitDelSello = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null;
+} catch {
+  commitDelSello = null;
+}
+const sello = await sellar({ salida: SALIDA, fs: fsp, commit: commitDelSello });
+log(`sello: ${SELLO} — ${sello.ficheros} ficheros${sello.commit ? `, ${sello.commit.slice(0, 7)}` : ', sin git'}`);
 
 log(`✓ listo en ${SALIDA}`);
