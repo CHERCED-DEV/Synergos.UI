@@ -2522,8 +2522,10 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
         : borde.fetchDoble(url, init)) as typeof fetch);
     const wizard = await alRevisar();
     wizard.next();
-    // La lista que se pinta cae, con sus reintentos de verdad (~1 s), y se rinde.
-    await vi.waitFor(() => expect(lecturas).toBeGreaterThan(2), { timeout: 4_000, interval: 20 });
+    // La lista que se pinta cae, con sus reintentos de verdad (~1 s), y se rinde: la lectura de pagar y
+    // los tres intentos de la lista. Se espera la ÚLTIMA: con un reintento todavía dormido, el spec
+    // siguiente lo recibía en su `fetch` (ver «un elemento DESTRUIDO no escribe la URL de la página»).
+    await vi.waitFor(() => expect(lecturas).toBe(4), { timeout: 4_000, interval: 20 });
     await flushMicrotasks(60);
     fixture.detectChanges();
 
@@ -2560,9 +2562,49 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     expect(component.view()).toBe('confirmed');
     expect(borde.abiertas()).toEqual(['pta-77', 'pta-78']);
-    // Pagar (frena), la lista que se pinta, y pagar otra vez (ya avisada, no frena). Al menos esas tres:
-    // con la suite entera en paralelo una lectura lenta puede repetirse, y lo que se mira es que abrió.
-    expect(pendientesPedidas(borde).length - antes).toBeGreaterThanOrEqual(3);
+    // Pagar (frena), la lista que se pinta, y pagar otra vez (ya avisada, no frena): esas tres. La
+    // cuarta que a veces aparecía no era «una lectura lenta que se repite»: era el reintento de la lista
+    // del spec de arriba, que llegaba aquí; y el elemento ya destruido que la recibía navegaba al
+    // carrito escribiendo el `hash` de la página (el rojo intermitente; ver el spec de abajo).
+    expect(pendientesPedidas(borde).length - antes).toBe(3);
+  });
+
+  it('un elemento DESTRUIDO no escribe la URL de la página: la lista de la fase D que llega tarde no mueve a quien lo sigue', async () => {
+    // El rojo intermitente del spec de arriba: el de antes terminaba con un reintento de la lista en
+    // vuelo, y al llegar —ya en este— el elemento destruido navegaba al carrito escribiendo el `hash`
+    // de la página; el elemento vivo lo leía en su `hashchange` y saltaba al carrito con la compra
+    // confirmada. Aquí la lista se retiene, el elemento se va, y la lista llega después.
+    installMemoryStorage();
+    const borde = bordeDeEventos({
+      rechazos: { 'POST cerrar': [{ status: 409, code: 'inventory.hold_expired', title: 'Conflict', cobro: 'sin_devolver' }] },
+    });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    await pagarSinAcuse();
+
+    await enOtroDispositivo();
+    const antes = pendientesPedidas(borde).length;
+    let soltarLaLista: () => void = () => undefined;
+    const retenida = new Promise<void>((soltar) => (soltarLaLista = soltar));
+    let lecturas = 0;
+    // La primera lectura es la de pagar (frena); la segunda, la lista que se pinta: ésa se retiene.
+    vi.stubGlobal('fetch', ((url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).includes('/compras/pendientes') && ++lecturas === 2
+        ? retenida.then(() => borde.fetchDoble(url, init))
+        : borde.fetchDoble(url, init)) as typeof fetch);
+    const wizard = await alRevisar();
+    wizard.next();
+    await vi.waitFor(() => expect(lecturas).toBe(2), { timeout: 2_000, interval: 5 });
+    const laDeLaPagina = window.location.hash;
+    expect(laDeLaPagina).toContain('/checkout');
+
+    fixture.destroy();
+    soltarLaLista();
+    await flushMicrotasks(30);
+
+    // La lista sí llegó —y es la de una compra por devolver, que navega al carrito—, pero a nadie.
+    expect(pendientesPedidas(borde).length - antes).toBe(2);
+    expect(window.location.hash).toBe(laDeLaPagina);
   });
 
   it('desde OTRO dispositivo, una compra que el servidor no pudo leer se dice sin prometer «no abrimos otra»', async () => {

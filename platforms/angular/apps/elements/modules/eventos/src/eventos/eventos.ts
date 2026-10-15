@@ -538,6 +538,13 @@ export class EventosElementComponent implements OnInit {
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   #suppressedHash = '';
+  /**
+   * El elemento ya no está en la página. Lo que quedó en vuelo —la lista de la fase D con sus
+   * reintentos de verdad (~1 s), una consulta, las entradas— termina igual, y su `navigate` escribía
+   * el `hash` de la PÁGINA: la instancia que la sigue (otro montaje, otro dispositivo en el spec) lo
+   * leía en su `hashchange` y saltaba al carrito con la compra ya confirmada.
+   */
+  #destruido = false;
 
   // ─── ASISTENTE state ─────────────────────────────────────────────────────────
   readonly view = signal<EventosView>('catalog');
@@ -1192,6 +1199,7 @@ export class EventosElementComponent implements OnInit {
     }
 
     this.#destroyRef.onDestroy(() => {
+      this.#destruido = true;
       // Sin esto queda una conexión SSE abierta por cada montaje del componente.
       this.closeCheckinStream();
       this.#orchestrator.unregister(widget);
@@ -1451,7 +1459,8 @@ export class EventosElementComponent implements OnInit {
   }
 
   private writeHash(view: EventosView | 'organizer', param: string): void {
-    if (typeof window === 'undefined') {
+    // La URL es de la página, no de esta instancia: muerta, no la toca (ver `#destruido`).
+    if (typeof window === 'undefined' || this.#destruido) {
       return;
     }
     const base = baseDeRuta(this.scope());
