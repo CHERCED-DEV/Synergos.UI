@@ -52,6 +52,14 @@ const K = ts.SyntaxKind;
  * cuyo fichero ya no declara ese tope también — una excepción que sobra deja de leerse.
  */
 export const TOPES_DECLARADOS = {
+  'tools/lib/sello-del-cdn.spec.mjs': {
+    tope: 60_000,
+    razon:
+      'lanza `cdn-desplegable.mjs` DE VERDAD (node) y `git rev-parse` para ver que la puerta de ' +
+      '`wrangler deploy` niega una salida sin sello y deja pasar una sellada (CMS 002-produccion): ' +
+      'medido, 1,3–2,7 s con la máquina tranquila y más de 5 s con la máquina cargada. Es lo único ' +
+      'que prueba la puerta como la corre Wrangler, así que no se simula.',
+  },
   'tools/lib/npm.spec.mjs': {
     tope: 60_000,
     razon:
