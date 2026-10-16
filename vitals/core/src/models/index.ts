@@ -128,3 +128,4 @@ export * from './storefront-inputs.model';
 export * from './travel-shell-inputs.model';
 export * from './module-mount-inputs.model';
 export * from './alquiler-inputs.model';
+export * from './reserva-inputs.model';

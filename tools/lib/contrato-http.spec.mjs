@@ -4,8 +4,10 @@ import {
   diferencias,
   esDocumentoDelFlujo,
   generarIndice,
+  generarIndiceDeEnvoltorios,
   generarTs,
   nombresDe,
+  nombresDelFlujo,
   planDeFicheros,
   validarDocumento,
 } from './contrato-http.mjs';
@@ -617,6 +619,86 @@ describe('la selección: sólo los orquestadores', () => {
     const { errores: e, ficheros } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => malo);
     expect(e).toEqual(['Synergos.Bff.Prueba.json: openapi «3.0.0»: sólo se traduce 3.1.x']);
     expect(ficheros.size).toBe(0);
+  });
+});
+
+describe('los envoltorios de los flujos (núcleo N3, FR-030): un flujo nuevo no escribe su transporte', () => {
+  const sinMarcas = () => {
+    const d = documento();
+    for (const item of Object.values(d.paths)) for (const op of Object.values(item)) delete op['x-synergos-flujo'];
+    return d;
+  };
+
+  it('nombra el envoltorio por la clave: el fichero, la constante y la pieza de sus funciones', () => {
+    expect(nombresDelFlujo('salud.cita-previa')).toEqual({
+      fichero: 'salud.cita-previa.ts',
+      constante: 'FLUJO_SALUD_CITA_PREVIA',
+      pieza: 'SaludCitaPrevia',
+    });
+    expect(nombresDelFlujo('eventos.compra').pieza).toBe('EventosCompra');
+  });
+
+  it('cada flujo marcado sale con su envoltorio: la clave y una función por operación marcada, sobre pedirAlFlujo', () => {
+    const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento());
+    expect(e).toEqual([]);
+    expect([...envoltorios.keys()]).toEqual(['avisos.ts', 'index.ts', 'prueba.compra.ts']);
+
+    const ts = envoltorios.get('prueba.compra.ts');
+    expect(ts).toContain('// GENERADO por tools/contrato-http.mjs desde Synergos.Bff.Prueba.json');
+    expect(ts).toContain('export const FLUJO_PRUEBA_COMPRA = "prueba.compra";\n');
+    expect(ts).toContain('type Operaciones = OperacionesDeLaPuerta[typeof FLUJO_PRUEBA_COMPRA];\n');
+    expect([...ts.matchAll(/^export function (\w+)\(/gm)].map((m) => m[1])).toEqual(['abrirPruebaCompra', 'consultarPruebaCompra']);
+    expect(ts).toContain('  args: ArgsDe<Operaciones["abrir"]>,\n');
+    expect(ts).toContain('): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["consultar"]>>> {\n');
+    expect(ts).toContain('  return pedirAlFlujo(desde, FLUJO_PRUEBA_COMPRA, "abrir", args, opciones);\n');
+    // La operación sin marca no tiene función: el navegador no la puede pedir por la puerta.
+    expect(ts).not.toMatch(/ajustar/i);
+    expect(ts.endsWith('}\n')).toBe(true);
+    expect(ts).not.toContain('\r');
+
+    expect(envoltorios.get('index.ts')).toBe(generarIndiceDeEnvoltorios(['prueba.compra']));
+    expect(envoltorios.get('index.ts')).toContain("export * from './prueba.compra';\n");
+  });
+
+  it('el envoltorio es determinista: el mismo documento da el mismo texto', () => {
+    const una = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento()).envoltorios;
+    const otra = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento()).envoltorios;
+    expect([...otra]).toEqual([...una]);
+  });
+
+  it('sin marcas no hay envoltorio, y el índice sólo exporta la tabla de avisos', () => {
+    const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], sinMarcas);
+    expect(e).toEqual([]);
+    expect([...envoltorios.keys()]).toEqual(['avisos.ts', 'index.ts']);
+    expect(envoltorios.get('index.ts')).toContain("export * from './avisos';\n");
+    expect(envoltorios.get('index.ts')).not.toMatch(/prueba/);
+    expect(envoltorios.get('avisos.ts')).toContain('export const AVISOS_GENERADOS = {} as const satisfies');
+  });
+
+  it('los avisos salen de las rutas del CMS (FR-032), y una ruta que no dice qué leer no genera nada', () => {
+    const avisos = new Map([['prueba.compra', '/prueba/?compra={id}']]);
+    const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento(), avisos);
+    expect(e).toEqual([]);
+    expect(envoltorios.get('avisos.ts')).toContain('  "prueba.compra": { parametro: "compra", marcador: "id" },\n');
+
+    const mala = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento(), new Map([['prueba.compra', '/prueba/{id}']]));
+    expect(mala.errores).toEqual([
+      'prueba.compra: la ruta del aviso «/prueba/{id}» no trae UN parámetro con un marcador ({…}) en la consulta: el participante no sabría qué leer.',
+    ]);
+    expect(mala.envoltorios.size).toBe(0);
+    expect(mala.ficheros.size).toBe(0);
+  });
+
+  it('dos flujos que darían el mismo envoltorio no generan nada: sus funciones chocarían en vitals-core', () => {
+    const d = documento();
+    d.paths['/v1/compras'].post['x-synergos-flujo'].flujo = 'prueba.compra-x';
+    d.paths['/v1/compras/{id}'].get['x-synergos-flujo'].flujo = 'prueba.compra.x';
+    expect(validarDocumento(d)).toEqual([]);
+
+    const { errores: e, ficheros, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => d);
+    expect(e).toEqual(['los flujos «prueba.compra-x» y «prueba.compra.x» darían el mismo envoltorio (PruebaCompraX): sus funciones chocarían']);
+    expect(ficheros.size).toBe(0);
+    expect(envoltorios.size).toBe(0);
   });
 });
 

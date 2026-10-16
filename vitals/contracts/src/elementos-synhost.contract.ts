@@ -182,6 +182,16 @@ export interface SelectMultiItem {
   readonly disabled?: boolean;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: ServicioReservable). */
+export interface ServicioReservable {
+  readonly id: string;
+  readonly nombre: string;
+  readonly duracionMinutos: number;
+  readonly dias: readonly string[];
+  readonly abre: string;
+  readonly cierra: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: StepperItem). */
 export interface StepperItem {
   readonly title: string;
@@ -592,6 +602,22 @@ export interface RealtyProps {
   readonly apiBase: string;
   /** negocio */
   readonly defaultRatePercent: number;
+}
+
+/** <synergos-reserva> · funcionalidad · diccionario: Booking.Slot */
+export interface ReservaProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** contenido */
+  readonly servicio?: ServicioReservable;
+  /** contenido */
+  readonly enlaceAlternativo?: string;
+  /** negocio */
+  readonly camino: string;
+  /** negocio */
+  readonly zona: string;
 }
 
 /** <synergos-rich-tooltip> · pieza · diccionario: Common.Actions */
@@ -2156,6 +2182,37 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
   },
 };
 
+export const RESERVA_SYNHOST: ElementoSynHost<ReservaProps> = {
+  nombre: "reserva",
+  tipo: "funcionalidad",
+  record: "ReservaProps",
+  diccionario: ["Booking.Slot"],
+  claves: ["Booking.Slot.Alternative","Booking.Slot.Cancel","Booking.Slot.Cancelled","Booking.Slot.Check","Booking.Slot.Checking","Booking.Slot.Confirm","Booking.Slot.Confirmed","Booking.Slot.Day","Booking.Slot.Defaults.Heading","Booking.Slot.Duration","Booking.Slot.Errors.Busy","Booking.Slot.Errors.Expired","Booking.Slot.Errors.Generic","Booking.Slot.Errors.NotBookable","Booking.Slot.Errors.OutsideHours","Booking.Slot.Errors.Past","Booking.Slot.Errors.Payment","Booking.Slot.Errors.Taken","Booking.Slot.ManageWithBusiness","Booking.Slot.Minutes","Booking.Slot.NotConfigured","Booking.Slot.Number","Booking.Slot.Pending","Booking.Slot.Quoting","Booking.Slot.Reserve","Booking.Slot.SignIn","Booking.Slot.Time","Booking.Slot.Total","Booking.Slot.Unavailable"],
+  campos: ["heading","subheading","servicio","enlaceAlternativo","camino","zona"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Reserva tu cita",
+    "subheading": "Elige el día y la hora",
+    "servicio": {
+      "id": "51e3c7f8-96f8-4458-a650-5adec6126174",
+      "nombre": "Masaje terapéutico · 60 min",
+      "duracionMinutos": 60,
+      "dias": [
+        "Monday",
+        "Wednesday",
+        "Friday"
+      ],
+      "abre": "08:00",
+      "cierra": "18:00"
+    },
+    "enlaceAlternativo": "/booking/reservar/",
+    "camino": "no-disponible",
+    "zona": "America/Bogota"
+  },
+};
+
 export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   nombre: "rich-tooltip",
   tipo: "pieza",
@@ -2737,6 +2794,7 @@ export const ELEMENTOS_SYNHOST = [
   RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
   REALTY_SYNHOST,
+  RESERVA_SYNHOST,
   RICH_TOOLTIP_SYNHOST,
   SCROLL_TOP_SYNHOST,
   SEARCH_BOX_SYNHOST,

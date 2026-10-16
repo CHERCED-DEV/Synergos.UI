@@ -5729,5 +5729,25 @@
       "default": "",
       "description": "Hook opcional para integración custom — vacío por default"
     }
+  ],
+  "reserva": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object set by the CMS: the bookable service of the page, the site path (door, off or unavailable) and its time zone; merged over the individual attributes for reserva."
+    },
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "description": "Headline shown above the booking form."
+    },
+    {
+      "name": "subheading",
+      "type": "string",
+      "required": false,
+      "description": "Supporting line under the headline."
+    }
   ]
 }

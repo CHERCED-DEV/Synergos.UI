@@ -1,0 +1,124 @@
+<header class="sg-reserva__head">
+  <h2 class="sg-reserva__title">{{ heading() }}</h2>
+  @if (subheading()) {
+    <p class="sg-reserva__lead">{{ subheading() }}</p>
+  }
+</header>
+
+<p class="sg-reserva__aviso" role="status" aria-live="polite">{{ aviso() }}</p>
+
+@switch (pantalla()) {
+  @case ('apagada') {
+    @if (enlaceAlternativo()) {
+      <a class="sg-reserva__cta" [href]="enlaceAlternativo()">{{ txt.alternativa }}</a>
+    } @else {
+      <p class="sg-reserva__nota">{{ txt.noDisponible }}</p>
+    }
+  }
+  @case ('no-disponible') {
+    <p class="sg-reserva__nota">{{ txt.noDisponible }}</p>
+  }
+  @case ('sin-servicio') {
+    <p class="sg-reserva__nota">{{ txt.noConfigurado }}</p>
+  }
+  @case ('sesion') {
+    <a class="sg-reserva__cta" [href]="loginUrl()">{{ txt.iniciarSesion }}</a>
+  }
+  @case ('revisando') {
+    <p class="sg-reserva__nota">{{ txt.revisando }}</p>
+  }
+  @case ('elegir') {
+    @if (servicio(); as s) {
+      <section class="sg-reserva__form">
+        <p class="sg-reserva__servicio">{{ s.nombre }}</p>
+        <p class="sg-reserva__meta">{{ duracion() }}</p>
+
+        <div class="sg-reserva__campos">
+          <label class="sg-reserva__campo">
+            <span>{{ txt.dia }}</span>
+            <select class="sg-reserva__select" [value]="dia()" (change)="elegirDia($event)">
+              <option value="">—</option>
+              @for (d of dias(); track d.fecha) {
+                <option [value]="d.fecha">{{ d.etiqueta }}</option>
+              }
+            </select>
+          </label>
+          <label class="sg-reserva__campo">
+            <span>{{ txt.hora }}</span>
+            <select class="sg-reserva__select" [value]="hora()" [disabled]="!dia()" (change)="elegirHora($event)">
+              <option value="">—</option>
+              @for (h of horas(); track h) {
+                <option [value]="h">{{ h }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        @if (sinMiembro()) {
+          <a class="sg-reserva__cta" [href]="loginUrl()">{{ txt.iniciarSesion }}</a>
+        } @else {
+          @if (cotizacion().estado === 'cotizando') {
+            <p class="sg-reserva__meta">{{ txt.cotizando }}</p>
+          }
+          @if (totalCotizado(); as total) {
+            <p class="sg-reserva__total">
+              <span>{{ txt.total }}</span> <strong>{{ plata(total) }}</strong>
+            </p>
+          }
+          <button type="button" class="sg-reserva__cta" [disabled]="!puedeReservar()" (click)="reservar()">
+            {{ txt.reservar }}
+          </button>
+        }
+      </section>
+    }
+  }
+  @case ('sin-respuesta') {
+    @if (paso().tipo === 'sin-respuesta') {
+      <section class="sg-reserva__form">
+        <p class="sg-reserva__servicio">{{ servicio()?.nombre }}</p>
+        <p class="sg-reserva__meta">{{ franja($any(paso()).pendiente.ventana) }}</p>
+        <button type="button" class="sg-reserva__cta" [disabled]="ocupado()" (click)="reintentar()">
+          {{ txt.reservar }}
+        </button>
+      </section>
+    }
+  }
+  @case ('desconocida') {
+    <button type="button" class="sg-reserva__cta" (click)="revisarDeNuevo()">{{ txt.revisar }}</button>
+  }
+  @case ('apartada') {
+    @if (reserva(); as r) {
+      <section class="sg-reserva__comprobante">
+        <p class="sg-reserva__servicio">{{ servicio()?.nombre }}</p>
+        <p class="sg-reserva__meta">{{ franja(r.ventana) }}</p>
+        @if (r.total; as total) {
+          <p class="sg-reserva__total">
+            <span>{{ txt.total }}</span> <strong>{{ plata(total) }}</strong>
+          </p>
+        }
+        <div class="sg-reserva__acciones">
+          <button type="button" class="sg-reserva__cta" [disabled]="ocupado()" (click)="confirmar()">{{ txt.confirmar }}</button>
+          <button type="button" class="sg-reserva__secundario" [disabled]="ocupado()" (click)="cancelar()">{{ txt.cancelar }}</button>
+        </div>
+      </section>
+    }
+  }
+  @case ('confirmada') {
+    @if (reserva(); as r) {
+      <section class="sg-reserva__comprobante sg-reserva__comprobante--ok">
+        <h3 class="sg-reserva__servicio">{{ txt.confirmada }}</h3>
+        <p class="sg-reserva__numero">
+          <span>{{ txt.numero }}</span> <strong>{{ r.numero }}</strong>
+        </p>
+        <p class="sg-reserva__meta">{{ servicio()?.nombre }}</p>
+        <p class="sg-reserva__meta">{{ franja(r.ventana) }}</p>
+        @if (r.total; as total) {
+          <p class="sg-reserva__total">
+            <span>{{ txt.total }}</span> <strong>{{ plata(total) }}</strong>
+          </p>
+        }
+        <p class="sg-reserva__nota">{{ txt.conElNegocio }}</p>
+      </section>
+    }
+  }
+}
