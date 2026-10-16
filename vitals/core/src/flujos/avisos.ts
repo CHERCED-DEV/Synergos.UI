@@ -17,4 +17,5 @@ export interface AvisoDelFlujo {
 
 export const AVISOS_DE_LOS_FLUJOS = {
   'eventos.compra': { parametro: 'compra', marcador: 'id' },
+  'reservas.servicio': { parametro: 'reserva', marcador: 'id' },
 } as const satisfies Readonly<Partial<Record<Flujo, AvisoDelFlujo>>>;

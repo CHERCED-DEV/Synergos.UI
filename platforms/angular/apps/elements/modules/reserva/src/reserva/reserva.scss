@@ -1,0 +1,142 @@
+@use 'scss' as syn;
+
+// Los tokens del design system con su respaldo Sass: en desarrollo el CSS del CMS no está, y sin
+// respaldo la pantalla saldría sin color.
+:host {
+  --rs-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --rs-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --rs-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --rs-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --rs-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  // SÓLIDO y no un lavado: un CTA pintado con `state-brand-surface` y tinta `text-on-brand` no se lee.
+  --rs-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --rs-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --rs-ok: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --rs-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+
+  display: block;
+  max-width: 40rem;
+  color: var(--rs-text);
+}
+
+.sg-reserva__head {
+  margin-bottom: 1rem;
+}
+
+.sg-reserva__title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.sg-reserva__lead {
+  margin: 0.25rem 0 0;
+  color: var(--rs-text-secondary);
+}
+
+.sg-reserva__aviso {
+  margin: 0 0 1rem;
+  color: var(--rs-text-secondary);
+
+  &:empty {
+    margin: 0;
+  }
+}
+
+.sg-reserva__form,
+.sg-reserva__comprobante {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--rs-border);
+  border-radius: 1rem;
+  background: var(--rs-surface);
+}
+
+.sg-reserva__comprobante--ok {
+  border-color: var(--rs-ok);
+  background: var(--rs-ok-soft);
+}
+
+.sg-reserva__servicio {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.sg-reserva__meta,
+.sg-reserva__nota {
+  margin: 0;
+  color: var(--rs-muted);
+}
+
+.sg-reserva__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+}
+
+.sg-reserva__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.sg-reserva__select {
+  min-height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--rs-border);
+  border-radius: 0.5rem;
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  font: inherit;
+}
+
+.sg-reserva__total,
+.sg-reserva__numero {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sg-reserva__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.sg-reserva__cta,
+.sg-reserva__secundario {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+
+  &[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.sg-reserva__cta {
+  border: 1px solid var(--rs-brand);
+  background: var(--rs-brand);
+  color: var(--rs-brand-text);
+}
+
+.sg-reserva__secundario {
+  border: 1px solid var(--rs-border);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+}
