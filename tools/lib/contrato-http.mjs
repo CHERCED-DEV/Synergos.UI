@@ -56,6 +56,8 @@
  * RECHAZA. Lo que corre en `npm test` es esta lógica, en `contrato-http.spec.mjs`.
  */
 
+import { generarAvisos } from './avisos-de-los-flujos.mjs';
+
 /** Dónde viven los documentos, dentro del repo del CMS. */
 export const RUTA_EN_CMS = ['Synergos.CMS.Web', 'docs', 'contracts', 'openapi'];
 
@@ -769,23 +771,38 @@ export function generarIndiceDeEnvoltorios(flujos) {
   return [
     '// ─── Los envoltorios de los flujos que expone la puerta (núcleo N3) ───',
     '// GENERADO por tools/contrato-http.mjs: uno por cada flujo marcado en los `Synergos.Bff.*.json`',
-    '// del CMS. NO se edita a mano.',
+    '// del CMS, y la tabla de sus avisos. NO se edita a mano.',
     '',
-    ...(flujos.length === 0
-      ? ['export {};']
-      : flujos.map((f) => `export * from './${nombresDelFlujo(f).fichero.replace(/\.ts$/, '')}';`)),
+    `export * from './${AVISOS.replace(/\.ts$/, '')}';`,
+    ...flujos.map((f) => `export * from './${nombresDelFlujo(f).fichero.replace(/\.ts$/, '')}';`),
     '',
   ].join('\n');
 }
 
+/** La tabla de los avisos, junto a los envoltorios (núcleo N3, FR-032): sale del `appsettings.json` del CMS. */
+export const AVISOS = 'avisos.ts';
+
 /**
- * Los envoltorios de todos los documentos válidos, con su índice; o los errores si dos flujos darían
- * el mismo nombre (sus funciones chocarían en `vitals-core`).
+ * Los envoltorios de todos los documentos válidos, con su índice y la tabla de avisos; o los errores si
+ * dos flujos darían el mismo nombre (sus funciones chocarían en `vitals-core`) o una ruta de aviso no
+ * dice qué parámetro lee el participante.
  *
  * @param {ReadonlyMap<string, any>} documentos fichero → documento ya validado.
+ * @param {ReadonlyMap<string, string>} avisos flujo → ruta del aviso, del `appsettings.json` del CMS.
  * @returns {{ errores: string[], ficheros: Map<string, string> }}
  */
-function planDeEnvoltorios(documentos) {
+function planDeEnvoltorios(documentos, avisos) {
+  const plan = planDeEnvoltoriosDeLosFlujos(documentos);
+  const tabla = generarAvisos(avisos);
+  if (plan.errores.length > 0 || tabla.errores.length > 0) {
+    return { errores: [...plan.errores, ...tabla.errores], ficheros: new Map() };
+  }
+  plan.ficheros.set(AVISOS, tabla.texto);
+  return { errores: [], ficheros: new Map([...plan.ficheros].sort(([a], [b]) => ordinal(a, b))) };
+}
+
+/** Los envoltorios de los flujos, con su índice; o el error si dos darían el mismo nombre. */
+function planDeEnvoltoriosDeLosFlujos(documentos) {
   const flujos = new Map();
   for (const [f, doc] of documentos) {
     for (const o of operacionesDeLaPuerta(doc)) {
@@ -841,13 +858,15 @@ function flujosRepetidos(documentos) {
  * Sólo LEE los documentos de los orquestadores: los de las capacidades no llegan ni a abrirse,
  * así que un `Synergos.Api.*` roto no puede tumbar ni colar nada acá.
  *
- * Y lo que tiene que contener la de los envoltorios (`envoltorios`, en `RUTA_DE_LOS_ENVOLTORIOS`).
+ * Y lo que tiene que contener la de los envoltorios (`envoltorios`, en `RUTA_DE_LOS_ENVOLTORIOS`), con
+ * la tabla de los avisos derivada de `avisos`.
  *
  * @param {readonly string[]} ficheros los nombres que hay en `openapi/`.
  * @param {(fichero: string) => any} leer devuelve el documento ya parseado.
+ * @param {ReadonlyMap<string, string>} [avisos] flujo → ruta del aviso, del `appsettings.json` del CMS.
  * @returns {{ errores: string[], ficheros: Map<string, string>, envoltorios: Map<string, string> }}
  */
-export function planDeFicheros(ficheros, leer) {
+export function planDeFicheros(ficheros, leer, avisos = new Map()) {
   const documentos = ficheros.filter(esDocumentoDelFlujo).sort(ordinal);
   if (documentos.length === 0) {
     return {
@@ -872,7 +891,7 @@ export function planDeFicheros(ficheros, leer) {
   errores.push(...flujosRepetidos(validos));
   if (errores.length > 0) return { errores, ficheros: new Map(), envoltorios: new Map() };
 
-  const envoltorios = planDeEnvoltorios(validos);
+  const envoltorios = planDeEnvoltorios(validos, avisos);
   if (envoltorios.errores.length > 0) return { errores: envoltorios.errores, ficheros: new Map(), envoltorios: new Map() };
 
   salida.set(INDICE, generarIndice(documentos));

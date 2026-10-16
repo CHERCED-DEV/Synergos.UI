@@ -641,7 +641,7 @@ describe('los envoltorios de los flujos (núcleo N3, FR-030): un flujo nuevo no 
   it('cada flujo marcado sale con su envoltorio: la clave y una función por operación marcada, sobre pedirAlFlujo', () => {
     const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento());
     expect(e).toEqual([]);
-    expect([...envoltorios.keys()]).toEqual(['index.ts', 'prueba.compra.ts']);
+    expect([...envoltorios.keys()]).toEqual(['avisos.ts', 'index.ts', 'prueba.compra.ts']);
 
     const ts = envoltorios.get('prueba.compra.ts');
     expect(ts).toContain('// GENERADO por tools/contrato-http.mjs desde Synergos.Bff.Prueba.json');
@@ -666,11 +666,27 @@ describe('los envoltorios de los flujos (núcleo N3, FR-030): un flujo nuevo no 
     expect([...otra]).toEqual([...una]);
   });
 
-  it('sin marcas no hay envoltorio, y el índice no exporta nada', () => {
+  it('sin marcas no hay envoltorio, y el índice sólo exporta la tabla de avisos', () => {
     const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], sinMarcas);
     expect(e).toEqual([]);
-    expect([...envoltorios.keys()]).toEqual(['index.ts']);
-    expect(envoltorios.get('index.ts')).toContain('export {};\n');
+    expect([...envoltorios.keys()]).toEqual(['avisos.ts', 'index.ts']);
+    expect(envoltorios.get('index.ts')).toContain("export * from './avisos';\n");
+    expect(envoltorios.get('index.ts')).not.toMatch(/prueba/);
+    expect(envoltorios.get('avisos.ts')).toContain('export const AVISOS_GENERADOS = {} as const satisfies');
+  });
+
+  it('los avisos salen de las rutas del CMS (FR-032), y una ruta que no dice qué leer no genera nada', () => {
+    const avisos = new Map([['prueba.compra', '/prueba/?compra={id}']]);
+    const { errores: e, envoltorios } = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento(), avisos);
+    expect(e).toEqual([]);
+    expect(envoltorios.get('avisos.ts')).toContain('  "prueba.compra": { parametro: "compra", marcador: "id" },\n');
+
+    const mala = planDeFicheros(['Synergos.Bff.Prueba.json'], () => documento(), new Map([['prueba.compra', '/prueba/{id}']]));
+    expect(mala.errores).toEqual([
+      'prueba.compra: la ruta del aviso «/prueba/{id}» no trae UN parámetro con un marcador ({…}) en la consulta: el participante no sabría qué leer.',
+    ]);
+    expect(mala.envoltorios.size).toBe(0);
+    expect(mala.ficheros.size).toBe(0);
   });
 
   it('dos flujos que darían el mismo envoltorio no generan nada: sus funciones chocarían en vitals-core', () => {

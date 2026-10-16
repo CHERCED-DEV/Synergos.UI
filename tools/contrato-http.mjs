@@ -23,6 +23,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { comoApuntarAlCms, resolverRaizCms } from './lib/rutas-hermanas.mjs';
+import { avisosDelCms } from './lib/avisos-de-los-flujos.mjs';
 import { RUTA_DE_LOS_ENVOLTORIOS, RUTA_EN_CMS, RUTA_GENERADA, diferencias, planDeFicheros } from './lib/contrato-http.mjs';
 
 const RAIZ_UI = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,7 +54,15 @@ const leer = (fichero) => {
   }
 };
 
-const { errores, ficheros, envoltorios } = planDeFicheros(readdirSync(carpeta), leer);
+// Los avisos de los flujos salen del `appsettings.json` del CMS, la misma fuente que cruza G-15
+// (núcleo N3, FR-032). Sin él no se genera: la tabla saldría vacía y diría que nadie avisa.
+const appsettings = join(raizCms, 'Synergos.CMS.Web', 'appsettings.json');
+if (!existsSync(appsettings)) {
+  morir([`✗ No se pudo leer los avisos de los flujos: falta ${appsettings}.`, comoApuntarAlCms(raizCms)]);
+}
+const avisos = avisosDelCms(JSON.parse(readFileSync(appsettings, 'utf8')));
+
+const { errores, ficheros, envoltorios } = planDeFicheros(readdirSync(carpeta), leer, avisos);
 if (errores.length > 0) {
   morir(['✗ El contrato HTTP del CMS no se puede traducir:', ...errores.map((e) => `    ${e}`)]);
 }

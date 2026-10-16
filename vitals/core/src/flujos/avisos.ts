@@ -15,6 +15,12 @@ export interface AvisoDelFlujo {
   readonly marcador: string;
 }
 
+/**
+ * La tabla escrita a mano de antes del núcleo N3: pieza del superset, declarada, para quien ya la lee.
+ * Desde N3 la tabla sale del CMS (`generados/avisos.ts`, `AVISOS_GENERADOS`; se lee con
+ * `avisoDelFlujo`) y un flujo nuevo no se añade acá; G-15 exige que lo que dice esta coincida con la
+ * generada. Sólo importa TIPOS: G-15 la lee transpilada, sin resolver nada más.
+ */
 export const AVISOS_DE_LOS_FLUJOS = {
   'eventos.compra': { parametro: 'compra', marcador: 'id' },
 } as const satisfies Readonly<Partial<Record<Flujo, AvisoDelFlujo>>>;
