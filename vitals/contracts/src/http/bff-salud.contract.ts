@@ -25,11 +25,11 @@ export interface Rechazo {
 
 export interface SaludCitaCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly profesional: { readonly kind: string; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
+  readonly datos: { readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
 }
 
 export interface SaludCitaEntrada {
-  readonly profesionalId: string;
+  readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; };
   readonly ventana: { readonly start: string; readonly end: string; };
 }
 
@@ -38,7 +38,7 @@ export interface SaludCitaRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly profesional: { readonly kind: string; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
+  readonly datos: { readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
