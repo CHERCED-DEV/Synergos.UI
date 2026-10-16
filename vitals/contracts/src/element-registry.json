@@ -946,5 +946,12 @@
     "tag": "synergos-testimonial-section",
     "tier": "module",
     "framework": "angular"
+  },
+  {
+    "name": "reserva",
+    "alias": "elementSynReserva",
+    "tag": "synergos-reserva",
+    "tier": "module",
+    "framework": "angular"
   }
 ]

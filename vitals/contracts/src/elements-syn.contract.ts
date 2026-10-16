@@ -511,6 +511,15 @@ export interface SynRealtySchema {
   readonly content?: string;
 }
 
+/** elementSynReserva — tier:module → tag:<synergos-reserva> */
+export interface SynReservaSchema {
+  readonly heading?: string;
+  readonly subheading?: string;
+  readonly servicio?: string;
+  readonly enlaceAlternativo?: string;
+  readonly content?: string;
+}
+
 /** elementSynRichTooltip — tier:composition → tag:<synergos-rich-tooltip> */
 export interface SynRichTooltipSchema {
   readonly triggerText?: string;
