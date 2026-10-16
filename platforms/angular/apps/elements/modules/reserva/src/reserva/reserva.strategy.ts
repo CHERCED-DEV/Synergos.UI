@@ -1,7 +1,11 @@
 import type { BffReservas } from '@synergos/contracts';
 import {
+  abrirReservasServicio,
+  cancelarReservasServicio,
+  cerrarReservasServicio,
+  consultarReservasServicio,
+  cotizarReservasServicio,
   idAleatorio,
-  pedirAlFlujo,
   type Flujo,
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
@@ -14,8 +18,9 @@ import type { Ventana } from './reserva.horario';
  * operaciones y la lectura de su respuesta.
  *
  * <p>Habla SÓLO con el coordinador (`<synergos-flujo>`) que la vista coloca alrededor del elemento:
- * ninguna ruta propia, ningún `fetch`. Un renombre en el orquestador se regenera en
- * `bff-reservas.contract.ts` y rompe la compilación de este fichero (regla 24).</p>
+ * ninguna ruta propia, ningún `fetch`, y el transporte sale del envoltorio GENERADO del flujo
+ * (`generados/reservas.servicio.ts`, núcleo N3). Un renombre en el orquestador se regenera en
+ * `bff-reservas.contract.ts` y en ese envoltorio, y rompe la compilación de este fichero (regla 24).</p>
  *
  * <p><b>Lo que decide esta capa y no la pantalla</b>: que una respuesta que no dice en qué quedó la
  * reserva se CONSULTA antes de afirmar nada (cerrar o cancelar que fallan), que la llave de abrir es
@@ -74,7 +79,7 @@ export function entradaDeLaReserva(servicio: string, ventana: Ventana): BffReser
  * agenda y no guarda nada. Sin llave. `null` si el servidor no da total: no se inventa uno.
  */
 export async function cotizarReserva(desde: Element, servicio: string, ventana: Ventana): Promise<ResultadoDelFlujo<Importe | null>> {
-  const r = await pedirAlFlujo(desde, FLUJO_RESERVA, 'cotizar', { cuerpo: entradaDeLaReserva(servicio, ventana) });
+  const r = await cotizarReservasServicio(desde, { cuerpo: entradaDeLaReserva(servicio, ventana) });
   return r.ok ? { ...r, valor: r.valor.datos.total } : r;
 }
 
@@ -85,19 +90,19 @@ export async function abrirReserva(
   ventana: Ventana,
   llave: string,
 ): Promise<ResultadoDelFlujo<ReservaLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'abrir', { cuerpo: entradaDeLaReserva(servicio, ventana), llave }));
+  return leida(await abrirReservasServicio(desde, { cuerpo: entradaDeLaReserva(servicio, ventana), llave }));
 }
 
 export async function consultarReserva(desde: Element, id: string): Promise<ResultadoDelFlujo<ReservaLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'consultar', { consulta: { id } }));
+  return leida(await consultarReservasServicio(desde, { consulta: { id } }));
 }
 
 export async function cerrarReserva(desde: Element, id: string): Promise<ResultadoDelFlujo<ReservaLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'cerrar', { consulta: { id } }));
+  return leida(await cerrarReservasServicio(desde, { consulta: { id } }));
 }
 
 export async function cancelarReserva(desde: Element, id: string): Promise<ResultadoDelFlujo<ReservaLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'cancelar', { consulta: { id } }));
+  return leida(await cancelarReservasServicio(desde, { consulta: { id } }));
 }
 
 /**
