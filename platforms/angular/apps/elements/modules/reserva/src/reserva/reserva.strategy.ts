@@ -61,21 +61,31 @@ function leida(r: ResultadoDelFlujo<BffReservas.ReservasServicioRespuesta>): Res
 }
 
 /**
+ * Lo que viaja al abrir y al cotizar. El servicio va como REFERENCIA con la clase que declara la
+ * definición del flujo (NR-1): el contrato generado la tipa como literal, así que otra clase —o un
+ * renombre en el orquestador— no compila. El navegador sólo aporta la clave de la ficha.
+ */
+export function entradaDeLaReserva(servicio: string, ventana: Ventana): BffReservas.ReservasServicioEntrada {
+  return { servicio: { kind: 'reservas.servicio', id: servicio }, ventana };
+}
+
+/**
  * El total de la franja SIN apartar nada: el orquestador corre la fase que abre hasta antes de la
  * agenda y no guarda nada. Sin llave. `null` si el servidor no da total: no se inventa uno.
  */
-export async function cotizarReserva(desde: Element, cuerpo: BffReservas.ReservasServicioEntrada): Promise<ResultadoDelFlujo<Importe | null>> {
-  const r = await pedirAlFlujo(desde, FLUJO_RESERVA, 'cotizar', { cuerpo });
+export async function cotizarReserva(desde: Element, servicio: string, ventana: Ventana): Promise<ResultadoDelFlujo<Importe | null>> {
+  const r = await pedirAlFlujo(desde, FLUJO_RESERVA, 'cotizar', { cuerpo: entradaDeLaReserva(servicio, ventana) });
   return r.ok ? { ...r, valor: r.valor.datos.total } : r;
 }
 
 /** Aparta la franja y autoriza el cobro. La llave es la de la intención (`llaveDeLaIntencion`). */
 export async function abrirReserva(
   desde: Element,
-  cuerpo: BffReservas.ReservasServicioEntrada,
+  servicio: string,
+  ventana: Ventana,
   llave: string,
 ): Promise<ResultadoDelFlujo<ReservaLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'abrir', { cuerpo, llave }));
+  return leida(await pedirAlFlujo(desde, FLUJO_RESERVA, 'abrir', { cuerpo: entradaDeLaReserva(servicio, ventana), llave }));
 }
 
 export async function consultarReserva(desde: Element, id: string): Promise<ResultadoDelFlujo<ReservaLeida>> {

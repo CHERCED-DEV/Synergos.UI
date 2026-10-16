@@ -25,11 +25,11 @@ export interface Rechazo {
 
 export interface ReservasServicioCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly servicio: string | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
 }
 
 export interface ReservasServicioEntrada {
-  readonly servicio: string;
+  readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; };
   readonly ventana: { readonly start: string; readonly end: string; };
 }
 
@@ -38,7 +38,7 @@ export interface ReservasServicioRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly servicio: string | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;

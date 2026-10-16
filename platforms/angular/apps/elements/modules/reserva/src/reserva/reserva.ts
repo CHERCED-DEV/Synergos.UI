@@ -222,7 +222,6 @@ function rechazosDeReserva(): {
       'booking.hold_expired': vencida,
       'booking.hold_released': vencida,
       'reservas.servicio_no_reservable': noReservable,
-      'reservas.servicio_invalido': noReservable,
       'booking.resource_not_found': noReservable,
       'pricing.price_not_found': noReservable,
       'pricing.price_not_in_effect': noReservable,
@@ -446,7 +445,7 @@ export class ReservaElementComponent implements OnInit {
       return;
     }
     this.cotizacion.set({ estado: 'cotizando' });
-    const r = await cotizarReserva(this.#host, { servicio: servicio.id, ventana });
+    const r = await cotizarReserva(this.#host, servicio.id, ventana);
     if (turno !== this.#cotizacionEnCurso) return;
     if (r.ok) {
       this.cotizacion.set({ estado: 'ok', total: r.valor });
@@ -491,7 +490,7 @@ export class ReservaElementComponent implements OnInit {
     guardarPendiente(pendiente);
     this.ocupado.set(true);
     try {
-      const r = await abrirReserva(this.#host, { servicio: pendiente.servicio, ventana: pendiente.ventana }, pendiente.llave);
+      const r = await abrirReserva(this.#host, pendiente.servicio, pendiente.ventana, pendiente.llave);
       if (r.ok) {
         guardarPendiente({ ...pendiente, id: r.valor.id });
         this.#asentar(r.valor, null, 'abrir');

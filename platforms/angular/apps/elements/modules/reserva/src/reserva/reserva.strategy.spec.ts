@@ -121,10 +121,12 @@ describe('la estrategia por el coordinador', () => {
 
   it('cotizar va sin llave por la puerta y devuelve el total del servidor, o null si no lo dio', async () => {
     montar(() => ({ ok: true, valor: { flujo: 'reservas.servicio', datos: { servicio: 'svc-1', ventana: null, total: null } }, estado: 200, correlacion: '' }));
-    const r = await cotizarReserva(participante, { servicio: 'svc-1', ventana: { start: 'a', end: 'b' } });
+    const r = await cotizarReserva(participante, 'svc-1', { start: 'a', end: 'b' });
     expect(r).toMatchObject({ ok: true, valor: null });
     expect(vistas[0]!.url).toBe('/api/flujos/reservas.servicio/cotizar');
     expect(vistas[0]!.cabeceras['Idempotency-Key']).toBeUndefined();
+    // NR-1: el servicio viaja como referencia con la clase de la definición; el navegador sólo pone la clave.
+    expect(JSON.parse(vistas[0]!.cuerpo ?? '{}')).toEqual({ servicio: { kind: 'reservas.servicio', id: 'svc-1' }, ventana: { start: 'a', end: 'b' } });
   });
 
   it('una escritura que falla se CONSULTA: lo que queda es el estado leído, con el rechazo para decir por qué', async () => {

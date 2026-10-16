@@ -53,7 +53,7 @@ function respuesta(estado: string, extra: Record<string, unknown> = {}) {
     flujo: 'reservas.servicio',
     numero: 'R-0001',
     estado,
-    datos: { servicio: SERVICIO.id, ventana: VENTANA, total: TOTAL },
+    datos: { servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA, total: TOTAL },
     compensacionesPendientes: 0,
     error: null,
     deshaciendo: false,
@@ -88,7 +88,7 @@ function puerta(guion: Guion) {
   };
 }
 
-const COTIZA: Respondedor = () => ok({ flujo: 'reservas.servicio', datos: { servicio: SERVICIO.id, ventana: VENTANA, total: TOTAL } });
+const COTIZA: Respondedor = () => ok({ flujo: 'reservas.servicio', datos: { servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA, total: TOTAL } });
 const MIEMBRO = { member: { key: 'm-1', displayName: 'Ada Lovelace', email: 'ada@example.com', roles: [] } };
 
 describe('<synergos-reserva>', () => {
@@ -175,6 +175,8 @@ describe('<synergos-reserva>', () => {
     await pintar();
     expect(component.pantalla()).toBe('apartada');
     expect(aviso()).toBe('Tu franja está apartada. Confirma para pagar y asegurarla.');
+    // Sin el vencimiento del servidor (NB-5) no se muestra ninguno: la pantalla no lo calcula por su cuenta.
+    expect(host().textContent).not.toMatch(/vence|expira|minutos/i);
     expect(leerPendiente(SERVICIO.id)?.id).toBe('rs-1');
 
     await component.confirmar();
@@ -183,7 +185,7 @@ describe('<synergos-reserva>', () => {
     expect(guion.ops()).toEqual(['cotizar', 'abrir', 'cerrar']);
     const [abrir] = guion.de('abrir');
     expect(abrir!.cabeceras['Idempotency-Key']).toMatch(/^[0-9a-f]{32}$/);
-    expect(JSON.parse(abrir!.cuerpo ?? '{}')).toEqual({ servicio: SERVICIO.id, ventana: VENTANA });
+    expect(JSON.parse(abrir!.cuerpo ?? '{}')).toEqual({ servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA });
     expect(guion.de('cerrar')[0]!.url).toBe('/api/flujos/reservas.servicio/cerrar?id=rs-1');
     expect(component.pantalla()).toBe('confirmada');
     expect(texto('.sg-reserva__numero strong')).toBe('R-0001');
