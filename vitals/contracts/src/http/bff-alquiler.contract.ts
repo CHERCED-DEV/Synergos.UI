@@ -12,7 +12,7 @@
 
 export interface AlquilerRentaCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; };
+  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; readonly ventana: { readonly start: string; readonly end: string; } | null; };
 }
 
 export interface AlquilerRentaEntrada {
@@ -26,7 +26,7 @@ export interface AlquilerRentaRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; };
+  readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; readonly ventana: { readonly start: string; readonly end: string; } | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
