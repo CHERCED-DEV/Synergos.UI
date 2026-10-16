@@ -53,6 +53,7 @@ import { EHR_FLOW } from './ehr-fulfillment.strategy';
 import {
   type Appointment,
   type BillingStatement,
+  type CaminoDeLaCita,
   type EhrAcceso,
   type ChartTab,
   type ClinicalAlert,
@@ -206,7 +207,13 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
   // lo resuelve el servidor por la sesión del miembro.
   return omitUndefinedProperties<EhrProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    appointmentPath: normalizeAppointmentPath(value.appointmentPath),
   });
+}
+
+/** El camino de la cita que declara el CMS (ADR 0140): uno de los dos, o nada. */
+function normalizeAppointmentPath(value: unknown): CaminoDeLaCita | undefined {
+  return value === 'puerta' || value === 'directa' ? value : undefined;
 }
 
 function coerceRole(value: unknown): EhrRole | undefined {

@@ -10,7 +10,7 @@ import {
   EhrWriteFailedError,
 } from './ehr-api.client';
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
-import { EhrElementComponent } from './ehr';
+import { EhrElementComponent, sanitizeEhrConfig } from './ehr';
 import {
   ENFERMERIA,
   MARIA,
@@ -1048,6 +1048,27 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.copayUnknown()).toBe(false);
     expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(false);
     expect(component.scheduleConfig().totalLabel).toBe('Sin costo');
+  });
+});
+
+// ── El camino de la cita lo DECLARA el CMS (ADR 0140) ────────────────────────────────────────────
+//
+// `EhrProps.appointmentPath` viaja con «puerta» o «directa»; el sanitizador lo conserva tal cual y
+// cualquier otra cosa se cae, para que nadie elija un tercer camino desde el atributo.
+describe('sanitizeEhrConfig: el camino de la cita', () => {
+  it.each(['puerta', 'directa'])('conserva «%s»', (camino) => {
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, appointmentPath: camino })).toEqual({
+      ...NEGOCIO_DEL_CMS,
+      appointmentPath: camino,
+    });
+  });
+
+  it.each([
+    ['sin declarar', NEGOCIO_DEL_CMS],
+    ['con un valor que no es ninguno de los dos', { ...NEGOCIO_DEL_CMS, appointmentPath: 'por-ahi' }],
+    ['con otra caja', { ...NEGOCIO_DEL_CMS, appointmentPath: 'PUERTA' }],
+  ])('%s, no hay camino', (_caso, config) => {
+    expect(sanitizeEhrConfig(config)).toEqual(NEGOCIO_DEL_CMS);
   });
 });
 

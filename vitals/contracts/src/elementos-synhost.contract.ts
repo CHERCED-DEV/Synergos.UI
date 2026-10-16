@@ -422,6 +422,8 @@ export interface DropdownProps {
 export interface EhrProps {
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly appointmentPath: string;
 }
 
 /** <synergos-eventos> · funcionalidad · diccionario: Events.Sale, Events.Purchase */
@@ -1326,12 +1328,13 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
   record: "EhrProps",
   diccionario: [],
   claves: [],
-  campos: ["apiBase"],
+  campos: ["apiBase","appointmentPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
-    "apiBase": "/api/ehr"
+    "apiBase": "/api/ehr",
+    "appointmentPath": "directa"
   },
 };
 

@@ -40,6 +40,13 @@ export type EhrRole = 'patient' | 'doctor' | 'nurse';
  */
 export type EhrAcceso = 'ok' | 'sin-sesion' | 'sin-permiso' | 'sin-historia';
 
+/**
+ * Por dónde agenda el paciente su cita, como lo DECLARA el CMS (`EhrProps.appointmentPath`, ADR 0140):
+ * la puerta (`/api/flujos/salud.cita`) o la ruta directa (`/api/ehr/appointment`). El elemento no lo
+ * adivina ni cae de uno al otro.
+ */
+export type CaminoDeLaCita = 'puerta' | 'directa';
+
 /** The high-level view / route the app is in (both portals, one hash router). */
 export type EhrView =
   // Patient (MyChart)
