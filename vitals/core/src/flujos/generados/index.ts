@@ -5,3 +5,4 @@
 export * from './avisos';
 export * from './eventos.compra';
 export * from './reservas.servicio';
+export * from './tienda.compra';
