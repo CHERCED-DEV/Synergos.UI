@@ -519,6 +519,22 @@ describe('la tabla de ejecución y el rechazo de la puerta (ADR 0140 F4, el «cl
     expect(tabla(ts)).toContain('cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },');
   });
 
+  it('disponibilidad es del vocabulario: una lectura sin saga, POST con cuerpo, sin llave y SIN sujeto (núcleo, NB-3)', () => {
+    const d = documento();
+    d.paths['/v1/flujos/prueba.compra/disponibilidad'] = {
+      post: {
+        operationId: 'PruebaCompraDisponibilidad',
+        'x-synergos-flujo': { flujo: 'prueba.compra', operacion: 'disponibilidad' },
+        requestBody: { ...json(ref('CompraRequest')), required: true },
+        responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 400: rechazo('Invalid') },
+      },
+    };
+    expect(validarDocumento(d)).toEqual([]);
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly disponibilidad: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "ninguna">;');
+    expect(tabla(ts)).toContain('disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },');
+  });
+
   it('una operación que gana un parámetro de consulta cambia la tabla, no sólo el tipo (M8 del plan de la F4)', () => {
     const d = documento();
     d.paths['/v1/compras'].post.parameters.push({ name: 'canal', in: 'query', required: true, schema: { type: 'string' } });

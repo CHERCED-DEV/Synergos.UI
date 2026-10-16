@@ -116,10 +116,11 @@ export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
 /**
  * El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6).
  * `cotizar` lo suma el cupón: la fase que abre, anticipada sin saga (`FlowRunner.AnticiparAsync`).
- * `listar` son las sagas del dueño, «mis reservas» (núcleo, NB-6 de 011).
+ * `listar` son las sagas del dueño, «mis reservas» (núcleo, NB-6 de 011). `disponibilidad` es una lectura sin
+ * saga ni dueño, lo que se ve antes de abrir (NB-3): la única clase de operación que un flujo abre a invitados.
  * Es la misma lista que `EnLaPuertaExtensions.Operaciones` y `TablaDeLaPuerta.Operaciones` del CMS.
  */
-export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'listar'];
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'disponibilidad', 'listar'];
 
 /** Los métodos que la puerta pasa. */
 const METODOS_DE_LA_PUERTA = new Set(['get', 'post']);
