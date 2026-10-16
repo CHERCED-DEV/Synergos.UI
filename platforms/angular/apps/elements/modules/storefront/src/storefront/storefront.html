@@ -40,6 +40,32 @@
     </nav>
   </header>
 
+  <!-- ─── La compra por la puerta: la pendiente y el enlace del aviso (004-tienda-compra) ─── -->
+  @if (avisoDePendiente() || comprasSinResolver().length > 0) {
+    <div class="storefront__aviso-de-compra">
+      <syn-status-banner tone="info" [message]="textosDeLaPendiente().texto" />
+      <div class="storefront__aviso-de-compra-acciones">
+        @if (compraSinTerminar()) {
+          <button type="button" class="storefront__btn storefront__btn--primary storefront__btn--sm" [disabled]="resolviendo()" (click)="terminarPendiente()">{{ textosDeLaPendiente().terminar }}</button>
+          <button type="button" class="storefront__btn storefront__btn--ghost storefront__btn--sm" [disabled]="resolviendo()" (click)="cancelarPendiente()">{{ textosDeLaPendiente().cancelar }}</button>
+        }
+        @for (compra of comprasSinResolver(); track compra.id) {
+          <button type="button" class="storefront__btn storefront__btn--ghost storefront__btn--sm" [disabled]="resolviendo()" (click)="cancelarCompraSinResolver(compra.id)">{{ textosDeLaPendiente().cancelar }} · {{ compra.numero }}</button>
+        }
+      </div>
+    </div>
+  }
+  @if (avisoDelEnlace()) {
+    <div class="storefront__aviso-de-compra">
+      <syn-status-banner tone="info" [message]="avisoDelEnlace()" />
+      @if (enlacePideSesion()) {
+        <div class="storefront__aviso-de-compra-acciones">
+          <a class="storefront__btn storefront__btn--primary storefront__btn--sm" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</a>
+        </div>
+      }
+    </div>
+  }
+
   <!-- Multi-tab live-session notice -->
   @if (liveConflict()) {
     <p class="storefront__notice" role="status">
@@ -508,27 +534,42 @@
     <!-- El cupón vive DENTRO del panel del carrito, sobre el total: es donde la
          gente lo busca, y donde el descuento se ve en la misma mirada (#29). -->
     <ng-template #promoSlot>
-      <syn-promo-code
-        [applied]="appliedPromo()"
-        [busy]="promoBusy()"
-        [rejection]="promoRejection()"
-        [rejectionDetail]="promoDetail()"
-        (apply)="applyPromo($event)"
-        (remove)="removePromo()"
-      />
+      <!-- El cupón sólo por la puerta (US 8): ahí lo calcula y lo cobra el servidor. La ruta directa no tiene
+           dónde validarlo (`shop :: promo` está en SIN_BORDE), así que no se ofrece. -->
+      @if (porLaPuerta()) {
+        <syn-promo-code
+          [config]="promoConfig()"
+          [applied]="appliedPromo()"
+          [busy]="promoBusy()"
+          [locked]="cuponFijado()"
+          [rejection]="promoRejection()"
+          [rejectionDetail]="promoDetail()"
+          (apply)="applyPromo($event)"
+          (remove)="removePromo()"
+        />
+      }
     </ng-template>
   }
 
   <!-- ═══ CHECKOUT: SH-3 checkout-wizard sobre el engine ═══════════════════ -->
   @if (view() === 'checkout') {
-    <syn-checkout-wizard
-      [config]="checkoutConfig"
-      [stepTemplate]="checkoutStep"
-      [validity]="checkoutValidity()"
-      [instrument]="checkoutInstrument()"
-      (completed)="onCheckoutCompleted($event)"
-      (exit)="goToCart()"
-    />
+    @if (pideSesion()) {
+      <!-- Por la puerta la compra es de miembros: la sesión se pide ANTES de pagar, y un 401 a mitad trae aquí. -->
+      <div class="storefront__sesion">
+        <h2 class="storefront__heading">{{ textosDeLaSesion().titulo }}</h2>
+        <p class="storefront__sesion-texto">{{ textosDeLaSesion().texto }}</p>
+        <a class="storefront__btn storefront__btn--primary" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</a>
+      </div>
+    } @else {
+      <syn-checkout-wizard
+        [config]="checkoutConfig()"
+        [stepTemplate]="checkoutStep"
+        [validity]="checkoutValidity()"
+        [instrument]="checkoutInstrument()"
+        (completed)="onCheckoutCompleted($event)"
+        (exit)="goToCart()"
+      />
+    }
 
     <ng-template #checkoutStep let-step>
       @switch (step.id) {
