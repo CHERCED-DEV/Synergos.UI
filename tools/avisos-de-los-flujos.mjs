@@ -16,11 +16,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { avisosDelCms, avisosDelUi, cruzarAvisos } from './lib/avisos-de-los-flujos.mjs';
+import { avisosDelCms, avisosDelUi, cruzarAvisos, cruzarDeclarados } from './lib/avisos-de-los-flujos.mjs';
 import { comoApuntarAlCms, resolverRaizCms } from './lib/rutas-hermanas.mjs';
 
 const RAIZ_UI = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TABLA_DEL_UI = join(RAIZ_UI, 'vitals', 'core', 'src', 'flujos', 'avisos.ts');
+const TABLA_GENERADA = join(RAIZ_UI, 'vitals', 'core', 'src', 'flujos', 'generados', 'avisos.ts');
 
 const { ruta: raizCms, origen } = resolverRaizCms({ raizUi: RAIZ_UI });
 const appsettings = join(raizCms, 'Synergos.CMS.Web', 'appsettings.json');
@@ -33,9 +34,11 @@ if (!existsSync(appsettings)) {
   process.exit(1);
 }
 
+// Núcleo N3 (FR-032): el CMS contra la tabla GENERADA de sus rutas, y la escrita a mano contra la generada.
 const cms = avisosDelCms(JSON.parse(readFileSync(appsettings, 'utf8')));
-const ui = await avisosDelUi(TABLA_DEL_UI);
-const errores = cruzarAvisos({ cms, ui });
+const generados = await avisosDelUi(TABLA_GENERADA, 'AVISOS_GENERADOS');
+const declarados = await avisosDelUi(TABLA_DEL_UI);
+const errores = [...cruzarAvisos({ cms, ui: generados }), ...cruzarDeclarados({ generados, declarados })];
 
 if (errores.length > 0) {
   console.error('✗ El enlace del aviso y el participante no dicen el mismo parámetro:');

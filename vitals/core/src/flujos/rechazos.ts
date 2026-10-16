@@ -1,3 +1,4 @@
+import { RECHAZOS_DE_LOS_FLUJOS, type RechazosDelFlujo } from './rechazos-de-los-flujos';
 import type { RechazoDelFlujo } from './transporte';
 
 /**
@@ -17,15 +18,26 @@ import type { RechazoDelFlujo } from './transporte';
  */
 export type ClaseDeRechazo = 'sesion' | 'reintentable' | 'no_disponible' | 'defecto' | 'negado';
 
-const SESION = new Set(['puerta.sesion_requerida', 'cliente.redirigido']);
+/**
+ * Los códigos genéricos —de la puerta y del cliente, ninguno de un vertical— que tienen clase propia.
+ * Los de cada vertical van declarados por flujo en `RECHAZOS_DE_LOS_FLUJOS` (núcleo N3).
+ */
+export const RECHAZOS_GENERICOS = {
+  sesion: ['puerta.sesion_requerida', 'cliente.redirigido'],
+  noDisponible: [
+    'puerta.flujo_no_disponible',
+    'puerta.operacion_desconocida',
+    'cliente.sin_coordinador',
+    'cliente.flujo_desconocido',
+    'cliente.protocolo_distinto',
+  ],
+} as const;
 
-const NO_DISPONIBLE = new Set([
-  'puerta.flujo_no_disponible',
-  'puerta.operacion_desconocida',
-  'eventos.artefacto_no_disponible',
-  'cliente.sin_coordinador',
-  'cliente.flujo_desconocido',
-  'cliente.protocolo_distinto',
+const SESION = new Set<string>(RECHAZOS_GENERICOS.sesion);
+
+const NO_DISPONIBLE = new Set<string>([
+  ...RECHAZOS_GENERICOS.noDisponible,
+  ...Object.values<RechazosDelFlujo>(RECHAZOS_DE_LOS_FLUJOS).flatMap((r) => r.noDisponible),
 ]);
 
 export function clasificarRechazo(r: RechazoDelFlujo): ClaseDeRechazo {

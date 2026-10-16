@@ -1,5 +1,12 @@
 import type { BffEventos } from '@synergos/contracts';
-import { pedirAlFlujo } from './coordinador';
+import {
+  FLUJO_EVENTOS_COMPRA,
+  abrirEventosCompra,
+  cancelarEventosCompra,
+  cerrarEventosCompra,
+  consultarEventosCompra,
+  cotizarEventosCompra,
+} from './generados';
 import type { Flujo } from './puerta';
 import type { ResultadoDelFlujo } from './transporte';
 
@@ -10,8 +17,13 @@ import type { ResultadoDelFlujo } from './transporte';
  * Es lo que hace que la regla 24 se cumpla en `vitals`: un renombre en el orquestador —una
  * operación, el flujo, un campo de la compra— se regenera allá y rompe `test:tipos-vitals` acá,
  * antes que build-specs. Y es agnóstico: lo mismo lo llama Angular que Preact.
+ *
+ * <b>Pieza del superset, declarada (núcleo N3).</b> Es el envoltorio escrito a mano de antes de que
+ * se generaran (`generados/eventos.compra.ts`), y sigue con su API para quien ya lo usa. Gana el
+ * generado: el transporte sale de allá, y aquí queda sólo la lectura de la respuesta. Que ningún
+ * flujo nuevo escriba el suyo lo vigila `envoltorios-de-los-flujos.spec.mjs`.
  */
-export const FLUJO_COMPRA_DE_EVENTOS = 'eventos.compra' as const satisfies Flujo;
+export const FLUJO_COMPRA_DE_EVENTOS = FLUJO_EVENTOS_COMPRA satisfies Flujo;
 
 /** Lo que la pantalla necesita de una compra: el id de la saga, su estado y el total que se cobra. */
 export interface CompraLeida {
@@ -57,7 +69,7 @@ export async function abrirCompraDeEventos(
   cuerpo: BffEventos.BuyTicketsRequest,
   llave: string,
 ): Promise<ResultadoDelFlujo<CompraLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'abrir', { cuerpo, llave }));
+  return leida(await abrirEventosCompra(desde, { cuerpo, llave }));
 }
 
 /**
@@ -65,7 +77,7 @@ export async function abrirCompraDeEventos(
  * Un rechazo no transitorio no implica que la saga se deshizo: lo implica `Compensated`.
  */
 export async function consultarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'consultar', { consulta: { id } }));
+  return leida(await consultarEventosCompra(desde, { consulta: { id } }));
 }
 
 /**
@@ -107,13 +119,13 @@ export async function cotizarCompraDeEventos(
   desde: Element,
   cuerpo: BffEventos.BuyTicketsRequest,
 ): Promise<ResultadoDelFlujo<CotizacionLeida>> {
-  const r = await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cotizar', { cuerpo });
+  const r = await cotizarEventosCompra(desde, { cuerpo });
   return r.ok ? { ...r, valor: leerCotizacion(r.valor) } : r;
 }
 
 /** Cierra la compra: captura y la da por completa. Idempotente sobre una compra ya completa. */
 export async function cerrarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cerrar', { consulta: { id } }));
+  return leida(await cerrarEventosCompra(desde, { consulta: { id } }));
 }
 
 /**
@@ -123,5 +135,5 @@ export async function cerrarCompraDeEventos(desde: Element, id: string): Promise
  * Sin llave: es la compra de ESE id, y cancelarla dos veces es lo mismo que una.
  */
 export async function cancelarCompraDeEventos(desde: Element, id: string): Promise<ResultadoDelFlujo<CompraLeida>> {
-  return leida(await pedirAlFlujo(desde, FLUJO_COMPRA_DE_EVENTOS, 'cancelar', { consulta: { id } }));
+  return leida(await cancelarEventosCompra(desde, { consulta: { id } }));
 }
