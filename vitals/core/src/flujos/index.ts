@@ -1,6 +1,7 @@
 export * from './transporte';
 export * from './puerta';
 export * from './rechazos';
+export * from './rechazos-de-los-flujos';
 export * from './coordinador';
 export * from './generados';
 export * from './eventos-compra';
