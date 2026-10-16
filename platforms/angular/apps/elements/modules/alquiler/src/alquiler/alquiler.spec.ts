@@ -407,6 +407,25 @@ describe('AlquilerElementComponent', () => {
     expect(component.reserva()?.depositHeld).toBe(0);
   });
 
+  it('«Devolví el equipo» con el borde que DECLARA: la garantía sigue retenida y no hay error', async () => {
+    // Decisión 5 del lote 1: quien alquila declara y el personal confirma. El borde contesta al dueño que llama a
+    // /return con el alquiler DECLARADO; sin reconocer `declared`, el parser lo tiraba y el botón decía
+    // «No pudimos registrar la devolución» de algo que sí quedó registrado (línea 005, T018 compat).
+    servidor({
+      ...GUION_FELIZ,
+      'POST /api/alquiler/rentals/alq-1/return': { ...ALQUILER, state: 'declared' },
+    });
+    await montar();
+
+    await component.devolver('alq-1', 0);
+    await drenar();
+
+    expect(component.problema()).toBe('');
+    expect(component.reserva()?.state).toBe('declared');
+    expect(component.reserva()?.depositHeld).toBe(ALQUILER.depositHeld);
+    expect(readRentalState('declared')).toBe('declared');
+  });
+
   it('un intento que el orquestador deshizo NO se lee como reservado', async () => {
     // El borde emite `failed` desde CHERCED-DEV/Synergos.CMS#147: una saga compensada no dejó
     // ni ventana apartada ni plata retenida, y decía `reserved` de eso. Acá se comprueba la

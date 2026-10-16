@@ -258,6 +258,8 @@ export interface AlquilerProps {
   readonly category?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly rentalPath: string;
 }
 
 /** <synergos-app-launcher> · funcionalidad · diccionario: AppLauncher, Common.States */
@@ -788,7 +790,7 @@ export const ALQUILER_SYNHOST: ElementoSynHost<AlquilerProps> = {
   record: "AlquilerProps",
   diccionario: ["Alquiler"],
   claves: ["Alquiler.Catalog.DepositHeld","Alquiler.Catalog.EmptyMessage","Alquiler.Catalog.EmptyTitle","Alquiler.Catalog.Failed","Alquiler.Catalog.Loading","Alquiler.Catalog.Open","Alquiler.Catalog.PerDay","Alquiler.Catalog.Units","Alquiler.Defaults.Heading","Alquiler.Defaults.Subheading","Alquiler.Detail.Back","Alquiler.Detail.Includes","Alquiler.Detail.Loading","Alquiler.Detail.RateFrom","Alquiler.Detail.RatePerDay","Alquiler.Detail.Rates","Alquiler.Detail.Requires","Alquiler.Done.Line","Alquiler.Done.Title","Alquiler.Errors.CancelFailed","Alquiler.Errors.DetailFailed","Alquiler.Errors.DetailGone","Alquiler.Errors.QuoteFailed","Alquiler.Errors.ReserveFailed","Alquiler.Errors.ReturnFailed","Alquiler.Errors.SignInToRent","Alquiler.Form.Asked","Alquiler.Form.Bounds","Alquiler.Form.From","Alquiler.Form.Quote","Alquiler.Form.Quoting","Alquiler.Form.To","Alquiler.Form.Units","Alquiler.Mine.Cancel","Alquiler.Mine.DepositUnknown","Alquiler.Mine.EmptyMessage","Alquiler.Mine.EmptyTitle","Alquiler.Mine.Failed","Alquiler.Mine.Line","Alquiler.Mine.Loading","Alquiler.Mine.Returned","Alquiler.Mine.SealMismatch","Alquiler.Mine.SealUnverified","Alquiler.Mine.SealVerified","Alquiler.Mine.SignInMessage","Alquiler.Mine.SignInTitle","Alquiler.Nav.Equipment","Alquiler.Nav.Mine","Alquiler.Nav.Sections","Alquiler.Quote.Deposit","Alquiler.Quote.Line","Alquiler.Quote.Reserve","Alquiler.Quote.Reserving","Alquiler.Seal.Mismatch","Alquiler.Seal.Unverified","Alquiler.Seal.Verified"],
-  campos: ["heading","subheading","category","apiBase"],
+  campos: ["heading","subheading","category","apiBase","rentalPath"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -796,7 +798,8 @@ export const ALQUILER_SYNHOST: ElementoSynHost<AlquilerProps> = {
     "heading": "Alquiler de equipos",
     "subheading": "Por días, con la garantía retenida y no cobrada",
     "category": "andamios",
-    "apiBase": "/api/alquiler"
+    "apiBase": "/api/alquiler",
+    "rentalPath": "directa"
   },
 };
 
