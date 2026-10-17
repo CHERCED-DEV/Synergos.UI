@@ -16,6 +16,7 @@ const respuesta = (total: { amount: number; currency: string } | null) => ({
     total,
     pedido: null,
     envio: null,
+    cobroId: null,
   },
   compensacionesPendientes: 1,
   error: null,
