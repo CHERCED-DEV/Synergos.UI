@@ -478,7 +478,7 @@
         [reference]="confirmationReference()"
         [facts]="confirmationFacts()"
         [steps]="confirmationSteps()"
-        [actions]="confirmationActions"
+        [actions]="confirmationActions()"
         (action)="onConfirmationAction($event)"
       />
     }
@@ -532,6 +532,9 @@
           } @else {
             <span class="realty__visit-row-when realty__visit-row-when--unknown">Hora por confirmar</span>
           }
+          @if (visit.status === 'cancelled') {
+            <span class="realty__visit-row-when realty__visit-row-when--cancelled">{{ visitaCanceladaTitulo() }}</span>
+          }
         </div>
       </ng-template>
 
@@ -554,6 +557,32 @@
             }
           </p>
           <syn-tracking-timeline [stages]="trackingStages(visit.id)" heading="Seguimiento de la visita" />
+          <!-- 008-P5: una visita de la puerta, confirmada y por venir, se cancela desde aquí. Primero se pregunta: suelta
+               la franja para otra persona y no se deshace. El plazo lo decide la agenda, que lo dice si ya pasó. -->
+          @if (puedeCancelarDesdeLaBandeja(visit)) {
+            <div class="realty__visit-cancel">
+              @if (cancelacionDe(visit.id) === 'preguntando') {
+                <p class="realty__visit-cancel-text">{{ visitaCancelarPregunta() }}</p>
+                <div class="realty__visit-cancel-actions">
+                  <button type="button" class="realty__btn realty__btn--primary" (click)="cancelarVisita(visit.id)">{{ visitaCancelarSi() }}</button>
+                  <button type="button" class="realty__btn" (click)="noCancelar()">{{ visitaCancelarNo() }}</button>
+                </div>
+              } @else {
+                <button
+                  type="button"
+                  class="realty__btn"
+                  [disabled]="cancelacionDe(visit.id) === 'cancelando'"
+                  (click)="pedirCancelar(visit.id)"
+                >{{ visitaCancelar() }}</button>
+              }
+            </div>
+          }
+          <!-- Lo que pasó con la cancelación se ve y lo dice syn-live-region: una región que ya existe, no una que nace
+               con su mensaje (el lector la callaría). -->
+          @if (textoDeLaCancelacion(visit.id); as texto) {
+            <p class="realty__visit-cancel-text">{{ texto }}</p>
+          }
+          <syn-live-region [message]="textoDeLaCancelacion(visit.id)" />
         </div>
       </ng-template>
 

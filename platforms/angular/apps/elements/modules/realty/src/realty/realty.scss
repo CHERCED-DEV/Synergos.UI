@@ -904,6 +904,30 @@
     font-size: syn.$font-size-sm;
   }
 
+  // Cancelada se LEE como un estado, no como una hora: el mismo tono secundario y en cursiva.
+  &__visit-row-when--cancelled {
+    font-style: italic;
+  }
+
+  &__visit-cancel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: syn.$space-sm;
+  }
+
+  &__visit-cancel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  &__visit-cancel-text {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
   &__favs,
   &__saved,
   &__messages {

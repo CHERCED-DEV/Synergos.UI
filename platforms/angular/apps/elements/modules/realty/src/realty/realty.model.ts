@@ -332,6 +332,21 @@ export interface BookedVisit {
   /** `null` es «no consta» — las visitas anteriores a que se registrara la modalidad. */
   readonly mode: VisitMode | null;
   readonly status: VisitStatus;
+  /**
+   * Por dónde se agendó, si fue por la puerta (008-propiedades-visita): su `id` es entonces el de la saga, que es lo que
+   * lee la cancelación (008-P5). Ausente, la ruta directa, que no cancela.
+   */
+  readonly camino?: 'puerta';
+}
+
+/** En qué va la cancelación de una visita confirmada (008-P5), y de cuál: sólo una a la vez en la pantalla. */
+export interface EstadoDeLaCancelacion {
+  readonly fase: 'nada' | 'preguntando' | 'cancelando' | 'hecha' | 'fallo';
+  readonly id?: string;
+  /** El porqué de un fallo, del diccionario. */
+  readonly texto?: string;
+  /** Si el fallo no se arregla reintentando (fuera de plazo): la pantalla deja de ofrecerla. */
+  readonly final?: boolean;
 }
 
 /**

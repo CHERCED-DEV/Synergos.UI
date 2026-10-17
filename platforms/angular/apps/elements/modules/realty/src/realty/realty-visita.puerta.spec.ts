@@ -10,7 +10,13 @@ import {
 } from '@synergos/vitals-core';
 import { RealtyApiClient } from './realty-api.client';
 import { RealtyFulfillmentStrategy, caminoDeLaVisitaEnCurso } from './realty-fulfillment.strategy';
-import { abrirVisita, cerrarYAsentar } from './realty-visita.puerta';
+import {
+  abrirVisita,
+  cancelarVisitaConfirmada,
+  cerrarYAsentar,
+  franjasDeLaVisita,
+  misVisitasDeLaPuerta,
+} from './realty-visita.puerta';
 import type { VisitSelectionPayload } from './realty.model';
 
 /**
@@ -257,5 +263,114 @@ describe('la consola del agente con los leads del servidor (008, D-1)', () => {
 
     expect(escritorio.leads.filter((lead) => lead.id === 'lead_42')).toHaveLength(1);
     expect(escritorio.leads.find((lead) => lead.id === 'lead_42')?.status).toBe('contacted');
+  });
+});
+
+describe('las franjas, «mis visitas» y la cancelación por la puerta (008-P3, P5)', () => {
+  beforeAll(() => definirCoordinador());
+
+  const pedidas: { flujo: string; peticion: Peticion }[] = [];
+  let fuera: CoordinadorDelFlujo;
+  let participante: HTMLElement;
+
+  /** El portal dentro de los dos coordinadores que coloca la vista: el de la visita y, dentro, el de la cancelación. */
+  function montar(responder: (flujo: string, p: Peticion) => ResultadoDelFlujo<unknown>): void {
+    pedidas.length = 0;
+    const coordinador = (flujo: string): CoordinadorDelFlujo => {
+      const c = document.createElement('synergos-flujo') as CoordinadorDelFlujo;
+      c.setAttribute('flujo', flujo);
+      c.enviar = (p) => {
+        pedidas.push({ flujo, peticion: p });
+        return Promise.resolve(responder(flujo, p));
+      };
+      return c;
+    };
+    fuera = coordinador('propiedades.visita');
+    const dentro = coordinador('propiedades.visita-cancelacion');
+    participante = document.createElement('div');
+    dentro.appendChild(participante);
+    fuera.appendChild(dentro);
+    document.body.appendChild(fuera);
+  }
+
+  afterEach(() => fuera?.remove());
+
+  const cancelacion = (estado: string) => ({
+    id: 'pc-1', flujo: 'propiedades.visita-cancelacion', numero: 'C-1', estado,
+    datos: { visita: 'pv-1' }, compensacionesPendientes: 0, error: null, deshaciendo: false,
+  });
+
+  it('las franjas salen de la lectura «disponibilidad» del inmueble, sin llave, con lo libre de cada una', async () => {
+    montar(() => ok({ flujo: 'propiedades.visita', datos: { franjas: [{ inicio: VENTANA.start, fin: VENTANA.end, libres: 1 }] } }));
+
+    const r = await franjasDeLaVisita(participante, 'prop-001', { desde: '2026-11-02T05:00:00.000Z', hasta: '2026-11-06T05:00:00.000Z' });
+
+    expect(r).toMatchObject({ ok: true, valor: [{ start: VENTANA.start, end: VENTANA.end, libres: 1 }] });
+    expect(pedidas[0]!.peticion.url).toBe('/api/flujos/propiedades.visita/disponibilidad');
+    expect(pedidas[0]!.peticion.cabeceras['Idempotency-Key']).toBeUndefined();
+    expect(JSON.parse(pedidas[0]!.peticion.cuerpo ?? '{}')).toEqual({
+      inmueble: { kind: 'realty.listado', id: 'prop-001' },
+      desde: '2026-11-02T05:00:00.000Z',
+      hasta: '2026-11-06T05:00:00.000Z',
+    });
+  });
+
+  it('«mis visitas» lee las confirmadas y las cancelaciones hechas, y dice cuáles ya no van', async () => {
+    montar((flujo) =>
+      flujo === 'propiedades.visita'
+        ? ok({ items: [visita('Completed'), { ...visita('Compensated'), id: 'pv-x' }, { ...visita('Completed'), id: 'pv-2' }], total: 3, offset: 0, hasMore: false })
+        : ok({ items: [cancelacion('Completed'), { ...cancelacion('Compensated'), datos: { visita: 'pv-2' } }], total: 2, offset: 0, hasMore: false }),
+    );
+
+    const r = await misVisitasDeLaPuerta(participante);
+
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.valor.visitas.map((v) => v.id)).toEqual(['pv-1', 'pv-2']);
+    expect([...r.valor.canceladas]).toEqual(['pv-1']);
+    expect(pedidas.map((p) => p.peticion.url).sort()).toEqual([
+      '/api/flujos/propiedades.visita-cancelacion/listar?limit=50',
+      '/api/flujos/propiedades.visita/listar?limit=50',
+    ]);
+  });
+
+  it('cancelar PIDE con la llave de la intención y luego CONFIRMA, por el coordinador de la cancelación', async () => {
+    montar((_, p) => (p.url.endsWith('/abrir') ? ok(cancelacion('Running'), 201) : ok(cancelacion('Completed'))));
+
+    const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
+
+    expect(r.ok).toBe(true);
+    expect(pedidas.map((p) => [p.flujo, p.peticion.url])).toEqual([
+      ['propiedades.visita-cancelacion', '/api/flujos/propiedades.visita-cancelacion/abrir'],
+      ['propiedades.visita-cancelacion', '/api/flujos/propiedades.visita-cancelacion/cerrar?id=pc-1'],
+    ]);
+    expect(pedidas[0]!.peticion.cabeceras['Idempotency-Key']).toBe('llave-c');
+    expect(JSON.parse(pedidas[0]!.peticion.cuerpo ?? '{}')).toEqual({ visita: 'pv-1' });
+  });
+
+  it('si pedirla se rechaza (no es tuya, no está confirmada) no se confirma nada', async () => {
+    montar(() => rechazo('flow.original_no_encontrada', 404));
+
+    const r = await cancelarVisitaConfirmada(participante, 'pv-x', 'llave-c');
+
+    expect(r).toMatchObject({ ok: false, rechazo: { code: 'flow.original_no_encontrada' } });
+    expect(pedidas).toHaveLength(1);
+  });
+
+  it('la misma intención ya cancelada no se vuelve a confirmar', async () => {
+    montar(() => ok(cancelacion('Completed')));
+
+    const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
+
+    expect(r.ok).toBe(true);
+    expect(pedidas).toHaveLength(1);
+  });
+
+  it('fuera de plazo, el rechazo de la agenda llega con su código', async () => {
+    montar((_, p) => (p.url.endsWith('/abrir') ? ok(cancelacion('Running'), 201) : rechazo('booking.cancellation_too_late')));
+
+    const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
+
+    expect(r).toMatchObject({ ok: false, rechazo: { code: 'booking.cancellation_too_late' } });
   });
 });

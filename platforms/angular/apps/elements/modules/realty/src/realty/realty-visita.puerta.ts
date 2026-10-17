@@ -1,9 +1,14 @@
 import type { BffPropiedades } from '@synergos/contracts';
 import {
   abrirPropiedadesVisita,
+  abrirPropiedadesVisitaCancelacion,
   cancelarPropiedadesVisita,
   cerrarPropiedadesVisita,
+  cerrarPropiedadesVisitaCancelacion,
   consultarPropiedadesVisita,
+  disponibilidadPropiedadesVisita,
+  listarPropiedadesVisita,
+  listarPropiedadesVisitaCancelacion,
   type Flujo,
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
@@ -25,6 +30,12 @@ import type { VisitMode } from './realty.model';
  * igual si alguien la cambia en el DOM. El navegador sólo aporta el id de la ficha.</p>
  */
 export const FLUJO_VISITA = 'propiedades.visita' as const satisfies Flujo;
+
+/**
+ * Cancelar una visita YA confirmada (008-P5): otro flujo, posterior a la visita. Su coordinador también lo coloca la
+ * vista; sin él no hay a quién pedirla, y la pantalla no la ofrece.
+ */
+export const FLUJO_CANCELACION = 'propiedades.visita-cancelacion' as const satisfies Flujo;
 
 /** Lo que la pantalla necesita de una visita por la puerta: lo que contestó el servidor. */
 export interface VisitaLeida {
@@ -102,4 +113,71 @@ export async function cerrarYAsentar(
   if (esDeSesion(r.rechazo)) return { visita: null, rechazo: r.rechazo };
   const consulta = await consultarVisita(desde, id);
   return consulta.ok ? { visita: consulta.valor, rechazo: r.rechazo } : { visita: null, rechazo: r.rechazo };
+}
+
+/** Una franja de la agenda del inmueble, con lo que le queda libre (008-P3: la dice la agenda, no una regla del CMS). */
+export interface FranjaDeLaAgenda {
+  readonly start: string;
+  readonly end: string;
+  readonly libres: number;
+}
+
+/**
+ * Las franjas del inmueble entre dos instantes: la lectura sin saga «disponibilidad» (núcleo NB-3), que la puerta abre
+ * también a quien no inició sesión. Leer no aparta nada: que siga libre al elegirla lo dice abrir.
+ */
+export async function franjasDeLaVisita(
+  desde: Element,
+  inmueble: string,
+  entre: { readonly desde: string; readonly hasta: string },
+): Promise<ResultadoDelFlujo<readonly FranjaDeLaAgenda[]>> {
+  const r = await disponibilidadPropiedadesVisita(desde, {
+    cuerpo: { inmueble: { kind: 'realty.listado', id: inmueble }, desde: entre.desde, hasta: entre.hasta },
+  });
+  return r.ok ? { ...r, valor: (r.valor.datos.franjas ?? []).map((f) => ({ start: f.inicio, end: f.fin, libres: f.libres })) } : r;
+}
+
+/** Cuántas visitas de la puerta lee «Mis visitas»: la página más larga que la puerta sirve sin pedir otra. */
+const PAGINA_DE_MIS_VISITAS = 50;
+
+/**
+ * «Mis visitas» por la puerta (núcleo NB-6): de las sagas de quien tiene la sesión, las visitas completadas —las
+ * confirmadas— y, de las cancelaciones completadas, la visita que cancela cada una. El dueño lo pone la puerta, no la
+ * consulta; una en curso no está confirmada, y una deshecha no es una visita.
+ */
+export async function misVisitasDeLaPuerta(
+  desde: Element,
+): Promise<ResultadoDelFlujo<{ readonly visitas: readonly VisitaLeida[]; readonly canceladas: ReadonlySet<string> }>> {
+  const [visitas, cancelaciones] = await Promise.all([
+    listarPropiedadesVisita(desde, { consulta: { limit: PAGINA_DE_MIS_VISITAS } }),
+    listarPropiedadesVisitaCancelacion(desde, { consulta: { limit: PAGINA_DE_MIS_VISITAS } }),
+  ]);
+  if (!visitas.ok) return visitas;
+  // Sin el coordinador de la cancelación la vista no la ofrece, así que desde este sitio no se canceló ninguna: las
+  // visitas se ven igual. Cualquier otro no es no saber cuáles siguen en pie, y se dice.
+  if (!cancelaciones.ok && cancelaciones.rechazo.code !== 'cliente.sin_coordinador') return cancelaciones;
+  const canceladas = new Set(
+    cancelaciones.ok
+      ? cancelaciones.valor.items.filter((c) => c.estado === 'Completed').map((c) => c.datos.visita ?? '').filter((id) => id !== '')
+      : [],
+  );
+  return { ...visitas, valor: { visitas: visitas.valor.items.filter((v) => v.estado === 'Completed').map(leerVisita), canceladas } };
+}
+
+/**
+ * Cancelar una visita YA confirmada (008-P5): la operación posterior al cierre, en dos pasos. Abrir PIDE —comprueba que es
+ * tuya y está confirmada, sin tocar la agenda— y cerrar CONFIRMA: la agenda la cancela con su plazo de aviso, y su
+ * rechazo vuelve con su código (`booking.cancellation_too_late`, `booking.already_cancelled`). La llave es la de la
+ * intención: repetir con ella no cancela dos veces.
+ */
+export async function cancelarVisitaConfirmada(
+  desde: Element,
+  visita: string,
+  llave: string,
+): Promise<ResultadoDelFlujo<true>> {
+  const pedida = await abrirPropiedadesVisitaCancelacion(desde, { cuerpo: { visita }, llave });
+  if (!pedida.ok) return pedida;
+  if (pedida.valor.estado === 'Completed') return { ...pedida, valor: true };
+  const cancelada = await cerrarPropiedadesVisitaCancelacion(desde, { consulta: { id: pedida.valor.id } });
+  return cancelada.ok ? { ...cancelada, valor: true } : cancelada;
 }

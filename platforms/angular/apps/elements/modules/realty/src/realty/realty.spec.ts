@@ -9,6 +9,7 @@ import { RealtyElementComponent, sanitizeRealtyConfig } from './realty';
 import { calculateMortgage } from './mortgage.calc';
 import { asentar } from '../../../../../../tools/asentar';
 import { REALTY_SYNHOST } from '@synergos/contracts';
+import { definirCoordinador, type CoordinadorDelFlujo, type Peticion, type ResultadoDelFlujo } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = {
@@ -368,11 +369,217 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
       return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
     }
 
-    it('ofrece sólo las franjas que la agenda comprobó y que traen sus instantes', async () => {
+    it('sin coordinador no se inventan franjas: la agenda no contestó (FR-020)', async () => {
       await alAsistente(NEGOCIO_POR_LA_PUERTA);
 
       expect(component.visitPath()).toBe('puerta');
-      expect(component.availableSlots().map((s) => `${s.date} ${s.time}`)).toEqual(['2026-11-03 09:00']);
+      expect(component.visitSlotsState()).toBe('fallo');
+      expect(component.availableSlots()).toEqual([]);
+    });
+
+    // ── 008-P3: por la puerta, las franjas las dice la AGENDA del inmueble (la lectura «disponibilidad») ──
+    const DIA = 86_400_000;
+    const enBogota = (instante: Date): string =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(instante);
+    /** Las 9:00 de Bogotá (14:00 UTC) dentro de `dias` días. */
+    const aLasNueve = (dias: number): string => `${enBogota(new Date(Date.now() + dias * DIA))}T14:00:00.000Z`;
+    const franja = (inicio: string, libres = 1) => ({
+      inicio,
+      fin: new Date(Date.parse(inicio) + 3_600_000).toISOString(),
+      libres,
+    });
+    const ok = (valor: unknown, estado = 200): ResultadoDelFlujo<unknown> => ({ ok: true, valor, estado, correlacion: '' });
+    const no = (code: string, status = 409, transient = false): ResultadoDelFlujo<unknown> => ({
+      ok: false,
+      rechazo: { code, status, transient, detail: '', origen: 'servidor', extra: {} },
+      correlacion: '',
+    });
+    const pedidas: { flujo: string; peticion: Peticion }[] = [];
+
+    /** El portal dentro de los coordinadores que coloca la vista; sin `cancelacion`, sólo el de la visita. */
+    function enLaVista(
+      responder: (flujo: string, p: Peticion) => ResultadoDelFlujo<unknown>,
+      opciones: { readonly cancelacion?: boolean } = {},
+    ): void {
+      definirCoordinador();
+      pedidas.length = 0;
+      const coordinador = (flujo: string): CoordinadorDelFlujo => {
+        const c = document.createElement('synergos-flujo') as CoordinadorDelFlujo;
+        c.setAttribute('flujo', flujo);
+        c.enviar = (p) => {
+          pedidas.push({ flujo, peticion: p });
+          return Promise.resolve(responder(flujo, p));
+        };
+        return c;
+      };
+      const fuera = coordinador('propiedades.visita');
+      let dentro: HTMLElement = fuera;
+      if (opciones.cancelacion) {
+        dentro = coordinador('propiedades.visita-cancelacion');
+        fuera.appendChild(dentro);
+      }
+      document.body.appendChild(fuera);
+      dentro.appendChild(fixture.nativeElement as HTMLElement);
+    }
+
+    async function alAsistentePorLaPuerta(
+      responder: (flujo: string, p: Peticion) => ResultadoDelFlujo<unknown>,
+      opciones: { readonly cancelacion?: boolean } = {},
+    ): Promise<ReturnType<typeof bordeDeEscrituras>> {
+      installMemoryStorage();
+      const borde = bordeDeEscrituras({ franjas: FRANJAS_DE_LA_AGENDA });
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent(NEGOCIO_POR_LA_PUERTA);
+      enLaVista(responder, opciones);
+      component.openListing(component.listings()[0]);
+      await flushMicrotasks();
+      component.startVisit();
+      await flushMicrotasks();
+      fixture.detectChanges();
+      return borde;
+    }
+
+    afterEach(() => document.querySelectorAll('synergos-flujo').forEach((c) => c.remove()));
+
+    it('las franjas las dice la agenda: sólo las libres, desde mañana y por tres días, sin leer la regla del CMS', async () => {
+      const borde = await alAsistentePorLaPuerta(() =>
+        ok({
+          flujo: 'propiedades.visita',
+          datos: {
+            franjas: [
+              franja(`${enBogota(new Date())}T23:30:00.000-05:00`),
+              franja(aLasNueve(1)),
+              franja(aLasNueve(2), 0),
+              franja(aLasNueve(3)),
+              franja(aLasNueve(4)),
+            ],
+          },
+        }),
+      );
+
+      expect(component.visitSlotsState()).toBe('ok');
+      expect(component.availableSlots().map((s) => s.start)).toEqual([aLasNueve(1), aLasNueve(3)]);
+      expect(component.availableSlots().every((s) => s.time === '09:00' && s.checked === true)).toBe(true);
+      expect(pedidas[0]!.peticion.url).toBe('/api/flujos/propiedades.visita/disponibilidad');
+      expect(borde.llamadas('GET /listing/{id}/slots')).toBe(0);
+    });
+
+    it('si la agenda no contesta, no se ofrece ninguna franja: se dice', async () => {
+      await alAsistentePorLaPuerta(() => no('puerta.orquestador_no_disponible', 503, true));
+
+      expect(component.visitSlotsState()).toBe('fallo');
+      expect(component.availableSlots()).toEqual([]);
+    });
+
+    it('un inmueble cuya agenda no declara horario ni franja no tiene franjas, y no es un fallo', async () => {
+      await alAsistentePorLaPuerta(() => no('booking.slots_undefined', 409));
+
+      expect(component.visitSlotsState()).toBe('ok');
+      expect(component.availableSlots()).toEqual([]);
+    });
+
+    it('un rechazo fuera de la grilla del inmueble dice que se elija una franja de la agenda', async () => {
+      await alAsistente(NEGOCIO_POR_LA_PUERTA);
+      const mensaje = component.visitCheckoutConfig().mensajeDeFallo!;
+
+      expect(mensaje('booking.off_slot_grid', '')).toContain('franjas de la agenda');
+      expect(mensaje('booking.bad_slot_length', '')).toContain('franjas de la agenda');
+    });
+
+    // ── 008-P5 y FR-026: «Mis visitas» de la puerta y cancelar una confirmada ──
+    const VISITA_DE_LA_PUERTA = (id: string, inicio: string) => ({
+      id,
+      flujo: 'propiedades.visita',
+      numero: id.toUpperCase(),
+      estado: 'Completed',
+      datos: {
+        inmueble: { kind: 'realty.listado', id: 'prop-001' },
+        ventana: { start: inicio, end: new Date(Date.parse(inicio) + 3_600_000).toISOString() },
+        modo: 'in-person',
+        reservaId: 'r-' + id,
+      },
+      compensacionesPendientes: 0,
+      error: null,
+      deshaciendo: false,
+    });
+    const CANCELACION = (visita: string, estado = 'Completed') => ({
+      id: 'pc-' + visita,
+      flujo: 'propiedades.visita-cancelacion',
+      numero: 'C',
+      estado,
+      datos: { visita },
+      compensacionesPendientes: 0,
+      error: null,
+      deshaciendo: false,
+    });
+    const pagina = (items: unknown[]) => ok({ items, total: items.length, offset: 0, hasMore: false });
+    const cancelaBien = (p: Peticion): ResultadoDelFlujo<unknown> => ok(CANCELACION('pv-1', p.url.endsWith('/abrir') ? 'Running' : 'Completed'));
+
+    /** La puerta con dos visitas confirmadas, una ya cancelada, y lo que conteste la cancelación. */
+    const puertaDeMisVisitas =
+      (cancelar: (p: Peticion) => ResultadoDelFlujo<unknown> = cancelaBien) =>
+      (flujo: string, p: Peticion): ResultadoDelFlujo<unknown> => {
+        if (p.url.includes('/disponibilidad')) return ok({ flujo, datos: { franjas: [] } });
+        if (flujo === 'propiedades.visita') return pagina([VISITA_DE_LA_PUERTA('pv-1', aLasNueve(5)), VISITA_DE_LA_PUERTA('pv-2', aLasNueve(6))]);
+        if (p.url.includes('/listar')) return pagina([CANCELACION('pv-2')]);
+        return cancelar(p);
+      };
+
+    it('«Mis visitas» suma las de la puerta, cada una una vez, y dice cuál se canceló', async () => {
+      await alAsistentePorLaPuerta(puertaDeMisVisitas(), { cancelacion: true });
+
+      component.goToAccount();
+      await flushMicrotasks();
+
+      const deLaPuerta = component.myVisits().filter((v) => v.camino === 'puerta');
+      expect(deLaPuerta.map((v) => [v.id, v.status])).toEqual([
+        ['pv-1', 'confirmed'],
+        ['pv-2', 'cancelled'],
+      ]);
+      expect(deLaPuerta[0]!.slot?.time).toBe('09:00');
+      expect(component.accountConfig().inboxEmptyMessage).toBe('Todavía no tienes visitas agendadas.');
+    });
+
+    it('cancelar una confirmada por venir: primero pregunta, luego la cancela por su coordinador y lo dice', async () => {
+      await alAsistentePorLaPuerta(puertaDeMisVisitas(), { cancelacion: true });
+      component.goToAccount();
+      await flushMicrotasks();
+      const visita = component.myVisits().find((v) => v.id === 'pv-1')!;
+
+      expect(component.puedeCancelarDesdeLaBandeja(visita)).toBe(true);
+      component.pedirCancelar('pv-1');
+      expect(component.cancelacionDe('pv-1')).toBe('preguntando');
+      await component.cancelarVisita('pv-1');
+
+      expect(component.cancelacionDe('pv-1')).toBe('hecha');
+      expect(component.myVisits().find((v) => v.id === 'pv-1')?.status).toBe('cancelled');
+      expect(component.textoDeLaCancelacion('pv-1')).toContain('Cancelaste esta visita');
+      expect(pedidas.filter((p) => p.flujo === 'propiedades.visita-cancelacion').map((p) => p.peticion.url)).toContain(
+        '/api/flujos/propiedades.visita-cancelacion/cerrar?id=pc-pv-1',
+      );
+    });
+
+    it('fuera de plazo lo dice y deja de ofrecerla', async () => {
+      await alAsistentePorLaPuerta(
+        puertaDeMisVisitas((p) => (p.url.endsWith('/abrir') ? ok(CANCELACION('pv-1', 'Running'), 201) : no('booking.cancellation_too_late'))),
+        { cancelacion: true },
+      );
+      component.goToAccount();
+      await flushMicrotasks();
+
+      await component.cancelarVisita('pv-1');
+
+      expect(component.textoDeLaCancelacion('pv-1')).toContain('Ya no se puede cancelar en línea');
+      expect(component.puedeCancelarDesdeLaBandeja(component.myVisits().find((v) => v.id === 'pv-1')!)).toBe(false);
+    });
+
+    it('sin el coordinador de la cancelación en la vista, la pantalla no la ofrece', async () => {
+      await alAsistentePorLaPuerta(puertaDeMisVisitas());
+      component.goToAccount();
+      await flushMicrotasks();
+
+      expect(component.cancelacionColocada()).toBe(false);
+      expect(component.puedeCancelarDesdeLaBandeja(component.myVisits().find((v) => v.id === 'pv-1')!)).toBe(false);
     });
 
     it('por la directa ofrece todas, como siempre (control)', async () => {

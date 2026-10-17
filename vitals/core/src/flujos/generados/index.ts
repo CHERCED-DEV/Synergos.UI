@@ -6,4 +6,5 @@ export * from './avisos';
 export * from './alquiler.renta';
 export * from './eventos.compra';
 export * from './propiedades.visita';
+export * from './propiedades.visita-cancelacion';
 export * from './reservas.servicio';

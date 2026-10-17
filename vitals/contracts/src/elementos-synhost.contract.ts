@@ -2173,7 +2173,7 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
   tipo: "funcionalidad",
   record: "RealtyProps",
   diccionario: ["Realty.Visit"],
-  claves: ["Realty.Visit.DefaultMode","Realty.Visit.FromEmail","Realty.Visit.InPast","Realty.Visit.InvalidSlot","Realty.Visit.NoAgenda","Realty.Visit.NoticeLabel","Realty.Visit.NoticeToAccount","Realty.Visit.OutsideHours","Realty.Visit.SessionRequired","Realty.Visit.SlotTaken","Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading","Realty.Visit.Unavailable"],
+  claves: ["Realty.Visit.Cancel","Realty.Visit.CancelAsk","Realty.Visit.CancelFailed","Realty.Visit.CancelNo","Realty.Visit.CancelTooLate","Realty.Visit.CancelYes","Realty.Visit.Cancelled","Realty.Visit.CancelledHeading","Realty.Visit.DefaultMode","Realty.Visit.FromEmail","Realty.Visit.InPast","Realty.Visit.InvalidSlot","Realty.Visit.NoAgenda","Realty.Visit.NoticeLabel","Realty.Visit.NoticeToAccount","Realty.Visit.OutsideHours","Realty.Visit.SessionRequired","Realty.Visit.SlotTaken","Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading","Realty.Visit.Unavailable"],
   campos: ["heading","subheading","apiBase","defaultRatePercent","visitPath","zonaHoraria"],
   listas: {},
   selectores: [],
