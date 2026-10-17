@@ -114,8 +114,17 @@ export interface RentalQuote {
  * quedó ni ventana apartada ni plata retenida. Existe porque el borde decía `reserved` de eso —
  * medido con los procesos vivos en CHERCED-DEV/Synergos.CMS#147— y porque dejarlo sin nombre acá
  * lo convertiría en un `null` que borra el alquiler de la bandeja sin decir por qué.
+ *
+ * `declared` es la devolución que DECLARÓ quien alquiló (decisión 5 del lote 1): la garantía sigue retenida hasta
+ * que el personal la confirme. El botón «Devolví el equipo» la produce (el borde declara cuando lo pide el dueño).
  */
-export type RentalState = 'reserved' | 'returned' | 'cancelled' | 'failed';
+export type RentalState = 'reserved' | 'declared' | 'returned' | 'cancelled' | 'failed';
+
+/**
+ * Por dónde alquila el miembro, como lo DECLARA el CMS (`AlquilerProps.rentalPath`, ADR 0140): la puerta
+ * (`/api/flujos/alquiler.renta`) o la ruta directa (`/api/alquiler`). El elemento no lo adivina ni cae de uno al otro.
+ */
+export type CaminoDeLaRenta = 'puerta' | 'directa';
 
 /** El comprobante de un alquiler. */
 export interface RentalAgreement {
@@ -169,7 +178,7 @@ export interface Rental {
  */
 export function readRentalState(value: unknown): RentalState | null {
   const raw = readString(value).trim().toLowerCase();
-  return raw === 'reserved' || raw === 'returned' || raw === 'cancelled' || raw === 'failed'
+  return raw === 'reserved' || raw === 'declared' || raw === 'returned' || raw === 'cancelled' || raw === 'failed'
     ? raw
     : null;
 }

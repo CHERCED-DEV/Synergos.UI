@@ -7,6 +7,7 @@ import type { AvisoDelFlujo } from '../avisos';
 import type { Flujo } from '../puerta';
 
 export const AVISOS_GENERADOS = {
+  "alquiler.renta": { parametro: "alquiler", marcador: "id" },
   "eventos.compra": { parametro: "compra", marcador: "id" },
   "reservas.servicio": { parametro: "reserva", marcador: "id" },
 } as const satisfies Readonly<Partial<Record<Flujo, AvisoDelFlujo>>>;
