@@ -10,6 +10,11 @@
     <button type="button" class="sg-alquiler__tab"
             [class.sg-alquiler__tab--on]="vista() === 'mios'"
             (click)="cargarMios()">{{ txt.misAlquileres }}</button>
+    @if (personal() !== null) {
+      <button type="button" class="sg-alquiler__tab"
+              [class.sg-alquiler__tab--on]="vista() === 'personal'"
+              (click)="cargarPersonal()">{{ txt.personalTitulo }}</button>
+    }
   </nav>
 </header>
 
@@ -294,6 +299,51 @@
                     }
                   </div>
                 }
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+}
+
+<!-- ── La cara del personal (T035): sólo si el servidor dijo que quien está en sesión lo es ───── -->
+@if (vista() === 'personal' && personal(); as estado) {
+  @switch (estado.estado) {
+    @case ('cargando') {
+      <syn-skeleton [rows]="3" [ariaLabel]="txt.personalTitulo" />
+    }
+    @case ('error') {
+      <syn-error-state [message]="txt.personalFallo" (retry)="cargarPersonal()" />
+    }
+    @default {
+      @if (estado.estado === 'ok') {
+        @let pendientes = $any(estado).valor;
+        @if (pendientes.length === 0) {
+          <syn-empty-state kind="first-use" [title]="txt.personalVacio" />
+        } @else {
+          <ul class="sg-alquiler__list">
+            @for (a of pendientes; track a.rentalId) {
+              <li class="sg-alquiler__agreement sg-alquiler__staff">
+                <h3 class="sg-alquiler__name">{{ a.equipmentName }}</h3>
+                <p class="sg-alquiler__meta">{{ lineaDeContrato(a) }}</p>
+                @if (esperando(a); as espera) {
+                  <p class="sg-alquiler__state sg-alquiler__state--declared">{{ espera }}</p>
+                }
+                <p class="sg-alquiler__deposit">{{ garantiaRetenida(a.depositHeld ?? 0, a.currency) }}</p>
+                <label class="sg-alquiler__field">
+                  <span>{{ txt.danio }}</span>
+                  <input #danio type="text" inputmode="numeric" value="0" />
+                </label>
+                <button type="button" class="sg-alquiler__cta"
+                        (click)="confirmarDevolucion(a.rentalId, danio.value)">{{ txt.confirmarDevolucion }}</button>
+                <label class="sg-alquiler__field">
+                  <span>{{ txt.penalidad }}</span>
+                  <input #penalidad type="text" inputmode="numeric" value="0" />
+                </label>
+                <button type="button" class="sg-alquiler__ghost"
+                        (click)="cancelarComoPersonal(a.rentalId, penalidad.value)">{{ txt.cancelarAlquiler }}</button>
               </li>
             }
           </ul>

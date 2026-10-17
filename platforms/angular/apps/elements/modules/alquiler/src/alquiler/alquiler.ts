@@ -33,6 +33,7 @@ import {
   isRejected,
   isUnauthorized,
 } from './alquiler-api.client';
+import { diasEsperando, montoTecleado } from './alquiler-personal';
 import {
   abrirRenta,
   cancelarRenta,
@@ -68,7 +69,7 @@ import type {
 export type AlquilerConfig = Partial<AlquilerProps>;
 
 /** En qué pantalla está la app. */
-type Vista = 'catalogo' | 'ficha' | 'mios';
+type Vista = 'catalogo' | 'ficha' | 'mios' | 'personal';
 
 /** Lo que la pantalla sabe sobre una lectura que puede no haber llegado. */
 type Carga<T> =
@@ -155,6 +156,14 @@ function textosDeAlquiler() {
     soltadas: t('Alquiler.Quote.HeldCancelled', 'Reserva cancelada: no se cobró nada.'),
     deshecha: t('Alquiler.Quote.Undone', 'El alquiler no se pudo confirmar y se deshizo: no queda nada cobrado ni apartado.'),
     noOfrecido: t('Alquiler.Quote.NotOffered', 'Este equipo no se puede alquilar ahora.'),
+    personalTitulo: t('Alquiler.Staff.Title', 'Devoluciones por confirmar'),
+    personalVacio: t('Alquiler.Staff.EmptyTitle', 'No hay devoluciones por confirmar'),
+    personalFallo: t('Alquiler.Staff.Failed', 'No pudimos leer las devoluciones por confirmar.'),
+    danio: t('Alquiler.Staff.Damage', 'Daño a cobrar de la garantía'),
+    confirmarDevolucion: t('Alquiler.Staff.Confirm', 'Confirmar devolución'),
+    cancelarAlquiler: t('Alquiler.Staff.Cancel', 'Cancelar alquiler'),
+    penalidad: t('Alquiler.Staff.Penalty', 'Penalidad a cobrar de la garantía'),
+    montoIlegible: t('Alquiler.Staff.BadAmount', 'Escribe el monto en pesos, sin centavos: 50000 o 50.000.'),
   } as const;
 }
 
@@ -182,6 +191,10 @@ function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
       'booking.hold_expired': t('Alquiler.Quote.Expired', 'Tu reserva venció y no se cobró nada. Vuelve a reservar.'),
       'flow.busy': t('Alquiler.Errors.Busy', 'Estamos terminando otra operación sobre este alquiler. Inténtalo en un momento.'),
       'alquiler.already_started': t('Alquiler.Errors.AlreadyStarted', 'El alquiler ya empezó: declara la devolución cuando entregues el equipo.'),
+      'alquiler.staff_required': t('Alquiler.Errors.StaffRequired', 'Esta operación la hace el personal.'),
+      'alquiler.damage_exceeds_deposit': t('Alquiler.Errors.DamageExceedsDeposit', 'El daño supera la garantía retenida.'),
+      'alquiler.retention_expired': t('Alquiler.Errors.RetentionExpired', 'La retención de la garantía venció: no se puede cobrar el daño.'),
+      'alquiler.settlement_in_flight': t('Alquiler.Errors.Busy', 'Estamos terminando otra operación sobre este alquiler. Inténtalo en un momento.'),
     },
     porClase: {
       sesion: t('Alquiler.Errors.SignInToRent', 'Hay que iniciar sesión para alquilar.'),
@@ -289,6 +302,11 @@ export class AlquilerElementComponent implements OnInit {
   readonly catalogo = signal<Carga<readonly EquipmentCard[]>>({ estado: 'cargando' });
   readonly ficha = signal<Carga<EquipmentDetail> | null>(null);
   readonly mios = signal<Carga<readonly RentalAgreement[]> | null>(null);
+  /**
+   * Las devoluciones que esperan al personal (T035). `null` es que quien está en sesión NO es del personal —o no se
+   * sabe todavía—: la pestaña no se enseña, ni vacía. Se sabe preguntándole al servidor, nunca mirando un rol aquí.
+   */
+  readonly personal = signal<Carga<readonly RentalAgreement[]> | null>(null);
 
   readonly desde = signal('');
   readonly hasta = signal('');
@@ -402,6 +420,7 @@ export class AlquilerElementComponent implements OnInit {
     try {
       const contratos = await this.#api.mine(this.apiBase());
       this.mios.set({ estado: 'ok', valor: contratos });
+      void this.#sondearPersonal();
     } catch (error) {
       this.mios.set(
         isUnauthorized(error)
@@ -409,6 +428,84 @@ export class AlquilerElementComponent implements OnInit {
           : { estado: 'error', mensaje: this.txt.miosFallo },
       );
     }
+  }
+
+  // ── La cara del personal (T035) ────────────────────────────────────────
+
+  /**
+   * Pregunta al servidor si quien está en sesión es del personal: con 200 la pestaña aparece; con 403, 401 o un
+   * fallo, no (nada se enseña de lo que no se pudo confirmar).
+   */
+  async #sondearPersonal(): Promise<void> {
+    try {
+      const lista = await this.#api.staffReturns(this.apiBase());
+      if (lista === null) {
+        this.personal.set(null);
+        if (this.vista() === 'personal') this.vista.set('mios');
+      } else if (this.vista() !== 'personal') {
+        this.personal.set({ estado: 'ok', valor: lista });
+      }
+    } catch {
+      if (this.vista() !== 'personal') this.personal.set(null);
+    }
+  }
+
+  /** Abre la cara del personal y la lee de nuevo. */
+  async cargarPersonal(): Promise<void> {
+    this.vista.set('personal');
+    this.personal.set({ estado: 'cargando' });
+    try {
+      const lista = await this.#api.staffReturns(this.apiBase());
+      if (lista === null) {
+        this.personal.set(null);
+        this.vista.set('mios');
+        return;
+      }
+      this.personal.set({ estado: 'ok', valor: lista });
+    } catch {
+      this.personal.set({ estado: 'error', mensaje: this.txt.personalFallo });
+    }
+  }
+
+  /**
+   * El personal confirma la devolución con el daño que tecleó: libera la garantía o cobra de ella. Un monto que no
+   * se puede leer no se manda.
+   */
+  async confirmarDevolucion(rentalId: string, danioTecleado: string): Promise<void> {
+    const danio = montoTecleado(danioTecleado);
+    if (danio === null) {
+      this.problema.set(this.txt.montoIlegible);
+      return;
+    }
+    await this.#comoPersonal(() => this.#api.return(this.apiBase(), rentalId, danio),
+      t('Alquiler.Errors.ReturnFailed', 'No pudimos registrar la devolución. El alquiler sigue abierto.'));
+  }
+
+  /** El personal cancela un alquiler confirmado con la penalidad que fije. */
+  async cancelarComoPersonal(rentalId: string, penalidadTecleada: string): Promise<void> {
+    const penalidad = montoTecleado(penalidadTecleada);
+    if (penalidad === null) {
+      this.problema.set(this.txt.montoIlegible);
+      return;
+    }
+    await this.#comoPersonal(() => this.#api.cancel(this.apiBase(), rentalId, penalidad),
+      t('Alquiler.Errors.CancelFailed', 'No pudimos cancelar el alquiler. Sigue reservado.'));
+  }
+
+  async #comoPersonal(escribir: () => Promise<Rental>, generico: string): Promise<void> {
+    this.problema.set('');
+    try {
+      await escribir();
+      await this.cargarPersonal();
+    } catch (error) {
+      this.problema.set(this.porQue(error, generico));
+    }
+  }
+
+  /** «Declarada hace 3 día(s)», o vacío si no consta cuándo. */
+  esperando(a: RentalAgreement): string {
+    const dias = diasEsperando(a, this.ahora());
+    return dias === null ? '' : t('Alquiler.Staff.Waiting', 'Declarada hace {dias} día(s)', { dias });
   }
 
   /** Lo cotizado deja de valer en cuanto cambian las fechas o las unidades, por cualquiera de los dos caminos. */

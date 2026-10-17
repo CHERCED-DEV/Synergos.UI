@@ -9,6 +9,7 @@ import {
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
 import { normalizeAgreement, normalizeRental, readRentalState } from './alquiler.model';
+import { montoTecleado } from './alquiler-personal';
 import { asentar } from '../../../../../../tools/asentar';
 
 /**
@@ -366,7 +367,8 @@ describe('AlquilerElementComponent', () => {
     await component.devolver('alq-1', 120000);
     await drenar();
 
-    const cierres = llamadas.filter((l) => l.url.includes('/return'));
+    // Los POST: «mis alquileres» también lee `/staff/returns` para saber si enseñar la cara del personal.
+    const cierres = llamadas.filter((l) => l.metodo === 'POST' && l.url.includes('/return'));
     const llaves = cierres.map((c) => (c.cuerpo as Record<string, string>)['idempotencyKey']);
     // Sin el monto dentro, corregir el daño y repetir devolvería el resultado de antes
     // contestando 200 y diciendo «puesto».
@@ -636,6 +638,110 @@ describe('«Mis alquileres»', () => {
 
     expect(botones()).toEqual([]);
     expect(texto()).not.toContain('Confirmado');
+  });
+});
+
+// ── La cara del personal (T035) ──────────────────────────────────────────────────────────────────
+describe('la cara del personal', () => {
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+  const DECLARADA = { ...CONTRATO, state: 'declared', declaredUtc: '2026-09-28T09:00:00Z' };
+
+  /** Un borde con la bandeja del personal en `staff`: 200 con su lista, o 403 si no es del personal. */
+  async function montar(staff: 'personal' | 'inquilino', cierre: { status: number; cuerpo: unknown } = { status: 200, cuerpo: ALQUILER }) {
+    const llamadas: { metodo: string; url: string; cuerpo: unknown }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const metodo = (init?.method ?? 'GET').toUpperCase();
+      llamadas.push({ metodo, url, cuerpo: init?.body ? JSON.parse(String(init.body)) : null });
+      const json = (status: number, cuerpo: unknown) => new Response(JSON.stringify(cuerpo), {
+        status, headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+      });
+      if (url.endsWith('/staff/returns')) {
+        return staff === 'personal' ? json(200, [DECLARADA]) : json(403, { code: 'alquiler.staff_required', detail: '' });
+      }
+      if (url.endsWith('/rentals') && metodo === 'GET') return json(200, [CONTRATO]);
+      if (metodo === 'POST') return json(cierre.status, cierre.cuerpo);
+      return json(200, [EQUIPO]);
+    }));
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    component = fixture.componentInstance;
+    component.ahora = () => new Date('2026-10-01T12:00:00Z');
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler' });
+    fixture.detectChanges();
+    await drenar();
+    await component.cargarMios();
+    await drenar();
+    fixture.detectChanges();
+    return llamadas;
+  }
+
+  const pestanas = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.sg-alquiler__tab'))
+    .map((b) => b.textContent?.trim());
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('al personal le aparece la pestaña y ve cuánto lleva esperando cada devolución', async () => {
+    await montar('personal');
+    expect(pestanas()).toContain('Devoluciones por confirmar');
+
+    await component.cargarPersonal();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Declarada hace 3 día(s)');
+  });
+
+  it('a quien no es del personal (403) la cara NO se le enseña, ni vacía', async () => {
+    await montar('inquilino');
+
+    expect(component.personal()).toBeNull();
+    expect(pestanas()).not.toContain('Devoluciones por confirmar');
+  });
+
+  it('confirmar manda el daño en pesos —el punto es de miles— y relee la bandeja', async () => {
+    const llamadas = await montar('personal');
+    await component.cargarPersonal();
+
+    await component.confirmarDevolucion('alq-1', '50.000');
+    await drenar();
+
+    const cierre = llamadas.find((l) => l.metodo === 'POST')!;
+    expect(cierre.url).toBe('/api/alquiler/rentals/alq-1/return');
+    expect((cierre.cuerpo as { amount: number }).amount).toBe(50000);
+    expect(llamadas.filter((l) => l.url.endsWith('/staff/returns')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('un monto que no se puede leer no se manda, y un daño que supera la garantía se dice por su código', async () => {
+    const llamadas = await montar('personal', { status: 409, cuerpo: { code: 'alquiler.damage_exceeds_deposit', detail: 'x' } });
+    await component.cargarPersonal();
+
+    await component.confirmarDevolucion('alq-1', '1.234,5');
+    expect(llamadas.some((l) => l.metodo === 'POST')).toBe(false);
+    expect(component.problema()).toBe('Escribe el monto en pesos, sin centavos: 50000 o 50.000.');
+
+    await component.cancelarComoPersonal('alq-1', '900.000');
+    await drenar();
+    expect(llamadas.filter((l) => l.metodo === 'POST').map((l) => (l.cuerpo as { amount: number }).amount)).toEqual([900000]);
+    expect(component.problema()).toBe('El daño supera la garantía retenida.');
+  });
+});
+
+describe('montoTecleado (es-CO: el punto es de miles)', () => {
+  it.each([
+    ['', 0], ['0', 0], ['50000', 50000], ['50.000', 50000], ['500.000', 500000], ['1.234.567', 1234567],
+  ])('«%s» es %d', (valor, esperado) => {
+    expect(montoTecleado(valor)).toBe(esperado);
+  });
+
+  it.each(['1.234,5', '50,5', '5.00', '-1', '12.34', 'mil'])('«%s» no se lee', (valor) => {
+    expect(montoTecleado(valor)).toBeNull();
   });
 });
 

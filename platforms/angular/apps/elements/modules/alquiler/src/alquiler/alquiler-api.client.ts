@@ -23,6 +23,8 @@ import {
  *  - `POST /api/alquiler/rentals/{id}/cancel`        → `RentalDto`
  *  - `GET  /api/alquiler/rentals`                    → `AgreementDto[]`   🔒 sesión
  *  - `GET  /api/alquiler/rentals/{id}/agreement`     → `AgreementDto`   🔒 sesión (también el de la puerta)
+ *  - `POST /api/alquiler/rentals/{id}/declare-return` → `RentalDto`   🔒 sesión, el dueño
+ *  - `GET  /api/alquiler/staff/returns`              → `AgreementDto[]` 🔒 personal (403 si no)
  *
  * La renta por la PUERTA no pasa por aquí: va por el coordinador con las funciones generadas de
  * `alquiler.renta` (`alquiler-renta.strategy.ts`). Su contrato, en cambio, sí se lee de este lado.
@@ -176,6 +178,23 @@ export class AlquilerApiClient {
     return Array.isArray(data)
       ? data.map(normalizeAgreement).filter((a): a is RentalAgreement => a !== null)
       : [];
+  }
+
+  /**
+   * Las devoluciones declaradas que esperan al personal, de la más vieja a la más nueva. `null` si quien está en
+   * sesión no es del personal (403) o no hay sesión (401): la cara del personal no se enseña, ni vacía.
+   */
+  async staffReturns(apiBase: string): Promise<readonly RentalAgreement[] | null> {
+    const url = `${apiBase}/staff/returns`;
+    try {
+      const data = await this.getJson(url);
+      return Array.isArray(data)
+        ? data.map(normalizeAgreement).filter((a): a is RentalAgreement => a !== null)
+        : [];
+    } catch (error) {
+      if (isUnauthorized(error) || (isRejected(error) && error.code === 'alquiler.staff_required')) return null;
+      throw error;
+    }
   }
 
   /** Lo que contestó un cierre, o un error: un acuse que no es un alquiler no se da por bueno. */
