@@ -32,8 +32,10 @@ import {
   diasAbiertos,
   esDiaDeLaSemana,
   franjaLegible,
+  horaEnZona,
   horasDelDia,
   minutosDe,
+  rangoDelDia,
   ventanaDe,
   zonaValida,
   type Ventana,
@@ -46,11 +48,17 @@ import {
   consultarReserva,
   cotizarReserva,
   escribirYAsentar,
+  franjasDelServicio,
+  guardarEleccion,
   guardarPendiente,
   leerPendiente,
   llaveDeLaIntencion,
+  misReservas,
   olvidarPendiente,
+  tomarEleccion,
+  type FranjaLeida,
   type Importe,
+  type PaginaDeReservas,
   type PendienteGuardada,
   type ReservaAsentada,
   type ReservaLeida,
@@ -134,6 +142,22 @@ type Paso =
   | { readonly tipo: 'desconocida'; readonly id: string }
   | { readonly tipo: 'confirmada'; readonly reserva: ReservaLeida };
 
+/**
+ * Las franjas del día elegido, de la lectura de la agenda (NB-3). `sin-lectura`: la puerta no la tiene o no
+ * contestó, y se ofrecen las horas del horario sin marcar ninguna (el modo de antes de NB-2/NB-3).
+ */
+type Lectura =
+  | { readonly estado: 'sin-lectura' }
+  | { readonly estado: 'leyendo'; readonly dia: string }
+  | { readonly estado: 'ok'; readonly dia: string; readonly franjas: readonly FranjaLeida[] };
+
+/** «Mis reservas»: cerrada, leyéndose, leída o lo que dijo la puerta. */
+type Mias =
+  | { readonly estado: 'cerrado' }
+  | { readonly estado: 'cargando' }
+  | { readonly estado: 'ok'; readonly pagina: PaginaDeReservas }
+  | { readonly estado: 'error'; readonly mensaje: string };
+
 /** La cotización de la franja elegida: el total es SIEMPRE el del servidor. */
 type Cotizacion =
   | { readonly estado: 'nada' }
@@ -190,6 +214,20 @@ function textosDeReserva() {
     alternativa: t('Booking.Slot.Alternative', 'Escríbenos para reservar'),
     noConfigurado: t('Booking.Slot.NotConfigured', 'Este bloque todavía no tiene un servicio reservable.'),
     conElNegocio: t('Booking.Slot.ManageWithBusiness', 'Para cambiar o cancelar una reserva confirmada, contacta al negocio.'),
+    sinCupo: t('Booking.Slot.Full', 'sin cupo'),
+    sinHoras: t('Booking.Slot.NoTimesLeft', 'No quedan horas libres ese día. Elige otro.'),
+    apartadaHasta: t('Booking.Slot.HeldUntil', 'Apartada hasta las'),
+    misReservas: t('Booking.Slot.MyBookings', 'Mis reservas'),
+    sinReservas: t('Booking.Slot.NoBookings', 'Todavía no tienes reservas.'),
+    proximas: t('Booking.Slot.Upcoming', 'Próximas'),
+    pasadas: t('Booking.Slot.PastBookings', 'Pasadas'),
+    estados: {
+      Running: t('Booking.Slot.States.Running', 'Apartada, sin confirmar'),
+      Completed: t('Booking.Slot.States.Completed', 'Confirmada'),
+      Compensating: t('Booking.Slot.States.Compensating', 'Cancelándose'),
+      Compensated: t('Booking.Slot.States.Compensated', 'Cancelada'),
+      CompensationFailed: t('Booking.Slot.States.CompensationFailed', 'En revisión por el negocio'),
+    } as Readonly<Record<string, string>>,
   } as const;
 }
 
@@ -266,9 +304,10 @@ function consumirReservaDelEnlace(): void {
  * `<synergos-reserva>` — la reserva de un servicio por franja (011-booking-reserva, ADR 0140).
  *
  * <p>El servicio es el de la página: lo eligió el editor y el CMS lo manda con su duración, sus
- * días y su horario. Se elige día y hora DENTRO de ese horario —sin marcar ninguna como libre: sin
- * la lectura de disponibilidad del núcleo no se sabe— y el total lo cotiza el servidor. Reservar
- * es de miembros: sin sesión, el enlace al login que vuelve aquí, y ninguna llamada.</p>
+ * días y su horario. Al elegir el día, la agenda dice qué horas quedan libres (la lectura
+ * `disponibilidad`, abierta también a quien no inició sesión); sin esa lectura se ofrecen las del
+ * horario sin marcar ninguna. El total lo cotiza el servidor. Reservar es de miembros: sin sesión,
+ * el enlace al login, que vuelve aquí con la misma franja elegida.</p>
  *
  * <p>Todo va por el `<synergos-flujo>` que la vista coloca alrededor (`reserva.strategy.ts`): abrir
  * aparta y autoriza, confirmar captura y confirma, cancelar deshace lo no confirmado. Lo que la
@@ -340,6 +379,9 @@ export class ReservaElementComponent implements OnInit {
   readonly hora = signal('');
   readonly cotizacion = signal<Cotizacion>({ estado: 'nada' });
   #cotizacionEnCurso = 0;
+  readonly lectura = signal<Lectura>({ estado: 'sin-lectura' });
+  #lecturaEnCurso = 0;
+  readonly mias = signal<Mias>({ estado: 'cerrado' });
 
   /** La reserva del enlace del aviso, ya fuera de la URL: sólo el login la devuelve al volver. */
   #reservaDelEnlace = '';
@@ -362,12 +404,35 @@ export class ReservaElementComponent implements OnInit {
     return servicio && zona ? diasAbiertos(servicio, zona, this.#reloj(), this.#locale) : [];
   });
 
+  /** Las franjas que leyó la agenda para el día elegido, o `null` si no las hay (se ofrece el horario). */
+  readonly #franjasDelDia = computed(() => {
+    const lectura = this.lectura();
+    return lectura.estado === 'ok' && lectura.dia === this.dia() ? lectura.franjas : null;
+  });
+
+  /** Si las horas que se ofrecen salen de la agenda: sólo entonces una se marca libre o sin cupo. */
+  readonly conLectura = computed(() => this.#franjasDelDia() !== null);
+
   readonly horas = computed(() => {
     const servicio = this.servicio();
     const zona = this.zona();
     const dia = this.dia();
-    return servicio && zona && dia ? horasDelDia(servicio, dia, zona, this.#reloj()) : [];
+    if (!servicio || !zona || !dia) return [];
+    const franjas = this.#franjasDelDia();
+    if (!franjas) return horasDelDia(servicio, dia, zona, this.#reloj());
+    const ahora = this.#reloj();
+    return franjas.filter((f) => Date.parse(f.ventana.start) > ahora).map((f) => horaEnZona(f.ventana.start, zona));
   });
+
+  /** Las horas que la agenda dio sin cupo: se ven, y no se eligen. */
+  readonly llenas = computed(() => {
+    const zona = this.zona();
+    const franjas = this.#franjasDelDia();
+    return new Set(zona && franjas ? franjas.filter((f) => f.libres <= 0).map((f) => horaEnZona(f.ventana.start, zona)) : []);
+  });
+
+  /** La agenda contestó y ese día no queda ninguna hora libre. */
+  readonly sinHorasLibres = computed(() => this.conLectura() && this.horas().every((h) => this.llenas().has(h)));
 
   /** La franja elegida, como viaja. */
   readonly ventana = computed<Ventana | null>(() => {
@@ -391,6 +456,24 @@ export class ReservaElementComponent implements OnInit {
     const paso = this.paso();
     return paso.tipo === 'apartada' || paso.tipo === 'confirmada' ? paso.reserva : null;
   });
+
+  /** «Mis reservas» es de miembros, con la reserva abierta en este sitio. */
+  readonly puedeVerMias = computed(
+    () => !this.sinMiembro() && !['apagada', 'no-disponible', 'sin-servicio', 'sesion'].includes(this.pantalla()),
+  );
+
+  /** Las de «mis reservas» que todavía no terminan, y las que ya pasaron. */
+  readonly proximas = computed(() => this.#mias().filter((r) => this.#porVenir(r)));
+  readonly pasadas = computed(() => this.#mias().filter((r) => !this.#porVenir(r)));
+
+  readonly #mias = computed<readonly ReservaLeida[]>(() => {
+    const mias = this.mias();
+    return mias.estado === 'ok' ? mias.pagina.reservas : [];
+  });
+
+  #porVenir(r: ReservaLeida): boolean {
+    return r.ventana !== null && Date.parse(r.ventana.end) > this.#reloj();
+  }
 
   ngOnInit(): void {
     const servicio = this.servicio();
@@ -418,6 +501,15 @@ export class ReservaElementComponent implements OnInit {
     } else if (pendiente) {
       this.paso.set({ tipo: 'sin-respuesta', pendiente });
       this.aviso.set(this.#rechazos.porClase.reintentable);
+    } else {
+      // De vuelta del login: la misma franja que se eligió antes de ir.
+      const eleccion = tomarEleccion(servicio.id);
+      if (eleccion) {
+        this.dia.set(eleccion.dia);
+        this.hora.set(eleccion.hora);
+        void this.leerFranjas();
+        void this.cotizar();
+      }
     }
   }
 
@@ -428,6 +520,38 @@ export class ReservaElementComponent implements OnInit {
     this.hora.set('');
     this.#cotizacionEnCurso++;
     this.cotizacion.set({ estado: 'nada' });
+    void this.leerFranjas();
+  }
+
+  /**
+   * Las franjas del día elegido, de la agenda. Sin sesión también: la puerta abre esta lectura a invitados, con
+   * su freno. Si no contesta, se ofrece el horario sin marcar ninguna; lo que quede libre lo dice abrir.
+   */
+  async leerFranjas(): Promise<void> {
+    const servicio = this.servicio();
+    const zona = this.zona();
+    const dia = this.dia();
+    const turno = ++this.#lecturaEnCurso;
+    const rango = servicio && zona && dia && this.pantalla() === 'elegir' ? rangoDelDia(dia, zona) : null;
+    if (!servicio || !rango) {
+      this.lectura.set({ estado: 'sin-lectura' });
+      return;
+    }
+    this.lectura.set({ estado: 'leyendo', dia });
+    const r = await franjasDelServicio(this.#host, servicio.id, rango);
+    if (turno !== this.#lecturaEnCurso) return;
+    this.lectura.set(r.ok ? { estado: 'ok', dia, franjas: r.valor } : { estado: 'sin-lectura' });
+    if (this.llenas().has(this.hora())) {
+      this.hora.set('');
+      this.#cotizacionEnCurso++;
+      this.cotizacion.set({ estado: 'nada' });
+    }
+  }
+
+  /** Quien va a iniciar sesión vuelve a la misma franja: se guarda antes de irse. */
+  recordarEleccion(): void {
+    const servicio = this.servicio();
+    if (servicio && this.dia() && this.hora()) guardarEleccion(servicio.id, { dia: this.dia(), hora: this.hora() });
   }
 
   elegirHora(evento: Event): void {
@@ -554,6 +678,43 @@ export class ReservaElementComponent implements OnInit {
     if (paso.tipo === 'desconocida') void this.revisar(paso.id);
   }
 
+  // ── Mis reservas ───────────────────────────────────────────────────────
+
+  /** Abre o cierra «mis reservas»: las del miembro de la sesión, que pone la puerta. */
+  async verMisReservas(): Promise<void> {
+    if (this.mias().estado !== 'cerrado') {
+      this.mias.set({ estado: 'cerrado' });
+      return;
+    }
+    this.mias.set({ estado: 'cargando' });
+    const r = await misReservas(this.#host);
+    if (r.ok) {
+      this.mias.set({ estado: 'ok', pagina: r.valor });
+      return;
+    }
+    if (clasificarRechazo(r.rechazo) === 'sesion') {
+      this.mias.set({ estado: 'cerrado' });
+      this.sesionRequerida.set(true);
+      return;
+    }
+    this.mias.set({ estado: 'error', mensaje: this.#mensaje(r.rechazo) });
+  }
+
+  /** Una de «mis reservas» de este servicio, apartada y sin confirmar: se retoma para terminarla o cancelarla. */
+  esRetomable(r: ReservaLeida): boolean {
+    return r.estado === 'Running' && r.servicio === this.servicio()?.id;
+  }
+
+  retomar(r: ReservaLeida): void {
+    if (!this.esRetomable(r)) return;
+    this.mias.set({ estado: 'cerrado' });
+    void this.revisar(r.id);
+  }
+
+  estadoLegible(estado: string): string {
+    return this.txt.estados[estado] ?? '';
+  }
+
   async #escribir(
     id: string,
     escribir: (desde: Element, id: string) => ReturnType<typeof cerrarReserva>,
@@ -634,6 +795,8 @@ export class ReservaElementComponent implements OnInit {
     if (DE_LA_FRANJA.has(rechazo.code)) {
       this.hora.set('');
       this.cotizacion.set({ estado: 'nada' });
+      // Otro la tomó entre leer y apartar: se vuelve a leer el día, para no ofrecerla otra vez como libre.
+      void this.leerFranjas();
     }
     this.aviso.set(this.#mensaje(rechazo));
   }
@@ -651,6 +814,12 @@ export class ReservaElementComponent implements OnInit {
   franja(ventana: Ventana | null): string {
     const zona = this.zona();
     return ventana && zona ? franjaLegible(ventana, zona, this.#locale) : '';
+  }
+
+  /** Hasta qué hora está apartada, como la dio la agenda; `''` si no lo dijo: nunca se calcula aquí. */
+  vence(r: ReservaLeida): string {
+    const zona = this.zona();
+    return r.vence && zona ? horaEnZona(r.vence, zona) : '';
   }
 
   /** El total cotizado, o `null`: sin total del servidor no se muestra precio. */

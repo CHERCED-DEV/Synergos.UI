@@ -8,10 +8,11 @@ import type { ServicioReservable } from '@synergos/contracts';
  * otra hora de la que eligió: por eso cada fecha y cada hora de la pantalla se leen y se escriben
  * en `zona`, y lo que viaja es el instante en UTC.</p>
  *
- * <p><b>Ninguna hora se marca como libre</b>: sin la lectura de disponibilidad del núcleo (NB-2/NB-3)
- * la pantalla sólo sabe el horario publicado. Las horas que ofrece son las que CABEN en él —desde
- * que abre, de una duración en una duración, hasta la última que termina antes de cerrar— y no
- * las que ya pasaron. Si una está tomada, lo dice la agenda al apartar.</p>
+ * <p><b>Lo libre lo dice la agenda</b>, con la lectura de disponibilidad (NB-2/NB-3): estas funciones
+ * sólo leen sus franjas en la zona del sitio. Sin esa lectura —la puerta no la tiene, o no contesta—
+ * ninguna hora se marca como libre: las que se ofrecen son las que CABEN en el horario publicado
+ * —desde que abre, de una duración en una duración, hasta la última que termina antes de cerrar— y
+ * no las que ya pasaron. Si una está tomada, lo dice la agenda al apartar.</p>
  *
  * Funciones puras: el instante «ahora» lo pasa quien llama, así que los specs no dependen del reloj.
  */
@@ -163,6 +164,21 @@ export function diasAbiertos(
 }
 
 const sinMilisegundos = (instante: number): string => new Date(instante).toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+/** El día de calendario `fecha` en `zona`, de su medianoche a la siguiente: el rango de la lectura de franjas. */
+export function rangoDelDia(fecha: string, zona: string): Ventana | null {
+  const desde = instanteEnZona(fecha, '00:00', zona);
+  const hasta = instanteEnZona(sumarDias(fecha, 1), '00:00', zona);
+  return Number.isFinite(desde) && Number.isFinite(hasta) ? { start: sinMilisegundos(desde), end: sinMilisegundos(hasta) } : null;
+}
+
+/** La hora de reloj (`HH:mm`) que marca `zona` en ese instante ISO, o `''` si no es un instante. */
+export function horaEnZona(instante: string, zona: string): string {
+  const ms = Date.parse(instante);
+  if (!Number.isFinite(ms)) return '';
+  const p = partesEnZona(ms, zona);
+  return horaDe(p.h * 60 + p.mi);
+}
 
 /** La franja de `fecha` a `hora` en `zona`, del largo del servicio: lo que viaja como `ventana`. */
 export function ventanaDe(servicio: ServicioReservable, fecha: string, hora: string, zona: string): Ventana | null {
