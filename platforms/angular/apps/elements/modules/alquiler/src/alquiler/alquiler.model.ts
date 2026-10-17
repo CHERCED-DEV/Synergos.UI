@@ -120,6 +120,12 @@ export interface RentalQuote {
  */
 export type RentalState = 'reserved' | 'declared' | 'returned' | 'cancelled' | 'failed';
 
+/**
+ * Por dónde alquila el miembro, como lo DECLARA el CMS (`AlquilerProps.rentalPath`, ADR 0140): la puerta
+ * (`/api/flujos/alquiler.renta`) o la ruta directa (`/api/alquiler`). El elemento no lo adivina ni cae de uno al otro.
+ */
+export type CaminoDeLaRenta = 'puerta' | 'directa';
+
 /** El comprobante de un alquiler. */
 export interface RentalAgreement {
   readonly rentalId: string;

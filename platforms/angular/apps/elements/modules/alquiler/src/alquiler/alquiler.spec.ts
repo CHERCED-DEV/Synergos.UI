@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlquilerApiClient } from './alquiler-api.client';
-import { AlquilerElementComponent } from './alquiler';
+import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
 import { normalizeRental, readRentalState } from './alquiler.model';
 import { asentar } from '../../../../../../tools/asentar';
 
@@ -519,5 +519,28 @@ describe('AlquilerElementComponent', () => {
     expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
     // La clave que la página no trae sale por su respaldo, no vacía.
     expect(component.txt.misAlquileres).toBe('Mis alquileres');
+  });
+});
+
+// ── El camino de la renta lo DECLARA el CMS (ADR 0140) ───────────────────────────────────────────
+//
+// `AlquilerProps.rentalPath` viaja con «puerta» o «directa»; el sanitizador lo conserva tal cual y cualquier otra cosa
+// se cae, para que nadie elija un tercer camino desde el atributo.
+describe('sanitizeAlquilerConfig: el camino de la renta', () => {
+  const NEGOCIO_DEL_CMS = { apiBase: '/api/alquiler' };
+
+  it.each(['puerta', 'directa'])('conserva «%s»', (camino) => {
+    expect(sanitizeAlquilerConfig({ ...NEGOCIO_DEL_CMS, rentalPath: camino })).toEqual({
+      ...NEGOCIO_DEL_CMS,
+      rentalPath: camino,
+    });
+  });
+
+  it.each([
+    ['sin declarar', NEGOCIO_DEL_CMS],
+    ['con un valor que no es ninguno de los dos', { ...NEGOCIO_DEL_CMS, rentalPath: 'por-ahi' }],
+    ['con otra caja', { ...NEGOCIO_DEL_CMS, rentalPath: 'PUERTA' }],
+  ])('%s, no hay camino', (_caso, config) => {
+    expect(sanitizeAlquilerConfig(config)).toEqual(NEGOCIO_DEL_CMS);
   });
 });
