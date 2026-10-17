@@ -56,3 +56,12 @@ export function cotizarAlquilerRenta(
 ): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["cotizar"]>>> {
   return pedirAlFlujo(desde, FLUJO_ALQUILER_RENTA, "cotizar", args, opciones);
 }
+
+/** `listar`: GET con consulta; llave ninguna. */
+export function listarAlquilerRenta(
+  desde: Element,
+  args: ArgsDe<Operaciones["listar"]>,
+  opciones?: OpcionesDePedido,
+): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["listar"]>>> {
+  return pedirAlFlujo(desde, FLUJO_ALQUILER_RENTA, "listar", args, opciones);
+}

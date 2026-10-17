@@ -116,9 +116,18 @@ export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
 /**
  * El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6).
  * `cotizar` lo suma el cupón: la fase que abre, anticipada sin saga (`FlowRunner.AnticiparAsync`).
+ * `listar` son las sagas del dueño, «mis reservas» (núcleo, NB-6 de 011). `disponibilidad` es una lectura sin
+ * saga ni dueño, lo que se ve antes de abrir (NB-3): la única clase de operación que un flujo abre a invitados.
+ * `devolver` es la fase que abre una operación posterior al cierre (lote 6, N-6 de 004).
  * Es la misma lista que `EnLaPuertaExtensions.Operaciones` y `TablaDeLaPuerta.Operaciones` del CMS.
  */
-export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar'];
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'devolver', 'disponibilidad', 'listar'];
+
+/**
+ * El único acceso que puede traer la marca además del del dueño: una operación del personal (lote 6, P8). La puerta
+ * pide el rol; lo que se genera para el navegador no cambia.
+ */
+export const ACCESO_DEL_PERSONAL = 'personal';
 
 /** Los métodos que la puerta pasa. */
 const METODOS_DE_LA_PUERTA = new Set(['get', 'post']);
@@ -291,16 +300,21 @@ function revisarCuerpo(op, quien, esquemas, errores) {
 }
 
 /**
- * La marca de la puerta en una operación: `{ flujo, operacion }`, con la operación del vocabulario
- * fijo, por GET o POST, una sola vez por flujo, y con lo que viaja en la consulta sin repetirse.
+ * La marca de la puerta en una operación: `{ flujo, operacion }`, o `{ flujo, operacion, acceso: 'personal' }` en una
+ * del personal (lote 6, P8), con la operación del vocabulario fijo, por GET o POST, una sola vez por flujo, y con lo
+ * que viaja en la consulta sin repetirse.
  */
 function revisarMarca(op, metodo, quien, vistas, errores) {
   const marca = op[MARCA_DEL_FLUJO];
   if (marca === undefined) return;
 
-  if (!esObjeto(marca) || Object.keys(marca).sort(ordinal).join() !== 'flujo,operacion') {
-    errores.push(`${quien}: ${MARCA_DEL_FLUJO} tiene que ser { flujo, operacion } y nada más`);
+  const claves = esObjeto(marca) ? Object.keys(marca).sort(ordinal).join() : '';
+  if (claves !== 'flujo,operacion' && claves !== 'acceso,flujo,operacion') {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO} tiene que ser { flujo, operacion } o { flujo, operacion, acceso } y nada más`);
     return;
+  }
+  if (claves === 'acceso,flujo,operacion' && marca.acceso !== ACCESO_DEL_PERSONAL) {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO}.acceso «${marca.acceso}» no es uno que la puerta sepa dar (sólo «${ACCESO_DEL_PERSONAL}»)`);
   }
   if (typeof marca.flujo !== 'string' || !CLAVE_DE_FLUJO.test(marca.flujo)) {
     errores.push(`${quien}: ${MARCA_DEL_FLUJO}.flujo «${marca.flujo}» no es una clave de flujo (dominio.flujo)`);

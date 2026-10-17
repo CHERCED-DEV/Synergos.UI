@@ -442,7 +442,9 @@ describe('la puerta (ADR 0140 F3): marcas, cabeceras de la puerta y lo que no sa
   it('rechaza una marca mal formada: forma, flujo, operación fuera del vocabulario, método, par repetido, consulta que choca', () => {
     const casos = [
       [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'] = { flujo: 'prueba.compra', operacion: 'abrir', extra: 1 }),
-        'Comprar: x-synergos-flujo tiene que ser { flujo, operacion } y nada más'],
+        'Comprar: x-synergos-flujo tiene que ser { flujo, operacion } o { flujo, operacion, acceso } y nada más'],
+      [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'] = { flujo: 'prueba.compra', operacion: 'abrir', acceso: 'dueno' }),
+        'Comprar: x-synergos-flujo.acceso «dueno» no es uno que la puerta sepa dar (sólo «personal»)'],
       [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'].flujo = 'Prueba'),
         'Comprar: x-synergos-flujo.flujo «Prueba» no es una clave de flujo'],
       [(d) => (d.paths['/v1/compras'].post['x-synergos-flujo'].operacion = 'BuyTickets'),
@@ -517,6 +519,41 @@ describe('la tabla de ejecución y el rechazo de la puerta (ADR 0140 F4, el «cl
     const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
     expect(ts).toContain('readonly cotizar: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "ninguna">;');
     expect(tabla(ts)).toContain('cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },');
+  });
+
+  it('disponibilidad es del vocabulario: una lectura sin saga, POST con cuerpo, sin llave y SIN sujeto (núcleo, NB-3)', () => {
+    const d = documento();
+    d.paths['/v1/flujos/prueba.compra/disponibilidad'] = {
+      post: {
+        operationId: 'PruebaCompraDisponibilidad',
+        'x-synergos-flujo': { flujo: 'prueba.compra', operacion: 'disponibilidad' },
+        requestBody: { ...json(ref('CompraRequest')), required: true },
+        responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 400: rechazo('Invalid') },
+      },
+    };
+    expect(validarDocumento(d)).toEqual([]);
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly disponibilidad: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "ninguna">;');
+    expect(tabla(ts)).toContain('disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },');
+  });
+
+  it('devolver es del vocabulario, y la marca del personal pasa sin cambiar lo que se genera (lote 6, P8)', () => {
+    const d = documento();
+    d.paths['/v1/devoluciones'] = {
+      post: {
+        operationId: 'Devolver',
+        'x-synergos-flujo': { flujo: 'prueba.devolucion', operacion: 'devolver', acceso: 'personal' },
+        parameters: [{ name: 'X-Synergos-Sujeto', in: 'header', schema: { type: 'string' }, 'x-synergos-puerta': true }],
+        requestBody: { ...json(ref('CompraRequest')), required: true },
+        responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 403: rechazo('Forbidden') },
+      },
+    };
+    expect(validarDocumento(d)).toEqual([]);
+    const conAcceso = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(tabla(conAcceso)).toContain('devolver: { metodo: "POST", llave: "ninguna", consulta: [] },');
+
+    delete d.paths['/v1/devoluciones'].post['x-synergos-flujo'].acceso;
+    expect(generarTs(d, 'Synergos.Bff.Prueba.json')).toBe(conAcceso);
   });
 
   it('una operación que gana un parámetro de consulta cambia la tabla, no sólo el tipo (M8 del plan de la F4)', () => {
