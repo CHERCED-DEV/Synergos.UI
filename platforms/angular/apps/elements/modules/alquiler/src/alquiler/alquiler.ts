@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  ElementRef,
   inject,
   input,
   OnInit,
@@ -18,12 +19,37 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { AlquilerProps } from '@synergos/contracts';
-import { formatearImporte, t } from '@synergos/vitals-core';
+import {
+  clasificarRechazo,
+  elegirMensaje,
+  formatearImporte,
+  hayCoordinador,
+  t,
+  type ClaseDeRechazo,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
 import {
   AlquilerApiClient,
   isRejected,
   isUnauthorized,
 } from './alquiler-api.client';
+import {
+  abrirRenta,
+  cancelarRenta,
+  cerrarRenta,
+  consultarRenta,
+  cotizarRenta,
+  escribirYAsentar,
+  FLUJO_RENTA,
+  guardarIntencion,
+  leerIntencion,
+  llaveDeLaIntencion,
+  olvidarIntencion,
+  ventanaDeLasFechas,
+  type CotizacionDeLaPuerta,
+  type IntencionGuardada,
+  type RentaLeida,
+} from './alquiler-renta.strategy';
 import type {
   CaminoDeLaRenta,
   EquipmentCard,
@@ -110,7 +136,47 @@ function textosDeAlquiler() {
     contratoSinComprobar: t('Alquiler.Mine.SealUnverified', 'Sello sin comprobar.'),
     devolvi: t('Alquiler.Mine.Returned', 'Devolví el equipo'),
     cancelar: t('Alquiler.Mine.Cancel', 'Cancelar'),
+    confirmar: t('Alquiler.Quote.Confirm', 'Confirmar y pagar'),
+    confirmando: t('Alquiler.Quote.Confirming', 'Confirmando…'),
+    apartadas: t('Alquiler.Quote.Held', 'Apartamos tus unidades por unos minutos. Confírmalo para pagar.'),
+    soltadas: t('Alquiler.Quote.HeldCancelled', 'Reserva cancelada: no se cobró nada.'),
+    deshecha: t('Alquiler.Quote.Undone', 'El alquiler no se pudo confirmar y se deshizo: no queda nada cobrado ni apartado.'),
+    noOfrecido: t('Alquiler.Quote.NotOffered', 'Este equipo no se puede alquilar ahora.'),
   } as const;
+}
+
+/**
+ * Qué decir de un rechazo de la renta, por su `code` (ADR 0136: los textos los pone la funcionalidad, las hojas
+ * reciben strings), y si el código no tiene texto, por su CLASE con el mensaje genérico de la operación. Los que
+ * llevan un dato toman los límites de la ficha que se está alquilando.
+ */
+function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
+  readonly porCodigo: Readonly<Record<string, string>>;
+  readonly porClase: Readonly<Record<ClaseDeRechazo, string>>;
+} {
+  const noOfrecido = t('Alquiler.Quote.NotOffered', 'Este equipo no se puede alquilar ahora.');
+  return {
+    porCodigo: {
+      'alquiler.equipment_not_offered': noOfrecido,
+      'booking.at_capacity': t('Alquiler.Errors.NoUnits', 'No quedan unidades de este equipo en esas fechas.'),
+      'alquiler.window_out_of_bounds': t('Alquiler.Errors.WindowOutOfBounds', 'Este equipo se alquila entre {min} y {max} días.', {
+        min: eq?.minDays ?? 1,
+        max: eq?.maxDays ?? 1,
+      }),
+      'alquiler.window_too_long': t('Alquiler.Errors.WindowTooLong', 'No alquilamos por tantos días.'),
+      'alquiler.bad_window': t('Alquiler.Errors.BadWindow', 'La devolución tiene que ser posterior al retiro.'),
+      'alquiler.bad_quantity': t('Alquiler.Errors.BadQuantity', 'Elige entre 1 y {max} unidades.', { max: eq?.units ?? 1 }),
+      'booking.hold_expired': t('Alquiler.Quote.Expired', 'Tu reserva venció y no se cobró nada. Vuelve a reservar.'),
+      'flow.busy': t('Alquiler.Errors.Busy', 'Estamos terminando otra operación sobre este alquiler. Inténtalo en un momento.'),
+    },
+    porClase: {
+      sesion: t('Alquiler.Errors.SignInToRent', 'Hay que iniciar sesión para alquilar.'),
+      reintentable: generico,
+      no_disponible: noOfrecido,
+      defecto: generico,
+      negado: generico,
+    },
+  };
 }
 
 /**
@@ -151,6 +217,7 @@ function textosDeAlquiler() {
 })
 export class AlquilerElementComponent implements OnInit {
   readonly #api = inject(AlquilerApiClient);
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
 
   // ── Lo que el CMS pasa ─────────────────────────────────────────────────
 
@@ -195,6 +262,13 @@ export class AlquilerElementComponent implements OnInit {
     ),
   );
 
+  /**
+   * Por dónde alquila este sitio, como lo DECLARA el CMS (`rentalPath`, ADR 0140): la puerta o la ruta directa.
+   * Sin declaración —el elemento suelto, fuera del CMS— es la directa de siempre. Se lee al EMPEZAR una
+   * intención y queda anotado en ella: confirmar va por el camino por el que se abrió, no por el de hoy.
+   */
+  readonly camino = computed<CaminoDeLaRenta>(() => normalizeRentalPath(this.config()?.rentalPath) ?? 'directa');
+
   // ── Estado de pantalla ─────────────────────────────────────────────────
 
   readonly vista = signal<Vista>('catalogo');
@@ -210,6 +284,21 @@ export class AlquilerElementComponent implements OnInit {
   readonly cotizando = signal(false);
   readonly reservando = signal(false);
   readonly reserva = signal<Rental | null>(null);
+
+  // ── La renta por la puerta (T032) ──────────────────────────────────────
+
+  /** Lo que cotizó el servidor por la puerta: el total y la garantía, nunca calculados aquí. */
+  readonly cotizacionPuerta = signal<CotizacionDeLaPuerta | null>(null);
+  /** La renta abierta o confirmada por la puerta, tal como la leyó el servidor. */
+  readonly renta = signal<RentaLeida | null>(null);
+  readonly confirmando = signal(false);
+  /** El contrato de la renta de la puerta, emitido por el CMS al leerlo. */
+  readonly contratoPuerta = signal<RentalAgreement | null>(null);
+  /** Lo que pasó y no es un problema: la reserva soltada sin cobrar nada. */
+  readonly aviso = signal('');
+
+  /** Si la renta de la puerta está apartada y espera a que la confirmen. */
+  readonly apartada = computed(() => this.renta()?.estado === 'Running');
 
   /**
    * Lo que NO se pudo hacer, dicho tal cual.
@@ -268,6 +357,10 @@ export class AlquilerElementComponent implements OnInit {
     this.ficha.set({ estado: 'cargando' });
     this.cotizacion.set(null);
     this.reserva.set(null);
+    this.cotizacionPuerta.set(null);
+    this.renta.set(null);
+    this.contratoPuerta.set(null);
+    this.aviso.set('');
     this.problema.set('');
     try {
       const detalle = await this.#api.detail(this.apiBase(), equipmentId);
@@ -278,6 +371,7 @@ export class AlquilerElementComponent implements OnInit {
       );
       if (detalle) {
         this.unidades.set(1);
+        await this.#retomar(detalle.equipmentId);
       }
     } catch {
       this.ficha.set({
@@ -303,6 +397,12 @@ export class AlquilerElementComponent implements OnInit {
     }
   }
 
+  /** Lo cotizado deja de valer en cuanto cambian las fechas o las unidades, por cualquiera de los dos caminos. */
+  limpiarCotizacion(): void {
+    this.cotizacion.set(null);
+    this.cotizacionPuerta.set(null);
+  }
+
   /** Vuelve al catálogo. */
   volver(): void {
     this.vista.set('catalogo');
@@ -316,6 +416,10 @@ export class AlquilerElementComponent implements OnInit {
   async cotizar(): Promise<void> {
     const f = this.ficha();
     if (!f || f.estado !== 'ok' || !this.puedeCotizar()) return;
+    if (this.camino() === 'puerta') {
+      await this.#cotizarPorLaPuerta(f.valor);
+      return;
+    }
 
     this.cotizando.set(true);
     this.problema.set('');
@@ -345,6 +449,10 @@ export class AlquilerElementComponent implements OnInit {
   async reservar(): Promise<void> {
     const f = this.ficha();
     if (!f || f.estado !== 'ok' || !this.puedeCotizar()) return;
+    if (this.camino() === 'puerta') {
+      await this.#abrirPorLaPuerta(f.valor);
+      return;
+    }
 
     this.reservando.set(true);
     this.problema.set('');
@@ -364,6 +472,171 @@ export class AlquilerElementComponent implements OnInit {
     } finally {
       this.reservando.set(false);
     }
+  }
+
+  /**
+   * Confirma y paga la renta apartada. Va por el camino ANOTADO en la intención cuando se abrió —nunca por el que
+   * diga la página ahora—: lo que se apartó por la puerta se confirma por la puerta, y la ruta directa no tiene un
+   * «confirmar» al que caer (reservar por ella ya confirma; caer ahí apartaría otra vez).
+   */
+  async confirmar(): Promise<void> {
+    const f = this.ficha();
+    if (!f || f.estado !== 'ok') return;
+    const intencion = leerIntencion(f.valor.equipmentId);
+    if (intencion?.camino !== 'puerta' || !intencion.id) return;
+
+    this.confirmando.set(true);
+    this.problema.set('');
+    try {
+      const asentada = await escribirYAsentar(this.#host, intencion.id, cerrarRenta);
+      if (asentada.tipo === 'sesion') {
+        this.problema.set(this.#porClase('sesion', this.txt.confirmar, f.valor));
+        return;
+      }
+      if (asentada.tipo === 'desconocida') {
+        this.problema.set(this.#mensaje(asentada.rechazo, f.valor, this.#confirmacionFallo()));
+        return;
+      }
+      await this.#asentar(intencion, asentada.renta, asentada.rechazo, f.valor);
+    } finally {
+      this.confirmando.set(false);
+    }
+  }
+
+  /** Suelta la renta apartada sin confirmarla: no se cobra nada. */
+  async soltar(): Promise<void> {
+    const f = this.ficha();
+    if (!f || f.estado !== 'ok') return;
+    const intencion = leerIntencion(f.valor.equipmentId);
+    if (intencion?.camino !== 'puerta' || !intencion.id) return;
+
+    this.problema.set('');
+    const asentada = await escribirYAsentar(this.#host, intencion.id, cancelarRenta);
+    if (asentada.tipo === 'leida') {
+      await this.#asentar(intencion, asentada.renta, asentada.rechazo, f.valor);
+    } else {
+      this.problema.set(this.#mensaje(asentada.rechazo, f.valor,
+        t('Alquiler.Errors.CancelFailed', 'No pudimos cancelar el alquiler. Sigue reservado.')));
+    }
+  }
+
+  /** Cotiza por la puerta: el servidor pone el total y la garantía con la oferta publicada del equipo. */
+  async #cotizarPorLaPuerta(eq: EquipmentDetail): Promise<void> {
+    if (!hayCoordinador(this.#host, FLUJO_RENTA)) {
+      this.problema.set(this.txt.noOfrecido);
+      return;
+    }
+    this.cotizando.set(true);
+    this.problema.set('');
+    this.cotizacionPuerta.set(null);
+    try {
+      const r = await cotizarRenta(this.#host, eq.equipmentId, this.unidades(), ventanaDeLasFechas(this.desde(), this.hasta()));
+      if (r.ok && r.valor.total) {
+        this.cotizacionPuerta.set(r.valor);
+      } else {
+        this.problema.set(r.ok ? this.#cotizacionFallo() : this.#mensaje(r.rechazo, eq, this.#cotizacionFallo()));
+      }
+    } finally {
+      this.cotizando.set(false);
+    }
+  }
+
+  /**
+   * Aparta por la puerta. La intención —con su camino y su llave— se guarda ANTES de salir a la red: si la
+   * respuesta no llega, reintentar repite la misma llave y el orquestador devuelve la renta que ya abrió.
+   */
+  async #abrirPorLaPuerta(eq: EquipmentDetail): Promise<void> {
+    const desde = this.desde();
+    const hasta = this.hasta();
+    const unidades = this.unidades();
+    const intencion: IntencionGuardada = {
+      camino: 'puerta', equipo: eq.equipmentId, unidades, desde, hasta,
+      llave: llaveDeLaIntencion(eq.equipmentId, unidades, desde, hasta), id: null,
+    };
+    guardarIntencion(intencion);
+
+    this.reservando.set(true);
+    this.problema.set('');
+    this.aviso.set('');
+    try {
+      const r = await abrirRenta(this.#host, eq.equipmentId, unidades, ventanaDeLasFechas(desde, hasta), intencion.llave);
+      if (r.ok) {
+        await this.#asentar({ ...intencion, id: r.valor.id }, r.valor, null, eq);
+      } else {
+        this.problema.set(this.#mensaje(r.rechazo, eq,
+          t('Alquiler.Errors.ReserveFailed', 'No pudimos reservar el equipo. Vuelve a intentarlo.')));
+      }
+    } finally {
+      this.reservando.set(false);
+    }
+  }
+
+  /**
+   * Lo que quedó de una renta de la puerta, LEÍDO del servidor: apartada, confirmada (con su contrato) o deshecha.
+   * El rechazo de la operación, si lo hubo, dice por qué no avanzó.
+   */
+  async #asentar(
+    intencion: IntencionGuardada, renta: RentaLeida, rechazo: RechazoDelFlujo | null, eq: EquipmentDetail,
+    alDeshacerse: string = this.txt.soltadas,
+  ): Promise<void> {
+    this.renta.set(renta);
+    if (renta.estado === 'Running') {
+      guardarIntencion({ ...intencion, id: renta.id });
+      if (rechazo) this.problema.set(this.#mensaje(rechazo, eq, this.#confirmacionFallo()));
+      return;
+    }
+
+    olvidarIntencion(intencion.equipo);
+    this.cotizacionPuerta.set(null);
+    if (renta.estado === 'Completed') {
+      this.contratoPuerta.set(await this.#api.agreement(this.apiBase(), renta.id).catch(() => null));
+      return;
+    }
+    // Deshecha (Compensated) o deshaciéndose: no se dice «no se cobró» mientras quede algo por deshacer.
+    if (rechazo && clasificarRechazo(rechazo) !== 'negado') {
+      this.problema.set(this.#mensaje(rechazo, eq, this.#confirmacionFallo()));
+    } else if (renta.deshaciendo) {
+      this.problema.set(this.#confirmacionFallo());
+    } else if (rechazo) {
+      this.problema.set(`${this.#mensaje(rechazo, eq, this.#confirmacionFallo())} ${this.txt.deshecha}`);
+    } else {
+      this.aviso.set(alDeshacerse);
+    }
+  }
+
+  /**
+   * Si esta pestaña dejó una renta de la puerta sin resolver para este equipo —se recargó, o se fue a iniciar
+   * sesión—, se lee del servidor y se retoma donde quedó. Lo que se pidió por la ruta directa no se retoma: ya
+   * quedó confirmado o no existe.
+   */
+  async #retomar(equipo: string): Promise<void> {
+    const intencion = leerIntencion(equipo);
+    if (intencion?.camino !== 'puerta' || !intencion.id || !hayCoordinador(this.#host, FLUJO_RENTA)) return;
+    this.desde.set(intencion.desde);
+    this.hasta.set(intencion.hasta);
+    this.unidades.set(intencion.unidades);
+    const r = await consultarRenta(this.#host, intencion.id);
+    const f = this.ficha();
+    if (r.ok && f?.estado === 'ok') {
+      // Una que se deshizo sin que nadie la soltara desde aquí es la que venció: lo apartado dura minutos.
+      await this.#asentar(intencion, r.valor, null, f.valor,
+        t('Alquiler.Quote.Expired', 'Tu reserva venció y no se cobró nada. Vuelve a reservar.'));
+    } else if (!r.ok && clasificarRechazo(r.rechazo) === 'negado') {
+      olvidarIntencion(equipo);
+    }
+  }
+
+  #mensaje(rechazo: RechazoDelFlujo, eq: EquipmentDetail | null, generico: string): string {
+    const tabla = rechazosDeAlquiler(eq, generico);
+    return elegirMensaje(rechazo, tabla.porCodigo, tabla.porClase);
+  }
+
+  #porClase(clase: ClaseDeRechazo, generico: string, eq: EquipmentDetail | null): string {
+    return rechazosDeAlquiler(eq, generico).porClase[clase];
+  }
+
+  #confirmacionFallo(): string {
+    return t('Alquiler.Errors.ConfirmFailed', 'No pudimos confirmar el alquiler. Vuelve a intentarlo.');
   }
 
   /** Cancela un alquiler antes de que el equipo salga. */
@@ -404,8 +677,13 @@ export class AlquilerElementComponent implements OnInit {
     if (isUnauthorized(error)) {
       return t('Alquiler.Errors.SignInToRent', 'Hay que iniciar sesión para alquilar.');
     }
-    if (isRejected(error) && error.detail) {
-      return error.detail;
+    if (isRejected(error)) {
+      // El texto se elige por el `code` (sección Alquiler.Errors); sin texto para él, el motivo del borde.
+      const f = this.ficha();
+      const porCodigo = rechazosDeAlquiler(f?.estado === 'ok' ? f.valor : null, generico).porCodigo;
+      return Object.prototype.hasOwnProperty.call(porCodigo, error.code)
+        ? (porCodigo[error.code] as string)
+        : error.detail || generico;
     }
     return generico;
   }
@@ -487,6 +765,30 @@ export class AlquilerElementComponent implements OnInit {
       'Además se RETIENEN {monto} de garantía. No es un cobro: se libera al devolver el equipo.',
       { monto: this.plata(q.deposit, q.currency) },
     );
+  }
+
+  /** «2 unidad(es), del 2026-11-05 al 2026-11-08.», de lo que se está pidiendo por la puerta. */
+  lineaDeLaPuerta(): string {
+    return t('Alquiler.Done.Line', '{unidades} unidad(es), del {desde} al {hasta}.', {
+      unidades: this.unidades(),
+      desde: this.desde(),
+      hasta: this.hasta(),
+    });
+  }
+
+  /** La garantía que cotizó el servidor por la puerta, dicha como lo que es: una retención. */
+  garantiaDeLaPuerta(q: CotizacionDeLaPuerta): string {
+    const g = q.garantia ?? { amount: 0, currency: q.total?.currency ?? '' };
+    return t(
+      'Alquiler.Quote.Deposit',
+      'Además se RETIENEN {monto} de garantía. No es un cobro: se libera al devolver el equipo.',
+      { monto: this.plata(g.amount, g.currency) },
+    );
+  }
+
+  /** «Alquiler BB1A3E18»: el número que da el servidor a la renta de la puerta. */
+  tituloDeRenta(r: RentaLeida): string {
+    return t('Alquiler.Done.Title', 'Alquiler {id}', { id: r.numero || r.id });
   }
 
   /** «Alquiler alq-1». */

@@ -1,5 +1,11 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  definirCoordinador,
+  type CoordinadorDelFlujo,
+  type Peticion,
+  type ResultadoDelFlujo,
+} from '@synergos/vitals-core';
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
 import { normalizeRental, readRentalState } from './alquiler.model';
@@ -307,12 +313,13 @@ describe('AlquilerElementComponent', () => {
   it('un 409 enseña el MOTIVO del borde y un 503 NO', async () => {
     // Los dos traen `code` y `detail`. Enseñar el del 503 le diría a quien alquila que el
     // problema es lo que pidió, cuando el problema es que el servicio no está (#129).
+    let code = 'alquiler.not_cancellable';
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       if ((init?.method ?? 'GET') === 'GET') {
         return new Response(JSON.stringify([EQUIPO]), { status: 200 });
       }
       return new Response(
-        JSON.stringify({ code: 'alquiler.window_too_long', detail: 'Este equipo no se alquila por más de 30 días.' }),
+        JSON.stringify({ code, detail: 'Este alquiler ya no se puede cancelar.' }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       );
     }));
@@ -320,7 +327,13 @@ describe('AlquilerElementComponent', () => {
 
     await component.devolver('alq-1', 0);
     await drenar();
-    expect(component.problema()).toBe('Este equipo no se alquila por más de 30 días.');
+    expect(component.problema()).toBe('Este alquiler ya no se puede cancelar.');
+
+    // Con texto propio para su código (sección Alquiler.Errors, T033), el texto se elige por el código.
+    code = 'alquiler.window_too_long';
+    await component.devolver('alq-1', 0);
+    await drenar();
+    expect(component.problema()).toBe('No alquilamos por tantos días.');
   });
 
   it('la llave de idempotencia es la MISMA en dos intentos sobre lo mismo', async () => {
@@ -519,6 +532,253 @@ describe('AlquilerElementComponent', () => {
     expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
     // La clave que la página no trae sale por su respaldo, no vacía.
     expect(component.txt.misAlquileres).toBe('Mis alquileres');
+  });
+});
+
+// ── La renta por la PUERTA (T032, T033) ──────────────────────────────────────────────────────────
+//
+// El elemento va dentro del coordinador que coloca la vista (`<synergos-flujo flujo="alquiler.renta">`), y su
+// transporte es un doble con la forma de la puerta: lo que se mira es qué operación sale, con qué cuerpo y con
+// qué llave, y que la ruta directa del CMS NO se toque para la transacción (sí para el catálogo y el contrato).
+describe('AlquilerElementComponent por la puerta', () => {
+  beforeAll(() => definirCoordinador());
+
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+  let flujo: CoordinadorDelFlujo;
+  const puerta: Peticion[] = [];
+
+  const renta = (estado: string, extra: Record<string, unknown> = {}) => ({
+    id: 'pta-1',
+    flujo: 'alquiler.renta',
+    numero: 'BB1A3E18',
+    estado,
+    datos: {
+      total: { amount: 270000, currency: 'COP' },
+      garantia: { amount: 800000, currency: 'COP' },
+      garantiaId: 'pg-g',
+      cobroId: 'pg-c',
+      ventana: { start: '2026-11-05T00:00:00Z', end: '2026-11-08T00:00:00Z' },
+      equipo: 'andamio-6m',
+      cantidad: 2,
+    },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+    ...extra,
+  });
+
+  const ok = (valor: unknown): ResultadoDelFlujo<unknown> => ({ ok: true, valor, estado: 200, correlacion: '' });
+  const no = (code: string, transient = false): ResultadoDelFlujo<unknown> => ({
+    ok: false, rechazo: { code, status: 409, transient, detail: `detalle de ${code}`, origen: 'servidor', extra: {} }, correlacion: '',
+  });
+
+  /** La puerta por operación: lo que contesta a cada una, y por defecto la renta feliz. */
+  function laPuerta(respuestas: Partial<Record<string, () => ResultadoDelFlujo<unknown>>> = {}): void {
+    flujo.enviar = (p) => {
+      puerta.push(p);
+      const op = p.url.replace(/^\/api\/flujos\/alquiler\.renta\//, '').replace(/\?.*$/, '');
+      const propia = respuestas[op];
+      if (propia) return Promise.resolve(propia());
+      switch (op) {
+        case 'cotizar': return Promise.resolve(ok({ flujo: 'alquiler.renta', datos: renta('Running').datos }));
+        case 'abrir': return Promise.resolve(ok(renta('Running')));
+        case 'cerrar': return Promise.resolve(ok(renta('Completed')));
+        case 'cancelar': return Promise.resolve(ok(renta('Compensated')));
+        case 'consultar': return Promise.resolve(ok(renta('Running')));
+        default: return Promise.resolve(no('puerta.operacion_desconocida'));
+      }
+    };
+  }
+
+  async function montar(rentalPath: 'puerta' | 'directa' = 'puerta'): Promise<void> {
+    puerta.length = 0;
+    flujo = document.createElement('synergos-flujo') as CoordinadorDelFlujo;
+    flujo.setAttribute('flujo', 'alquiler.renta');
+    document.body.appendChild(flujo);
+    laPuerta();
+
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    flujo.appendChild(fixture.nativeElement as HTMLElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler', rentalPath });
+    fixture.detectChanges();
+    await drenar();
+  }
+
+  /** La ficha abierta y el pedido puesto: 2 unidades, del 5 al 8 de noviembre. */
+  async function pedir(): Promise<void> {
+    await component.abrir('andamio-6m');
+    component.desde.set('2026-11-05');
+    component.hasta.set('2026-11-08');
+    component.unidades.set(2);
+    await drenar();
+  }
+
+  const ops = () => puerta.map((p) => p.url);
+
+  afterEach(() => {
+    flujo?.remove();
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('cotiza, aparta y confirma por la puerta; el contrato lo emite el CMS al leerlo', async () => {
+    const { llamadas } = servidor({ ...GUION_FELIZ, 'GET /api/alquiler/rentals/pta-1/agreement': { ...CONTRATO, rentalId: 'pta-1' } });
+    await montar();
+    await pedir();
+
+    await component.cotizar();
+    expect(component.cotizacionPuerta()?.total).toEqual({ amount: 270000, currency: 'COP' });
+    await component.reservar();
+    expect(component.apartada()).toBe(true);
+    await component.confirmar();
+    await drenar();
+
+    expect(ops()).toEqual([
+      '/api/flujos/alquiler.renta/cotizar',
+      '/api/flujos/alquiler.renta/abrir',
+      '/api/flujos/alquiler.renta/cerrar?id=pta-1',
+    ]);
+    expect(puerta[0]!.cabeceras['Idempotency-Key']).toBeUndefined();
+    expect(puerta[1]!.cabeceras['Idempotency-Key']).toMatch(/^[0-9a-f]{32}$/);
+    expect(component.renta()?.estado).toBe('Completed');
+    expect(component.contratoPuerta()?.rentalId).toBe('pta-1');
+    // La transacción no tocó la ruta directa: sólo el catálogo, la ficha y el contrato.
+    expect(llamadas.filter((l) => l.metodo === 'POST')).toEqual([]);
+    expect(llamadas.some((l) => l.url.endsWith('/api/alquiler/rentals/pta-1/agreement'))).toBe(true);
+  });
+
+  it('el cuerpo de abrir y de cotizar lleva SÓLO equipo, unidades y fechas: el precio lo pone el servidor', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+
+    await component.cotizar();
+    await component.reservar();
+
+    const esperado = {
+      equipo: 'andamio-6m',
+      unidades: [{ unidad: 1 }, { unidad: 2 }],
+      ventana: { start: '2026-11-05T00:00:00Z', end: '2026-11-08T00:00:00Z' },
+    };
+    expect(JSON.parse(puerta[0]!.cuerpo ?? '{}')).toEqual(esperado);
+    expect(JSON.parse(puerta[1]!.cuerpo ?? '{}')).toEqual(esperado);
+  });
+
+  it('lo apartado por la puerta se confirma por la puerta aunque la página diga hoy «directa»', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar('puerta');
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler', rentalPath: 'directa' });
+    fixture.detectChanges();
+    await component.confirmar();
+    await drenar();
+
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/cerrar?id=pta-1');
+    expect(llamadas.filter((l) => l.metodo === 'POST')).toEqual([]);
+  });
+
+  it('por la directa no sale nada a la puerta', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar('directa');
+    await pedir();
+
+    await component.cotizar();
+    await component.reservar();
+
+    expect(puerta).toEqual([]);
+    expect(llamadas.filter((l) => l.metodo === 'POST').map((l) => l.url)).toEqual(['/api/alquiler/quote', '/api/alquiler/rentals']);
+  });
+
+  it('sin oferta no se ofrece reservar y se dice que no se puede alquilar ahora', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    laPuerta({ cotizar: () => no('alquiler.equipment_not_offered') });
+    await pedir();
+
+    await component.cotizar();
+    fixture.detectChanges();
+
+    expect(component.cotizacionPuerta()).toBeNull();
+    expect(component.problema()).toBe('Este equipo no se puede alquilar ahora.');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Reservar');
+  });
+
+  it('cada rechazo dice lo suyo por su código, con los límites de la ficha', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+
+    laPuerta({ abrir: () => no('booking.at_capacity') });
+    await component.reservar();
+    expect(component.problema()).toBe('No quedan unidades de este equipo en esas fechas.');
+
+    laPuerta({ abrir: () => no('alquiler.window_out_of_bounds') });
+    await component.reservar();
+    expect(component.problema()).toBe('Este equipo se alquila entre 3 y 30 días.');
+
+    // Un código que la pantalla no conoce no se traduce a algo concreto: el genérico de la operación.
+    laPuerta({ abrir: () => no('booking.algo_nuevo') });
+    await component.reservar();
+    expect(component.problema()).toBe('No pudimos reservar el equipo. Vuelve a intentarlo.');
+  });
+
+  it('soltar lo apartado lo deshace y dice que no se cobró nada', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    await component.soltar();
+
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/cancelar?id=pta-1');
+    expect(component.apartada()).toBe(false);
+    expect(component.aviso()).toBe('Reserva cancelada: no se cobró nada.');
+  });
+
+  it('al volver a la ficha retoma lo apartado desde esta pestaña, y lo vencido lo dice', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    await component.abrir('andamio-6m');
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/consultar?id=pta-1');
+    expect(component.apartada()).toBe(true);
+    expect([component.desde(), component.hasta(), component.unidades()]).toEqual(['2026-11-05', '2026-11-08', 2]);
+
+    laPuerta({ consultar: () => ok(renta('Compensated')) });
+    await component.abrir('andamio-6m');
+    expect(component.apartada()).toBe(false);
+    expect(component.aviso()).toBe('Tu reserva venció y no se cobró nada. Vuelve a reservar.');
+  });
+
+  it('una confirmación que falla se CONSULTA antes de decir nada', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+    laPuerta({ cerrar: () => no('payments.unreachable', true), consultar: () => ok(renta('Running')) });
+
+    await component.confirmar();
+
+    expect(ops().slice(-2)).toEqual(['/api/flujos/alquiler.renta/cerrar?id=pta-1', '/api/flujos/alquiler.renta/consultar?id=pta-1']);
+    expect(component.apartada()).toBe(true);
+    expect(component.problema()).toBe('No pudimos confirmar el alquiler. Vuelve a intentarlo.');
   });
 });
 

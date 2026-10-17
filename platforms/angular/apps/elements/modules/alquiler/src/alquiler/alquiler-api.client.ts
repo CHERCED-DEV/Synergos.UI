@@ -22,7 +22,10 @@ import {
  *  - `POST /api/alquiler/rentals/{id}/return`        → `RentalDto`
  *  - `POST /api/alquiler/rentals/{id}/cancel`        → `RentalDto`
  *  - `GET  /api/alquiler/rentals`                    → `AgreementDto[]`   🔒 sesión
- *  - `GET  /api/alquiler/rentals/{id}/agreement`     → `AgreementDto`
+ *  - `GET  /api/alquiler/rentals/{id}/agreement`     → `AgreementDto`   🔒 sesión (también el de la puerta)
+ *
+ * La renta por la PUERTA no pasa por aquí: va por el coordinador con las funciones generadas de
+ * `alquiler.renta` (`alquiler-renta.strategy.ts`). Su contrato, en cambio, sí se lee de este lado.
  *
  * **Nada degrada a datos de ejemplo, y es la diferencia con los seis verticales anteriores.**
  * Ellos nacieron antes que su backend y su `catch` servía un seed visible; éste nace después, y
@@ -145,6 +148,15 @@ export class AlquilerApiClient {
     const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/cancel`;
     const idempotencyKey = llaveDe('cancel', rentalId, String(amount));
     return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
+  }
+
+  /**
+   * El contrato de UN alquiler, con su sello comprobado. El de una renta de la puerta lo emite el CMS al leerlo
+   * (T024): por eso se pide en cuanto `cerrar` contesta. `null` si todavía no hay contrato que emitir.
+   */
+  async agreement(apiBase: string, rentalId: string): Promise<RentalAgreement | null> {
+    const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/agreement`;
+    return normalizeAgreement(await this.getJson(url));
   }
 
   /** Mis contratos. Lanza `AlquilerUnauthorizedError` sin sesión. */

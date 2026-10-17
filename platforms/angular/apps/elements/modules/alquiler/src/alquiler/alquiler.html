@@ -117,25 +117,25 @@
           <form class="sg-alquiler__form" (submit)="$event.preventDefault(); cotizar()">
             <label class="sg-alquiler__field">
               <span>{{ txt.desde }}</span>
-              <input type="date" [value]="desde()"
-                     (change)="desde.set($any($event.target).value); cotizacion.set(null)" />
+              <input type="date" [value]="desde()" [disabled]="apartada()"
+                     (change)="desde.set($any($event.target).value); limpiarCotizacion()" />
             </label>
             <label class="sg-alquiler__field">
               <span>{{ txt.hasta }}</span>
-              <input type="date" [value]="hasta()"
-                     (change)="hasta.set($any($event.target).value); cotizacion.set(null)" />
+              <input type="date" [value]="hasta()" [disabled]="apartada()"
+                     (change)="hasta.set($any($event.target).value); limpiarCotizacion()" />
             </label>
             <label class="sg-alquiler__field">
               <span>{{ txt.unidades }}</span>
-              <input type="number" min="1" [value]="unidades()"
-                     (change)="unidades.set(+$any($event.target).value || 1); cotizacion.set(null)" />
+              <input type="number" min="1" [value]="unidades()" [disabled]="apartada()"
+                     (change)="unidades.set(+$any($event.target).value || 1); limpiarCotizacion()" />
             </label>
             <p class="sg-alquiler__meta">
               {{ limites(eq) }}
               @if (dias(); as d) { <span>{{ pedidos(d) }}</span> }
             </p>
             <button type="submit" class="sg-alquiler__cta"
-                    [disabled]="!puedeCotizar() || cotizando()">
+                    [disabled]="!puedeCotizar() || cotizando() || apartada()">
               {{ cotizando() ? txt.calculando : txt.calcular }}
             </button>
           </form>
@@ -152,6 +152,46 @@
             </div>
           }
 
+          <!-- Por la puerta (T032): el total y la garantía los cotiza el servidor; se aparta y DESPUÉS se paga. -->
+          @if (cotizacionPuerta(); as q) {
+            @if (!apartada()) {
+              <div class="sg-alquiler__quote">
+                <p>{{ lineaDeLaPuerta() }}</p>
+                @if (q.total; as total) {
+                  <p class="sg-alquiler__price">{{ plata(total.amount, total.currency) }}</p>
+                }
+                <p class="sg-alquiler__deposit">{{ garantiaDeLaPuerta(q) }}</p>
+                <button type="button" class="sg-alquiler__cta" [disabled]="reservando()"
+                        (click)="reservar()">
+                  {{ reservando() ? txt.reservando : txt.reservar }}
+                </button>
+              </div>
+            }
+          }
+
+          @if (apartada() && renta(); as r) {
+            <div class="sg-alquiler__quote sg-alquiler__held">
+              <p class="sg-alquiler__name">{{ tituloDeRenta(r) }}</p>
+              <p>{{ lineaDeLaPuerta() }}</p>
+              @if (r.total; as total) {
+                <p class="sg-alquiler__price">{{ plata(total.amount, total.currency) }}</p>
+              }
+              <p class="sg-alquiler__meta">{{ txt.apartadas }}</p>
+              <div class="sg-alquiler__actions">
+                <button type="button" class="sg-alquiler__cta" [disabled]="confirmando()"
+                        (click)="confirmar()">
+                  {{ confirmando() ? txt.confirmando : txt.confirmar }}
+                </button>
+                <button type="button" class="sg-alquiler__ghost" [disabled]="confirmando()"
+                        (click)="soltar()">{{ txt.cancelar }}</button>
+              </div>
+            </div>
+          }
+
+          @if (aviso()) {
+            <p class="sg-alquiler__meta" role="status">{{ aviso() }}</p>
+          }
+
           @if (reserva(); as r) {
             <div class="sg-alquiler__done">
               <p class="sg-alquiler__name">{{ tituloDeReserva(r) }}</p>
@@ -164,6 +204,25 @@
                     @default { {{ txt.selloSinComprobar }} }
                   }
                 </p>
+              }
+            </div>
+          }
+
+          @if (renta()?.estado === 'Completed' && renta(); as r) {
+            <div class="sg-alquiler__done">
+              <p class="sg-alquiler__name">{{ tituloDeRenta(r) }}</p>
+              @if (contratoPuerta(); as a) {
+                <p>{{ lineaDeContrato(a) }}</p>
+                <p class="sg-alquiler__seal sg-alquiler__seal--{{ sello(a) }}">
+                  @switch (sello(a)) {
+                    @case ('comprobado') { {{ txt.selloComprobado }} }
+                    @case ('no-cuadra') { {{ txt.selloNoCuadra }} }
+                    @default { {{ txt.selloSinComprobar }} }
+                  }
+                </p>
+              } @else {
+                <p>{{ lineaDeLaPuerta() }}</p>
+                <p class="sg-alquiler__seal sg-alquiler__seal--sin-comprobar">{{ txt.selloSinComprobar }}</p>
               }
             </div>
           }
