@@ -89,6 +89,12 @@
   background: var(--al-surface);
 }
 
+// La renta que trajo el enlace del correo (T036): la misma tarjeta, señalada con el color de acción del tema.
+.sg-alquiler__agreement--resaltado {
+  border-color: var(--al-brand);
+  box-shadow: 0 0 0 1px var(--al-brand);
+}
+
 .sg-alquiler__cover,
 .sg-alquiler__shot {
   width: 100%;

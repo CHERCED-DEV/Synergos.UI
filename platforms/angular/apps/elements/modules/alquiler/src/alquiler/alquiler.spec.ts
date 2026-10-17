@@ -801,12 +801,15 @@ describe('AlquilerElementComponent por la puerta', () => {
     };
   }
 
-  async function montar(rentalPath: 'puerta' | 'directa' = 'puerta'): Promise<void> {
+  async function montar(
+    rentalPath: 'puerta' | 'directa' = 'puerta',
+    respuestas: Partial<Record<string, () => ResultadoDelFlujo<unknown>>> = {},
+  ): Promise<void> {
     puerta.length = 0;
     flujo = document.createElement('synergos-flujo') as CoordinadorDelFlujo;
     flujo.setAttribute('flujo', 'alquiler.renta');
     document.body.appendChild(flujo);
-    laPuerta();
+    laPuerta(respuestas);
 
     await TestBed.configureTestingModule({
       imports: [AlquilerElementComponent],
@@ -974,6 +977,36 @@ describe('AlquilerElementComponent por la puerta', () => {
     await component.abrir('andamio-6m');
     expect(component.apartada()).toBe(false);
     expect(component.aviso()).toBe('Tu reserva venció y no se cobró nada. Vuelve a reservar.');
+  });
+
+  it('el enlace del correo (?alquiler=) consulta la renta, emite su contrato y abre «mis alquileres» con ella', async () => {
+    window.history.replaceState(null, '', '/alquiler/?alquiler=pta-1&utm=correo');
+    const { llamadas } = servidor({
+      ...GUION_FELIZ,
+      'GET /api/alquiler/rentals/pta-1/agreement': { ...CONTRATO, rentalId: 'pta-1' },
+      'GET /api/alquiler/rentals': [{ ...CONTRATO, rentalId: 'pta-1' }],
+    });
+    await montar('puerta', { consultar: () => ok(renta('Completed')) });
+    await drenar();
+
+    expect(ops()).toEqual(['/api/flujos/alquiler.renta/consultar?id=pta-1']);
+    expect(llamadas.some((l) => l.url.endsWith('/api/alquiler/rentals/pta-1/agreement'))).toBe(true);
+    expect(component.vista()).toBe('mios');
+    expect(component.resaltado()).toBe('pta-1');
+    // Leído, el parámetro sale de la URL (lo demás de la consulta se queda): si no, cada recarga lo reabriría.
+    expect(window.location.search).toBe('?utm=correo');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('sin sesión el enlace del correo pide entrar y CONSERVA el parámetro para volver', async () => {
+    window.history.replaceState(null, '', '/alquiler/?alquiler=pta-1');
+    servidor(GUION_FELIZ);
+    await montar('puerta', { consultar: () => no('puerta.sesion_requerida') });
+    await drenar();
+
+    expect(component.mios()?.estado).toBe('sin-sesion');
+    expect(window.location.search).toBe('?alquiler=pta-1');
+    window.history.replaceState(null, '', '/');
   });
 
   it('una confirmación que falla se CONSULTA antes de decir nada', async () => {

@@ -259,7 +259,7 @@
         } @else {
           <ul class="sg-alquiler__list">
             @for (a of contratos; track a.rentalId) {
-              <li class="sg-alquiler__agreement">
+              <li class="sg-alquiler__agreement" [class.sg-alquiler__agreement--resaltado]="a.rentalId === resaltado()">
                 <h3 class="sg-alquiler__name">{{ a.equipmentName }}</h3>
                 @if (estadoDelContrato(a); as estado) {
                   <p class="sg-alquiler__state sg-alquiler__state--{{ a.state }}">{{ estado }}</p>

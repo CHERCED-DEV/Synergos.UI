@@ -20,6 +20,7 @@ import {
 } from '@synergos/shared';
 import type { AlquilerProps } from '@synergos/contracts';
 import {
+  avisoDelFlujo,
   clasificarRechazo,
   elegirMensaje,
   formatearImporte,
@@ -90,6 +91,32 @@ export function sanitizeAlquilerConfig(value: AlquilerConfig): AlquilerConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     rentalPath: normalizeRentalPath(value.rentalPath),
   });
+}
+
+/**
+ * Con qué parámetro llega a la página el enlace del correo de la renta: el de la tabla GENERADA de las rutas del CMS
+ * (`Synergos:Puerta:Flujos:alquiler.renta:Aviso:Ruta`, núcleo N3), no un literal de aquí. Vacío si nadie avisa.
+ */
+function parametroDelAviso(): string {
+  return avisoDelFlujo(FLUJO_RENTA)?.parametro ?? '';
+}
+
+/** La renta del enlace del aviso (`?alquiler={id}`), o vacío. */
+function rentaDelEnlace(): string {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return '';
+  return new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+}
+
+/** Quita el parámetro del aviso de la URL: se usa una vez, y lo que quede lo reabriría en cada recarga. */
+function consumirRentaDelEnlace(): void {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return;
+  const consulta = new URLSearchParams(window.location.search);
+  if (!consulta.has(parametro)) return;
+  consulta.delete(parametro);
+  const texto = consulta.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`);
 }
 
 /** El día de hoy en el reloj del navegador, `YYYY-MM-DD`. */
@@ -365,7 +392,37 @@ export class AlquilerElementComponent implements OnInit {
    */
   ngOnInit(): void {
     void this.cargarCatalogo();
+    const delAviso = rentaDelEnlace();
+    if (delAviso) void this.abrirDelAviso(delAviso);
   }
+
+  /**
+   * El enlace del correo (T036): la renta se CONSULTA por la puerta y su contrato se lee del CMS —que lo emite al
+   * leerlo—, y se abre «mis alquileres» con ella resaltada. Sin sesión el parámetro se QUEDA en la URL: el login
+   * vuelve a esta misma página y la vuelve a abrir. Leído (o si no existe), sale de la URL.
+   */
+  async abrirDelAviso(id: string): Promise<void> {
+    this.resaltado.set(id);
+    if (!hayCoordinador(this.#host, FLUJO_RENTA)) {
+      await this.cargarMios();
+      return;
+    }
+    const r = await consultarRenta(this.#host, id);
+    if (!r.ok && clasificarRechazo(r.rechazo) === 'sesion') {
+      this.vista.set('mios');
+      this.mios.set({ estado: 'sin-sesion' });
+      return;
+    }
+    if (r.ok && r.valor.estado === 'Completed') {
+      // Pedirlo lo emite si la pestaña se cerró justo después de pagar; la bandeja lo trae después.
+      await this.#api.agreement(this.apiBase(), id).catch(() => null);
+    }
+    consumirRentaDelEnlace();
+    await this.cargarMios();
+  }
+
+  /** La renta que trajo el enlace del aviso, para señalarla en «mis alquileres». */
+  readonly resaltado = signal('');
 
   /** Carga el catálogo. Es lo primero que la pantalla hace. */
   async cargarCatalogo(): Promise<void> {
