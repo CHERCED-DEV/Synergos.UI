@@ -5,7 +5,7 @@ import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { RealtyApiClient } from './realty-api.client';
 import { RealtyFulfillmentStrategy } from './realty-fulfillment.strategy';
-import { RealtyElementComponent } from './realty';
+import { RealtyElementComponent, sanitizeRealtyConfig } from './realty';
 import { calculateMortgage } from './mortgage.calc';
 import { asentar } from '../../../../../../tools/asentar';
 import { REALTY_SYNHOST } from '@synergos/contracts';
@@ -343,6 +343,82 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     });
   });
 
+  // ── 008-propiedades-visita: la visita por la puerta, cuando el CMS la declara ──────────────────
+  //
+  // El CMS declara el camino (`visitPath`, «directa» por defecto). Por la puerta: sólo franjas que la agenda
+  // comprobó y con sus instantes, sin paso de «Tus datos» (el aviso va al correo de la sesión), un texto por
+  // cada rechazo y «Mis visitas» sin afirmar que no hay ninguna.
+  describe('la visita por la puerta (008)', () => {
+    const NEGOCIO_POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, visitPath: 'puerta', zonaHoraria: 'America/Bogota' };
+    const FRANJAS_DE_LA_AGENDA = [
+      { date: '2026-11-03', time: '09:00', start: '2026-11-03T14:00:00Z', end: '2026-11-03T15:00:00Z', checked: true },
+      { date: '2026-11-03', time: '11:00', start: '2026-11-03T16:00:00Z', end: '2026-11-03T17:00:00Z', checked: false },
+      { date: '2026-11-04', time: '09:00' },
+    ];
+
+    async function alAsistente(config: Record<string, unknown>): Promise<CheckoutWizardComponent> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', bordeDeEscrituras({ franjas: FRANJAS_DE_LA_AGENDA }).fetchDoble);
+      await createComponent(config);
+      component.openListing(component.listings()[0]);
+      await flushMicrotasks();
+      component.startVisit();
+      await flushMicrotasks();
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+    }
+
+    it('ofrece sólo las franjas que la agenda comprobó y que traen sus instantes', async () => {
+      await alAsistente(NEGOCIO_POR_LA_PUERTA);
+
+      expect(component.visitPath()).toBe('puerta');
+      expect(component.availableSlots().map((s) => `${s.date} ${s.time}`)).toEqual(['2026-11-03 09:00']);
+    });
+
+    it('por la directa ofrece todas, como siempre (control)', async () => {
+      await alAsistente(NEGOCIO_DEL_CMS);
+
+      expect(component.visitPath()).toBe('directa');
+      expect(component.availableSlots()).toHaveLength(3);
+    });
+
+    it('por la puerta no pide «Tus datos» y dice antes de elegir que hace falta la sesión', async () => {
+      const wizard = await alAsistente(NEGOCIO_POR_LA_PUERTA);
+      wizard.next(); // modalidad → franja
+      fixture.detectChanges();
+
+      expect(component.visitCheckoutConfig().steps.map((s) => s.id)).toEqual(['mode', 'slot', 'agendar']);
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector('.realty__slots-note')?.textContent).toContain('inicia sesión');
+    });
+
+    it('cada rechazo de la puerta dice lo suyo, y lo demás queda con el texto del asistente', async () => {
+      await alAsistente(NEGOCIO_POR_LA_PUERTA);
+      const mensaje = component.visitCheckoutConfig().mensajeDeFallo!;
+
+      expect(mensaje('booking.at_capacity', '')).toContain('ya lo tomaron');
+      expect(mensaje('booking.outside_opening_hours', '')).toContain('fuera de la agenda');
+      expect(mensaje('booking.resource_not_found', '')).toContain('todavía no recibe visitas en línea');
+      expect(mensaje('puerta.sesion_requerida', '')).toContain('inicia sesión');
+      expect(mensaje('visit-not-booked', '')).toBeNull();
+    });
+
+    it('«Mis visitas» por la puerta dice dónde se consultan en vez de «todavía ninguna»', async () => {
+      await alAsistente(NEGOCIO_POR_LA_PUERTA);
+      expect(component.accountConfig().inboxEmptyMessage).toContain('enlace del correo');
+
+      TestBed.resetTestingModule();
+      await alAsistente(NEGOCIO_DEL_CMS);
+      expect(component.accountConfig().inboxEmptyMessage).toBe('Todavía no tienes visitas agendadas.');
+    });
+
+    it('un camino que no existe se descarta y la visita va por la directa', () => {
+      expect(sanitizeRealtyConfig({ visitPath: 'puerto' }).visitPath).toBeUndefined();
+      expect(sanitizeRealtyConfig({ visitPath: ' Puerta ' }).visitPath).toBe('puerta');
+      expect(sanitizeRealtyConfig({ zonaHoraria: ' America/Bogota ' }).zonaHoraria).toBe('America/Bogota');
+    });
+  });
+
   // ── happy: PDP → SH-3 visit wizard → confirm (NO payment) ─────────────────────
   //
   // Corría con la red caída y lo que probaba era el `VIS-<ts>` que fabricaba el `catch`
@@ -391,7 +467,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(anunciadas).toEqual([]);
     // Y se dice UNA vez (regla 55), con el texto de la visita y no el de un cobro.
     expect(alertas().map((alerta) => alerta.textContent?.trim())).toEqual([
-      component.visitCheckoutConfig.confirmFailedMessage,
+      component.visitCheckoutConfig().confirmFailedMessage,
     ]);
     expect(wizard.errorMessage()).not.toContain('pago');
 

@@ -66,6 +66,7 @@ import {
 } from '@synergos/shared';
 import type { RealtyProps } from '@synergos/contracts';
 import { RealtyApiClient, isRealtyForbidden, isRealtyUnauthorized } from './realty-api.client';
+import { consultarVisita } from './realty-visita.puerta';
 import { calculateMortgage } from './mortgage.calc';
 import {
   REALTY_FLOW,
@@ -90,6 +91,7 @@ import {
   type SortKey,
   type Visit,
   type VisitMode,
+  type VisitPath,
   type VisitSelectionPayload,
   type VisitSlot,
   type VisitStep,
@@ -194,7 +196,16 @@ export function sanitizeRealtyConfig(value: RealtyConfig): RealtyConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     defaultRatePercent: coerceRate(value.defaultRatePercent),
+    // El camino de la visita y la hora del sitio (008-propiedades-visita): sólo los dos caminos que existen; lo
+    // demás se descarta y la visita va por la directa, la de por defecto.
+    visitPath: coerceVisitPath(value.visitPath),
+    zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
   });
+}
+
+function coerceVisitPath(value: unknown): VisitPath | undefined {
+  const raw = coerceTrimmedStringInput(value)?.toLowerCase();
+  return raw === 'puerta' || raw === 'directa' ? raw : undefined;
 }
 
 function coerceRole(value: unknown): RealtyRole | undefined {
@@ -255,11 +266,25 @@ export class RealtyElementComponent implements OnInit {
   readonly agendaCargando = computed(() => t('Realty.Visit.SlotsLoading', 'Cargando la agenda del agente…'));
   readonly agendaFallo = computed(() => t('Realty.Visit.SlotsFailed', 'No pudimos cargar la agenda del agente. No te mostramos horarios que no podamos confirmar.'));
   readonly agendaVacia = computed(() => t('Realty.Visit.SlotsEmpty', 'No hay franjas disponibles para este inmueble por ahora.'));
+  /** Los textos de la visita por la puerta (008-propiedades-visita), de la misma sección del diccionario. */
+  readonly visitaPideSesion = computed(() =>
+    t('Realty.Visit.SessionRequired', 'Para agendar en línea inicia sesión: la visita queda en tu cuenta y el aviso llega a tu correo.'),
+  );
+  readonly visitaModalidadPorDefecto = computed(() =>
+    t('Realty.Visit.DefaultMode', 'Si no eliges la modalidad, la visita es presencial.'),
+  );
+  readonly visitasDelCorreo = computed(() =>
+    t('Realty.Visit.FromEmail', 'Las visitas que agendas en línea las consultas desde el enlace del correo que te enviamos.'),
+  );
+  readonly visitaAvisoEtiqueta = computed(() => t('Realty.Visit.NoticeLabel', 'Aviso'));
+  readonly visitaAvisoAlCorreo = computed(() => t('Realty.Visit.NoticeToAccount', 'Al correo de tu cuenta'));
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<RealtyBus>>(TransactionEventBusService);
   readonly #api = inject(RealtyApiClient);
+  /** El `<synergos-realty>` de ESTA página: desde él la estrategia encuentra su `<synergos-flujo>`. */
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<RealtyConfig | undefined, unknown>(undefined, {
@@ -307,6 +332,13 @@ export class RealtyElementComponent implements OnInit {
    * —una tasa 0 sería un crédito sin intereses—: el simulador espera a que la escriban.
    */
   readonly initialRate = computed(() => this.config()?.defaultRatePercent ?? null);
+
+  /**
+   * Por dónde se agenda la visita, como lo DECLARA el CMS (`visitPath`, 008-P1). Sin declaración, la directa: la
+   * de siempre y la de por defecto. Una visita que ya salió no lo mira: se termina por el camino de su línea.
+   */
+  readonly visitPath = computed<VisitPath>(() => (this.config()?.visitPath === 'puerta' ? 'puerta' : 'directa'));
+  readonly porLaPuerta = computed(() => this.visitPath() === 'puerta');
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -668,7 +700,15 @@ export class RealtyElementComponent implements OnInit {
   readonly visitSlots = signal<readonly VisitSlot[]>([]);
   /** `cargando` · `ok` (con o sin franjas) · `fallo` (no se pudo leer la agenda). */
   readonly visitSlotsState = signal<'cargando' | 'ok' | 'fallo'>('cargando');
-  readonly availableSlots = computed<readonly VisitSlot[]>(() => this.visitSlots());
+  /**
+   * Por la puerta se ofrecen SÓLO las franjas que la agenda comprobó y que traen sus instantes (FR-020): una franja
+   * libre por degradación sería prometer una hora que nadie confirmó. Por la directa, todas, como siempre.
+   */
+  readonly availableSlots = computed<readonly VisitSlot[]>(() =>
+    this.porLaPuerta()
+      ? this.visitSlots().filter((slot) => slot.checked !== false && !!slot.start && !!slot.end)
+      : this.visitSlots(),
+  );
 
   readonly availableDays = computed<readonly string[]>(() => {
     const seen = new Set<string>();
@@ -679,13 +719,15 @@ export class RealtyElementComponent implements OnInit {
   });
 
   // ─── Visit checkout (SH-3 wizard — pago apagado; the visit form IS the wizard) ─
-  readonly visitCheckoutConfig: CheckoutWizardConfig = {
+  readonly visitCheckoutConfig = computed<CheckoutWizardConfig>(() => ({
+    // Por la puerta no hay paso de «Tus datos»: el aviso va al correo de la sesión, así que pedir nombre y correo
+    // sería pedir datos que no se usan (principio VI).
     steps: [
       { id: 'mode', label: 'Modalidad' },
       { id: 'slot', label: 'Fecha y hora' },
       { id: 'contact', label: 'Tus datos' },
       { id: 'agendar', label: 'Confirmar' },
-    ],
+    ].filter((paso) => !(this.porLaPuerta() && paso.id === 'contact')),
     stepsLabel: 'Pasos para agendar la visita',
     summaryHeading: 'Tu visita',
     submitLabel: 'Agendar visita',
@@ -697,18 +739,49 @@ export class RealtyElementComponent implements OnInit {
     confirmFailedMessage: 'No pudimos agendar la visita: el horario no quedó reservado. Intenta de nuevo.',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
-  };
+    // Cada rechazo de la puerta dice lo suyo (franja tomada, fuera de horario, sin agenda…); lo demás, el de arriba.
+    mensajeDeFallo: (motivo: string) => this.mensajeDeLaVisita(motivo),
+  }));
+
+  /** El texto de cada rechazo de la visita, del diccionario; `null` deja el del asistente. */
+  private mensajeDeLaVisita(motivo: string): string | null {
+    switch (motivo) {
+      case 'puerta.sesion_requerida':
+      case 'cliente.redirigido':
+        return this.visitaPideSesion();
+      case 'booking.at_capacity':
+        return t('Realty.Visit.SlotTaken', 'Ese horario ya lo tomaron. Elige otro de la agenda.');
+      case 'booking.outside_opening_hours':
+        return t('Realty.Visit.OutsideHours', 'Ese horario está fuera de la agenda de visitas.');
+      case 'booking.window_in_the_past':
+        return t('Realty.Visit.InPast', 'Ese horario ya pasó. Elige uno de los próximos días.');
+      case 'booking.resource_not_found':
+        return t('Realty.Visit.NoAgenda', 'Este inmueble todavía no recibe visitas en línea. Escríbele al agente y la coordinan.');
+      case 'propiedades.duracion_invalida':
+      case 'propiedades.franja_sin_instantes':
+      case 'propiedades.entrada_invalida':
+      case 'propiedades.modalidad_invalida':
+        return t('Realty.Visit.InvalidSlot', 'Elige una de las franjas de la agenda.');
+      case 'puerta.flujo_no_disponible':
+      case 'puerta.orquestador_no_disponible':
+      case 'cliente.sin_coordinador':
+        return t('Realty.Visit.Unavailable', 'La agenda en línea no está disponible ahora. Escríbele al agente y la coordinan.');
+      default:
+        return null;
+    }
+  }
 
   /** Per-step gating for the SH-3 visit wizard. */
   readonly visitCheckoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     mode: true,
     slot: this.visitSlotValid(),
     contact: this.visitContactValid(),
-    agendar: this.visitSlotValid() && this.visitContactValid(),
+    agendar: this.visitSlotValid() && (this.porLaPuerta() || this.visitContactValid()),
   }));
 
   /** Instrument handed to the strategy's `pay` (no PSP token — pago OFF). */
   readonly visitInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
+    host: this.#host,
     apiBase: this.apiBase(),
     provider: 'realty-visit',
     listingId: this.visitListing()?.id ?? '',
@@ -722,7 +795,9 @@ export class RealtyElementComponent implements OnInit {
     // «Todavía no tienes visitas agendadas» sólo es verdad cuando se pudo LEER la bandeja.
     // Con un 401 o con el borde caído es una afirmación sobre una cuenta que no se miró, así
     // que el shell pinta su estado de error en vez del vacío (regla 17).
-    inboxEmptyMessage: 'Todavía no tienes visitas agendadas.',
+    // Por la puerta, la bandeja todavía no ve las visitas en línea (falta la lectura por dueño del núcleo): decir
+    // «todavía ninguna» sería negar una visita que existe (FR-026).
+    inboxEmptyMessage: this.porLaPuerta() ? this.visitasDelCorreo() : 'Todavía no tienes visitas agendadas.',
     inboxLoadingMessage: 'Cargando tus visitas…',
     detailPlaceholder: 'Selecciona una visita para ver el detalle y su seguimiento.',
     ...(this.visitsState() === 'unreadable'
@@ -935,8 +1010,44 @@ export class RealtyElementComponent implements OnInit {
     if (this.role() === 'agent') {
       void this.loadDesk().then(() => this.applyHash());
     } else {
-      void this.runSearch().then(() => this.applyHash());
+      void this.runSearch().then(() => this.applyHash()).then(() => this.abrirVisitaDelEnlace());
     }
+  }
+
+  /**
+   * El enlace del aviso (`?visita=<id>`, 008-propiedades-visita): con la sesión de su dueño, la visita confirmada que
+   * agendó por la puerta. Con otra sesión, o sin ella, no se muestra nada: la puerta contesta que no existe.
+   */
+  private async abrirVisitaDelEnlace(): Promise<void> {
+    const id = this.porLaPuerta() ? (new URLSearchParams(window.location.search).get('visita') ?? '').trim() : '';
+    if (id === '') {
+      return;
+    }
+    const r = await consultarVisita(this.#host, id);
+    if (!r.ok || r.valor.estado !== 'Completed' || !r.valor.ventana) {
+      return;
+    }
+    const inmueble = r.valor.inmueble;
+    this.confirmedVisit.set({
+      id: r.valor.numero,
+      listingId: inmueble,
+      listingTitle: this.listings().find((l) => l.id === inmueble)?.title ?? '',
+      slot: this.enLaHoraDelSitio(r.valor.ventana.start),
+      mode: r.valor.modo,
+      status: 'confirmed',
+      contact: { name: '', email: '', phone: '' },
+    });
+    this.confirmedLeadId.set('');
+    this.navigate('confirmation');
+  }
+
+  /** Un instante en la hora del sitio (`zonaHoraria`, la del CMS): la visita de las 9 de Bogotá es «09:00». */
+  private enLaHoraDelSitio(instante: string): VisitSlot {
+    const zona = this.config()?.zonaHoraria || undefined;
+    const fecha = new Date(instante);
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(fecha);
+    const time = new Intl.DateTimeFormat('en-GB', { timeZone: zona, hour: '2-digit', minute: '2-digit', hour12: false }).format(fecha);
+    return { date, time };
   }
 
   /**
@@ -1773,12 +1884,19 @@ export class RealtyElementComponent implements OnInit {
       email: this.visitEmail().trim(),
       phone: this.visitPhone().trim(),
     };
+    const elegida = this.visitSlots().find((slot) => slot.date === this.visitDate() && slot.time === this.visitTime());
     const payload: VisitSelectionPayload = {
       listingId: listing.id,
       listingTitle: listing.title,
-      slot: { date: this.visitDate(), time: this.visitTime() },
+      slot: {
+        date: this.visitDate(),
+        time: this.visitTime(),
+        ...(elegida?.start && elegida.end ? { start: elegida.start, end: elegida.end } : {}),
+      },
       mode: this.visitMode(),
       contact,
+      // El camino se anota en la línea al elegir: una visita que ya salió se termina por donde salió.
+      path: this.visitPath(),
     };
     const selection = await this.#fulfillment.select(
       {

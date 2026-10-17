@@ -251,7 +251,26 @@ export interface VisitSlot {
   readonly date: string;
   /** HH:mm 24h. */
   readonly time: string;
+  /**
+   * La misma franja como INSTANTES (ISO con desfase), tal como la dio la lectura del CMS
+   * (008-propiedades-visita, R5). Es lo que la puerta pide como `ventana`: `date`/`time` están en
+   * la hora del sitio y convertirlos en el navegador sería adivinar su huso. Ausentes en un
+   * borde anterior: entonces la franja no se puede agendar por la puerta.
+   */
+  readonly start?: string;
+  readonly end?: string;
+  /**
+   * Si la agenda contestó por esta franja. `false` es que se muestra libre por DEGRADACIÓN (la
+   * agenda no respondió): la ruta directa la ofrece igual, la puerta no (FR-020).
+   */
+  readonly checked?: boolean;
 }
+
+/**
+ * Por dónde se agenda la visita, como lo DECLARA el CMS (`visitPath`, 008-P1): la puerta de los
+ * flujos (`propiedades.visita`, con sesión) o la ruta directa del portal (anónima, como siempre).
+ */
+export type VisitPath = 'puerta' | 'directa';
 
 /** The buyer's chosen visit before it becomes a cart `SessionItem`. */
 export interface VisitSelectionPayload {
@@ -260,6 +279,11 @@ export interface VisitSelectionPayload {
   readonly slot: VisitSlot;
   readonly mode: VisitMode;
   readonly contact: ContactInfo;
+  /**
+   * El camino por el que sale ESTA visita, anotado al elegirla: una visita que ya salió se termina
+   * por el camino por el que salió aunque el CMS declare otro al recargar (la lección de Eventos).
+   */
+  readonly path?: VisitPath;
 }
 
 /** `POST /api/realty/visit` request body. */

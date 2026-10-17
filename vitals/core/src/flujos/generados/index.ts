@@ -4,4 +4,5 @@
 
 export * from './avisos';
 export * from './eventos.compra';
+export * from './propiedades.visita';
 export * from './reservas.servicio';

@@ -375,7 +375,7 @@
           <h1 class="realty__visit-title">Agendar visita · {{ listing.title }}</h1>
 
           <syn-checkout-wizard
-            [config]="visitCheckoutConfig"
+            [config]="visitCheckoutConfig()"
             [validity]="visitCheckoutValidity()"
             [instrument]="visitInstrument()"
             [showSummary]="false"
@@ -388,6 +388,9 @@
           <ng-template #visitStep let-step>
             @switch (step.id) {
               @case ('mode') {
+                @if (porLaPuerta()) {
+                  <p class="realty__slots-note">{{ visitaModalidadPorDefecto() }}</p>
+                }
                 <syn-segmented
                   ariaLabel="Modalidad de la visita"
                   [options]="visitModes"
@@ -397,7 +400,10 @@
               }
               @case ('slot') {
                 <!-- Las franjas son las que contesta el servidor y nada más: sin agenda de
-                     ejemplo. Mientras carga, si falla o si no hay, se dice. -->
+                     ejemplo. Mientras carga, si falla o si no hay, se dice. Por la puerta, que pide sesión. -->
+                @if (porLaPuerta()) {
+                  <p class="realty__slots-note">{{ visitaPideSesion() }}</p>
+                }
                 @if (visitSlotsState() === 'cargando') {
                   <p class="realty__slots-note">{{ agendaCargando() }}</p>
                 } @else if (visitSlotsState() === 'fallo') {
@@ -449,7 +455,11 @@
                   <div><dt>Propiedad</dt><dd>{{ listing.title }}</dd></div>
                   <div><dt>Modalidad</dt><dd>{{ visitModeLabel(visitMode()) }}</dd></div>
                   <div><dt>Fecha</dt><dd>{{ formatDate(visitDate()) }} · {{ visitTime() }}</dd></div>
-                  <div><dt>Contacto</dt><dd>{{ visitName() }} · {{ visitEmail() }}</dd></div>
+                  @if (porLaPuerta()) {
+                    <div><dt>{{ visitaAvisoEtiqueta() }}</dt><dd>{{ visitaAvisoAlCorreo() }}</dd></div>
+                  } @else {
+                    <div><dt>Contacto</dt><dd>{{ visitName() }} · {{ visitEmail() }}</dd></div>
+                  }
                 </dl>
                 <p class="realty__review-note">Agendar una visita no tiene costo.</p>
               }

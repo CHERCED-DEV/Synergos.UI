@@ -600,6 +600,10 @@ export interface RealtyProps {
   readonly apiBase: string;
   /** negocio */
   readonly defaultRatePercent: number;
+  /** negocio */
+  readonly visitPath: string;
+  /** negocio */
+  readonly zonaHoraria: string;
 }
 
 /** <synergos-reserva> · funcionalidad · diccionario: Booking.Slot */
@@ -2166,8 +2170,8 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
   tipo: "funcionalidad",
   record: "RealtyProps",
   diccionario: ["Realty.Visit"],
-  claves: ["Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading"],
-  campos: ["heading","subheading","apiBase","defaultRatePercent"],
+  claves: ["Realty.Visit.DefaultMode","Realty.Visit.FromEmail","Realty.Visit.InPast","Realty.Visit.InvalidSlot","Realty.Visit.NoAgenda","Realty.Visit.NoticeLabel","Realty.Visit.NoticeToAccount","Realty.Visit.OutsideHours","Realty.Visit.SessionRequired","Realty.Visit.SlotTaken","Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading","Realty.Visit.Unavailable"],
+  campos: ["heading","subheading","apiBase","defaultRatePercent","visitPath","zonaHoraria"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -2175,7 +2179,9 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
     "heading": "Encuentra el lugar que estás buscando",
     "subheading": "Compra y arriendo, en lista y en mapa",
     "apiBase": "/api/realty",
-    "defaultRatePercent": 12
+    "defaultRatePercent": 12,
+    "visitPath": "directa",
+    "zonaHoraria": "America/Bogota"
   },
 };
 
