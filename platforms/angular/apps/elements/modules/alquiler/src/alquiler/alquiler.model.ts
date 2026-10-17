@@ -146,6 +146,27 @@ export interface RentalAgreement {
    * impedir, y quien lo enseña en la puerta no tiene cómo saberlo.
    */
   readonly verified: boolean | null;
+  /**
+   * En qué punto está el alquiler según el registro del CMS (T034). `null` si el borde no lo dijo o dijo algo que
+   * no se reconoce: entonces no se pinta ningún estado ni se ofrece ninguna acción, en vez de suponer «confirmado».
+   */
+  readonly state: RentalState | null;
+  /** Cuándo se declaró la devolución (ISO); vacío si no se declaró o no consta. */
+  readonly declaredUtc: string;
+  /** El servicio de firma no contestó al emitirlo: sello pendiente, distinto de «no cuadra». */
+  readonly sealPending: boolean;
+  /** Cómo se cerró la devolución, con su propio sello; `null` mientras no se cierre. */
+  readonly outcome: AgreementOutcome | null;
+}
+
+/** Cómo se cerró la devolución: lo que confirmó el personal (decisión 5 del lote 1). */
+export interface AgreementOutcome {
+  readonly confirmedUtc: string;
+  readonly damage: number;
+  /** `null` es «no consta», nunca cero. */
+  readonly depositReleased: number | null;
+  readonly verified: boolean | null;
+  readonly sealPending: boolean;
 }
 
 /** Un alquiler tal como lo lee esta app. */
@@ -287,6 +308,24 @@ export function normalizeAgreement(value: unknown): RentalAgreement | null {
     issuedUtc: readString(value['issuedUtc']),
     seal: readString(value['seal']),
     verified: readBooleanOrNull(value['verified']),
+    state: readRentalState(value['state']),
+    declaredUtc: readString(value['declaredUtc']),
+    sealPending: value['sealPending'] === true,
+    outcome: normalizeOutcome(value['outcome']),
+  };
+}
+
+/** Normaliza el desenlace; `null` si no lo hay o no trae cuándo se confirmó. */
+export function normalizeOutcome(value: unknown): AgreementOutcome | null {
+  if (!isRecord(value)) return null;
+  const confirmedUtc = readString(value['confirmedUtc']).trim();
+  if (!confirmedUtc) return null;
+  return {
+    confirmedUtc,
+    damage: readNumber(value['damage']) ?? 0,
+    depositReleased: readNumber(value['depositReleased']),
+    verified: readBooleanOrNull(value['verified']),
+    sealPending: value['sealPending'] === true,
   };
 }
 

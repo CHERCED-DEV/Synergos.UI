@@ -201,6 +201,7 @@
                   @switch (sello(a)) {
                     @case ('comprobado') { {{ txt.selloComprobado }} }
                     @case ('no-cuadra') { {{ txt.selloNoCuadra }} }
+                    @case ('pendiente') { {{ txt.selloPendiente }} }
                     @default { {{ txt.selloSinComprobar }} }
                   }
                 </p>
@@ -217,6 +218,7 @@
                   @switch (sello(a)) {
                     @case ('comprobado') { {{ txt.selloComprobado }} }
                     @case ('no-cuadra') { {{ txt.selloNoCuadra }} }
+                    @case ('pendiente') { {{ txt.selloPendiente }} }
                     @default { {{ txt.selloSinComprobar }} }
                   }
                 </p>
@@ -254,28 +256,44 @@
             @for (a of contratos; track a.rentalId) {
               <li class="sg-alquiler__agreement">
                 <h3 class="sg-alquiler__name">{{ a.equipmentName }}</h3>
+                @if (estadoDelContrato(a); as estado) {
+                  <p class="sg-alquiler__state sg-alquiler__state--{{ a.state }}">{{ estado }}</p>
+                }
                 <p class="sg-alquiler__meta">{{ lineaDeContrato(a) }}</p>
                 <p class="sg-alquiler__price">{{ plata(a.rentalTotal, a.currency) }}</p>
-                <p class="sg-alquiler__deposit">
-                  @if (a.depositHeld === null) {
-                    {{ txt.garantiaNoConsta }}
-                  } @else {
-                    {{ garantiaRetenida(a.depositHeld, a.currency) }}
-                  }
-                </p>
+                @if (a.state === 'reserved' || a.state === 'declared') {
+                  <p class="sg-alquiler__deposit">
+                    @if (a.depositHeld === null) {
+                      {{ txt.garantiaNoConsta }}
+                    } @else {
+                      {{ garantiaRetenida(a.depositHeld, a.currency) }}
+                    }
+                  </p>
+                }
+                @if (desenlace(a); as d) {
+                  <p class="sg-alquiler__meta">{{ d }}</p>
+                }
                 <p class="sg-alquiler__seal sg-alquiler__seal--{{ sello(a) }}">
                   @switch (sello(a)) {
                     @case ('comprobado') { {{ contratoComprobado(a) }} }
                     @case ('no-cuadra') { {{ txt.contratoNoCuadra }} }
+                    @case ('pendiente') { {{ txt.selloPendiente }} }
                     @default { {{ txt.contratoSinComprobar }} }
                   }
                 </p>
-                <div class="sg-alquiler__actions">
-                  <button type="button" class="sg-alquiler__cta"
-                          (click)="devolver(a.rentalId, 0)">{{ txt.devolvi }}</button>
-                  <button type="button" class="sg-alquiler__ghost"
-                          (click)="cancelar(a.rentalId, 0)">{{ txt.cancelar }}</button>
-                </div>
+                @if (puedeDeclarar(a)) {
+                  @if (puedeCancelar(a)) {
+                    <p class="sg-alquiler__meta">{{ cancelableHasta(a) }}</p>
+                  }
+                  <div class="sg-alquiler__actions">
+                    <button type="button" class="sg-alquiler__cta"
+                            (click)="declarar(a.rentalId)">{{ txt.devolvi }}</button>
+                    @if (puedeCancelar(a)) {
+                      <button type="button" class="sg-alquiler__ghost"
+                              (click)="cancelar(a.rentalId, 0)">{{ txt.cancelar }}</button>
+                    }
+                  </div>
+                }
               </li>
             }
           </ul>

@@ -8,7 +8,7 @@ import {
 } from '@synergos/vitals-core';
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
-import { normalizeRental, readRentalState } from './alquiler.model';
+import { normalizeAgreement, normalizeRental, readRentalState } from './alquiler.model';
 import { asentar } from '../../../../../../tools/asentar';
 
 /**
@@ -75,6 +75,7 @@ const CONTRATO = {
   issuedUtc: '2026-09-22T15:00:00+00:00',
   seal: 'a1b2c3d4e5f60718',
   verified: true,
+  state: 'reserved',
 };
 
 const ALQUILER = {
@@ -384,15 +385,18 @@ describe('AlquilerElementComponent', () => {
     expect(component.mios()?.estado).toBe('sin-sesion');
   });
 
-  it('el sello tiene TRES respuestas y «no consta» no se pinta como «comprobado»', async () => {
+  it('el sello tiene CUATRO respuestas y «no consta» no se pinta como «comprobado»', async () => {
     servidor(GUION_FELIZ);
     await montar();
+    const contrato = normalizeAgreement(CONTRATO)!;
 
-    expect(component.sello({ ...CONTRATO, verified: true })).toBe('comprobado');
-    expect(component.sello({ ...CONTRATO, verified: false })).toBe('no-cuadra');
+    expect(component.sello({ ...contrato, verified: true })).toBe('comprobado');
+    expect(component.sello({ ...contrato, verified: false })).toBe('no-cuadra');
     // La clave ausente llega como `null` por el normalizador, y ésa es la tercera respuesta:
     // un comprobante pintado como válido sin haberlo comprobado es lo que el sello impide.
-    expect(component.sello({ ...CONTRATO, verified: null })).toBe('sin-comprobar');
+    expect(component.sello({ ...contrato, verified: null })).toBe('sin-comprobar');
+    // Y la cuarta (T034): el servicio de firma no contestó al emitirlo. Ni «no cuadra» ni «comprobado».
+    expect(component.sello({ ...contrato, verified: null, sealPending: true })).toBe('pendiente');
   });
 
   it('un alquiler con un estado que no se reconoce se deja FUERA en vez de darlo por reservado', async () => {
@@ -532,6 +536,106 @@ describe('AlquilerElementComponent', () => {
     expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
     // La clave que la página no trae sale por su respaldo, no vacía.
     expect(component.txt.misAlquileres).toBe('Mis alquileres');
+  });
+});
+
+// ── «Mis alquileres» (T034) ──────────────────────────────────────────────────────────────────────
+describe('«Mis alquileres»', () => {
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+
+  async function montar(contratos: unknown[]): Promise<ReturnType<typeof servidor>> {
+    const s = servidor({
+      ...GUION_FELIZ,
+      'GET /api/alquiler/rentals': contratos,
+      'POST /api/alquiler/rentals/alq-1/declare-return': { ...ALQUILER, state: 'declared' },
+    });
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    component = fixture.componentInstance;
+    component.ahora = () => new Date(2026, 9, 1, 10, 0, 0);
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler' });
+    fixture.detectChanges();
+    await drenar();
+    await component.cargarMios();
+    fixture.detectChanges();
+    return s;
+  }
+
+  const texto = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+  const botones = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.sg-alquiler__agreement button'))
+    .map((b) => b.textContent?.trim());
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('«Devolví el equipo» DECLARA la devolución, sin monto, y no la confirma', async () => {
+    const { llamadas } = await montar([CONTRATO]);
+
+    await component.declarar('alq-1');
+    await drenar();
+
+    const escritas = llamadas.filter((l) => l.metodo === 'POST');
+    expect(escritas.map((l) => l.url)).toEqual(['/api/alquiler/rentals/alq-1/declare-return']);
+    expect(Object.keys(escritas[0]!.cuerpo as object)).toEqual(['idempotencyKey']);
+  });
+
+  it('lo confirmado se puede declarar y, antes del día de inicio, cancelar, con hasta cuándo', async () => {
+    await montar([CONTRATO]);
+
+    expect(texto()).toContain('Confirmado');
+    expect(texto()).toContain('Puedes cancelar hasta el 2026-10-04.');
+    expect(botones()).toEqual(['Devolví el equipo', 'Cancelar']);
+  });
+
+  it('desde el día de inicio ya no se ofrece cancelar', async () => {
+    await montar([{ ...CONTRATO, start: '2026-10-01' }]);
+
+    expect(botones()).toEqual(['Devolví el equipo']);
+    expect(texto()).not.toContain('Puedes cancelar');
+  });
+
+  it('declarada, devuelta o cancelada no ofrece nada, y dice en qué quedó', async () => {
+    await montar([
+      { ...CONTRATO, rentalId: 'alq-d', state: 'declared' },
+      {
+        ...CONTRATO, rentalId: 'alq-r', state: 'returned',
+        outcome: { confirmedUtc: '2026-10-13T15:00:00Z', damage: 50000, depositReleased: 750000, verified: true, sealPending: false },
+      },
+      {
+        ...CONTRATO, rentalId: 'alq-x', state: 'returned',
+        outcome: { confirmedUtc: '2026-10-14T15:00:00Z', damage: 0, depositReleased: null, verified: null, sealPending: false },
+      },
+      { ...CONTRATO, rentalId: 'alq-c', state: 'cancelled' },
+    ]);
+
+    expect(botones()).toEqual([]);
+    expect(texto()).toContain('Devolución declarada: el personal la está revisando');
+    expect(texto()).toContain(
+      `Devuelto el 2026-10-13. Daño cobrado: ${component.plata(50000, 'COP')}. Garantía liberada: ${component.plata(750000, 'COP')}.`);
+    expect(texto()).toContain('Devuelto el 2026-10-14. No sabemos si la garantía ya se liberó: escríbenos.');
+    expect(texto()).toContain('Cancelado');
+  });
+
+  it('un sello pendiente se dice distinto de «no cuadra» y de «comprobado»', async () => {
+    await montar([{ ...CONTRATO, verified: null, sealPending: true, seal: '' }]);
+
+    expect(texto()).toContain('Sello pendiente: lo ponemos en cuanto el servicio de firma responda.');
+    expect(texto()).not.toContain('NO cuadra');
+    expect(texto()).not.toContain('Sello comprobado');
+  });
+
+  it('un estado que no se reconoce no se pinta como confirmado ni ofrece acciones', async () => {
+    await montar([{ ...CONTRATO, state: 'compensated' }]);
+
+    expect(botones()).toEqual([]);
+    expect(texto()).not.toContain('Confirmado');
   });
 });
 

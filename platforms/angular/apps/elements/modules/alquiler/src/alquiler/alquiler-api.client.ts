@@ -143,6 +143,16 @@ export class AlquilerApiClient {
     return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
   }
 
+  /**
+   * «Devolví el equipo»: quien alquiló DECLARA la devolución (decisión 5 del lote 1). No lleva monto —el daño lo fija
+   * el personal al confirmar— y la garantía sigue retenida hasta entonces.
+   */
+  async declareReturn(apiBase: string, rentalId: string): Promise<Rental> {
+    const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/declare-return`;
+    const idempotencyKey = llaveDe('declare', rentalId);
+    return this.alquilerDe(await this.postJson(url, { idempotencyKey }));
+  }
+
   /** Se cancela antes de que salga. `amount` es la penalidad; la llave, como en `return`. */
   async cancel(apiBase: string, rentalId: string, amount: number): Promise<Rental> {
     const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/cancel`;

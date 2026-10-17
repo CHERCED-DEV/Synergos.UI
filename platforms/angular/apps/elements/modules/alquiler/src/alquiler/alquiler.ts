@@ -91,6 +91,18 @@ export function sanitizeAlquilerConfig(value: AlquilerConfig): AlquilerConfig {
   });
 }
 
+/** El día de hoy en el reloj del navegador, `YYYY-MM-DD`. */
+function hoy(ahora: Date): string {
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
+}
+
+/** El día anterior a una fecha `YYYY-MM-DD`; la misma si no se puede leer. */
+function diaAnterior(fecha: string): string {
+  const ms = Date.parse(`${fecha}T00:00:00Z`);
+  return Number.isNaN(ms) ? fecha : new Date(ms - 86_400_000).toISOString().slice(0, 10);
+}
+
 /** El camino de la renta que declara el CMS (ADR 0140): uno de los dos, o nada. */
 function normalizeRentalPath(value: unknown): CaminoDeLaRenta | undefined {
   return value === 'puerta' || value === 'directa' ? value : undefined;
@@ -125,6 +137,7 @@ function textosDeAlquiler() {
     selloComprobado: t('Alquiler.Seal.Verified', 'Comprobante sellado y comprobado.'),
     selloNoCuadra: t('Alquiler.Seal.Mismatch', 'El sello de este comprobante NO cuadra.'),
     selloSinComprobar: t('Alquiler.Seal.Unverified', 'Comprobante emitido, sello sin comprobar.'),
+    selloPendiente: t('Alquiler.Seal.Pending', 'Sello pendiente: lo ponemos en cuanto el servicio de firma responda.'),
     cargandoMios: t('Alquiler.Mine.Loading', 'Cargando tus alquileres'),
     sinSesion: t('Alquiler.Mine.SignInTitle', 'Inicia sesión para ver tus alquileres'),
     sinSesionDetalle: t('Alquiler.Mine.SignInMessage', 'Tus contratos van atados a tu cuenta, no a este navegador.'),
@@ -168,6 +181,7 @@ function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
       'alquiler.bad_quantity': t('Alquiler.Errors.BadQuantity', 'Elige entre 1 y {max} unidades.', { max: eq?.units ?? 1 }),
       'booking.hold_expired': t('Alquiler.Quote.Expired', 'Tu reserva venció y no se cobró nada. Vuelve a reservar.'),
       'flow.busy': t('Alquiler.Errors.Busy', 'Estamos terminando otra operación sobre este alquiler. Inténtalo en un momento.'),
+      'alquiler.already_started': t('Alquiler.Errors.AlreadyStarted', 'El alquiler ya empezó: declara la devolución cuando entregues el equipo.'),
     },
     porClase: {
       sesion: t('Alquiler.Errors.SignInToRent', 'Hay que iniciar sesión para alquilar.'),
@@ -644,6 +658,21 @@ export class AlquilerElementComponent implements OnInit {
     await this.cerrar(rentalId, penalidad, 'cancel');
   }
 
+  /**
+   * «Devolví el equipo»: DECLARA la devolución, sin monto. La garantía sigue retenida hasta que el personal la
+   * confirme con el daño que haya (decisión 5 del lote 1).
+   */
+  async declarar(rentalId: string): Promise<void> {
+    this.problema.set('');
+    try {
+      await this.#api.declareReturn(this.apiBase(), rentalId);
+      await this.cargarMios();
+    } catch (error) {
+      this.problema.set(this.porQue(error,
+        t('Alquiler.Errors.ReturnFailed', 'No pudimos registrar la devolución. El alquiler sigue abierto.')));
+    }
+  }
+
   /** Registra que el equipo volvió, con el daño que haya. */
   async devolver(rentalId: string, dano: number): Promise<void> {
     await this.cerrar(rentalId, dano, 'return');
@@ -688,12 +717,62 @@ export class AlquilerElementComponent implements OnInit {
     return generico;
   }
 
-  /** El sello de un comprobante, en las TRES respuestas posibles. */
-  sello(a: RentalAgreement): 'comprobado' | 'no-cuadra' | 'sin-comprobar' {
+  /**
+   * El sello de un comprobante, en las CUATRO respuestas posibles: comprobado, no cuadra, pendiente (el servicio de
+   * firma no contestó al emitirlo) y sin comprobar. Pendiente no es «no cuadra»: el contrato es bueno, falta el sello.
+   */
+  sello(a: RentalAgreement): 'comprobado' | 'no-cuadra' | 'pendiente' | 'sin-comprobar' {
     if (a.verified === true) return 'comprobado';
     if (a.verified === false) return 'no-cuadra';
+    if (a.sealPending) return 'pendiente';
     return 'sin-comprobar';
   }
+
+  /** Lo que el registro dice del alquiler, en palabras; vacío si el borde no lo dijo. */
+  estadoDelContrato(a: RentalAgreement): string {
+    switch (a.state) {
+      case 'reserved': return t('Alquiler.Mine.StateConfirmed', 'Confirmado');
+      case 'declared': return t('Alquiler.Mine.StateDeclared', 'Devolución declarada: el personal la está revisando');
+      case 'returned': return t('Alquiler.Mine.StateReturned', 'Devuelto');
+      case 'cancelled': return t('Alquiler.Mine.StateCancelled', 'Cancelado');
+      default: return '';
+    }
+  }
+
+  /** Cómo se cerró la devolución: el daño y lo liberado, o que lo liberado no consta. Vacío si no se cerró. */
+  desenlace(a: RentalAgreement): string {
+    const d = a.outcome;
+    if (!d) return '';
+    const fecha = d.confirmedUtc.slice(0, 10);
+    return d.depositReleased === null
+      ? t('Alquiler.Mine.OutcomeUnknown', 'Devuelto el {fecha}. No sabemos si la garantía ya se liberó: escríbenos.', { fecha })
+      : t('Alquiler.Mine.Outcome', 'Devuelto el {fecha}. Daño cobrado: {danio}. Garantía liberada: {liberada}.', {
+          fecha,
+          danio: this.plata(d.damage, a.currency),
+          liberada: this.plata(d.depositReleased, a.currency),
+        });
+  }
+
+  /** Si quien alquiló puede declarar la devolución: sólo de lo confirmado. */
+  puedeDeclarar(a: RentalAgreement): boolean {
+    return a.state === 'reserved';
+  }
+
+  /**
+   * Si quien alquiló puede cancelarlo: lo confirmado, ANTES del día de inicio. Desde ese día lo cancela el personal
+   * (la regla la aplica el servidor en el huso del despliegue; aquí sólo no se ofrece lo que se negaría).
+   */
+  puedeCancelar(a: RentalAgreement): boolean {
+    return a.state === 'reserved' && hoy(this.ahora()) < a.start;
+  }
+
+  /** «Puedes cancelar hasta el 2026-11-04.»: el día anterior al de inicio. */
+  cancelableHasta(a: RentalAgreement): string {
+    return t('Alquiler.Mine.CancelUntil', 'Puedes cancelar hasta el {fecha}.', { fecha: diaAnterior(a.start) });
+  }
+
+  /** Cuándo es ahora; un campo para que las pruebas lo fijen. */
+  ahora: () => Date = () => new Date();
 
   #cotizacionFallo(): string {
     return t('Alquiler.Errors.QuoteFailed', 'No pudimos calcular el valor de esas fechas.');
