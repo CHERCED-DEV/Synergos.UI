@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { SIN_BORDE, cruzarRutas, rutasQueDeclara, rutasQuePide } from './rutas-del-borde.mjs';
+import { SIN_BORDE, baseQueDeclara, cruzarRutas, rutasQueDeclara, rutasQuePide } from './rutas-del-borde.mjs';
 
 describe('rutasQuePide', () => {
   it('saca la ruta de un template simple', () => {
@@ -62,35 +62,61 @@ public sealed class ShopCatalogController : ControllerBase
   });
 });
 
+describe('baseQueDeclara', () => {
+  it('saca el `[Route]` del controller, normalizado como el prefijo de sus rutas', () => {
+    expect(baseQueDeclara('[ApiController]\n[Route("api/shop/")]\npublic sealed class X {}')).toBe('api/shop');
+  });
+
+  it('vacía si el controller no tiene `[Route]`', () => {
+    expect(baseQueDeclara('public sealed class X {}')).toBe('');
+  });
+});
+
 describe('cruzarRutas', () => {
   const declaradas = ['api/shop/orders', 'api/shop/return/{}/advance'];
+  const bases = ['api/shop'];
 
   it('no reporta nada cuando todas ligan (happy)', () => {
     const clientes = [{ vertical: 'shop', rutas: ['orders', 'return/{}/advance'] }];
-    const { fallos, medidas } = cruzarRutas(clientes, declaradas, {});
+    const { fallos, medidas } = cruzarRutas(clientes, declaradas, {}, bases);
     expect(fallos).toEqual([]);
     expect(medidas).toBe(2);
   });
 
   it('caza una ruta que el borde no declara, y dice qué decidir', () => {
     const clientes = [{ vertical: 'seller', rutas: ['seller/product'] }];
-    const { fallos, ausentes } = cruzarRutas(clientes, declaradas, {});
+    const { fallos, ausentes } = cruzarRutas(clientes, declaradas, {}, bases);
     expect(ausentes).toEqual(['seller :: seller/product']);
     expect(fallos).toHaveLength(1);
     // Lo que distingue este gate de «hay una ruta muerta»: nombra el corte.
     expect(fallos[0]).toContain('no se censa: se arregla');
   });
 
+  it('una ruta de OTRO controller que sólo TERMINA igual no la declara', () => {
+    // 2026-10-16, al integrar 005: `api/alquiler/staff/returns` daba por hecha la `returns`
+    // que el vendedor pide contra `/api/shop`, que sigue sin existir. El censo la tenía con su
+    // razón, y el gate pedía borrarla.
+    const clientes = [{ vertical: 'seller', rutas: ['returns'] }];
+    const { ausentes } = cruzarRutas(clientes, ['api/alquiler/staff/returns'], {}, ['api/shop', 'api/alquiler']);
+    expect(ausentes).toEqual(['seller :: returns']);
+  });
+
+  it('liga colgada de la base de CUALQUIER controller, no sólo del que la sirve', () => {
+    // `${apiBase}/cart/items` con `apiBase` = `/api/shop` la sirve el controller de `api/shop/cart`.
+    const clientes = [{ vertical: 'shop', rutas: ['cart/items'] }];
+    expect(cruzarRutas(clientes, ['api/shop/cart/items'], {}, ['api/shop/cart', 'api/shop']).fallos).toEqual([]);
+  });
+
   it('acepta lo censado', () => {
     const clientes = [{ vertical: 'seller', rutas: ['seller/product'] }];
     const censo = { 'seller :: seller/product': 'porque sí, con su razón larga' };
-    expect(cruzarRutas(clientes, declaradas, censo).fallos).toEqual([]);
+    expect(cruzarRutas(clientes, declaradas, censo, bases).fallos).toEqual([]);
   });
 
   it('rompe si una entrada del censo ya no corresponde (el segundo diente)', () => {
     const clientes = [{ vertical: 'shop', rutas: ['orders'] }];
     const censo = { 'shop :: orders': 'el CMS ya la declara' };
-    const { fallos } = cruzarRutas(clientes, declaradas, censo);
+    const { fallos } = cruzarRutas(clientes, declaradas, censo, bases);
     expect(fallos).toHaveLength(1);
     expect(fallos[0]).toContain('ya no corresponde');
   });
@@ -98,14 +124,15 @@ describe('cruzarRutas', () => {
   it('trata un `{}` FINAL como la query antes de llamar ausente a nada', () => {
     // `explore{}` sale de `${apiBase}/explore${qs…}`: la ruta es `explore`.
     const clientes = [{ vertical: 'blogs', rutas: ['orders{}'] }];
-    expect(cruzarRutas(clientes, declaradas, {}).fallos).toEqual([]);
+    expect(cruzarRutas(clientes, declaradas, {}, bases).fallos).toEqual([]);
   });
 
   it.each([
-    ['sin clientes', [], ['api/shop/orders']],
-    ['sin rutas declaradas', [{ vertical: 'shop', rutas: ['orders'] }], []],
-  ])('rechaza %s en vez de pasar en verde', (_, clientes, declaradasVacias) => {
-    const { fallos } = cruzarRutas(clientes, declaradasVacias, SIN_BORDE);
+    ['sin clientes', [], ['api/shop/orders'], ['api/shop']],
+    ['sin rutas declaradas', [{ vertical: 'shop', rutas: ['orders'] }], [], ['api/shop']],
+    ['sin bases de controller', [{ vertical: 'shop', rutas: ['orders'] }], ['api/shop/orders'], []],
+  ])('rechaza %s en vez de pasar en verde', (_, clientes, declaradasVacias, basesDelCaso) => {
+    const { fallos } = cruzarRutas(clientes, declaradasVacias, SIN_BORDE, basesDelCaso);
     expect(fallos).toHaveLength(1);
     expect(fallos[0]).toContain('descubrimiento roto');
     // Y no arrastra el censo entero: sin esto, cero rutas declaradas haría que el segundo

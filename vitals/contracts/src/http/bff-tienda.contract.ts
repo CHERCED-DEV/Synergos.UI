@@ -37,6 +37,13 @@ export interface TiendaCompraEntrada {
   readonly promocion?: string | null;
 }
 
+export interface TiendaCompraPagina {
+  readonly items: readonly TiendaCompraRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
 export interface TiendaCompraRespuesta {
   readonly id: string;
   readonly flujo: string;
@@ -70,6 +77,7 @@ export interface OperacionesDeLaPuerta {
     readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, TiendaCompraCerrarEntrada, TiendaCompraRespuesta, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaCompraRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, TiendaCompraEntrada, TiendaCompraCotizacion, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaCompraPagina, "ninguna">;
   };
 }
 
@@ -101,5 +109,6 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;
