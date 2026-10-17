@@ -124,21 +124,40 @@ export function rutasQueDeclara(fuente) {
 }
 
 /**
+ * La base de un controller de ASP.NET: su `[Route]`, normalizada; vacía si no tiene.
+ *
+ * Un cliente pide `${apiBase}/<ruta>` y `apiBase` es la base de un controller (`/api/shop`):
+ * lo que liga es esa base más la ruta, y no cualquier ruta declarada que TERMINE igual.
+ */
+export function baseQueDeclara(fuente) {
+  // La misma base, normalizada igual, que `rutasQueDeclara` pone delante de cada ruta.
+  const base = /\[Route\("([^"]+)"\)\]/.exec(fuente)?.[1] ?? '';
+  return base.replace(/\/+/g, '/').replace(/\/+$/, '');
+}
+
+/**
  * Cruza lo que los clientes piden contra lo que el borde declara.
+ *
+ * Una ruta pedida liga si se declara entera o colgada de la base de algún controller. Antes
+ * bastaba con que una declarada TERMINARA en ella, y una ruta de otro controller la daba por
+ * hecha: `api/alquiler/staff/returns` «declaraba» la `returns` que pide el vendedor contra
+ * `/api/shop`, que sigue sin existir (lo destapó la integración de 005, 2026-10-16).
  *
  * @param {ReadonlyArray<{vertical: string, rutas: ReadonlyArray<string>}>} clientes
  * @param {ReadonlyArray<string>} declaradas
  * @param {Record<string, string>} censo
+ * @param {ReadonlyArray<string>} bases las de los controllers (`baseQueDeclara`)
  */
-export function cruzarRutas(clientes, declaradas, censo = SIN_BORDE) {
-  // Red de seguridad, en los dos lados: si cualquiera de los dos descubrimientos deja de ver,
+export function cruzarRutas(clientes, declaradas, censo = SIN_BORDE, bases = []) {
+  // Red de seguridad, en los tres lados: si cualquiera de los descubrimientos deja de ver,
   // el cruce sale vacío y el gate informa «todas ligan» sin haber mirado nada — y el segundo
   // diente, además, pediría borrar el censo entero.
-  if (clientes.length === 0 || declaradas.length === 0) {
+  if (clientes.length === 0 || declaradas.length === 0 || bases.length === 0) {
     return {
       fallos: [
-        `descubrimiento roto: ${clientes.length} cliente(s) y ${declaradas.length} ruta(s) ` +
-          'declarada(s). Un cruce sobre una lista vacía es un verde que no comprobó nada.',
+        `descubrimiento roto: ${clientes.length} cliente(s), ${declaradas.length} ruta(s) ` +
+          `declarada(s) y ${bases.length} base(s) de controller. Un cruce sobre una lista vacía ` +
+          'es un verde que no comprobó nada.',
       ],
       medidas: 0,
       ausentes: [],
@@ -155,7 +174,7 @@ export function cruzarRutas(clientes, declaradas, censo = SIN_BORDE) {
       // Un `{}` FINAL es casi siempre la query (`${qs ? `?${qs}` : ''}`) y no un segmento, así
       // que se prueba con y sin él antes de llamar ausente a nada.
       const variantes = [ruta, ruta.replace(/\{\}$/, '').replace(/\/+$/, '')].filter(Boolean);
-      const existe = variantes.some((v) => declaradas.some((d) => d === v || d.endsWith(`/${v}`)));
+      const existe = variantes.some((v) => declaradas.some((d) => d === v || bases.some((b) => d === `${b}/${v}`)));
       if (existe) continue;
 
       const clave = `${c.vertical} :: ${ruta}`;

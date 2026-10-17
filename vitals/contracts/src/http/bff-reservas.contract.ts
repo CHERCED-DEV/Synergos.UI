@@ -33,6 +33,13 @@ export interface ReservasServicioEntrada {
   readonly ventana: { readonly start: string; readonly end: string; };
 }
 
+export interface ReservasServicioPagina {
+  readonly items: readonly ReservasServicioRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
 export interface ReservasServicioRespuesta {
   readonly id: string;
   readonly flujo: string;
@@ -66,6 +73,7 @@ export interface OperacionesDeLaPuerta {
     readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, ReservasServicioRespuesta, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, ReservasServicioRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, ReservasServicioEntrada, ReservasServicioCotizacion, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, ReservasServicioPagina, "ninguna">;
   };
 }
 
@@ -97,5 +105,6 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

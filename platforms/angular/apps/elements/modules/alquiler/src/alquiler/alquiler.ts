@@ -25,6 +25,7 @@ import {
   isUnauthorized,
 } from './alquiler-api.client';
 import type {
+  CaminoDeLaRenta,
   EquipmentCard,
   EquipmentDetail,
   Rental,
@@ -60,7 +61,13 @@ export function sanitizeAlquilerConfig(value: AlquilerConfig): AlquilerConfig {
     category: coerceTrimmedStringInput(value.category),
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    rentalPath: normalizeRentalPath(value.rentalPath),
   });
+}
+
+/** El camino de la renta que declara el CMS (ADR 0140): uno de los dos, o nada. */
+function normalizeRentalPath(value: unknown): CaminoDeLaRenta | undefined {
+  return value === 'puerta' || value === 'directa' ? value : undefined;
 }
 
 /**
