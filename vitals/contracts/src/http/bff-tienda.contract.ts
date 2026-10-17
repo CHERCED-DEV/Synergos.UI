@@ -29,7 +29,7 @@ export interface TiendaCompraCerrarEntrada {
 
 export interface TiendaCompraCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly lineasDelPedido: readonly { readonly sujeto: { readonly kind: string; readonly id: string; }; readonly cantidad: number; readonly precioUnitario: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly pedido: string | null; readonly envio: string | null; };
+  readonly datos: { readonly lineasDelPedido: readonly { readonly sujeto: { readonly kind: string; readonly id: string; }; readonly cantidad: number; readonly precioUnitario: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly pedido: string | null; readonly envio: string | null; readonly cobroId: string | null; };
 }
 
 export interface TiendaCompraEntrada {
@@ -49,7 +49,30 @@ export interface TiendaCompraRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly lineasDelPedido: readonly { readonly sujeto: { readonly kind: string; readonly id: string; }; readonly cantidad: number; readonly precioUnitario: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly pedido: string | null; readonly envio: string | null; };
+  readonly datos: { readonly lineasDelPedido: readonly { readonly sujeto: { readonly kind: string; readonly id: string; }; readonly cantidad: number; readonly precioUnitario: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly pedido: string | null; readonly envio: string | null; readonly cobroId: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export interface TiendaDevolucionEntrada {
+  readonly compra: string;
+  readonly monto: { readonly amount: number; readonly currency: string; };
+}
+
+export interface TiendaDevolucionPagina {
+  readonly items: readonly TiendaDevolucionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface TiendaDevolucionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly compra: string | null; readonly monto: { readonly amount: number; readonly currency: string; } | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
@@ -78,6 +101,12 @@ export interface OperacionesDeLaPuerta {
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaCompraRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, TiendaCompraEntrada, TiendaCompraCotizacion, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaCompraPagina, "ninguna">;
+  };
+  readonly "tienda.devolucion": {
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TiendaDevolucionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaDevolucionRespuesta, "ninguna">;
+    readonly devolver: OperacionDeLaPuerta<"POST", undefined, TiendaDevolucionEntrada, TiendaDevolucionRespuesta, "requerida">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaDevolucionPagina, "ninguna">;
   };
 }
 
@@ -109,6 +138,12 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "tienda.devolucion": {
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    devolver: { metodo: "POST", llave: "requerida", consulta: [] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;
