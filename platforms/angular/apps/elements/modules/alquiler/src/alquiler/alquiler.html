@@ -193,9 +193,8 @@
             </div>
           }
 
-          @if (aviso()) {
-            <p class="sg-alquiler__meta" role="status">{{ aviso() }}</p>
-          }
+          <!-- Siempre presente: anuncia cuando cambia (la reserva soltada, la que venció), y se lee como texto. -->
+          <syn-live-region class="sg-alquiler__meta" [message]="aviso()" [visuallyHidden]="false" />
 
           @if (reserva(); as r) {
             <div class="sg-alquiler__done">

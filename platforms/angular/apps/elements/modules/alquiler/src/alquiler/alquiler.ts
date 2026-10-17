@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import {
+  LiveRegionComponent,
   SynEmptyStateComponent,
   SynErrorStateComponent,
   SynSkeletonComponent,
@@ -259,6 +260,7 @@ function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
   selector: 'synergos-alquiler',
   standalone: true,
   imports: [
+    LiveRegionComponent,
     SynEmptyStateComponent,
     SynErrorStateComponent,
     SynSkeletonComponent,
