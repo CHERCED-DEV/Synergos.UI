@@ -225,7 +225,8 @@ function textosDeReserva() {
       Running: t('Booking.Slot.States.Running', 'Apartada, sin confirmar'),
       Completed: t('Booking.Slot.States.Completed', 'Confirmada'),
       Compensating: t('Booking.Slot.States.Compensating', 'Cancelándose'),
-      Compensated: t('Booking.Slot.States.Compensated', 'Cancelada'),
+      // Deshecha: la cancelaste tú, o no se pudo completar (la hora se llenó, el pago no pasó). Nada quedó cobrado.
+      Compensated: t('Booking.Slot.States.Compensated', 'Sin completar (sin cobro)'),
       CompensationFailed: t('Booking.Slot.States.CompensationFailed', 'En revisión por el negocio'),
     } as Readonly<Record<string, string>>,
   } as const;

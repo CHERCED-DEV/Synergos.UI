@@ -459,6 +459,8 @@ describe('<synergos-reserva>', () => {
 
     expect(component.dia()).toBe(MIERCOLES);
     expect(component.hora()).toBe('10:00');
+    // Y la pantalla lo enseña elegido: el valor del <select> se aplica antes de que existan sus opciones.
+    expect(Array.from(host().querySelectorAll('select'), (s) => s.value)).toEqual([MIERCOLES, '10:00']);
     expect(deVuelta.ops().sort()).toEqual(['cotizar', 'disponibilidad']);
     expect(JSON.parse(deVuelta.de('cotizar')[0]!.cuerpo ?? '{}').ventana).toEqual(VENTANA);
     expect(texto('.sg-reserva__total strong')).toBe('$ 140.000');
@@ -529,7 +531,7 @@ describe('<synergos-reserva>', () => {
     expect(Array.from(host().querySelectorAll('.sg-reserva__estado'), (e) => e.textContent?.trim())).toEqual([
       'Apartada, sin confirmar',
       'Confirmada',
-      'Cancelada',
+      'Sin completar (sin cobro)',
     ]);
     expect(texto('.sg-reserva__lista')).toContain('Número de reserva R-0001');
 
