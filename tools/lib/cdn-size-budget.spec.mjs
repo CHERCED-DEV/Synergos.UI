@@ -111,15 +111,16 @@ describe('revisarBundle', () => {
     expect(v.origen).toBe('excepción');
   });
 
-  it('storefront como se mide el 2026-10-22, con lo que trae 003 detrás: pasa por su excepción', () => {
-    // 470 146 bytes en el CI de master `87724914` (la compra por la puerta, US 1–8 de 004) y los
-    // 409 de las entradas de `salud.cita` que 003 midió en local. El número, escrito acá para que
-    // bajar el techo por debajo de lo que de verdad pesa la tienda salga rojo en `npm test`.
+  it('storefront como se mide el 2026-10-22, con lo que trae 003: pasa por su excepción', () => {
+    // 470 146 bytes en el CI de master `87724914` (la compra por la puerta, US 1–8 de 004) y 470 570
+    // sobre el merge con la cita de 003 (UI `85a5115`), que le suma sus entradas de `salud.cita`. El
+    // número, escrito acá para que bajar el techo por debajo de lo que de verdad pesa la tienda salga
+    // rojo en `npm test`.
     const v = revisarBundle({
       framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
-      bytes: 470_555,
+      bytes: 470_570,
       codigo: bundleSano(),
     });
     expect(v.ok).toBe(true);
