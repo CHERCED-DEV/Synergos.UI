@@ -276,6 +276,24 @@ describe('<synergos-flujo>: el coordinador', () => {
     expect([fi.llamadas.length, fo.llamadas.length]).toEqual([1, 0]);
   });
 
+  it('anidados de DOS flujos (una operación posterior dentro de su original, NR-10): cada pedido lo atiende el suyo', async () => {
+    // El de adentro no corta lo ajeno: lo deja subir. Es lo que deja colocar la cancelación dentro de lo que cancela
+    // sin tocar el coordinador; qué se puede anidar lo decide el gate de las vistas del CMS.
+    document.body.innerHTML =
+      '<synergos-flujo id="o" flujo="eventos.compra"><synergos-flujo id="i" flujo="reservas.servicio"><span id="p"></span></synergos-flujo></synergos-flujo>';
+    const fo = falsoFetch([json(200, compra)]);
+    const fi = falsoFetch([json(200, compra)]);
+    conFetch('#o', fo.f);
+    conFetch('#i', fi.f);
+    const p = document.getElementById('p')!;
+
+    expect([hayCoordinador(p, 'eventos.compra'), hayCoordinador(p, 'reservas.servicio')]).toEqual([true, true]);
+    await pedirAlFlujo(p, 'eventos.compra', 'consultar', { consulta: { id: 's' } });
+    expect([fo.llamadas.length, fi.llamadas.length]).toEqual([1, 0]);
+    await pedirAlFlujo(p, 'reservas.servicio', 'consultar', { consulta: { id: 's' } });
+    expect([fo.llamadas.length, fi.llamadas.length]).toEqual([1, 1]);
+  });
+
   it('un flujo desconocido en el atributo (el DOM no es frontera) no sale a la red: atiende el de afuera que sí lo es', async () => {
     document.body.innerHTML =
       '<synergos-flujo id="c" flujo="eventos.compra"><synergos-flujo id="x" flujo="../admin"><span id="p"></span></synergos-flujo></synergos-flujo>';

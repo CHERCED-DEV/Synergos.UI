@@ -1282,6 +1282,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
      */
     const pedido = (status: ShopOrder['status'], canReturn = status === 'paid'): ShopOrder => ({
       orderNumber: 'ORD-REAL-1',
+      orderRef: 'ORD-REAL-1',
       date: '2026-09-01',
       status,
       total: 120_000,
@@ -1306,6 +1307,31 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         { id: 'shipped', label: 'Enviado', state: entregado ? 'done' : 'current' },
         { id: 'delivered', label: 'Entregado', state: entregado ? 'done' : 'pending' },
       ],
+    });
+
+    it('EL caso: el seguimiento y las devoluciones se piden con la REFERENCIA del pedido, no con su número (004, US 6)', async () => {
+      // En la puerta la referencia es la saga y el número, ocho caracteres; en la directa, `ord_…` y `SYN-…`. El borde
+      // busca por la referencia: pedir por el número daba 404, y «Mis compras» se quedaba sin seguimiento y con las
+      // devoluciones «consultando» para siempre. Medido en vivo (T047).
+      const urls: string[] = [];
+      await conPedidos((url) => {
+        urls.push(url);
+        if (url.includes('/tracking')) return json({ ...etapas(true), orderRef: 'pta-saga-1' });
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [{ ...pedido('paid'), orderRef: 'pta-saga-1', orderNumber: 'CEBFA4B7' }] });
+      });
+
+      const order = component.orders()[0];
+      expect(order.orderRef).toBe('pta-saga-1');
+      component.onOrderSelect(order);
+      await flushMicrotasks(20);
+      component.openReturn(order.orderNumber, order.items[0]);
+      await component.submitReturn();
+
+      const porPedido = urls.filter((u) => u.includes('/order/'));
+      expect(porPedido.some((u) => u.includes('/order/pta-saga-1/tracking'))).toBe(true);
+      expect(porPedido.filter((u) => u.includes('/order/pta-saga-1/return')).length).toBeGreaterThanOrEqual(2);
+      expect(porPedido.filter((u) => u.includes('CEBFA4B7'))).toEqual([]);
     });
 
     it('EL caso: un pedido `paid` y entregado SÍ se puede devolver', async () => {
