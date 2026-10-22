@@ -25,7 +25,18 @@ export interface Rechazo {
 
 export interface ReservasServicioCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
+}
+
+export interface ReservasServicioDisponibilidad {
+  readonly flujo: string;
+  readonly datos: { readonly franjas: readonly { readonly inicio: string; readonly fin: string; readonly libres: number; }[] | null; };
+}
+
+export interface ReservasServicioDisponibilidadEntrada {
+  readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; };
+  readonly desde: string;
+  readonly hasta: string;
 }
 
 export interface ReservasServicioEntrada {
@@ -45,7 +56,7 @@ export interface ReservasServicioRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly datos: { readonly servicio: { readonly kind: "reservas.servicio"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
@@ -73,6 +84,7 @@ export interface OperacionesDeLaPuerta {
     readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, ReservasServicioRespuesta, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, ReservasServicioRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, ReservasServicioEntrada, ReservasServicioCotizacion, "ninguna">;
+    readonly disponibilidad: OperacionDeLaPuerta<"POST", undefined, ReservasServicioDisponibilidadEntrada, ReservasServicioDisponibilidad, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, ReservasServicioPagina, "ninguna">;
   };
 }
@@ -105,6 +117,7 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

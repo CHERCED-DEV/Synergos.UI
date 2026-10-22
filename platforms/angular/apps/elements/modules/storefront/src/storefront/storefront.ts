@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   type OnInit,
   computed,
   inject,
@@ -74,6 +75,7 @@ import {
   resolveConfigValue,
   PromoCodeComponent,
   type AppliedPromo,
+  type PromoCodeConfig,
   type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
@@ -81,10 +83,35 @@ import {
 } from '@synergos/shared';
 import type { StorefrontProps } from '@synergos/contracts';
 import { ShopApiClient } from './shop-api.client';
-import type { ShopSelectionPayload } from './shop-fulfillment.strategy';
+import {
+  CODIGO_COBRO_DEVUELTO,
+  CODIGO_COMPRA_SIN_RESOLVER,
+  CODIGO_DEMASIADOS_CODIGOS,
+  CODIGO_SIN_SABER,
+  PREFIJO_DEL_CUPON,
+  caminoDeLaCompraEnCurso,
+  caminoDeLaPendiente,
+  compraDeLaSesion,
+  compraPendiente,
+  cuponDeLaSesion,
+  llaveRetenida,
+  sinCompraPendiente,
+  type ShopSelectionPayload,
+} from './shop-fulfillment.strategy';
+import {
+  FLUJO_DE_LA_COMPRA,
+  abrirCompraDeTienda,
+  cancelarCompraDeTienda,
+  cotizarCompraDeTienda,
+  cuerpoDeLaCompra,
+  direccionDeEnvio,
+} from './tienda-compra';
 import {
   STOREFRONT_FLOW,
+  caminoDeLaCompra,
   type AccountSectionId,
+  type CaminoDeCompra,
+  type CompraPendienteDelServidor,
   type MessageThread,
   type ProductCondition,
   type ProductDetail,
@@ -108,7 +135,17 @@ import {
   type StorefrontView,
   type WishlistEntry,
 } from './shop.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
+import {
+  AVISOS_GENERADOS,
+  aMenores,
+  baseDeRuta,
+  clasificarRechazo,
+  desdeMenores,
+  formatearImporte,
+  mismaRuta,
+  segmentosDeRuta,
+  t,
+} from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynStorefront</c>.
@@ -231,6 +268,8 @@ function lineRefOf(line: OrderLine): string {
 /** Lo que el comprador está a punto de mandar. */
 interface ReturnDraft {
   readonly orderRef: string;
+  /** Con lo que el servidor busca el pedido; `orderRef` es la clave de la pantalla (el número). */
+  readonly apiRef: string;
   readonly line: OrderLine;
   readonly reason: ReturnReason;
 }
@@ -263,7 +302,64 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    purchasePath: coerceTrimmedStringInput(value.purchasePath),
+    shippingCountry: coerceTrimmedStringInput(value.shippingCountry),
   });
+}
+
+/**
+ * El parámetro del enlace del aviso de una compra por la puerta (`?compra={id}`): lo GENERA N3 desde
+ * `Synergos:Puerta:Flujos:tienda.compra:Aviso:Ruta` del CMS (`AVISOS_GENERADOS`), así que un cambio allá
+ * rompe la compilación acá; la tabla escrita a mano no hace falta tocarla.
+ */
+export const PARAMETRO_DE_LA_COMPRA = AVISOS_GENERADOS[FLUJO_DE_LA_COMPRA].parametro;
+
+/** La compra que trae el enlace del aviso, si la trae: de la CONSULTA, nunca del hash. */
+export function compraDelEnlace(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return new URLSearchParams(window.location.search).get(PARAMETRO_DE_LA_COMPRA)?.trim() ?? '';
+}
+
+/** La consulta de la página sin el parámetro de la compra. */
+function consultaSinLaCompra(): string {
+  const consulta = new URLSearchParams(window.location.search);
+  consulta.delete(PARAMETRO_DE_LA_COMPRA);
+  const texto = consulta.toString();
+  return texto ? `?${texto}` : '';
+}
+
+/**
+ * Saca la compra del enlace de la URL una vez leída (`history.replaceState`): recargar no vuelve a abrirla,
+ * y la página no queda diciendo «¡compra confirmada!» en cada F5.
+ */
+function olvidarLaCompraDelEnlace(): void {
+  if (typeof window === 'undefined' || !new URLSearchParams(window.location.search).has(PARAMETRO_DE_LA_COMPRA)) {
+    return;
+  }
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${consultaSinLaCompra()}${window.location.hash}`);
+}
+
+/** El motivo del control del cupón por el `code` con que `cotizar` lo rechazó. */
+function motivoDelCupon(code: string): PromoRejection {
+  switch (code) {
+    case 'pricing.promotion_not_found':
+      return 'unknown';
+    case 'pricing.promotion_expired':
+      return 'expired';
+    case 'pricing.promotion_currency_mismatch':
+      return 'not-applicable';
+    case CODIGO_DEMASIADOS_CODIGOS:
+      return 'too-many-attempts';
+    default:
+      return 'failed';
+  }
+}
+
+/** La clase de un motivo de la estrategia (sólo hay su `code`). */
+function claseDelMotivo(motivo: string): ReturnType<typeof clasificarRechazo> {
+  return clasificarRechazo({ code: motivo, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} });
 }
 
 let storefrontInstanceId = 0;
@@ -304,6 +400,8 @@ export class StorefrontElementComponent implements OnInit {
   readonly #api = inject(ShopApiClient);
   readonly #identity = inject(HostIdentityService);
   readonly #announcer = inject(LiveAnnouncerService);
+  /** El `<synergos-storefront>` de ESTA compra: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<StorefrontConfig | undefined, unknown>(undefined, {
@@ -669,8 +767,46 @@ export class StorefrontElementComponent implements OnInit {
       this.customerCity().trim().length > 1,
   );
 
-  /** Pasos apagables por config: datos → pago → revisar (sin paso de cita). */
-  readonly checkoutConfig: CheckoutWizardConfig = {
+  // ─── El camino de compra (ADR 0140, 004-tienda-compra) ──────────────────────
+  /**
+   * Por dónde compra, como lo DECLARA el CMS en `purchasePath`: la puerta (`tienda.compra`) o la ruta
+   * directa, la de siempre. Sin declaración, la directa.
+   */
+  readonly caminoDeCompra = computed<CaminoDeCompra>(() => caminoDeLaCompra(this.config()?.purchasePath));
+
+  /**
+   * Si ESTA compra va por la puerta: la que ya salió, por el camino por el que salió (su saga sólo existe
+   * de ese lado); sin ninguna en curso, la que declara el CMS. Nunca se cae de un camino al otro.
+   */
+  readonly porLaPuerta = computed(
+    () => caminoDeLaCompraEnCurso(this.#store.session(), this.config()?.purchasePath) === 'puerta',
+  );
+
+  /** El país al que despacha el sitio (ISO 3166-1 alfa-2): lo declara el CMS, el formulario no lo pregunta. */
+  readonly shippingCountry = computed(() => coerceTrimmedStringInput(this.config()?.shippingCountry) ?? '');
+
+  /** Un 401 de la puerta a mitad de la compra: la sesión terminó y se pide otra vez, en el mismo panel. */
+  readonly sesionRequerida = signal(false);
+
+  /** Por la puerta la compra es de miembros: sin sesión se pide ANTES de pagar, no a mitad. */
+  readonly pideSesion = computed(() => this.porLaPuerta() && (!this.isAuthenticated() || this.sesionRequerida()));
+
+  /** Lo que dice el panel de sesión, del diccionario (sección `Storefront.Purchase`, ADR 0136). */
+  readonly textosDeLaSesion = computed(() => ({
+    titulo: t('Storefront.Purchase.SignInTitle', 'Inicia sesión para comprar'),
+    texto: this.sesionRequerida()
+      ? t('Storefront.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.')
+      : t('Storefront.Purchase.SignInText', 'La compra en esta tienda es para miembros. Al volver, tu carrito seguirá aquí.'),
+    boton: t('Storefront.Purchase.SignIn', 'Iniciar sesión'),
+  }));
+
+  /**
+   * Pasos apagables por config: datos → pago → revisar (sin paso de cita). El fallo lo dice el ASISTENTE,
+   * una vez (UI#91). Por la ruta directa, con los avisos de un cobro: `pay` abre el cobro y el aviso de
+   * después nombra su referencia. Por la puerta, del diccionario: abrir sólo AUTORIZA, así que «ya recibimos
+   * tu pago» sería falso, y cada código que la persona puede provocar dice lo suyo (`#mensajeDeFallo`).
+   */
+  readonly checkoutConfig = computed<CheckoutWizardConfig>(() => ({
     steps: [
       { id: 'datos', label: 'Envío' },
       { id: 'pago', label: 'Pago' },
@@ -678,24 +814,91 @@ export class StorefrontElementComponent implements OnInit {
     ],
     summaryHeading: 'Tu pedido',
     submitLabel: 'Pagar y confirmar',
-    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `pay` abre el cobro, así que el
-    // aviso de después nombra su referencia.
-    ...AVISOS_DE_UN_COBRO,
+    ...(this.porLaPuerta()
+      ? {
+          payFailedMessage: t('Storefront.Purchase.Failed', 'No pudimos completar tu compra y no se te cobró nada. Intenta de nuevo.'),
+          confirmFailedMessage: t(
+            'Storefront.Purchase.ConfirmPending',
+            'Tu pago quedó autorizado (referencia {referencia}), pero no pudimos terminar la compra. Vuelve a intentarlo: no se te cobrará dos veces.',
+          ),
+          mensajeDeFallo: this.#mensajeDeFallo,
+        }
+      : AVISOS_DE_UN_COBRO),
     processingLabel: 'Procesando…',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
+  }));
+
+  /**
+   * EL aviso de un fallo de la compra por la puerta, por el `code` que devolvió la estrategia (ADR 0136: la
+   * funcionalidad traduce, con claves literales). Tienen texto propio los códigos que la persona puede
+   * provocar; los demás caen al de su clase, y los que no tienen (`null`) a los avisos del asistente, que
+   * nombran lo que QUEDÓ. «Te devolvimos el cobro» sólo lo dice la estrategia tras CONSULTAR la saga.
+   */
+  readonly #mensajeDeFallo = (motivo: string, referencia = ''): string | null => {
+    switch (motivo) {
+      case CODIGO_COMPRA_SIN_RESOLVER:
+        void this.cargarComprasSinResolver();
+        return t('Storefront.Purchase.PendingFound', 'Tienes una compra sin terminar. Termínala o cancélala antes de empezar otra.');
+      case CODIGO_COBRO_DEVUELTO:
+        return t('Storefront.Purchase.Refunded', 'No pudimos despachar tu pedido, así que te devolvimos el cobro.');
+      case CODIGO_SIN_SABER:
+        return t(
+          'Storefront.Purchase.Unknown',
+          'Todavía no sabemos en qué quedó tu compra (referencia {referencia}). Revisa «Mis compras» en unos minutos antes de volver a comprar.',
+          { referencia },
+        );
+      case 'inventory.insufficient_stock':
+      case 'inventory.unit_taken':
+        return t('Storefront.Purchase.OutOfStock', 'No quedan unidades suficientes de uno de tus productos. Revisa tu carrito.');
+      case 'pricing.price_not_found':
+      case 'pricing.price_not_in_effect':
+        return t('Storefront.Purchase.NotOnSale', 'Uno de tus productos ya no está a la venta. Revisa tu carrito.');
+      case 'pricing.promotion_not_found':
+      case 'pricing.promotion_expired':
+      case 'pricing.promotion_currency_mismatch':
+        // El código venció entre la vista previa y abrir: no se apartó nada, y el cupón se quita.
+        this.quitarElCupon();
+        return t('Storefront.Purchase.PromoRemoved', 'El código dejó de valer y lo quitamos. Revisa el total antes de pagar.');
+      case CODIGO_DEMASIADOS_CODIGOS:
+        return t('Storefront.Purchase.PromoTooMany', 'Probaste demasiados códigos que no sirven. Inténtalo más tarde, o compra sin código.');
+      case 'payments.payment_declined':
+      case 'payments.payment_failed':
+        return t('Storefront.Purchase.PaymentDeclined', 'Tu pago fue rechazado y no se te cobró nada. Puedes intentarlo con otro medio de pago.');
+      default:
+        break;
+    }
+    switch (claseDelMotivo(motivo)) {
+      case 'sesion':
+        this.sesionRequerida.set(true);
+        return t('Storefront.Purchase.SessionRequired', 'Tu sesión terminó. Inicia sesión para seguir con tu compra.');
+      case 'no_disponible':
+        return t('Storefront.Purchase.Unavailable', 'La compra en línea no está disponible en este momento.');
+      default:
+        return null;
+    }
   };
 
   readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     datos: this.shippingValid(),
     pago: true,
-    revisar: true,
+    // Mientras se valida un código no se paga: abrir leería la sesión SIN el cupón que se acaba de pedir.
+    revisar: !this.promoBusy(),
   }));
 
   readonly checkoutInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
     apiBase: this.apiBase(),
     customer: this.checkoutCustomer(),
     provider: this.paymentMethod() === 'pse' ? 'shop-pse' : 'shop-card',
+    host: this.#host,
+    camino: this.caminoDeCompra(),
+    // La dirección de «cerrar» por la puerta, con el país del despliegue; la directa la lleva en `customer`.
+    direccion: direccionDeEnvio({
+      direccion: this.customerAddress(),
+      ciudad: this.customerCity(),
+      pais: this.shippingCountry(),
+      contacto: this.customerName(),
+    }),
   }));
 
   // ─── Confirmation ───────────────────────────────────────────────────────────
@@ -784,8 +987,209 @@ export class StorefrontElementComponent implements OnInit {
    * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
    */
   ngOnInit(): void {
+    // El enlace del aviso de una compra por la puerta (`?compra={id}`, 004-tienda-compra): se lee UNA vez y
+    // sale de la URL, así recargar no vuelve a abrirla.
+    this.#compraDelEnlace = compraDelEnlace();
+    olvidarLaCompraDelEnlace();
     // Open with an unfiltered listing (feeds home rails + PLP), then honour a deep link.
-    void this.runSearch().then(() => this.applyHash());
+    void this.runSearch().then(() => {
+      this.applyHash();
+      if (this.#compraDelEnlace) {
+        void this.abrirCompraDelEnlace(this.#compraDelEnlace);
+      }
+    });
+  }
+
+  // ─── La compra por la puerta: el enlace, la pendiente (004-tienda-compra) ────────
+  /** La compra que trajo el enlace del aviso, leída una vez en `ngOnInit`. */
+  #compraDelEnlace = '';
+
+  /** Lo que se dice de la compra del enlace cuando no se puede mostrar (sin sesión, ajena, en curso). */
+  readonly avisoDelEnlace = signal('');
+
+  /** Si el aviso del enlace es por la sesión: entonces lleva el enlace para entrar. */
+  readonly enlacePideSesion = signal(false);
+
+  /**
+   * Abre la compra del enlace: su orden, como la registra el CMS, en la confirmación. Sin sesión pide entrar
+   * «para ver tu compra» (y el login vuelve con el enlace); una ajena o que no existe es «no la encontramos»;
+   * una que todavía corre lo dice, sin afirmar nada.
+   */
+  private async abrirCompraDelEnlace(id: string): Promise<void> {
+    if (!this.isAuthenticated()) {
+      this.enlacePideSesion.set(true);
+      this.avisoDelEnlace.set(t('Storefront.Purchase.LinkSignIn', 'Inicia sesión para ver tu compra.'));
+      return;
+    }
+    const r = await this.#api.compraDeLaPuerta(this.apiBase(), id);
+    if (!r.ok) {
+      const clase = claseDelMotivo(r.rechazo.code);
+      this.enlacePideSesion.set(clase === 'sesion');
+      this.avisoDelEnlace.set(
+        clase === 'sesion'
+          ? t('Storefront.Purchase.LinkSignIn', 'Inicia sesión para ver tu compra.')
+          : r.rechazo.code === 'tienda.purchase_not_found'
+            ? t('Storefront.Purchase.NotFound', 'No encontramos esta compra en tu cuenta.')
+            : r.rechazo.code === 'tienda.compra_en_curso'
+              ? t('Storefront.Purchase.InProgress', 'Tu compra todavía se está procesando. Inténtalo de nuevo en unos segundos.')
+              : t('Storefront.Purchase.Retry', 'No pudimos completar este paso. Intenta de nuevo.'),
+      );
+      return;
+    }
+    const orden = r.valor;
+    if (orden.status.toLowerCase() !== 'paid') {
+      // Una compra pendiente o deshecha no tiene confirmación que mostrar.
+      this.avisoDelEnlace.set(
+        orden.status.toLowerCase() === 'pending'
+          ? t('Storefront.Purchase.InProgress', 'Tu compra todavía se está procesando. Inténtalo de nuevo en unos segundos.')
+          : t('Storefront.Purchase.NotFound', 'No encontramos esta compra en tu cuenta.'),
+      );
+      return;
+    }
+    this.orderRef.set(orden.orderRef);
+    this.orderNumber.set(orden.orderNumber);
+    this.confirmedItems.set(orden.items.map((l) => ({ title: l.title, qty: l.qty, reference: orden.orderNumber })));
+    this.navigate('confirmation');
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página. Método y no `computed`: el hash cambia con la navegación. Con la
+   * compra del enlace sin mostrar, el login vuelve CON ella: es la que esa persona vino a ver.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/account/login';
+    }
+    const consulta = new URLSearchParams(consultaSinLaCompra());
+    if (this.enlacePideSesion() && this.#compraDelEnlace) {
+      consulta.set(PARAMETRO_DE_LA_COMPRA, this.#compraDelEnlace);
+    }
+    const texto = consulta.toString();
+    const aqui = `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`;
+    return `/account/login?returnUrl=${encodeURIComponent(aqui)}`;
+  }
+
+  /** La compra por la puerta que esta sesión dejó sin terminar (abierta y sin cerrar), si la hay. */
+  readonly compraSinTerminar = computed(() => {
+    const sesion = this.#store.session();
+    return caminoDeLaPendiente(sesion) === 'puerta' ? compraPendiente(sesion) : null;
+  });
+
+  /** Se intentó cambiar el carrito con una compra sin terminar: se pinta el aviso con sus dos salidas. */
+  readonly avisoDePendiente = signal(false);
+
+  /** Las compras de la puerta del miembro sin resolver que el servidor conoce y esta sesión no. */
+  readonly comprasSinResolver = signal<readonly CompraPendienteDelServidor[]>([]);
+
+  /** Se está resolviendo una pendiente: los botones no se repiten. */
+  readonly resolviendo = signal(false);
+
+  /** Lo que dicen el aviso y sus botones, del diccionario (sección `Storefront.Purchase`). */
+  readonly textosDeLaPendiente = computed(() => ({
+    texto: t('Storefront.Purchase.PendingFound', 'Tienes una compra sin terminar. Termínala o cancélala antes de empezar otra.'),
+    terminar: t('Storefront.Purchase.PendingResume', 'Terminar mi compra'),
+    cancelar: t('Storefront.Purchase.PendingCancel', 'Cancelar esa compra'),
+  }));
+
+  /**
+   * El carrito no cambia mientras una compra por la puerta pueda cobrar: lo que se abrió es lo que se
+   * cierra, y otra llave sería otra saga que aparta y autoriza al lado. Elegir otra vez la resuelve primero.
+   */
+  private carritoFijado(): boolean {
+    if (this.compraSinTerminar() === null) {
+      return false;
+    }
+    this.avisoDePendiente.set(true);
+    return true;
+  }
+
+  /** Terminar la compra pendiente: el asistente repite lo que falta con la MISMA llave y la misma compra. */
+  terminarPendiente(): void {
+    this.avisoDePendiente.set(false);
+    this.goToCheckout();
+  }
+
+  /**
+   * Cancelar la compra pendiente de esta sesión: se deshace en el orquestador —suelta lo apartado, anula el
+   * pedido y el cobro autorizado— y el carrito queda libre. Si abrir nunca contestó, se recupera su saga con
+   * la MISMA llave antes de cancelarla. Si resulta que sí se completó, se muestra en vez de cancelarla.
+   */
+  async cancelarPendiente(): Promise<void> {
+    const sesion = this.#store.getValidSession();
+    if (this.compraSinTerminar() === null || this.resolviendo()) {
+      return;
+    }
+    this.resolviendo.set(true);
+    try {
+      let id = compraDeLaSesion(sesion);
+      const llave = llaveRetenida(sesion);
+      if (!id && llave) {
+        const recuperada = await abrirCompraDeTienda(
+          this.#host,
+          cuerpoDeLaCompra(sesion, cuponDeLaSesion(sesion.pricing)?.codigo ?? null),
+          llave,
+        );
+        id = recuperada.ok ? recuperada.valor.id : null;
+      }
+      if (id && !(await this.cancelarYAsentar(id))) {
+        return;
+      }
+      this.#store.setSession(sinCompraPendiente(this.#store.getValidSession()));
+      this.avisoDePendiente.set(false);
+      this.#announcer.announce(t('Storefront.Purchase.PendingCancelled', 'Cancelamos la compra que estaba sin terminar. Ya puedes empezar otra.'));
+    } finally {
+      this.resolviendo.set(false);
+    }
+  }
+
+  /**
+   * Cancela una compra de la puerta y dice si quedó deshecha. Si cancelar no contesta con ella, la
+   * CONSULTA: una completa se muestra (no se cancela lo cobrado), una que no se sabe se deja como está.
+   */
+  private async cancelarYAsentar(id: string): Promise<boolean> {
+    const cancelada = await cancelarCompraDeTienda(this.#host, id);
+    if (cancelada.ok) {
+      return cancelada.valor.estado === 'Compensated' || cancelada.valor.estado === 'Compensating';
+    }
+    if (claseDelMotivo(cancelada.rechazo.code) === 'sesion') {
+      this.sesionRequerida.set(true);
+      return false;
+    }
+    const orden = await this.#api.compraDeLaPuerta(this.apiBase(), id);
+    if (orden.ok && orden.valor.status.toLowerCase() === 'paid') {
+      this.#store.setStatus('confirmed');
+      this.avisoDePendiente.set(false);
+      this.orderRef.set(orden.valor.orderRef);
+      this.orderNumber.set(orden.valor.orderNumber);
+      this.confirmedItems.set(orden.valor.items.map((l) => ({ title: l.title, qty: l.qty, reference: orden.valor.orderNumber })));
+      this.navigate('confirmation');
+      return false;
+    }
+    this.#announcer.announce(t('Storefront.Purchase.Retry', 'No pudimos completar este paso. Intenta de nuevo.'), 'assertive');
+    return false;
+  }
+
+  /** Las compras sin resolver que conoce el servidor (otro dispositivo, datos del sitio borrados), sin la de esta sesión. */
+  async cargarComprasSinResolver(): Promise<void> {
+    const r = await this.#api.comprasPendientes(this.apiBase());
+    const propia = compraDeLaSesion(this.#store.getValidSession())?.split('#')[0] ?? null;
+    this.comprasSinResolver.set(r.ok ? r.valor.filter((c) => c.id.split('#')[0] !== propia) : []);
+  }
+
+  /** Cancela una compra sin resolver que conoce el servidor, y vuelve a preguntar cuáles quedan. */
+  async cancelarCompraSinResolver(id: string): Promise<void> {
+    if (this.resolviendo()) {
+      return;
+    }
+    this.resolviendo.set(true);
+    try {
+      if (await this.cancelarYAsentar(id)) {
+        this.#announcer.announce(t('Storefront.Purchase.PendingCancelled', 'Cancelamos la compra que estaba sin terminar. Ya puedes empezar otra.'));
+      }
+      await this.cargarComprasSinResolver();
+    } finally {
+      this.resolviendo.set(false);
+    }
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────
@@ -1744,6 +2148,9 @@ export class StorefrontElementComponent implements OnInit {
 
   private addToCart(product: ShopProduct, variant: ProductVariant, quantity: number): void {
     this.addFailedId.set(null);
+    if (this.carritoFijado()) {
+      return;
+    }
     const session = this.#store.getValidSession();
     const payload: ShopSelectionPayload = {
       productId: product.id,
@@ -1792,6 +2199,9 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   private setLineQuantity(item: SessionItem, quantity: number): void {
+    if (this.carritoFijado()) {
+      return;
+    }
     if (quantity < 1) {
       this.removeFromCart(item.id);
       return;
@@ -1802,6 +2212,9 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   removeFromCart(itemId: string): void {
+    if (this.carritoFijado()) {
+      return;
+    }
     this.#store.removeItem(itemId);
     this.reprice();
     this.emitCartUpdate();
@@ -1887,7 +2300,7 @@ export class StorefrontElementComponent implements OnInit {
       return;
     }
     void this.#api
-      .tracking(this.apiBase(), order.orderNumber, order.status)
+      .tracking(this.apiBase(), order.orderRef, order.status)
       .then((tracking) => {
         this.trackingByRef.update((map) => ({
           ...map,
@@ -1996,7 +2409,8 @@ export class StorefrontElementComponent implements OnInit {
    * pedido» de tres artículos cuando llegó uno roto no es lo que nadie quiere.
    */
   openReturn(orderRef: string, line: OrderLine): void {
-    this.returnDraft.set({ orderRef, line, reason: 'damaged' });
+    const apiRef = this.orders().find((order) => order.orderNumber === orderRef)?.orderRef ?? orderRef;
+    this.returnDraft.set({ orderRef, apiRef, line, reason: 'damaged' });
     this.returnError.set('');
   }
 
@@ -2028,7 +2442,7 @@ export class StorefrontElementComponent implements OnInit {
 
     const result = await this.#api.requestReturn(
       this.apiBase(),
-      draft.orderRef,
+      draft.apiRef,
       lineRefOf(draft.line),
       draft.reason,
     );
@@ -2095,7 +2509,7 @@ export class StorefrontElementComponent implements OnInit {
     const resultados = await Promise.all(
       orders.map(async (order) => ({
         ref: order.orderNumber,
-        claims: await this.#api.orderReturns(this.apiBase(), order.orderNumber),
+        claims: await this.#api.orderReturns(this.apiBase(), order.orderRef),
       })),
     );
     const mapa: Record<string, readonly ReturnCase[]> = { ...this.returnsByRef() };
@@ -2144,6 +2558,9 @@ export class StorefrontElementComponent implements OnInit {
 
   // ─── Start a fresh transaction after confirmation ────────────────────────────
   startOver(): void {
+    if (this.carritoFijado()) {
+      return;
+    }
     this.#store.reset();
     this.orderRef.set('');
     this.orderNumber.set('');
@@ -2213,12 +2630,18 @@ export class StorefrontElementComponent implements OnInit {
    * un descuento fingido acá es una promesa de plata que el checkout rompe.
    */
   async applyPromo(code: string): Promise<void> {
-    if (this.promoBusy()) {
+    if (this.promoBusy() || this.cuponFijado()) {
       return;
     }
     this.promoBusy.set(true);
     this.promoRejection.set(null);
     this.promoDetail.set('');
+
+    if (this.porLaPuerta()) {
+      await this.cotizarConCupon(code);
+      this.promoBusy.set(false);
+      return;
+    }
 
     const subtotal = this.#store
       .items()
@@ -2244,8 +2667,60 @@ export class StorefrontElementComponent implements OnInit {
     }
   }
 
+  /**
+   * Por la puerta, el cupón lo calcula el SERVIDOR (US 8): `cotizar` corre la fase que abre hasta antes de
+   * apartar, con el código, y del navegador sólo viaja el código. Lo que se muestra es lo que abrir
+   * autorizaría; un código que no existe, vencido, o con demasiados intentos se dice por su motivo.
+   */
+  private async cotizarConCupon(code: string): Promise<void> {
+    const codigo = code.trim().toUpperCase();
+    const r = await cotizarCompraDeTienda(this.#host, cuerpoDeLaCompra(this.#store.getValidSession(), codigo));
+    if (!r.ok) {
+      this.promoRejection.set(motivoDelCupon(r.rechazo.code));
+      return;
+    }
+    const descuento = r.valor.descuento;
+    if (!descuento || descuento.amount <= 0) {
+      this.promoRejection.set('not-applicable');
+      return;
+    }
+    this.promo.set({ code: codigo, amountMinor: -aMenores(descuento.amount, descuento.currency), label: codigo });
+    this.promoControl()?.clear();
+    this.reprice();
+    this.emitCartUpdate();
+  }
+
+  /**
+   * El cupón queda FIJO mientras una compra suya pueda cobrar: abrir con otro código sería otra intención,
+   * otra saga que aparta y autoriza al lado de la primera.
+   */
+  readonly cuponFijado = computed(() => compraPendiente(this.#store.session()) !== null);
+
+  /** Los motivos del cupón, del diccionario: el control no sabe del negocio. */
+  readonly promoConfig = computed<PromoCodeConfig>(() => ({
+    messages: {
+      unknown: t('Storefront.Purchase.PromoUnknown', 'No encontramos ese código. Revisa que esté bien escrito.'),
+      expired: t('Storefront.Purchase.PromoExpired', 'Ese código ya venció.'),
+      'too-many-attempts': t(
+        'Storefront.Purchase.PromoTooMany',
+        'Probaste demasiados códigos que no sirven. Inténtalo más tarde, o compra sin código.',
+      ),
+    },
+    lockedMessage: t('Storefront.Purchase.PromoFixed', 'El cupón queda fijo mientras tu compra está en curso.'),
+  }));
+
+  /** Quita el cupón que dejó de valer al abrir: la compra no se apartó, y el carrito vuelve a su total. */
+  private quitarElCupon(): void {
+    this.promo.set(null);
+    this.reprice();
+    this.emitCartUpdate();
+  }
+
   /** Quita el cupón y devuelve el total anterior. */
   removePromo(): void {
+    if (this.cuponFijado()) {
+      return;
+    }
     this.promo.set(null);
     this.promoRejection.set(null);
     this.promoDetail.set('');
@@ -2266,7 +2741,7 @@ export class StorefrontElementComponent implements OnInit {
     }));
     if (promo) {
       // La línea NEGATIVA que el motor esperaba desde el primer día.
-      lineas.push({ code: `promo:${promo.code}`, label: promo.label, amount: promo.amountMinor });
+      lineas.push({ code: `${PREFIJO_DEL_CUPON}${promo.code}`, label: promo.label, amount: promo.amountMinor });
     }
     // El descuento nunca deja el total bajo cero: un carrito que se debe a sí
     // mismo no es un carrito, y el checkout lo cobraría como un importe negativo.
