@@ -334,21 +334,20 @@ describe('las franjas, «mis visitas» y la cancelación por la puerta (008-P3, 
     ]);
   });
 
-  it('cancelar PIDE con la llave de la intención y luego CONFIRMA, por el coordinador de la cancelación', async () => {
-    montar((_, p) => (p.url.endsWith('/abrir') ? ok(cancelacion('Running'), 201) : ok(cancelacion('Completed'))));
+  it('cancelar es UNA petición con la llave de la intención, por el coordinador de la cancelación', async () => {
+    montar(() => ok(cancelacion('Completed'), 201));
 
     const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
 
     expect(r.ok).toBe(true);
     expect(pedidas.map((p) => [p.flujo, p.peticion.url])).toEqual([
       ['propiedades.visita-cancelacion', '/api/flujos/propiedades.visita-cancelacion/abrir'],
-      ['propiedades.visita-cancelacion', '/api/flujos/propiedades.visita-cancelacion/cerrar?id=pc-1'],
     ]);
     expect(pedidas[0]!.peticion.cabeceras['Idempotency-Key']).toBe('llave-c');
     expect(JSON.parse(pedidas[0]!.peticion.cuerpo ?? '{}')).toEqual({ visita: 'pv-1' });
   });
 
-  it('si pedirla se rechaza (no es tuya, no está confirmada) no se confirma nada', async () => {
+  it('una que no es tuya, o sin confirmar, se rechaza con su código', async () => {
     montar(() => rechazo('flow.original_no_encontrada', 404));
 
     const r = await cancelarVisitaConfirmada(participante, 'pv-x', 'llave-c');
@@ -357,17 +356,8 @@ describe('las franjas, «mis visitas» y la cancelación por la puerta (008-P3, 
     expect(pedidas).toHaveLength(1);
   });
 
-  it('la misma intención ya cancelada no se vuelve a confirmar', async () => {
-    montar(() => ok(cancelacion('Completed')));
-
-    const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
-
-    expect(r.ok).toBe(true);
-    expect(pedidas).toHaveLength(1);
-  });
-
   it('fuera de plazo, el rechazo de la agenda llega con su código', async () => {
-    montar((_, p) => (p.url.endsWith('/abrir') ? ok(cancelacion('Running'), 201) : rechazo('booking.cancellation_too_late')));
+    montar(() => rechazo('booking.cancellation_too_late'));
 
     const r = await cancelarVisitaConfirmada(participante, 'pv-1', 'llave-c');
 

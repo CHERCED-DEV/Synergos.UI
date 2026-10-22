@@ -30,15 +30,6 @@ export function cancelarPropiedadesVisitaCancelacion(
   return pedirAlFlujo(desde, FLUJO_PROPIEDADES_VISITA_CANCELACION, "cancelar", args, opciones);
 }
 
-/** `cerrar`: POST con consulta; llave ninguna. */
-export function cerrarPropiedadesVisitaCancelacion(
-  desde: Element,
-  args: ArgsDe<Operaciones["cerrar"]>,
-  opciones?: OpcionesDePedido,
-): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["cerrar"]>>> {
-  return pedirAlFlujo(desde, FLUJO_PROPIEDADES_VISITA_CANCELACION, "cerrar", args, opciones);
-}
-
 /** `consultar`: GET con consulta; llave ninguna. */
 export function consultarPropiedadesVisitaCancelacion(
   desde: Element,
@@ -46,15 +37,6 @@ export function consultarPropiedadesVisitaCancelacion(
   opciones?: OpcionesDePedido,
 ): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["consultar"]>>> {
   return pedirAlFlujo(desde, FLUJO_PROPIEDADES_VISITA_CANCELACION, "consultar", args, opciones);
-}
-
-/** `cotizar`: POST con cuerpo; llave ninguna. */
-export function cotizarPropiedadesVisitaCancelacion(
-  desde: Element,
-  args: ArgsDe<Operaciones["cotizar"]>,
-  opciones?: OpcionesDePedido,
-): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["cotizar"]>>> {
-  return pedirAlFlujo(desde, FLUJO_PROPIEDADES_VISITA_CANCELACION, "cotizar", args, opciones);
 }
 
 /** `listar`: GET con consulta; llave ninguna. */

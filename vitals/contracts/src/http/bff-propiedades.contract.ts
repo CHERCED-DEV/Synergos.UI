@@ -10,11 +10,6 @@
 // lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
 // regla 24 de CLAUDE.md.
 
-export interface PropiedadesVisitaCancelacionCotizacion {
-  readonly flujo: string;
-  readonly datos: { readonly visita: string | null; };
-}
-
 export interface PropiedadesVisitaCancelacionEntrada {
   readonly visita: string;
 }
@@ -39,7 +34,7 @@ export interface PropiedadesVisitaCancelacionRespuesta {
 
 export interface PropiedadesVisitaCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly inmueble: { readonly kind: "realty.listado"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly modo: string | null; readonly reservaId: string | null; };
+  readonly datos: { readonly inmueble: { readonly kind: "realty.listado"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly modo: string | null; };
 }
 
 export interface PropiedadesVisitaDisponibilidad {
@@ -71,7 +66,7 @@ export interface PropiedadesVisitaRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly inmueble: { readonly kind: "realty.listado"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly modo: string | null; readonly reservaId: string | null; };
+  readonly datos: { readonly inmueble: { readonly kind: "realty.listado"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly modo: string | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
@@ -118,9 +113,7 @@ export interface OperacionesDeLaPuerta {
   readonly "propiedades.visita-cancelacion": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, PropiedadesVisitaCancelacionEntrada, PropiedadesVisitaCancelacionRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, PropiedadesVisitaCancelacionRespuesta, "ninguna">;
-    readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, PropiedadesVisitaCancelacionRespuesta, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, PropiedadesVisitaCancelacionRespuesta, "ninguna">;
-    readonly cotizar: OperacionDeLaPuerta<"POST", undefined, PropiedadesVisitaCancelacionEntrada, PropiedadesVisitaCancelacionCotizacion, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, PropiedadesVisitaCancelacionPagina, "ninguna">;
   };
 }
@@ -159,9 +152,7 @@ export const OPERACIONES_DE_LA_PUERTA = {
   "propiedades.visita-cancelacion": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
-    cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
-    cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

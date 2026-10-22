@@ -4,7 +4,6 @@ import {
   abrirPropiedadesVisitaCancelacion,
   cancelarPropiedadesVisita,
   cerrarPropiedadesVisita,
-  cerrarPropiedadesVisitaCancelacion,
   consultarPropiedadesVisita,
   disponibilidadPropiedadesVisita,
   listarPropiedadesVisita,
@@ -165,19 +164,16 @@ export async function misVisitasDeLaPuerta(
 }
 
 /**
- * Cancelar una visita YA confirmada (008-P5): la operación posterior al cierre, en dos pasos. Abrir PIDE —comprueba que es
- * tuya y está confirmada, sin tocar la agenda— y cerrar CONFIRMA: la agenda la cancela con su plazo de aviso, y su
- * rechazo vuelve con su código (`booking.cancellation_too_late`, `booking.already_cancelled`). La llave es la de la
- * intención: repetir con ella no cancela dos veces.
+ * Cancelar una visita YA confirmada (008-P5): la operación posterior al cierre, en UNA llamada. El orquestador lee de la
+ * visita la reserva que dejó para lo posterior —sólo si es tuya y está confirmada— y la agenda la cancela con su plazo de
+ * aviso; su rechazo vuelve con su código (`booking.cancellation_too_late`, `booking.already_cancelled`). La llave es la de
+ * la intención: repetir con ella no cancela dos veces.
  */
 export async function cancelarVisitaConfirmada(
   desde: Element,
   visita: string,
   llave: string,
 ): Promise<ResultadoDelFlujo<true>> {
-  const pedida = await abrirPropiedadesVisitaCancelacion(desde, { cuerpo: { visita }, llave });
-  if (!pedida.ok) return pedida;
-  if (pedida.valor.estado === 'Completed') return { ...pedida, valor: true };
-  const cancelada = await cerrarPropiedadesVisitaCancelacion(desde, { consulta: { id: pedida.valor.id } });
-  return cancelada.ok ? { ...cancelada, valor: true } : cancelada;
+  const r = await abrirPropiedadesVisitaCancelacion(desde, { cuerpo: { visita }, llave });
+  return r.ok ? { ...r, valor: true } : r;
 }

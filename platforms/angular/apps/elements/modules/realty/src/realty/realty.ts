@@ -1199,7 +1199,8 @@ export class RealtyElementComponent implements OnInit {
   /**
    * Cancela por la puerta una visita confirmada (008-P5). El plazo de aviso lo decide la agenda: fuera de él lo dice, y la
    * pantalla deja de ofrecerla. Una ya cancelada (otra pestaña) es lo mismo que hecha. La llave es la de ESTE intento:
-   * mientras corre no se pide otro, y un intento que falló a mitad no se puede repetir con la suya.
+   * mientras corre no se pide otro; repetir con la suya un intento que falló devolvería el mismo fallo, y cancelar dos
+   * veces la misma reserva la agenda lo contesta como ya cancelada.
    */
   async cancelarVisita(id: string | undefined): Promise<void> {
     if (!id || this.cancelacion().fase === 'cancelando') {

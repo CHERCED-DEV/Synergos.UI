@@ -513,7 +513,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
       deshaciendo: false,
     });
     const pagina = (items: unknown[]) => ok({ items, total: items.length, offset: 0, hasMore: false });
-    const cancelaBien = (p: Peticion): ResultadoDelFlujo<unknown> => ok(CANCELACION('pv-1', p.url.endsWith('/abrir') ? 'Running' : 'Completed'));
+    const cancelaBien = (): ResultadoDelFlujo<unknown> => ok(CANCELACION('pv-1'), 201);
 
     /** La puerta con dos visitas confirmadas, una ya cancelada, y lo que conteste la cancelación. */
     const puertaDeMisVisitas =
@@ -555,13 +555,13 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
       expect(component.myVisits().find((v) => v.id === 'pv-1')?.status).toBe('cancelled');
       expect(component.textoDeLaCancelacion('pv-1')).toContain('Cancelaste esta visita');
       expect(pedidas.filter((p) => p.flujo === 'propiedades.visita-cancelacion').map((p) => p.peticion.url)).toContain(
-        '/api/flujos/propiedades.visita-cancelacion/cerrar?id=pc-pv-1',
+        '/api/flujos/propiedades.visita-cancelacion/abrir',
       );
     });
 
     it('fuera de plazo lo dice y deja de ofrecerla', async () => {
       await alAsistentePorLaPuerta(
-        puertaDeMisVisitas((p) => (p.url.endsWith('/abrir') ? ok(CANCELACION('pv-1', 'Running'), 201) : no('booking.cancellation_too_late'))),
+        puertaDeMisVisitas(() => no('booking.cancellation_too_late')),
         { cancelacion: true },
       );
       component.goToAccount();
