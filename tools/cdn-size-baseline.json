@@ -23,8 +23,8 @@
     "alquiler/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 44350,
-      "gzip": 9304
+      "bytes": 89129,
+      "gzip": 19594
     },
     "app-launcher/angular": {
       "tier": "module",

@@ -128,6 +128,12 @@ export const EXCEPCIONES = {
   'travel-shell': { techo: 440 * KB, razon: 'vertical completa: búsqueda, pax, itinerario. 408 KB medidos, 263 de shells (65 %)' },
   seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
   'booking-wizard': { techo: 100 * KB, razon: 'asistente de reserva: pasos, cobro y acuse. 89 KB medidos, 41 de shells (46 %) — el tier «module» son 72 KB y ninguna vertical cabe ahí' },
+  // Entró el 2026-10-22 (línea 005, ADR 0140): 87,0 KB medidos (89 129 B) desde los 49,6 de antes de la puerta. Medido
+  // qué entró, reempaquetando la entrada AOT con metafile: 0 de shells; 68 KB del propio componente con su plantilla
+  // —el catálogo, la renta por la puerta (cotizar, apartar, retomar, confirmar), «mis alquileres» con sus estados y la
+  // cara del personal— y 8,6 de la puerta común (vitals/core/flujos: coordinador, transporte, rechazos). Lo evitable no
+  // es de este vertical: 6,3 KB son escapes `ɵ` de Angular, lo mismo que en eventos (`charset: 'utf8'` es del build).
+  alquiler: { techo: 94 * KB, razon: 'vertical completa: catálogo, renta por la puerta, mis alquileres y la cara del personal. 87 KB medidos el 2026-10-22, 0 de shells; 68 del componente y 8,6 de la puerta' },
   'product-detail': { techo: 104 * KB, razon: 'ficha con galería, variantes y motor de precio' },
 };
 
