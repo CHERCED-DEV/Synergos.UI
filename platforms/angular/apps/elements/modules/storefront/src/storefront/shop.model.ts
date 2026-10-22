@@ -301,9 +301,61 @@ export interface ConfirmedLine {
   readonly reference: string;
 }
 
+// ─── La compra por la puerta (004-tienda-compra, ADR 0140) ────────────────────
+
+/**
+ * Por dónde compra la tienda: la puerta (`tienda.compra`, el flujo declarado en su orquestador) o la ruta
+ * directa (`/api/shop/checkout|confirm`). Lo DECLARA el CMS en `purchasePath`; las dos se conservan.
+ */
+export type CaminoDeCompra = 'puerta' | 'directa';
+
+/**
+ * El camino que viaja en el `config` (ADR 0140): la puerta SÓLO si el CMS lo declaró así; cualquier otra
+ * cosa —o nada— es la ruta directa, la de siempre de la tienda.
+ */
+export function caminoDeLaCompra(camino: unknown): CaminoDeCompra {
+  return camino === 'puerta' ? 'puerta' : 'directa';
+}
+
+/** Una línea de la orden de una compra de la puerta, como la anota el CMS (`GET /api/shop/compras/{id}`). */
+export interface LineaDeLaOrdenDeLaPuerta {
+  readonly productId: string;
+  readonly variantId: string | null;
+  readonly title: string;
+  readonly qty: number;
+  readonly unitPrice: number;
+  readonly lineTotal: number;
+}
+
+/** La orden de una compra de la puerta, ya registrada por el CMS: pagada si el orquestador la completó. */
+export interface OrdenDeLaPuerta {
+  readonly orderRef: string;
+  readonly orderNumber: string;
+  /** El estado de la orden del CMS: `Pending`, `Paid` o `Cancelled`. */
+  readonly status: string;
+  readonly total: number;
+  readonly currency: string;
+  readonly items: readonly LineaDeLaOrdenDeLaPuerta[];
+}
+
+/** Una compra de la puerta del miembro sin resolver, según el servidor (`GET /api/shop/compras/pendientes`). */
+export interface CompraPendienteDelServidor {
+  readonly id: string;
+  readonly numero: string;
+  readonly total: number;
+  readonly moneda: string;
+  readonly estado: string;
+}
+
 /** A past order from `GET /api/shop/orders`. */
 export interface ShopOrder {
   readonly orderNumber: string;
+  /**
+   * Con lo que el servidor busca el pedido (`/order/{ref}/tracking`, `/return`): la referencia, no el número que ve
+   * quien compró. Son distintos en los dos caminos (`ord_…`/`SYN-…` en la directa, la saga/`ABCD1234` en la puerta);
+   * pedir por el número daba 404 y la pantalla se quedaba sin seguimiento ni devoluciones.
+   */
+  readonly orderRef: string;
   readonly date: string;
   readonly status: OrderStatus;
   readonly total: number;
