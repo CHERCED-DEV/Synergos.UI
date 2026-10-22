@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlquilerApiClient } from './alquiler-api.client';
-import { AlquilerElementComponent } from './alquiler';
+import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
 import { normalizeRental, readRentalState } from './alquiler.model';
 import { asentar } from '../../../../../../tools/asentar';
 
@@ -407,6 +407,25 @@ describe('AlquilerElementComponent', () => {
     expect(component.reserva()?.depositHeld).toBe(0);
   });
 
+  it('«Devolví el equipo» con el borde que DECLARA: la garantía sigue retenida y no hay error', async () => {
+    // Decisión 5 del lote 1: quien alquila declara y el personal confirma. El borde contesta al dueño que llama a
+    // /return con el alquiler DECLARADO; sin reconocer `declared`, el parser lo tiraba y el botón decía
+    // «No pudimos registrar la devolución» de algo que sí quedó registrado (línea 005, T018 compat).
+    servidor({
+      ...GUION_FELIZ,
+      'POST /api/alquiler/rentals/alq-1/return': { ...ALQUILER, state: 'declared' },
+    });
+    await montar();
+
+    await component.devolver('alq-1', 0);
+    await drenar();
+
+    expect(component.problema()).toBe('');
+    expect(component.reserva()?.state).toBe('declared');
+    expect(component.reserva()?.depositHeld).toBe(ALQUILER.depositHeld);
+    expect(readRentalState('declared')).toBe('declared');
+  });
+
   it('un intento que el orquestador deshizo NO se lee como reservado', async () => {
     // El borde emite `failed` desde CHERCED-DEV/Synergos.CMS#147: una saga compensada no dejó
     // ni ventana apartada ni plata retenida, y decía `reserved` de eso. Acá se comprueba la
@@ -500,5 +519,28 @@ describe('AlquilerElementComponent', () => {
     expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
     // La clave que la página no trae sale por su respaldo, no vacía.
     expect(component.txt.misAlquileres).toBe('Mis alquileres');
+  });
+});
+
+// ── El camino de la renta lo DECLARA el CMS (ADR 0140) ───────────────────────────────────────────
+//
+// `AlquilerProps.rentalPath` viaja con «puerta» o «directa»; el sanitizador lo conserva tal cual y cualquier otra cosa
+// se cae, para que nadie elija un tercer camino desde el atributo.
+describe('sanitizeAlquilerConfig: el camino de la renta', () => {
+  const NEGOCIO_DEL_CMS = { apiBase: '/api/alquiler' };
+
+  it.each(['puerta', 'directa'])('conserva «%s»', (camino) => {
+    expect(sanitizeAlquilerConfig({ ...NEGOCIO_DEL_CMS, rentalPath: camino })).toEqual({
+      ...NEGOCIO_DEL_CMS,
+      rentalPath: camino,
+    });
+  });
+
+  it.each([
+    ['sin declarar', NEGOCIO_DEL_CMS],
+    ['con un valor que no es ninguno de los dos', { ...NEGOCIO_DEL_CMS, rentalPath: 'por-ahi' }],
+    ['con otra caja', { ...NEGOCIO_DEL_CMS, rentalPath: 'PUERTA' }],
+  ])('%s, no hay camino', (_caso, config) => {
+    expect(sanitizeAlquilerConfig(config)).toEqual(NEGOCIO_DEL_CMS);
   });
 });

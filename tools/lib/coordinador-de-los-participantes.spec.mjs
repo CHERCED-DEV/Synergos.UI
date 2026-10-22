@@ -13,8 +13,12 @@ import { apiDelParticipante, importadoDeVitals, revisarEntrada } from './coordin
 const REPO = path.resolve(import.meta.dirname, '../..');
 const FLUJOS = path.join(REPO, 'vitals/core/src/flujos');
 
+// Con su subcarpeta `generados/` (núcleo N3): los envoltorios de los flujos también le hablan al
+// coordinador, y un elemento que importe `abrirSaludCita` participa igual que uno que importe
+// `abrirCompraDeEventos`.
 const API = apiDelParticipante(
-  readdirSync(FLUJOS)
+  readdirSync(FLUJOS, { recursive: true })
+    .map((f) => String(f))
     .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
     .map((f) => readFileSync(path.join(FLUJOS, f), 'utf8')),
 );
@@ -54,7 +58,15 @@ const participantes = [
 describe('cada participante de un flujo define <synergos-flujo> al cargar (ADR 0140 F4)', () => {
   it('hay sujeto: la API del participante se deriva de los flujos, y Eventos participa', () => {
     expect([...API]).toEqual(
-      expect.arrayContaining(['pedirAlFlujo', 'hayCoordinador', 'abrirCompraDeEventos', 'cerrarCompraDeEventos', 'consultarCompraDeEventos']),
+      expect.arrayContaining([
+        'pedirAlFlujo',
+        'hayCoordinador',
+        'abrirCompraDeEventos',
+        'cerrarCompraDeEventos',
+        'consultarCompraDeEventos',
+        'abrirEventosCompra',
+        'cerrarEventosCompra',
+      ]),
     );
     expect(participantes.map((p) => p.nombre)).toContain('eventos');
   });

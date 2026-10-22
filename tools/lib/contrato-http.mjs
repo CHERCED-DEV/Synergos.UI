@@ -56,6 +56,8 @@
  * RECHAZA. Lo que corre en `npm test` es esta lógica, en `contrato-http.spec.mjs`.
  */
 
+import { generarAvisos } from './avisos-de-los-flujos.mjs';
+
 /** Dónde viven los documentos, dentro del repo del CMS. */
 export const RUTA_EN_CMS = ['Synergos.CMS.Web', 'docs', 'contracts', 'openapi'];
 
@@ -114,9 +116,18 @@ export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
 /**
  * El vocabulario fijo de saga con que la puerta nombra las operaciones (ADR 0140 F3, decisión 6).
  * `cotizar` lo suma el cupón: la fase que abre, anticipada sin saga (`FlowRunner.AnticiparAsync`).
+ * `listar` son las sagas del dueño, «mis reservas» (núcleo, NB-6 de 011). `disponibilidad` es una lectura sin
+ * saga ni dueño, lo que se ve antes de abrir (NB-3): la única clase de operación que un flujo abre a invitados.
+ * `devolver` es la fase que abre una operación posterior al cierre (lote 6, N-6 de 004).
  * Es la misma lista que `EnLaPuertaExtensions.Operaciones` y `TablaDeLaPuerta.Operaciones` del CMS.
  */
-export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar'];
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'devolver', 'disponibilidad', 'listar'];
+
+/**
+ * El único acceso que puede traer la marca además del del dueño: una operación del personal (lote 6, P8). La puerta
+ * pide el rol; lo que se genera para el navegador no cambia.
+ */
+export const ACCESO_DEL_PERSONAL = 'personal';
 
 /** Los métodos que la puerta pasa. */
 const METODOS_DE_LA_PUERTA = new Set(['get', 'post']);
@@ -289,16 +300,21 @@ function revisarCuerpo(op, quien, esquemas, errores) {
 }
 
 /**
- * La marca de la puerta en una operación: `{ flujo, operacion }`, con la operación del vocabulario
- * fijo, por GET o POST, una sola vez por flujo, y con lo que viaja en la consulta sin repetirse.
+ * La marca de la puerta en una operación: `{ flujo, operacion }`, o `{ flujo, operacion, acceso: 'personal' }` en una
+ * del personal (lote 6, P8), con la operación del vocabulario fijo, por GET o POST, una sola vez por flujo, y con lo
+ * que viaja en la consulta sin repetirse.
  */
 function revisarMarca(op, metodo, quien, vistas, errores) {
   const marca = op[MARCA_DEL_FLUJO];
   if (marca === undefined) return;
 
-  if (!esObjeto(marca) || Object.keys(marca).sort(ordinal).join() !== 'flujo,operacion') {
-    errores.push(`${quien}: ${MARCA_DEL_FLUJO} tiene que ser { flujo, operacion } y nada más`);
+  const claves = esObjeto(marca) ? Object.keys(marca).sort(ordinal).join() : '';
+  if (claves !== 'flujo,operacion' && claves !== 'acceso,flujo,operacion') {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO} tiene que ser { flujo, operacion } o { flujo, operacion, acceso } y nada más`);
     return;
+  }
+  if (claves === 'acceso,flujo,operacion' && marca.acceso !== ACCESO_DEL_PERSONAL) {
+    errores.push(`${quien}: ${MARCA_DEL_FLUJO}.acceso «${marca.acceso}» no es uno que la puerta sepa dar (sólo «${ACCESO_DEL_PERSONAL}»)`);
   }
   if (typeof marca.flujo !== 'string' || !CLAVE_DE_FLUJO.test(marca.flujo)) {
     errores.push(`${quien}: ${MARCA_DEL_FLUJO}.flujo «${marca.flujo}» no es una clave de flujo (dominio.flujo)`);
@@ -682,6 +698,155 @@ export function generarIndice(documentos) {
   ].join('\n');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LOS ENVOLTORIOS DE LOS FLUJOS (núcleo N3, FR-030).
+//
+// Con el mapa y la tabla, `pedirAlFlujo` ya llama a cualquier flujo tipado; lo que un vertical
+// escribía además era SU envoltorio —`eventos-compra.ts`—: la clave del flujo y una función por
+// operación. Eso también sale del documento: un flujo nuevo aparece en el front con su envoltorio
+// generado y ningún fichero de transporte escrito a mano (SC-006).
+//
+// Van en `vitals/core` y no junto a los tipos: llaman a `pedirAlFlujo`, que es del núcleo del
+// front, y el paquete de contratos no depende de él. Son `export function` a propósito: el gate de
+// los participantes (`coordinador-de-los-participantes.mjs`) deriva de ellas quién habla con el
+// coordinador, y un objeto de flechas no lo vería.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Dónde se escriben los envoltorios, dentro de este repo. La carpeta es ENTERA generada. */
+export const RUTA_DE_LOS_ENVOLTORIOS = ['vitals', 'core', 'src', 'flujos', 'generados'];
+
+/**
+ * `salud.cita-previa` → el fichero `salud.cita-previa.ts`, la constante `FLUJO_SALUD_CITA_PREVIA` y la
+ * pieza de sus funciones, `SaludCitaPrevia` (`abrirSaludCitaPrevia`).
+ *
+ * @param {string} flujo una clave de flujo válida.
+ * @returns {{ fichero: string, constante: string, pieza: string }}
+ */
+export function nombresDelFlujo(flujo) {
+  const partes = flujo.split(/[.-]/).filter((p) => p.length > 0);
+  return {
+    fichero: `${flujo}.ts`,
+    constante: `FLUJO_${partes.map((p) => p.toUpperCase()).join('_')}`,
+    pieza: partes.map((p) => p[0].toUpperCase() + p.slice(1)).join(''),
+  };
+}
+
+/**
+ * El envoltorio de un flujo: su clave y una función por operación marcada, cada una `pedirAlFlujo`
+ * con la clave y la operación puestas y sus argumentos tipados por el contrato generado.
+ *
+ * @param {string} flujo la clave.
+ * @param {ReadonlyArray<{ nombre: string, metodo: string, consulta: string, cuerpo: unknown, llave: string }>} operaciones
+ *   las del flujo, ya en orden.
+ * @param {string} documento el `Synergos.Bff.*.json` que lo marca, para la cabecera.
+ * @returns {string}
+ */
+export function generarEnvoltorio(flujo, operaciones, documento) {
+  const { constante, pieza } = nombresDelFlujo(flujo);
+  return [
+    `// ─── El flujo ${flujo} por la puerta (núcleo N3) ───`,
+    `// GENERADO por tools/contrato-http.mjs desde ${documento} (repo del CMS). NO se edita a mano.`,
+    '// Una función por operación que el orquestador marca: `pedirAlFlujo` con la clave y la operación',
+    '// puestas, y sus argumentos y su respuesta tipados por el contrato generado.',
+    '',
+    "import { pedirAlFlujo, type OpcionesDePedido } from '../coordinador';",
+    "import type { ArgsDe, OperacionesDeLaPuerta, RespuestaDe } from '../puerta';",
+    "import type { ResultadoDelFlujo } from '../transporte';",
+    '',
+    '/** La clave del flujo, como la marca su orquestador. */',
+    `export const ${constante} = ${JSON.stringify(flujo)};`,
+    '',
+    `type Operaciones = OperacionesDeLaPuerta[typeof ${constante}];`,
+    ...operaciones.flatMap((o) => [
+      '',
+      `/** \`${o.nombre}\`: ${o.metodo}${o.consulta === 'undefined' ? '' : ' con consulta'}${
+        o.cuerpo === undefined ? '' : ' con cuerpo'
+      }; llave ${o.llave}. */`,
+      `export function ${o.nombre}${pieza}(`,
+      '  desde: Element,',
+      `  args: ArgsDe<Operaciones[${JSON.stringify(o.nombre)}]>,`,
+      '  opciones?: OpcionesDePedido,',
+      `): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones[${JSON.stringify(o.nombre)}]>>> {`,
+      `  return pedirAlFlujo(desde, ${constante}, ${JSON.stringify(o.nombre)}, args, opciones);`,
+      '}',
+    ]),
+    '',
+  ].join('\n');
+}
+
+/**
+ * El índice de los envoltorios: uno por flujo publicado, sin espacio de nombres (las claves no se
+ * pisan, y si dos dieran la misma pieza `planDeFicheros` no genera).
+ *
+ * @param {readonly string[]} flujos las claves, ya en orden.
+ * @returns {string}
+ */
+export function generarIndiceDeEnvoltorios(flujos) {
+  return [
+    '// ─── Los envoltorios de los flujos que expone la puerta (núcleo N3) ───',
+    '// GENERADO por tools/contrato-http.mjs: uno por cada flujo marcado en los `Synergos.Bff.*.json`',
+    '// del CMS, y la tabla de sus avisos. NO se edita a mano.',
+    '',
+    `export * from './${AVISOS.replace(/\.ts$/, '')}';`,
+    ...flujos.map((f) => `export * from './${nombresDelFlujo(f).fichero.replace(/\.ts$/, '')}';`),
+    '',
+  ].join('\n');
+}
+
+/** La tabla de los avisos, junto a los envoltorios (núcleo N3, FR-032): sale del `appsettings.json` del CMS. */
+export const AVISOS = 'avisos.ts';
+
+/**
+ * Los envoltorios de todos los documentos válidos, con su índice y la tabla de avisos; o los errores si
+ * dos flujos darían el mismo nombre (sus funciones chocarían en `vitals-core`) o una ruta de aviso no
+ * dice qué parámetro lee el participante.
+ *
+ * @param {ReadonlyMap<string, any>} documentos fichero → documento ya validado.
+ * @param {ReadonlyMap<string, string>} avisos flujo → ruta del aviso, del `appsettings.json` del CMS.
+ * @returns {{ errores: string[], ficheros: Map<string, string> }}
+ */
+function planDeEnvoltorios(documentos, avisos) {
+  const plan = planDeEnvoltoriosDeLosFlujos(documentos);
+  const tabla = generarAvisos(avisos);
+  if (plan.errores.length > 0 || tabla.errores.length > 0) {
+    return { errores: [...plan.errores, ...tabla.errores], ficheros: new Map() };
+  }
+  plan.ficheros.set(AVISOS, tabla.texto);
+  return { errores: [], ficheros: new Map([...plan.ficheros].sort(([a], [b]) => ordinal(a, b))) };
+}
+
+/** Los envoltorios de los flujos, con su índice; o el error si dos darían el mismo nombre. */
+function planDeEnvoltoriosDeLosFlujos(documentos) {
+  const flujos = new Map();
+  for (const [f, doc] of documentos) {
+    for (const o of operacionesDeLaPuerta(doc)) {
+      const actual = flujos.get(o.flujo) ?? { documento: f, operaciones: [] };
+      actual.operaciones.push(o);
+      flujos.set(o.flujo, actual);
+    }
+  }
+
+  const porPieza = new Map();
+  for (const flujo of flujos.keys()) {
+    const { pieza } = nombresDelFlujo(flujo);
+    porPieza.set(pieza, [...(porPieza.get(pieza) ?? []), flujo]);
+  }
+  const errores = [...porPieza]
+    .filter(([, fs]) => fs.length > 1)
+    .map(([pieza, fs]) => `los flujos ${fs.map((f) => `«${f}»`).join(' y ')} darían el mismo envoltorio (${pieza}): sus funciones chocarían`);
+  if (errores.length > 0) return { errores, ficheros: new Map() };
+
+  const claves = [...flujos.keys()].sort(ordinal);
+  const ficheros = new Map(
+    claves.map((flujo) => {
+      const { documento, operaciones } = flujos.get(flujo);
+      return [nombresDelFlujo(flujo).fichero, generarEnvoltorio(flujo, operaciones, documento)];
+    }),
+  );
+  ficheros.set(INDICE, generarIndiceDeEnvoltorios(claves));
+  return { errores: [], ficheros: new Map([...ficheros].sort(([a], [b]) => ordinal(a, b))) };
+}
+
 /**
  * Los flujos que marca cada documento: un flujo marcado por dos orquestadores es un error (la puerta
  * del CMS no arranca con él, y la unión del índice pisaría uno con otro).
@@ -707,16 +872,21 @@ function flujosRepetidos(documentos) {
  * Sólo LEE los documentos de los orquestadores: los de las capacidades no llegan ni a abrirse,
  * así que un `Synergos.Api.*` roto no puede tumbar ni colar nada acá.
  *
+ * Y lo que tiene que contener la de los envoltorios (`envoltorios`, en `RUTA_DE_LOS_ENVOLTORIOS`), con
+ * la tabla de los avisos derivada de `avisos`.
+ *
  * @param {readonly string[]} ficheros los nombres que hay en `openapi/`.
  * @param {(fichero: string) => any} leer devuelve el documento ya parseado.
- * @returns {{ errores: string[], ficheros: Map<string, string> }}
+ * @param {ReadonlyMap<string, string>} [avisos] flujo → ruta del aviso, del `appsettings.json` del CMS.
+ * @returns {{ errores: string[], ficheros: Map<string, string>, envoltorios: Map<string, string> }}
  */
-export function planDeFicheros(ficheros, leer) {
+export function planDeFicheros(ficheros, leer, avisos = new Map()) {
   const documentos = ficheros.filter(esDocumentoDelFlujo).sort(ordinal);
   if (documentos.length === 0) {
     return {
       errores: ['no hay ningún Synergos.Bff.*.json en openapi/: un --check sin documentos saldría en verde sin comprobar nada'],
       ficheros: new Map(),
+      envoltorios: new Map(),
     };
   }
 
@@ -733,10 +903,17 @@ export function planDeFicheros(ficheros, leer) {
     }
   }
   errores.push(...flujosRepetidos(validos));
-  if (errores.length > 0) return { errores, ficheros: new Map() };
+  if (errores.length > 0) return { errores, ficheros: new Map(), envoltorios: new Map() };
+
+  const envoltorios = planDeEnvoltorios(validos, avisos);
+  if (envoltorios.errores.length > 0) return { errores: envoltorios.errores, ficheros: new Map(), envoltorios: new Map() };
 
   salida.set(INDICE, generarIndice(documentos));
-  return { errores: [], ficheros: new Map([...salida].sort(([a], [b]) => ordinal(a, b))) };
+  return {
+    errores: [],
+    ficheros: new Map([...salida].sort(([a], [b]) => ordinal(a, b))),
+    envoltorios: envoltorios.ficheros,
+  };
 }
 
 /**

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 
 import { PLATAFORMAS } from './lib/element-sources.mjs';
 import { comoApuntarAlCms, resolverRaizCms } from './lib/rutas-hermanas.mjs';
-import { SIN_BORDE, SUFIJO_CLIENTE, cruzarRutas, rutasQueDeclara, rutasQuePide } from './lib/rutas-del-borde.mjs';
+import { SIN_BORDE, SUFIJO_CLIENTE, baseQueDeclara, cruzarRutas, rutasQueDeclara, rutasQuePide } from './lib/rutas-del-borde.mjs';
 
 const RAIZ_UI = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -77,12 +77,16 @@ for (const plataforma of PLATAFORMAS) {
 
 // ── lo que el borde declara ─────────────────────────────────────────────────
 const declaradas = [];
+const bases = [];
 for (const f of ficheros(carpetaControllers)) {
   if (!f.endsWith('.cs')) continue;
-  declaradas.push(...rutasQueDeclara(desnuda(readFileSync(f, 'utf8'))));
+  const fuente = desnuda(readFileSync(f, 'utf8'));
+  declaradas.push(...rutasQueDeclara(fuente));
+  const base = baseQueDeclara(fuente);
+  if (base && !bases.includes(base)) bases.push(base);
 }
 
-const { fallos, medidas, ausentes } = cruzarRutas(clientes, declaradas, SIN_BORDE);
+const { fallos, medidas, ausentes } = cruzarRutas(clientes, declaradas, SIN_BORDE, bases);
 
 console.log('Rutas que los clientes PIDEN ↔ rutas que el CMS DECLARA');
 console.log(`  ${clientes.length} cliente(s) · ${medidas} ruta(s) pedida(s) · ${declaradas.length} declarada(s) (${origen})`);
