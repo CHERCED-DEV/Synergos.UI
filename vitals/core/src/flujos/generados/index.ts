@@ -6,5 +6,6 @@ export * from './avisos';
 export * from './alquiler.renta';
 export * from './eventos.compra';
 export * from './reservas.servicio';
+export * from './salud.cita';
 export * from './tienda.compra';
 export * from './tienda.devolucion';
