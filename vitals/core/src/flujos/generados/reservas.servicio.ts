@@ -57,6 +57,15 @@ export function cotizarReservasServicio(
   return pedirAlFlujo(desde, FLUJO_RESERVAS_SERVICIO, "cotizar", args, opciones);
 }
 
+/** `disponibilidad`: POST con cuerpo; llave ninguna. */
+export function disponibilidadReservasServicio(
+  desde: Element,
+  args: ArgsDe<Operaciones["disponibilidad"]>,
+  opciones?: OpcionesDePedido,
+): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["disponibilidad"]>>> {
+  return pedirAlFlujo(desde, FLUJO_RESERVAS_SERVICIO, "disponibilidad", args, opciones);
+}
+
 /** `listar`: GET con consulta; llave ninguna. */
 export function listarReservasServicio(
   desde: Element,

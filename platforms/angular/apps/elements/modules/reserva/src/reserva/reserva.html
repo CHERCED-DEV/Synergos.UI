@@ -39,7 +39,7 @@
             <select class="sg-reserva__select" [value]="dia()" (change)="elegirDia($event)">
               <option value="">—</option>
               @for (d of dias(); track d.fecha) {
-                <option [value]="d.fecha">{{ d.etiqueta }}</option>
+                <option [value]="d.fecha" [selected]="d.fecha === dia()">{{ d.etiqueta }}</option>
               }
             </select>
           </label>
@@ -48,14 +48,25 @@
             <select class="sg-reserva__select" [value]="hora()" [disabled]="!dia()" (change)="elegirHora($event)">
               <option value="">—</option>
               @for (h of horas(); track h) {
-                <option [value]="h">{{ h }}</option>
+                <option
+                  [value]="h"
+                  [selected]="h === hora()"
+                  [disabled]="llenas().has(h)"
+                  [class.sg-reserva__hora--libre]="conLectura() && !llenas().has(h)"
+                  [class.sg-reserva__hora--llena]="llenas().has(h)"
+                >
+                  {{ llenas().has(h) ? h + ' · ' + txt.sinCupo : h }}
+                </option>
               }
             </select>
           </label>
         </div>
+        @if (dia() && sinHorasLibres()) {
+          <p class="sg-reserva__meta">{{ txt.sinHoras }}</p>
+        }
 
         @if (sinMiembro()) {
-          <a class="sg-reserva__cta" [href]="loginUrl()">{{ txt.iniciarSesion }}</a>
+          <a class="sg-reserva__cta" [href]="loginUrl()" (click)="recordarEleccion()">{{ txt.iniciarSesion }}</a>
         } @else {
           @if (cotizacion().estado === 'cotizando') {
             <p class="sg-reserva__meta">{{ txt.cotizando }}</p>
@@ -91,6 +102,9 @@
       <section class="sg-reserva__comprobante">
         <p class="sg-reserva__servicio">{{ servicio()?.nombre }}</p>
         <p class="sg-reserva__meta">{{ franja(r.ventana) }}</p>
+        @if (vence(r); as hasta) {
+          <p class="sg-reserva__meta sg-reserva__vence">{{ txt.apartadaHasta }} {{ hasta }}</p>
+        }
         @if (r.total; as total) {
           <p class="sg-reserva__total">
             <span>{{ txt.total }}</span> <strong>{{ plata(total) }}</strong>
@@ -121,4 +135,45 @@
       </section>
     }
   }
+}
+
+@if (puedeVerMias()) {
+  <section class="sg-reserva__mias">
+    <button type="button" class="sg-reserva__secundario" [attr.aria-expanded]="mias().estado !== 'cerrado'" (click)="verMisReservas()">
+      {{ txt.misReservas }}
+    </button>
+    @switch (mias().estado) {
+      @case ('cargando') {
+        <p class="sg-reserva__meta">{{ txt.revisando }}</p>
+      }
+      @case ('error') {
+        <p class="sg-reserva__nota">{{ $any(mias()).mensaje }}</p>
+      }
+      @case ('ok') {
+        @if (proximas().length === 0 && pasadas().length === 0) {
+          <p class="sg-reserva__nota">{{ txt.sinReservas }}</p>
+        }
+        @for (grupo of [{ titulo: txt.proximas, reservas: proximas() }, { titulo: txt.pasadas, reservas: pasadas() }]; track grupo.titulo) {
+          @if (grupo.reservas.length > 0) {
+            <h3 class="sg-reserva__grupo">{{ grupo.titulo }}</h3>
+            <ul class="sg-reserva__lista">
+              @for (r of grupo.reservas; track r.id) {
+                <li class="sg-reserva__item">
+                  <span class="sg-reserva__meta">{{ franja(r.ventana) }}</span>
+                  <span class="sg-reserva__estado">{{ estadoLegible(r.estado) }}</span>
+                  <span class="sg-reserva__meta">{{ txt.numero }} {{ r.numero }}</span>
+                  @if (r.total; as total) {
+                    <span class="sg-reserva__meta">{{ plata(total) }}</span>
+                  }
+                  @if (esRetomable(r)) {
+                    <button type="button" class="sg-reserva__secundario" (click)="retomar(r)">{{ txt.revisar }}</button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        }
+      }
+    }
+  </section>
 }

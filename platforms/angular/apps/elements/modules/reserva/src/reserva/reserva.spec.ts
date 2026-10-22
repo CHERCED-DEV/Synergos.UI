@@ -68,7 +68,9 @@ function no(code: string, status: number, transient = false, origen: 'servidor' 
 }
 
 type Respondedor = (p: Peticion) => ResultadoDelFlujo<unknown>;
-type Guion = Partial<Record<'abrir' | 'cotizar' | 'cerrar' | 'consultar' | 'cancelar', Respondedor | Respondedor[]>>;
+type Guion = Partial<
+  Record<'abrir' | 'cotizar' | 'cerrar' | 'consultar' | 'cancelar' | 'disponibilidad' | 'listar', Respondedor | Respondedor[]>
+>;
 
 /** La puerta de mentira: contesta por operación (una lista se consume en orden) y anota lo que vio. */
 function puerta(guion: Guion) {
@@ -86,6 +88,20 @@ function puerta(guion: Guion) {
     ops: () => vistas.map(operacion),
     de: (op: string) => vistas.filter((p) => operacion(p) === op),
   };
+}
+
+/** Las franjas del miércoles en Bogotá (UTC−5) como las lista la agenda: la de las 09:00, sin cupo. */
+function franjas(...libres: Array<[hora: string, libres: number]>): Respondedor {
+  return () =>
+    ok({
+      flujo: 'reservas.servicio',
+      datos: {
+        franjas: libres.map(([hora, n]) => {
+          const inicio = Date.parse(`${MIERCOLES}T${hora}:00-05:00`);
+          return { inicio: new Date(inicio).toISOString(), fin: new Date(inicio + 3_600_000).toISOString(), libres: n };
+        }),
+      },
+    });
 }
 
 const COTIZA: Respondedor = () => ok({ flujo: 'reservas.servicio', datos: { servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA, total: TOTAL } });
@@ -148,8 +164,9 @@ describe('<synergos-reserva>', () => {
 
   // ── Elegir dentro del horario publicado ─────────────────────────────────────
 
-  it('pinta el servicio de la página y ofrece sólo días y horas de su horario, sin marcar ninguna como libre ni llamar a nada', async () => {
-    const guion = puerta({});
+  it('sin la lectura de la agenda ofrece sólo días y horas de su horario, sin marcar ninguna como libre ni llamar a otra cosa', async () => {
+    // La puerta sin la lectura (un CMS de antes de NB-3, o que no contesta): el modo de T016.
+    const guion = puerta({ disponibilidad: () => no('puerta.operacion_desconocida', 404) });
     await montar(CONFIG, { guion });
 
     expect(texto('.sg-reserva__servicio')).toBe(SERVICIO.nombre);
@@ -160,7 +177,8 @@ describe('<synergos-reserva>', () => {
     await pintar();
     expect(host().querySelectorAll('option').length).toBeGreaterThan(10);
     expect(host().querySelector('[class*="libre"], [class*="free"]')).toBeNull();
-    expect(guion.vistas).toEqual([]);
+    expect(host().querySelector('option:disabled:not([value=""])')).toBeNull();
+    expect(guion.ops()).toEqual(['disponibilidad']);
   });
 
   // ── Feliz: cotizar → abrir → confirmar → comprobante ────────────────────────
@@ -182,7 +200,7 @@ describe('<synergos-reserva>', () => {
     await component.confirmar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'abrir', 'cerrar']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir', 'cerrar']);
     const [abrir] = guion.de('abrir');
     expect(abrir!.cabeceras['Idempotency-Key']).toMatch(/^[0-9a-f]{32}$/);
     expect(JSON.parse(abrir!.cuerpo ?? '{}')).toEqual({ servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA });
@@ -213,7 +231,7 @@ describe('<synergos-reserva>', () => {
     await elegir();
     await component.reservar();
 
-    expect(guion.ops()).toEqual(['cotizar']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar']);
     expect(component.puedeReservar()).toBe(false);
   });
 
@@ -227,7 +245,7 @@ describe('<synergos-reserva>', () => {
     await component.reservar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'abrir']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir']);
     expect(component.pantalla()).toBe('sin-respuesta');
     expect(aviso()).toBe('Algo falló. Revisa el estado de tu reserva antes de intentar de nuevo.');
     expect(leerPendiente(SERVICIO.id)?.id).toBeNull();
@@ -248,7 +266,7 @@ describe('<synergos-reserva>', () => {
     await component.reservar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'abrir']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir']);
     expect(component.pantalla()).toBe('no-disponible');
     expect(texto('.sg-reserva__nota')).toBe('La reserva en línea no está disponible ahora.');
     expect(leerPendiente(SERVICIO.id)).toBeNull();
@@ -282,7 +300,7 @@ describe('<synergos-reserva>', () => {
     await component.confirmar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'abrir', 'cerrar', 'consultar']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir', 'cerrar', 'consultar']);
     expect(component.pantalla()).toBe('confirmada');
   });
 
@@ -324,7 +342,7 @@ describe('<synergos-reserva>', () => {
     await component.confirmar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'abrir', 'cerrar', 'consultar']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir', 'cerrar', 'consultar']);
     expect(aviso()).toBe('El pago no pasó. Puedes intentar de nuevo.');
     expect(component.pantalla()).toBe('elegir');
     expect(leerPendiente(SERVICIO.id)).toBeNull();
@@ -366,7 +384,7 @@ describe('<synergos-reserva>', () => {
     await component.reservar();
     await pintar();
 
-    expect(guion.ops()).toEqual(['cotizar', 'consultar']);
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'consultar']);
     expect(component.pantalla()).toBe('apartada');
     expect(component.reserva()?.id).toBe('rs-1');
   });
@@ -381,18 +399,174 @@ describe('<synergos-reserva>', () => {
 
     expect(guion.ops()).toEqual(['consultar']);
     expect(component.pantalla()).toBe('apartada');
-    expect(Array.from(host().querySelectorAll('button'), (b) => b.textContent?.trim())).toEqual(['Confirmar y pagar', 'Cancelar la reserva']);
+    expect(Array.from(host().querySelectorAll('.sg-reserva__comprobante button'), (b) => b.textContent?.trim())).toEqual([
+      'Confirmar y pagar',
+      'Cancelar la reserva',
+    ]);
+  });
+
+
+  // ── Las franjas libres del día (T031, NB-2/NB-3) y el vencimiento (T018, NB-5) ──
+
+  it('sin sesión ve las horas que dio la agenda: las llenas se ven sin cupo y no se eligen, y no se pide nada más', async () => {
+    const guion = puerta({ disponibilidad: franjas(['08:00', 1], ['09:00', 0], ['10:00', 2]), cotizar: COTIZA });
+    await montar(CONFIG, { guion, bridge: { member: null } });
+
+    component.elegirDia({ target: { value: MIERCOLES } } as unknown as Event);
+    await pintar();
+
+    expect(component.horas()).toEqual(['08:00', '09:00', '10:00']);
+    const opciones = Array.from(host().querySelectorAll<HTMLOptionElement>('option.sg-reserva__hora--libre, option.sg-reserva__hora--llena'));
+    expect(opciones.map((o) => [o.value, o.disabled, o.textContent?.trim()])).toEqual([
+      ['08:00', false, '08:00'],
+      ['09:00', true, '09:00 · sin cupo'],
+      ['10:00', false, '10:00'],
+    ]);
+    expect(guion.ops()).toEqual(['disponibilidad']);
+    const [lectura] = guion.de('disponibilidad');
+    expect(lectura!.cabeceras['Idempotency-Key']).toBeUndefined();
+    expect(JSON.parse(lectura!.cuerpo ?? '{}')).toEqual({
+      servicio: { kind: 'reservas.servicio', id: SERVICIO.id },
+      desde: '2026-10-21T05:00:00Z',
+      hasta: '2026-10-22T05:00:00Z',
+    });
+  });
+
+  it('un día sin ninguna hora libre lo dice', async () => {
+    const guion = puerta({ disponibilidad: franjas(['08:00', 0], ['09:00', 0]) });
+    await montar(CONFIG, { guion });
+
+    component.elegirDia({ target: { value: MIERCOLES } } as unknown as Event);
+    await pintar();
+
+    expect(texto('.sg-reserva__form')).toContain('No quedan horas libres ese día. Elige otro.');
+  });
+
+  it('reservar sin sesión pide el login y, al volver con el miembro, retoma la misma franja y la cotiza', async () => {
+    const guion = puerta({ disponibilidad: franjas(['10:00', 1]) });
+    await montar(CONFIG, { guion, bridge: { member: null } });
+    await elegir(MIERCOLES, '10:00');
+
+    const login = host().querySelector<HTMLAnchorElement>('a.sg-reserva__cta')!;
+    login.addEventListener('click', (e) => e.preventDefault());
+    login.click();
+
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    const deVuelta = puerta({ disponibilidad: franjas(['10:00', 1]), cotizar: COTIZA });
+    await montar(CONFIG, { guion: deVuelta });
+    await pintar();
+
+    expect(component.dia()).toBe(MIERCOLES);
+    expect(component.hora()).toBe('10:00');
+    // Y la pantalla lo enseña elegido: el valor del <select> se aplica antes de que existan sus opciones.
+    expect(Array.from(host().querySelectorAll('select'), (s) => s.value)).toEqual([MIERCOLES, '10:00']);
+    expect(deVuelta.ops().sort()).toEqual(['cotizar', 'disponibilidad']);
+    expect(JSON.parse(deVuelta.de('cotizar')[0]!.cuerpo ?? '{}').ventana).toEqual(VENTANA);
+    expect(texto('.sg-reserva__total strong')).toBe('$ 140.000');
+  });
+
+  it('ante una carrera (la hora se llenó entre leer y apartar) vuelve a leer el día y ya no la ofrece', async () => {
+    const guion = puerta({
+      disponibilidad: [franjas(['10:00', 1], ['11:00', 1]), franjas(['10:00', 0], ['11:00', 1])],
+      cotizar: COTIZA,
+      abrir: () => no('booking.at_capacity', 409),
+    });
+    await montar(CONFIG, { guion });
+
+    await elegir(MIERCOLES, '10:00');
+    await component.reservar();
+    await pintar();
+
+    expect(guion.ops()).toEqual(['disponibilidad', 'cotizar', 'abrir', 'disponibilidad']);
+    expect(aviso()).toBe('Esa hora ya no está. Elige otra.');
+    expect(component.hora()).toBe('');
+    expect(component.llenas().has('10:00')).toBe(true);
+    expect(host().querySelector<HTMLOptionElement>('option[value="10:00"]')?.disabled).toBe(true);
+  });
+
+  it('apartada: dice hasta qué hora con el vencimiento que dio la agenda, en la zona del sitio', async () => {
+    const vence = '2026-10-19T12:17:00Z';
+    const guion = puerta({
+      cotizar: COTIZA,
+      abrir: () => ok(respuesta('Running', { datos: { servicio: { kind: 'reservas.servicio', id: SERVICIO.id }, ventana: VENTANA, total: TOTAL, vence } })),
+    });
+    await montar(CONFIG, { guion });
+
+    await elegir();
+    await component.reservar();
+    await pintar();
+
+    expect(component.reserva()?.vence).toBe(vence);
+    expect(texto('.sg-reserva__vence')).toBe('Apartada hasta las 07:17');
+  });
+
+  // ── Mis reservas (T035, NB-6) ───────────────────────────────────────────────
+
+  const PASADA = { start: '2026-10-12T15:00:00Z', end: '2026-10-12T16:00:00Z' };
+
+  it('mis reservas: las del miembro que da la puerta, próximas y pasadas con su estado; la apartada de aquí se retoma', async () => {
+    const guion = puerta({
+      listar: () =>
+        ok({
+          items: [
+            respuesta('Running', { id: 'rs-3', numero: 'R-0003' }),
+            respuesta('Compensated', { id: 'rs-2', numero: 'R-0002', datos: { servicio: { kind: 'reservas.servicio', id: 'otro' }, ventana: PASADA, total: null } }),
+            respuesta('Completed', { id: 'rs-1', numero: 'R-0001' }),
+          ],
+          total: 3,
+          offset: 0,
+          hasMore: false,
+        }),
+      consultar: () => ok(respuesta('Running', { id: 'rs-3' })),
+    });
+    await montar(CONFIG, { guion });
+
+    await component.verMisReservas();
+    await pintar();
+
+    expect(guion.de('listar')[0]!.url).toBe('/api/flujos/reservas.servicio/listar?limit=20');
+    const grupos = Array.from(host().querySelectorAll('.sg-reserva__grupo'), (g) => g.textContent?.trim());
+    expect(grupos).toEqual(['Próximas', 'Pasadas']);
+    expect(Array.from(host().querySelectorAll('.sg-reserva__estado'), (e) => e.textContent?.trim())).toEqual([
+      'Apartada, sin confirmar',
+      'Confirmada',
+      'Sin completar (sin cobro)',
+    ]);
+    expect(texto('.sg-reserva__lista')).toContain('Número de reserva R-0001');
+
+    const retomar = host().querySelectorAll<HTMLButtonElement>('.sg-reserva__item button');
+    expect(retomar.length).toBe(1);
+    retomar[0]!.click();
+    await pintar();
+
+    expect(guion.de('consultar')[0]!.url).toBe('/api/flujos/reservas.servicio/consultar?id=rs-3');
+    expect(component.pantalla()).toBe('apartada');
+    expect(host().querySelector('.sg-reserva__lista')).toBeNull();
+  });
+
+  it('mis reservas sin ninguna lo dice; y sin sesión no se ofrece', async () => {
+    const guion = puerta({ listar: () => ok({ items: [], total: 0, offset: 0, hasMore: false }) });
+    await montar(CONFIG, { guion });
+    await component.verMisReservas();
+    await pintar();
+    expect(texto('.sg-reserva__mias')).toContain('Todavía no tienes reservas.');
+
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    TestBed.resetTestingModule();
+    await montar(CONFIG, { guion: puerta({}), bridge: { member: null } });
+    expect(host().querySelector('.sg-reserva__mias')).toBeNull();
   });
 
   // ── Sesión y enlace del aviso ───────────────────────────────────────────────
 
-  it('con el CMS delante y sin miembro: elegir no cotiza, y el enlace al login vuelve a esta página', async () => {
+  it('con el CMS delante y sin miembro: elegir lee las franjas y no cotiza, y el enlace al login vuelve a esta página', async () => {
     const guion = puerta({ cotizar: COTIZA });
     await montar(CONFIG, { guion, bridge: { member: null } });
 
     await elegir();
 
-    expect(guion.vistas).toEqual([]);
+    expect(guion.ops()).toEqual(['disponibilidad']);
     const enlace = host().querySelector<HTMLAnchorElement>('a.sg-reserva__cta');
     expect(enlace?.textContent?.trim()).toBe('Inicia sesión para reservar');
     expect(enlace?.getAttribute('href')).toBe(`/account/login?returnUrl=${encodeURIComponent('/')}`);
