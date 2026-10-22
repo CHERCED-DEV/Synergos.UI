@@ -696,7 +696,7 @@ export interface StepperProps {
   readonly currentStep?: number;
 }
 
-/** <synergos-storefront> · funcionalidad */
+/** <synergos-storefront> · funcionalidad · diccionario: Storefront.Purchase */
 export interface StorefrontProps {
   /** contenido */
   readonly heading?: string;
@@ -704,6 +704,10 @@ export interface StorefrontProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly purchasePath: string;
+  /** negocio */
+  readonly shippingCountry: string;
 }
 
 /** <synergos-tabs> · pieza */
@@ -2193,7 +2197,7 @@ export const RESERVA_SYNHOST: ElementoSynHost<ReservaProps> = {
   tipo: "funcionalidad",
   record: "ReservaProps",
   diccionario: ["Booking.Slot"],
-  claves: ["Booking.Slot.Alternative","Booking.Slot.Cancel","Booking.Slot.Cancelled","Booking.Slot.Check","Booking.Slot.Checking","Booking.Slot.Confirm","Booking.Slot.Confirmed","Booking.Slot.Day","Booking.Slot.Defaults.Heading","Booking.Slot.Duration","Booking.Slot.Errors.Busy","Booking.Slot.Errors.Expired","Booking.Slot.Errors.Generic","Booking.Slot.Errors.NotBookable","Booking.Slot.Errors.OutsideHours","Booking.Slot.Errors.Past","Booking.Slot.Errors.Payment","Booking.Slot.Errors.Taken","Booking.Slot.ManageWithBusiness","Booking.Slot.Minutes","Booking.Slot.NotConfigured","Booking.Slot.Number","Booking.Slot.Pending","Booking.Slot.Quoting","Booking.Slot.Reserve","Booking.Slot.SignIn","Booking.Slot.Time","Booking.Slot.Total","Booking.Slot.Unavailable"],
+  claves: ["Booking.Slot.Alternative","Booking.Slot.Cancel","Booking.Slot.Cancelled","Booking.Slot.Check","Booking.Slot.Checking","Booking.Slot.Confirm","Booking.Slot.Confirmed","Booking.Slot.Day","Booking.Slot.Defaults.Heading","Booking.Slot.Duration","Booking.Slot.Errors.Busy","Booking.Slot.Errors.Expired","Booking.Slot.Errors.Generic","Booking.Slot.Errors.NotBookable","Booking.Slot.Errors.OutsideHours","Booking.Slot.Errors.Past","Booking.Slot.Errors.Payment","Booking.Slot.Errors.Taken","Booking.Slot.Full","Booking.Slot.HeldUntil","Booking.Slot.ManageWithBusiness","Booking.Slot.Minutes","Booking.Slot.MyBookings","Booking.Slot.NoBookings","Booking.Slot.NoTimesLeft","Booking.Slot.NotConfigured","Booking.Slot.Number","Booking.Slot.PastBookings","Booking.Slot.Pending","Booking.Slot.Quoting","Booking.Slot.Reserve","Booking.Slot.SignIn","Booking.Slot.States.Compensated","Booking.Slot.States.Compensating","Booking.Slot.States.CompensationFailed","Booking.Slot.States.Completed","Booking.Slot.States.Running","Booking.Slot.Time","Booking.Slot.Total","Booking.Slot.Unavailable","Booking.Slot.Upcoming"],
   campos: ["heading","subheading","servicio","enlaceAlternativo","camino","zona"],
   listas: {},
   selectores: [],
@@ -2513,16 +2517,18 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   nombre: "storefront",
   tipo: "funcionalidad",
   record: "StorefrontProps",
-  diccionario: [],
-  claves: [],
-  campos: ["heading","subheading","apiBase"],
+  diccionario: ["Storefront.Purchase"],
+  claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
+  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Compra en nuestra tienda online",
     "subheading": "Catálogo, carrito y checkout",
-    "apiBase": "/api/shop"
+    "apiBase": "/api/shop",
+    "purchasePath": "directa",
+    "shippingCountry": "CO"
   },
 };
 

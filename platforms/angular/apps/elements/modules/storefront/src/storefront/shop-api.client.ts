@@ -1,7 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { rechazoLocal, transportePorDefecto, type ResultadoDelFlujo } from '@synergos/vitals-core';
 import {
   type CheckoutLine,
+  type CompraPendienteDelServidor,
+  type LineaDeLaOrdenDeLaPuerta,
+  type OrdenDeLaPuerta,
   type CheckoutResult,
   type Facet,
   type MessageThread,
@@ -342,6 +346,81 @@ export class ShopApiClient {
     } catch (error) {
       this.writeFailed('POST /api/shop/confirm', error);
     }
+  }
+
+  // ─── La compra por la puerta: su registro en el CMS (004-tienda-compra, US 6) ────
+  //
+  // La compra la abre y la cierra la PUERTA (`tienda-compra.ts`); estas tres rutas son de lo que el CMS
+  // agrega para que «Mis compras», el seguimiento, la devolución y las reseñas la vean. Contestan como la
+  // puerta —problem+json con `code`— y nada se inventa: una respuesta sin su forma es un rechazo
+  // `cliente.respuesta_ilegible`, no una orden vacía.
+
+  readonly #transporte = transportePorDefecto();
+
+  /**
+   * `POST {apiBase}/compras/{id}/anotar` — tras abrir: la compra en curso queda como orden PENDIENTE del
+   * miembro. Si no llega, la orden se anota pagada al leerla tras cerrar: anotar es para que una compra
+   * abandonada también se vea, no para poder cerrar.
+   */
+  async anotarCompra(apiBase: string, id: string): Promise<ResultadoDelFlujo<unknown>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
+    }
+    return this.#transporte({
+      metodo: 'POST',
+      url: `${apiBase}/compras/${encodeURIComponent(id)}/anotar`,
+      cabeceras: {},
+      etiqueta: 'tienda/anotar',
+    });
+  }
+
+  /**
+   * `GET {apiBase}/compras/{id}` — la orden de una compra de la puerta del miembro, con sus líneas y sus
+   * nombres: la confirmación y el enlace del aviso la pintan. Leerla tras cerrar es lo que la pasa a pagada.
+   */
+  async compraDeLaPuerta(apiBase: string, id: string): Promise<ResultadoDelFlujo<OrdenDeLaPuerta>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
+    }
+    const r = await this.#transporte({
+      metodo: 'GET',
+      url: `${apiBase}/compras/${encodeURIComponent(id)}`,
+      cabeceras: {},
+      etiqueta: 'tienda/compra',
+    });
+    if (!r.ok) {
+      return r;
+    }
+    const orden = normalizeOrdenDeLaPuerta(r.valor);
+    return orden
+      ? { ...r, valor: orden }
+      : {
+          ok: false,
+          correlacion: r.correlacion,
+          rechazo: rechazoLocal('cliente.respuesta_ilegible', 'la compra no trae la forma esperada', false, 'forma', r.estado),
+        };
+  }
+
+  /**
+   * `GET {apiBase}/compras/pendientes` — las compras de la puerta del miembro que el servidor conoce sin
+   * resolver: abiertas en otro dispositivo, o antes de borrar los datos del sitio. Antes de abrir otra.
+   */
+  async comprasPendientes(apiBase: string): Promise<ResultadoDelFlujo<readonly CompraPendienteDelServidor[]>> {
+    if (!apiBase) {
+      return { ok: false, correlacion: '', rechazo: rechazoLocal('cliente.sin_api', 'sin la base de la API') };
+    }
+    const r = await this.#transporte({ metodo: 'GET', url: `${apiBase}/compras/pendientes`, cabeceras: {}, etiqueta: 'tienda/pendientes' });
+    if (!r.ok) {
+      return r;
+    }
+    const compras = normalizeComprasPendientes(r.valor);
+    return compras
+      ? { ...r, valor: compras }
+      : {
+          ok: false,
+          correlacion: r.correlacion,
+          rechazo: rechazoLocal('cliente.respuesta_ilegible', 'las compras pendientes no traen la forma esperada', false, 'forma', r.estado),
+        };
   }
 
   // ─── Orders (history) ────────────────────────────────────────────────────────
@@ -984,6 +1063,7 @@ function normalizeOrders(value: unknown, fallbackCurrency: string): readonly Sho
       const rawLines = Array.isArray(entry['items']) ? entry['items'] : [];
       return {
         orderNumber,
+        orderRef: readString(entry['orderRef']).trim() || orderNumber,
         date: readString(entry['date']).trim(),
         status: readOrderStatus(entry['status']),
         total: readNumber(entry['total'] ?? entry['amount']),
@@ -1552,6 +1632,7 @@ function mockOrders(currency: string): readonly ShopOrder[] {
   return [
     {
       orderNumber: 'ORD-2026-00481',
+      orderRef: 'ORD-2026-00481',
       date: '2026-06-10',
       status: 'paid',
       total: 1_888_000,
@@ -1569,6 +1650,7 @@ function mockOrders(currency: string): readonly ShopOrder[] {
     },
     {
       orderNumber: 'ORD-2026-00512',
+      orderRef: 'ORD-2026-00512',
       date: '2026-06-22',
       status: 'paid',
       total: 389_000,
@@ -1700,6 +1782,58 @@ function mockThreads(): readonly MessageThread[] {
       unread: false,
     },
   ];
+}
+
+/** La orden de una compra de la puerta, o `null` si no trae su forma (nada se rellena). */
+function normalizeOrdenDeLaPuerta(value: unknown): OrdenDeLaPuerta | null {
+  if (!isRecord(value) || !Array.isArray(value['items'])) {
+    return null;
+  }
+  const orderRef = readString(value['orderRef']);
+  const orderNumber = readString(value['orderNumber']);
+  const status = readString(value['status']);
+  const total = value['total'];
+  const currency = readString(value['currency']);
+  if (!orderRef || !orderNumber || !status || typeof total !== 'number' || !currency) {
+    return null;
+  }
+  const items: LineaDeLaOrdenDeLaPuerta[] = [];
+  for (const item of value['items'] as unknown[]) {
+    if (!isRecord(item) || !readString(item['productId']) || typeof item['qty'] !== 'number') {
+      return null;
+    }
+    const variante = readString(item['variantId']);
+    items.push({
+      productId: readString(item['productId']),
+      variantId: variante || null,
+      title: readString(item['title']) || readString(item['productId']),
+      qty: item['qty'],
+      unitPrice: readNumber(item['unitPrice']),
+      lineTotal: readNumber(item['lineTotal']),
+    });
+  }
+  return { orderRef, orderNumber, status, total, currency, items };
+}
+
+/** Las compras pendientes, o `null` si la respuesta no trae su forma. */
+function normalizeComprasPendientes(value: unknown): readonly CompraPendienteDelServidor[] | null {
+  if (!isRecord(value) || !Array.isArray(value['compras'])) {
+    return null;
+  }
+  const compras: CompraPendienteDelServidor[] = [];
+  for (const c of value['compras'] as unknown[]) {
+    if (!isRecord(c) || !readString(c['id'])) {
+      return null;
+    }
+    compras.push({
+      id: readString(c['id']),
+      numero: readString(c['numero']),
+      total: readNumber(c['total']),
+      moneda: readString(c['moneda']),
+      estado: readString(c['estado']),
+    });
+  }
+  return compras;
 }
 
 /** El cupón que devuelve el servidor. Sin descuento utilizable, no hay cupón. */
