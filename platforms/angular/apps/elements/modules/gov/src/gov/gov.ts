@@ -59,6 +59,7 @@ import {
   type ApplicationSummary,
   type GovActNotification,
   type GovCase,
+  type CaseAction,
   type DecisionOutcome,
   type GovForm,
   type GovRole,
@@ -67,7 +68,7 @@ import {
   type GovView,
   type QueueCase,
 } from './gov.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
@@ -139,6 +140,38 @@ const SLA_FILTERS: ReadonlySet<string> = new Set(['overdue', 'due-soon']);
 
 /** Views that belong to the officer face (used to align role on deep-link). */
 const OFFICER_VIEWS: readonly GovView[] = ['queue', 'case'];
+
+/** Las acciones servidas que son una decisión del funcionario (las otras: tomar y subsanar). */
+const DECISIONES: readonly CaseAction[] = ['approve', 'reject', 'request-info'];
+
+function esDecision(accion: CaseAction): accion is DecisionOutcome {
+  return DECISIONES.includes(accion);
+}
+
+/**
+ * Los textos nuevos del trámite, de la sección `Gov.Tramite` que declara `GovProps` (ADR 0136; 009).
+ * El respaldo es el es-CO de uSync: es lo que se ve standalone, o si la página no publicó la sección.
+ */
+function textosDelTramite() {
+  return {
+    tomar: t('Gov.Tramite.Action.Take', 'Tomar el expediente'),
+    aprobar: t('Gov.Tramite.Action.Approve', 'Aprobar'),
+    rechazar: t('Gov.Tramite.Action.Reject', 'Rechazar'),
+    pedirInformacion: t('Gov.Tramite.Action.RequestInfo', 'Pedir información'),
+    tomarAyuda: t('Gov.Tramite.Take.Hint', 'Tómelo para revisarlo: queda a su nombre y el ciudadano ve que está en revisión.'),
+    tomado: t('Gov.Tramite.Take.Done', 'Expediente tomado: está en revisión a su nombre.'),
+    tomarFallo: t('Gov.Tramite.Take.Failed', 'No pudimos tomar el expediente. Intente de nuevo.'),
+    accionesAyuda: t('Gov.Tramite.Actions.Hint', 'Solo se muestran las acciones que el trámite permite ahora. Cada una queda registrada.'),
+    esperandoCiudadano: t(
+      'Gov.Tramite.Actions.Waiting',
+      'Esperando la respuesta del ciudadano: el expediente vuelve a revisión cuando envíe la información.',
+    ),
+    sinEstado: t(
+      'Gov.Tramite.Actions.Stale',
+      'No pudimos consultar el estado del trámite. Las acciones no están disponibles ahora; inténtelo más tarde.',
+    ),
+  };
+}
 
 function coerceRole(value: unknown): GovRole | undefined {
   const raw = coerceTrimmedStringInput(value)?.toLowerCase();
@@ -577,6 +610,9 @@ export class GovElementComponent implements OnInit {
   readonly activeCase = signal<GovCase | null>(null);
   readonly decisionNote = signal('');
 
+  /** Los textos de la sección `Gov.Tramite` del diccionario (ADR 0136). */
+  readonly txt = textosDelTramite();
+
   // ─── Derived ────────────────────────────────────────────────────────────────
   readonly degraded = computed(() => {
     void this.servicesLoaded();
@@ -703,14 +739,17 @@ export class GovElementComponent implements OnInit {
 
   readonly consoleFilters = computed(() => QUEUE_FILTERS.map((f) => ({ key: f.key, label: f.label })));
 
-  /** Legal officer decisions for the open case (closed cases → none). */
-  readonly caseOutcomes = computed<readonly DecisionOutcome[]>(() => {
-    const kase = this.activeCase();
-    if (!kase || isClosedStatus(kase.application.status)) {
-      return [];
-    }
-    return ['approve', 'request-info', 'reject'];
-  });
+  /**
+   * Las decisiones que el proceso permite AHORA al funcionario: las acciones que sirvió el CMS
+   * (009, D-3). Antes era una lista fija para todo expediente abierto, y con la capacidad
+   * conectada tres de esas ofertas acababan en un rechazo y una en nada (SC-002).
+   */
+  readonly caseOutcomes = computed<readonly DecisionOutcome[]>(() =>
+    (this.activeCase()?.actions ?? []).filter(esDecision),
+  );
+
+  /** Si el proceso permite tomar el expediente ahora (D-1): de las acciones servidas, no del estado. */
+  readonly canTake = computed(() => this.activeCase()?.actions.includes('take') ?? false);
 
   /** Officer case timeline as SH-4 tracking stages (reused in the case view). */
   readonly caseStages = computed<readonly TrackingStage[]>(() =>
@@ -1500,10 +1539,39 @@ export class GovElementComponent implements OnInit {
     this.navigate('queue');
   }
 
+  // ─── Tomar el expediente (009, D-1) ─────────────────────────────────────────
+  take(): void {
+    const kase = this.activeCase();
+    if (!kase || !kase.actions.includes('take') || this.loading()) {
+      return;
+    }
+    void this.#take(kase.application.id);
+  }
+
+  async #take(caseId: string): Promise<void> {
+    this.loading.set(true);
+    this.errorMessage.set('');
+    try {
+      const kase = await this.#api.take(this.apiBase(), caseId);
+      this.activeCase.set(kase);
+      this.queueLoaded.set(false); // la cola refleja el nuevo estado
+      this.announce(this.txt.tomado);
+    } catch (error) {
+      if (this.handleOfficerDenied(error)) {
+        return;
+      }
+      this.errorMessage.set(this.txt.tomarFallo);
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   // ─── Decisión (aprobar/rechazar/pedir info + nota) ──────────────────────────
   decide(outcome: DecisionOutcome): void {
     const kase = this.activeCase();
-    if (!kase || isClosedStatus(kase.application.status) || this.loading()) {
+    // Sólo lo servido: una decisión que el proceso no permite desde aquí no sale (009, D-3).
+    if (!kase || !kase.actions.includes(outcome) || this.loading()) {
       return;
     }
     void this.#decide(kase.application.id, outcome);
@@ -1546,6 +1614,18 @@ export class GovElementComponent implements OnInit {
 
   outcomeLabel(outcome: DecisionOutcome): string {
     return OUTCOME_LABELS[outcome];
+  }
+
+  /** El rótulo del botón de una decisión servida, de la sección `Gov.Tramite`. */
+  actionLabel(outcome: DecisionOutcome): string {
+    switch (outcome) {
+      case 'approve':
+        return this.txt.aprobar;
+      case 'reject':
+        return this.txt.rechazar;
+      default:
+        return this.txt.pedirInformacion;
+    }
   }
 
   isClosed(status: ApplicationStatus): boolean {

@@ -1062,6 +1062,17 @@
 
   &__decided-note { display: block; color: var(--gv-text-secondary); font-style: italic; }
   &__closed { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
+
+  // Sin estado del trámite (009, FR-012): no hay acciones ahora, y se dice — con el mismo aviso que
+  // la tasa que pide atención, no con el gris de «cerrado», que se leería como «no hay nada que hacer».
+  &__stale {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-warn-soft);
+    color: var(--gv-warn);
+    font-size: syn.$font-size-sm;
+  }
 }
 
 // ─── Focus + motion ───────────────────────────────────────────────────────────

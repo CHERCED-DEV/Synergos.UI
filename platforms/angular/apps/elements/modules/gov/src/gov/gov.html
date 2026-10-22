@@ -694,7 +694,20 @@
               @if (kase.decision.note) { <span class="case__decided-note">“{{ kase.decision.note }}”</span> }
             </p>
           }
-          @if (!isClosed(kase.application.status)) {
+          <!-- Sólo lo que el proceso permite ahora, tal como lo sirve el CMS (009, D-3): tomar,
+               las decisiones, o nada. Sin estado del trámite no se ofrece nada y se dice. -->
+          @if (kase.stale) {
+            <p class="case__stale" role="status">{{ txt.sinEstado }}</p>
+          } @else if (isClosed(kase.application.status)) {
+            <p class="case__closed">Caso cerrado. No admite más acciones.</p>
+          } @else if (canTake()) {
+            <p class="ficha__cta-hint">{{ txt.tomarAyuda }}</p>
+            <div class="case__buttons">
+              <button type="button" class="gv-btn gv-btn--brand gv-btn--block" [disabled]="loading()" (click)="take()">
+                {{ txt.tomar }}
+              </button>
+            </div>
+          } @else if (caseOutcomes().length > 0) {
             <label class="gv-field gv-field--full">
               <span class="gv-field__label">Nota (queda en el historial y le llega al ciudadano)</span>
               <textarea class="gv-textarea" rows="3" [value]="decisionNote()" (input)="bind(decisionNote.set)($event)"></textarea>
@@ -710,13 +723,13 @@
                   [disabled]="loading()"
                   (click)="decide(outcome)"
                 >
-                  {{ outcomeLabel(outcome) }}
+                  {{ actionLabel(outcome) }}
                 </button>
               }
             </div>
-            <p class="ficha__cta-hint">Solo se muestran las decisiones válidas. Cada una queda registrada.</p>
-          } @else {
-            <p class="case__closed">Caso cerrado. No admite más acciones.</p>
+            <p class="ficha__cta-hint">{{ txt.accionesAyuda }}</p>
+          } @else if (kase.application.status === 'info-requested') {
+            <p class="ficha__cta-hint" role="status">{{ txt.esperandoCiudadano }}</p>
           }
 
           <!-- Poner en conocimiento (HU CMS#62 · #20). Va junto a la decisión y no

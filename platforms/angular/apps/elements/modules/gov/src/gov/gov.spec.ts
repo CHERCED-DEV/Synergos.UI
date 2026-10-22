@@ -40,11 +40,50 @@ type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Respon
  *
  * Las LECTURAS que no se declaran caen como hasta ahora (almacén de ejemplo con su cartel).
  */
-function bordeDeGobierno(opciones: { readonly caidas?: readonly string[] } = {}): {
+function bordeDeGobierno(
+  opciones: {
+    readonly caidas?: readonly string[];
+    /** El expediente que sirve `GET /case/{id}`: estado, acciones servidas y si el proceso no contestó. */
+    readonly caso?: { readonly status: string; readonly actions: readonly string[]; readonly stale?: boolean };
+  } = {},
+): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
   readonly llamadas: (clave: string) => number;
 } {
   const caidas = new Set(opciones.caidas ?? []);
+  const casoServido = opciones.caso ?? { status: 'submitted', actions: ['take'] };
+  /**
+   * Un `CaseResponse` como el de `GovController`, con lo que el proceso le permite al funcionario
+   * (009, D-3): el elemento pinta `actions`, no las deduce del estado.
+   */
+  const caso = (
+    id: string,
+    status: string,
+    actions: readonly string[],
+    extra: Record<string, unknown> = {},
+  ): { case: Record<string, unknown> } => ({
+    case: {
+      application: {
+        id,
+        reference: 'RAD-2026-000444',
+        serviceName: 'Trámite',
+        citizenName: 'Ciudadana del servidor',
+        status,
+        submittedAt: '2026-09-01T10:00:00+00:00',
+        currentStage: status,
+        feeMinor: 0,
+        feeStatus: null,
+      },
+      answers: [],
+      documents: [],
+      timeline: [],
+      notifications: [],
+      decision: null,
+      actions,
+      stale: false,
+      ...extra,
+    },
+  });
   const vistas: string[] = [];
   const radicadas: Record<string, unknown>[] = [];
   const responder = (status: number, body: unknown): Promise<Response> =>
@@ -60,6 +99,18 @@ function bordeDeGobierno(opciones: { readonly caidas?: readonly string[] } = {})
     }
     const cuerpo =
       init?.body && typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+    const delCaso = /^\/case\/([^/]+)$/.exec(ruta);
+    if (metodo === 'GET' && delCaso) {
+      return responder(
+        200,
+        caso(decodeURIComponent(delCaso[1]), casoServido.status, casoServido.actions, { stale: casoServido.stale === true }),
+      );
+    }
+    const tomar = /^\/case\/([^/]+)\/take$/.exec(ruta);
+    if (metodo === 'POST' && tomar) {
+      // Tomado, el proceso le permite al funcionario las tres decisiones, en su orden.
+      return responder(200, caso(decodeURIComponent(tomar[1]), 'in-review', ['approve', 'reject', 'request-info']));
+    }
     switch (clave) {
       case 'POST /application': {
         const radicada = {
@@ -102,6 +153,10 @@ function bordeDeGobierno(opciones: { readonly caidas?: readonly string[] } = {})
               decidedAtUtc: '2026-10-03T10:00:00+00:00',
               decidedBy: 'funcionaria@agencia.gov.co',
             },
+            // Aprobado está cerrado; en «información solicitada» se espera al ciudadano: al
+            // funcionario no le queda nada que hacer en ninguno de los dos.
+            actions: [],
+            stale: false,
           },
         });
       default:
@@ -360,7 +415,10 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(componente.feeNeedsAttention('en-disputa', 42000)).toBe(true);
   });
 
-  /** Cara del funcionario con un caso pendiente abierto. */
+  /**
+   * Cara del funcionario con un caso pendiente abierto: el servidor le ofrece TOMARLO, no decidir
+   * (009, P4: tomar antes de decidir).
+   */
   async function abrirCasoPendiente(): Promise<string> {
     component.setRole('officer');
     await flushMicrotasks();
@@ -371,14 +429,32 @@ describe('GovElementComponent (v2 dual face)', () => {
     await flushMicrotasks();
     expect(component.view()).toBe('case');
     expect(component.activeCase()?.application.id).toBe(pending!.id);
-    expect(component.caseOutcomes().length).toBeGreaterThan(0);
+    expect(component.canTake()).toBe(true);
+    expect(component.caseOutcomes()).toEqual([]);
     return pending!.id;
   }
 
+  /** Lo toma: vuelve en revisión con las tres decisiones que sirve el proceso. */
+  async function tomarCaso(): Promise<void> {
+    component.take();
+    await flushMicrotasks();
+    expect(component.activeCase()?.application.status).toBe('in-review');
+    expect(component.caseOutcomes()).toEqual(['approve', 'reject', 'request-info']);
+  }
+
+  /** Los botones de la columna de la decisión, por su texto. */
+  function botonesDeLaDecision(): string[] {
+    fixture.detectChanges();
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.case__actions .case__buttons button'),
+    ).map((b) => (b.textContent ?? '').trim());
+  }
+
   // ── happy (officer): open a case → decide → status advances + queue refetch ───
-  it('opens a case and records an approve decision (officer happy case)', async () => {
+  it('opens a case, takes it and records an approve decision (officer happy case)', async () => {
     await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
     await abrirCasoPendiente();
+    await tomarCaso();
 
     component.decisionNote.set('Documentación completa.');
     component.decide('approve');
@@ -399,12 +475,13 @@ describe('GovElementComponent (v2 dual face)', () => {
     const decididos: unknown[] = [];
     component.casedecided.subscribe((payload) => decididos.push(payload));
     await abrirCasoPendiente();
+    await tomarCaso();
 
     component.decisionNote.set('Documentación completa.');
     component.decide('approve');
     await flushMicrotasks();
 
-    expect(component.activeCase()?.application.status).toBe('submitted');
+    expect(component.activeCase()?.application.status).toBe('in-review');
     expect(component.activeCase()?.decision ?? null).toBeNull();
     expect(component.caseOutcomes().length).toBeGreaterThan(0);
     // La nota sigue escrita para reintentar (regla 18b).
@@ -432,6 +509,106 @@ describe('GovElementComponent (v2 dual face)', () => {
     component.decide('reject');
     await flushMicrotasks();
     expect(component.activeCase()?.application.status).toBe(before);
+  });
+
+  // ── 009, D-3: la consola pinta SÓLO las acciones que sirve el CMS ─────────────
+  it('un expediente radicado ofrece sólo «Tomar el expediente», y no las decisiones', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+    await abrirCasoPendiente();
+
+    expect(botonesDeLaDecision()).toEqual(['Tomar el expediente']);
+  });
+
+  it('tomar llama a POST /case/{id}/take y el caso vuelve con las decisiones servidas, en su orden', async () => {
+    const borde = bordeDeGobierno();
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    const id = await abrirCasoPendiente();
+
+    await tomarCaso();
+
+    expect(borde.llamadas(`POST /case/${id}/take`)).toBe(1);
+    expect(botonesDeLaDecision()).toEqual(['Aprobar', 'Rechazar', 'Pedir información']);
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('con el POST /take caído el caso NO cambia y se dice', async () => {
+    const id = 'app-seed-4';
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno({ caidas: [`POST /case/${id}/take`] }).fetchDoble);
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase(id);
+    await flushMicrotasks();
+
+    component.take();
+    await flushMicrotasks();
+
+    expect(component.activeCase()?.application.status).toBe('submitted');
+    expect(component.canTake()).toBe(true);
+    expect(component.errorMessage()).toBe('No pudimos tomar el expediente. Intente de nuevo.');
+  });
+
+  it('en «información solicitada» al funcionario no se le ofrece nada: se espera al ciudadano', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({ caso: { status: 'info-requested', actions: [] } }).fetchDoble,
+    );
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase('app-seed-2');
+    await flushMicrotasks();
+
+    expect(botonesDeLaDecision()).toEqual([]);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Esperando la respuesta del ciudadano');
+  });
+
+  it('sin estado del trámite (stale) no ofrece nada y lo DICE', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({ caso: { status: 'in-review', actions: [], stale: true } }).fetchDoble,
+    );
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase('app-seed-3');
+    await flushMicrotasks();
+
+    expect(botonesDeLaDecision()).toEqual([]);
+    const aviso = (fixture.nativeElement as HTMLElement).querySelector('.case__stale');
+    expect(aviso?.textContent).toContain('No pudimos consultar el estado del trámite');
+    // Sin acciones servidas, decidir no sale aunque se pida.
+    component.decide('approve');
+    await flushMicrotasks();
+    expect(component.activeCase()?.application.status).toBe('in-review');
+  });
+
+  it('el almacén de ejemplo no ofrece acciones: se lee, no se actúa sobre él', async () => {
+    await createComponent();
+    component.setRole('officer');
+    await flushMicrotasks();
+    const pending = component.queueCases().find((c) => c.status === 'submitted');
+    component.openCase(pending!.id);
+    await flushMicrotasks();
+
+    expect(component.degraded()).toBe(true);
+    expect(component.canTake()).toBe(false);
+    expect(component.caseOutcomes()).toEqual([]);
+    expect(botonesDeLaDecision()).toEqual([]);
+  });
+
+  it('los textos nuevos salen del diccionario Gov.Tramite, y el respaldo es el es-CO', async () => {
+    (window as unknown as { synergos?: unknown }).synergos = {
+      i18n: { keys: { 'Gov.Tramite.Action.Take': 'Take the case' } },
+    };
+    try {
+      await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+      await abrirCasoPendiente();
+
+      expect(component.txt.tomar).toBe('Take the case');
+      expect(botonesDeLaDecision()).toEqual(['Take the case']);
+      // La clave que la página no trae sale por su respaldo, no vacía.
+      expect(component.txt.tomarFallo).toBe('No pudimos tomar el expediente. Intente de nuevo.');
+    } finally {
+      delete (window as unknown as { synergos?: unknown }).synergos;
+    }
   });
 
   // ── reactive identity: an input landing AFTER construction re-fetches ─────────
@@ -1350,6 +1527,40 @@ describe('GovApiClient (v2 contract)', () => {
     const seed = await client.application('/api/gov', 'app-seed-4');
     expect(seed.status).toBe('submitted');
     expect(seed.documents.some((doc) => doc.name === 'cedula.pdf')).toBe(false);
+  });
+
+  it('lee las acciones servidas ESTRICTO: sólo nombres de cable, una vez; sin la clave, ninguna', async () => {
+    const responder = (kase: Record<string, unknown>) =>
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ case: kase }) } as Response));
+    const base = {
+      application: { id: 'c-1', reference: 'RAD-1', status: 'in-review' },
+      answers: [],
+      documents: [],
+      timeline: [],
+    };
+
+    vi.stubGlobal('fetch', responder({ ...base, actions: ['approve', 'APPROVE', 'archivar', 42, ' reject '], stale: false }));
+    expect((await createClient().case('/api/gov', 'c-1')).actions).toEqual(['approve', 'reject']);
+    TestBed.resetTestingModule();
+
+    // Sin la clave: ninguna, nunca la lista fija de antes.
+    vi.stubGlobal('fetch', responder(base));
+    const sinClave = await createClient().case('/api/gov', 'c-1');
+    expect(sinClave.actions).toEqual([]);
+    expect(sinClave.stale).toBe(false);
+    TestBed.resetTestingModule();
+
+    vi.stubGlobal('fetch', responder({ ...base, actions: [], stale: true }));
+    expect((await createClient().case('/api/gov', 'c-1')).stale).toBe(true);
+  });
+
+  it('take() no se degrada: con el borde caído lanza en vez de fingir un expediente tomado', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(client.take('/api/gov', 'app-seed-4')).rejects.toMatchObject({
+      endpoint: 'POST /api/gov/case/{id}/take',
+    });
   });
 
   it('records a decision with the case the server returns (happy case)', async () => {
