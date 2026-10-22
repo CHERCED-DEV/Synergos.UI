@@ -111,7 +111,12 @@ export const TECHO_POR_TIER = {
  */
 export const EXCEPCIONES = {
   academy: { techo: 484 * KB, razon: 'vertical completa: cursos, matrícula, progreso. 449 KB medidos, 257 de shells (57 %)' },
-  realty: { techo: 428 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas. 397 KB medidos, 229 de shells (58 %)' },
+  // Resubido el 2026-10-22 (008-propiedades-visita): 428,7 KB medidos, contra 402,3 del realty de master (85a5115, el
+  // mismo día): +26,4 KB de la línea. Lo que entró es la visita por la PUERTA, que en master no está: el coordinador y el
+  // transporte de los flujos de vitals-core, los envoltorios generados de propiedades.visita y de su cancelación, las
+  // franjas de la agenda (la lectura sin saga), «Mis visitas» de la puerta y cancelar una confirmada con su pregunta:
+  // funcionalidad, no código muerto. El margen, el ~8 % de la regla de arriba.
+  realty: { techo: 463 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas y la visita por la puerta con su cancelación. 429 KB medidos el 2026-10-22' },
   // Resubido el 2026-10-14 (ADR 0140, CMS#201): 423,1 KB medidos, 233 de shells (55 %) y 144 del
   // propio componente. Lo que entró desde los 390 es la compra por la PUERTA (F4: abrir/cerrar,
   // asistentes y entradas por el artefacto, la sesión que vence), el cupón de verdad y su
