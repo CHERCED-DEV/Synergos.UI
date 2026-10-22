@@ -695,9 +695,10 @@
             </p>
           }
           <!-- Sólo lo que el proceso permite ahora, tal como lo sirve el CMS (009, D-3): tomar,
-               las decisiones, o nada. Sin estado del trámite no se ofrece nada y se dice. -->
+               las decisiones, o nada. Sin estado del trámite no se ofrece nada y se dice. Los dos
+               avisos son contenido de la vista, no eventos: nacen con ella y no llevan región viva. -->
           @if (kase.stale) {
-            <p class="case__stale" role="status">{{ txt.sinEstado }}</p>
+            <p class="case__stale">{{ txt.sinEstado }}</p>
           } @else if (isClosed(kase.application.status)) {
             <p class="case__closed">Caso cerrado. No admite más acciones.</p>
           } @else if (canTake()) {
@@ -729,7 +730,7 @@
             </div>
             <p class="ficha__cta-hint">{{ txt.accionesAyuda }}</p>
           } @else if (kase.application.status === 'info-requested') {
-            <p class="ficha__cta-hint" role="status">{{ txt.esperandoCiudadano }}</p>
+            <p class="ficha__cta-hint">{{ txt.esperandoCiudadano }}</p>
           }
 
           <!-- Poner en conocimiento (HU CMS#62 · #20). Va junto a la decisión y no
