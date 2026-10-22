@@ -166,6 +166,33 @@
 
         <!-- ─── MY VISITS — SH-4 account-shell ─── -->
         @if (view() === 'visits') {
+          <!-- La cita del enlace del aviso (?cita={id}), leída con la sesión por la puerta (T031). -->
+          @if (estadoDelEnlace() === 'leida') {
+            @if (citaDelEnlace(); as cita) {
+              <section class="ehr__panel">
+                <h2 class="ehr__panel-title">{{ encabezadoDeLaCita(cita) }}</h2>
+                <p class="ehr__panel-text">{{ estadoDe(cita) }}</p>
+                @if (horaDeLaCita(cita); as hora) {
+                  <p class="ehr__panel-text">{{ hora }}</p>
+                }
+                @if (cita.total; as total) {
+                  @if (total.amount > 0) {
+                    <p class="ehr__panel-text">{{ importeDe(total) }}</p>
+                  }
+                }
+                @if (cita.estado === 'Running') {
+                  <div class="ehr__wizard-actions">
+                    <button type="button" class="ehr__btn" [disabled]="cancelando()" (click)="cancelarLaCita(cita.id)">{{ textoCancelar }}</button>
+                  </div>
+                }
+                @if (avisoDeLaCita()) {
+                  <syn-live-region class="ehr__panel-text" [message]="avisoDeLaCita()" [visuallyHidden]="false" announceInitial />
+                }
+              </section>
+            }
+          } @else if (estadoDelEnlace() !== 'nada') {
+            <syn-live-region class="ehr__panel-text" [message]="textoDelEnlace()" [visuallyHidden]="false" announceInitial />
+          }
           @if (readFailed('appointments')) {
             <div class="ehr__unreadable" role="alert">
               <h1 class="ehr__unreadable-title">No pudimos leer tus citas</h1>
@@ -192,16 +219,28 @@
         @if (view() === 'schedule') {
           <button type="button" class="ehr__back" (click)="onScheduleExit()"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Volver a mis citas</button>
           <h1 class="ehr__view-title">Agendar una cita</h1>
-          <syn-checkout-wizard
-            [config]="scheduleConfig()"
-            [stepTemplate]="scheduleStepTpl"
-            [validity]="scheduleValidity()"
-            [instrument]="scheduleInstrument()"
-            [showSummary]="copayMinor() > 0"
-            (stepchange)="onScheduleStepChange($event)"
-            (completed)="onScheduleCompleted($event)"
-            (exit)="onScheduleExit()"
-          ></syn-checkout-wizard>
+          @if (sinCoordinador()) {
+            <p class="ehr__panel-text">{{ textoNoDisponible }}</p>
+          } @else {
+            <syn-checkout-wizard
+              [config]="scheduleConfig()"
+              [stepTemplate]="scheduleStepTpl"
+              [validity]="scheduleValidity()"
+              [instrument]="scheduleInstrument()"
+              [showSummary]="copayMinor() > 0"
+              (stepchange)="onScheduleStepChange($event)"
+              (completed)="onScheduleCompleted($event)"
+              (exit)="onScheduleExit()"
+            ></syn-checkout-wizard>
+            @if (citaPendiente(); as pendiente) {
+              <div class="ehr__wizard-actions">
+                <button type="button" class="ehr__btn" [disabled]="cancelando()" (click)="cancelarLaCita(pendiente)">{{ textoCancelar }}</button>
+              </div>
+            }
+          }
+          @if (avisoDeLaCita()) {
+            <syn-live-region class="ehr__panel-text" [message]="avisoDeLaCita()" [visuallyHidden]="false" announceInitial />
+          }
         }
 
         <!-- ─── e-CHECK-IN wizard ─── -->
@@ -997,6 +1036,8 @@
     @case ('copago') {
       @if (copay(); as c) {
         <p class="ehr__panel-text">Se aplicará un copago de {{ formatMinor(c.amountMinor, c.currency) }} para esta cita.</p>
+      } @else if (!cotizando()) {
+        <p class="ehr__panel-text">{{ textoDelCopago() }}</p>
       }
       <p class="ehr__panel-text">El pago se procesa de forma segura al confirmar (PSP de demostración).</p>
     }
