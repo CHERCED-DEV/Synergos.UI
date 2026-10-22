@@ -518,6 +518,26 @@
               Subir documento
             </button>
           </form>
+
+          <!-- Subsanar (009, D-2): sólo si el proceso se lo permite al dueño ahora, que es en
+               «información solicitada». Avisa si no adjuntó nada desde la petición, y deja enviar igual. -->
+          @if (canResubmit()) {
+            <section class="subsanar" [attr.aria-label]="txt.subsanarTitulo">
+              <h2 class="tracking__section-title">{{ txt.subsanarTitulo }}</h2>
+              @if (sinAdjuntosDesdeLaPeticion()) {
+                <p class="subsanar__aviso">{{ txt.sinAdjuntos }}</p>
+              }
+              <label class="gv-field gv-field--full">
+                <span class="gv-field__label">{{ txt.subsanarNota }}</span>
+                <textarea class="gv-textarea" rows="3" [value]="resubmitNote()" (input)="bind(resubmitNote.set)($event)"></textarea>
+              </label>
+              <button type="button" class="gv-btn gv-btn--brand" [disabled]="loading()" (click)="resubmit()">
+                {{ txt.subsanar }}
+              </button>
+            </section>
+          } @else if (app.stale) {
+            <p class="case__stale">{{ txt.sinEstado }}</p>
+          }
         </div>
 
         <aside class="tracking__aside" aria-label="Correspondencia">

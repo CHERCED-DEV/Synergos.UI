@@ -43,6 +43,7 @@ import {
  *  - `POST /api/gov/notification/{id}/open`     → `{ notification }`  🔒 sesión
  *  - `POST /api/gov/notification`               → `{ notification }`  🔒 funcionario
  *  - `GET  /api/gov/application/{id}`           → `{ application }`   🔒 sesión
+ *  - `POST /api/gov/application/{id}/resubmit`  → `{ application }`   🔒 sesión + dueño
  *  - `POST /api/gov/document`                   → `{ document }`      🔒 sesión
  *  - `GET  /api/gov/queue?agency=&status=`      → `{ cases }`
  *  - `GET  /api/gov/case/{id}`                  → `{ case }`
@@ -411,6 +412,29 @@ export class GovApiClient {
     } catch (error) {
       this.rethrowIfAuthError(error);
       this.writeFailed('POST /api/gov/decision', error);
+    }
+  }
+
+  /**
+   * Envía la subsanación (009, D-2): el expediente vuelve de «información solicitada» a «en
+   * revisión». **No se degrada** (UI#92): una subsanación «enviada» con el borde caído dejaría al
+   * ciudadano creyendo que respondió, y el término se le vencería esperando.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si el expediente no es suyo.
+   * @throws {GovWriteFailedError} si el borde no la registró.
+   */
+  async resubmit(apiBase: string, applicationId: string, note: string): Promise<ApplicationDetail> {
+    const url = `${apiBase}/application/${encodeURIComponent(applicationId)}/resubmit`;
+    try {
+      const data = await this.postJson(apiBase, url, { note });
+      const detail = normalizeDetail(isRecord(data) ? data['application'] : data);
+      if (detail) {
+        return detail;
+      }
+      throw new Error('resubmit-shape');
+    } catch (error) {
+      this.rethrowIfAuthError(error);
+      this.writeFailed('POST /api/gov/application/{id}/resubmit', error);
     }
   }
 

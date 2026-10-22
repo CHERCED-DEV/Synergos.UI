@@ -1075,6 +1075,28 @@
   }
 }
 
+// ─── Subsanar (009, D-2) ──────────────────────────────────────────────────────
+.subsanar {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin-top: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface-muted);
+
+  // Un aviso, no un error: deja enviar igual.
+  &__aviso {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-warn-soft);
+    color: var(--gv-warn);
+    font-size: syn.$font-size-sm;
+  }
+}
+
 // ─── Focus + motion ───────────────────────────────────────────────────────────
 .gov :focus-visible {
   outline: syn.px-to-rem(2) solid var(--gv-focus-ring);

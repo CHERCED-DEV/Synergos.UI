@@ -170,6 +170,12 @@ function textosDelTramite() {
       'Gov.Tramite.Actions.Stale',
       'No pudimos consultar el estado del trámite. Las acciones no están disponibles ahora; inténtelo más tarde.',
     ),
+    subsanar: t('Gov.Tramite.Action.Resubmit', 'Enviar la subsanación'),
+    subsanarTitulo: t('Gov.Tramite.Resubmit.Title', 'La entidad le pidió información'),
+    subsanarNota: t('Gov.Tramite.Resubmit.Note', 'Mensaje para la entidad (opcional)'),
+    sinAdjuntos: t('Gov.Tramite.Resubmit.NoDocuments', 'No ha adjuntado documentos desde que se le pidió información.'),
+    subsanado: t('Gov.Tramite.Resubmit.Done', 'Subsanación enviada: su solicitud vuelve a revisión.'),
+    subsanarFallo: t('Gov.Tramite.Resubmit.Failed', 'No pudimos enviar la subsanación. Intente de nuevo.'),
   };
 }
 
@@ -651,6 +657,35 @@ export class GovElementComponent implements OnInit {
       { id: 'all', label: 'Todas', kind: 'inbox', badge: this.applications().length || undefined },
     ],
   }));
+
+  /** El mensaje opcional que acompaña la subsanación. */
+  readonly resubmitNote = signal('');
+
+  /**
+   * Si el proceso le permite al dueño subsanar ahora (009, D-2): de las acciones servidas, que
+   * sólo la traen en «información solicitada». El elemento no lo deduce del estado.
+   */
+  readonly canResubmit = computed(() => this.activeApplication()?.actions.includes('resubmit') ?? false);
+
+  /**
+   * Si no adjuntó ningún documento desde que se le pidió información: los adjuntos con fecha
+   * posterior al hito de la petición. Es un aviso, no un bloqueo —puede que lo pedido no fuera un
+   * documento—, y sin el hito no se afirma nada.
+   */
+  readonly sinAdjuntosDesdeLaPeticion = computed(() => {
+    const app = this.activeApplication();
+    if (!app || !app.actions.includes('resubmit')) {
+      return false;
+    }
+    const hito = Date.parse(app.timeline.find((entry) => entry.id === 'subsanacion')?.date ?? '');
+    if (Number.isNaN(hito)) {
+      return false;
+    }
+    return !app.documents.some((doc) => {
+      const subido = Date.parse(doc.uploadedAt);
+      return !Number.isNaN(subido) && subido > hito;
+    });
+  });
 
   /** Tracking-timeline stages for the active application (SH-4 detail). */
   readonly applicationStages = computed<readonly TrackingStage[]>(() =>
@@ -1312,6 +1347,35 @@ export class GovElementComponent implements OnInit {
         return;
       }
       this.errorMessage.set('No pudimos abrir su solicitud. Intente de nuevo.');
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // ─── Subsanar (009, D-2) ─────────────────────────────────────────────────────
+  resubmit(): void {
+    const app = this.activeApplication();
+    if (!app || !app.actions.includes('resubmit') || this.loading()) {
+      return;
+    }
+    void this.#resubmit(app.id);
+  }
+
+  async #resubmit(applicationId: string): Promise<void> {
+    this.loading.set(true);
+    this.errorMessage.set('');
+    try {
+      const detail = await this.#api.resubmit(this.apiBase(), applicationId, this.resubmitNote().trim());
+      this.activeApplication.set(detail);
+      this.resubmitNote.set('');
+      this.applicationsLoaded.set(false); // la carpeta refleja el nuevo estado
+      this.announce(this.txt.subsanado);
+    } catch (error) {
+      if (this.handleCitizenDenied(error, { scope: 'record' })) {
+        return;
+      }
+      this.errorMessage.set(this.txt.subsanarFallo);
       void error;
     } finally {
       this.loading.set(false);

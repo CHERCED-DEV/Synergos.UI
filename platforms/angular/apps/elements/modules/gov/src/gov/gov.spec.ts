@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
-import { OUTCOME_TO_STATUS, isClosedStatus } from './gov.model';
+import { OUTCOME_TO_STATUS, isClosedStatus, type ApplicationSummary } from './gov.model';
 import { asentar } from '../../../../../../tools/asentar';
 import { GOV_SYNHOST } from '@synergos/contracts';
 
@@ -45,6 +45,13 @@ function bordeDeGobierno(
     readonly caidas?: readonly string[];
     /** El expediente que sirve `GET /case/{id}`: estado, acciones servidas y si el proceso no contestó. */
     readonly caso?: { readonly status: string; readonly actions: readonly string[]; readonly stale?: boolean };
+    /** La solicitud que sirve `GET /application/{id}` al dueño: estado, acciones, hitos y adjuntos. */
+    readonly solicitud?: {
+      readonly status: string;
+      readonly actions: readonly string[];
+      readonly timeline?: readonly Record<string, unknown>[];
+      readonly documents?: readonly Record<string, unknown>[];
+    };
   } = {},
 ): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
@@ -89,6 +96,30 @@ function bordeDeGobierno(
   const responder = (status: number, body: unknown): Promise<Response> =>
     Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
 
+  /** Un `ApplicationDetailResponse` como el de `GovController`, con las acciones del ciudadano (009, D-3). */
+  const solicitud = (
+    id: string,
+    status: string,
+    actions: readonly string[],
+    extra: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({
+    id,
+    reference: 'RAD-2026-000555',
+    serviceId: 'svc-pasaporte',
+    serviceName: 'Pasaporte',
+    status,
+    submittedAt: '2026-09-01T10:00:00+00:00',
+    currentStage: status,
+    timeline: [],
+    documents: [],
+    messages: [],
+    feeMinor: 0,
+    feeStatus: null,
+    actions,
+    stale: false,
+    ...extra,
+  });
+
   const fetchDoble = vi.fn<FetchDoble>((url, init) => {
     const metodo = (init?.method ?? 'GET').toUpperCase();
     const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/gov/, '');
@@ -105,6 +136,20 @@ function bordeDeGobierno(
         200,
         caso(decodeURIComponent(delCaso[1]), casoServido.status, casoServido.actions, { stale: casoServido.stale === true }),
       );
+    }
+    const deLaSolicitud = /^\/application\/([^/]+)$/.exec(ruta);
+    if (metodo === 'GET' && deLaSolicitud && opciones.solicitud) {
+      return responder(200, {
+        application: solicitud(decodeURIComponent(deLaSolicitud[1]), opciones.solicitud.status, opciones.solicitud.actions, {
+          timeline: opciones.solicitud.timeline ?? [],
+          documents: opciones.solicitud.documents ?? [],
+        }),
+      });
+    }
+    const subsanar = /^\/application\/([^/]+)\/resubmit$/.exec(ruta);
+    if (metodo === 'POST' && subsanar) {
+      // Subsanado, vuelve a revisión: al ciudadano ya no le queda nada que hacer.
+      return responder(200, { application: solicitud(decodeURIComponent(subsanar[1]), 'in-review', []) });
     }
     const tomar = /^\/case\/([^/]+)\/take$/.exec(ruta);
     if (metodo === 'POST' && tomar) {
@@ -609,6 +654,114 @@ describe('GovElementComponent (v2 dual face)', () => {
     } finally {
       delete (window as unknown as { synergos?: unknown }).synergos;
     }
+  });
+
+  // ── 009, D-2: el ciudadano subsana, y sólo cuando el proceso se lo permite ──────
+  /** El hito de la petición de información, como lo inserta el CMS mientras está en subsanación. */
+  const HITO_DE_LA_PETICION = { id: 'subsanacion', label: 'Información solicitada', date: '2026-10-01T10:00:00+00:00', state: 'current', note: 'Falta el certificado.' };
+  const ADJUNTO_DE_ANTES = { id: 'doc-1', name: 'cedula.pdf', status: 'accepted', uploadedAt: '2026-09-20T10:00:00+00:00' };
+  const ADJUNTO_DE_DESPUES = { id: 'doc-2', name: 'certificado.pdf', status: 'accepted', uploadedAt: '2026-10-02T10:00:00+00:00' };
+
+  async function abrirSolicitud(id: string): Promise<void> {
+    component.setRole('citizen');
+    await flushMicrotasks();
+    component.openApplication({ id } as ApplicationSummary);
+    await flushMicrotasks();
+    expect(component.view()).toBe('application');
+    expect(component.activeApplication()?.id).toBe(id);
+  }
+
+  function seccionDeSubsanar(): HTMLElement | null {
+    fixture.detectChanges();
+    return (fixture.nativeElement as HTMLElement).querySelector('.subsanar');
+  }
+
+  it('en «información solicitada» ofrece «Enviar la subsanación» y avisa si no adjuntó nada desde la petición', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({
+        solicitud: { status: 'info-requested', actions: ['resubmit'], timeline: [HITO_DE_LA_PETICION], documents: [ADJUNTO_DE_ANTES] },
+      }).fetchDoble,
+    );
+    await abrirSolicitud('app_77');
+
+    expect(component.canResubmit()).toBe(true);
+    const seccion = seccionDeSubsanar();
+    expect(seccion?.querySelector('button')?.textContent?.trim()).toBe('Enviar la subsanación');
+    expect(seccion?.querySelector('.subsanar__aviso')?.textContent).toContain(
+      'No ha adjuntado documentos desde que se le pidió información.',
+    );
+  });
+
+  it('con un adjunto posterior a la petición no avisa', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({
+        solicitud: {
+          status: 'info-requested',
+          actions: ['resubmit'],
+          timeline: [HITO_DE_LA_PETICION],
+          documents: [ADJUNTO_DE_ANTES, ADJUNTO_DE_DESPUES],
+        },
+      }).fetchDoble,
+    );
+    await abrirSolicitud('app_77');
+
+    expect(component.sinAdjuntosDesdeLaPeticion()).toBe(false);
+    expect(seccionDeSubsanar()?.querySelector('.subsanar__aviso')).toBeNull();
+  });
+
+  it('en cualquier otro estado no se ofrece: sólo lo que sirve el proceso', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({ solicitud: { status: 'submitted', actions: [] } }).fetchDoble,
+    );
+    await abrirSolicitud('app_77');
+
+    expect(component.canResubmit()).toBe(false);
+    expect(seccionDeSubsanar()).toBeNull();
+  });
+
+  it('subsanar llama a POST /application/{id}/resubmit con la nota, aunque avise, y vuelve en revisión', async () => {
+    const borde = bordeDeGobierno({
+      solicitud: { status: 'info-requested', actions: ['resubmit'], timeline: [HITO_DE_LA_PETICION], documents: [] },
+    });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirSolicitud('app_77');
+    expect(component.sinAdjuntosDesdeLaPeticion()).toBe(true); // avisa, y deja enviar igual
+
+    component.resubmitNote.set('Lo pedido va en el mensaje.');
+    component.resubmit();
+    await flushMicrotasks();
+
+    expect(borde.llamadas('POST /application/app_77/resubmit')).toBe(1);
+    const llamada = borde.fetchDoble.mock.calls.find(([u, init]) =>
+      String(u).endsWith('/application/app_77/resubmit') && (init?.method ?? 'GET').toUpperCase() === 'POST');
+    expect(JSON.parse(String(llamada?.[1]?.body))).toEqual({ note: 'Lo pedido va en el mensaje.' });
+    expect(component.activeApplication()?.status).toBe('in-review');
+    expect(component.canResubmit()).toBe(false);
+    expect(component.resubmitNote()).toBe('');
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('con el POST /resubmit caído la solicitud NO cambia, la nota sigue y se dice', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({
+        caidas: ['POST /application/app_77/resubmit'],
+        solicitud: { status: 'info-requested', actions: ['resubmit'], timeline: [HITO_DE_LA_PETICION] },
+      }).fetchDoble,
+    );
+    await abrirSolicitud('app_77');
+
+    component.resubmitNote.set('Lo pedido va en el mensaje.');
+    component.resubmit();
+    await flushMicrotasks();
+
+    expect(component.activeApplication()?.status).toBe('info-requested');
+    expect(component.canResubmit()).toBe(true);
+    expect(component.resubmitNote()).toBe('Lo pedido va en el mensaje.');
+    expect(component.errorMessage()).toBe('No pudimos enviar la subsanación. Intente de nuevo.');
   });
 
   // ── reactive identity: an input landing AFTER construction re-fetches ─────────
@@ -1552,6 +1705,15 @@ describe('GovApiClient (v2 contract)', () => {
 
     vi.stubGlobal('fetch', responder({ ...base, actions: [], stale: true }));
     expect((await createClient().case('/api/gov', 'c-1')).stale).toBe(true);
+  });
+
+  it('resubmit() no se degrada: con el borde caído lanza en vez de fingir una subsanación enviada', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(client.resubmit('/api/gov', 'app-seed-4', 'Lo pedido.')).rejects.toMatchObject({
+      endpoint: 'POST /api/gov/application/{id}/resubmit',
+    });
   });
 
   it('take() no se degrada: con el borde caído lanza en vez de fingir un expediente tomado', async () => {
