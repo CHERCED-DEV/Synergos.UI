@@ -5,7 +5,9 @@ import {
   cerrarReservasServicio,
   consultarReservasServicio,
   cotizarReservasServicio,
+  disponibilidadReservasServicio,
   idAleatorio,
+  listarReservasServicio,
   type Flujo,
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
@@ -14,8 +16,8 @@ import type { Ventana } from './reserva.horario';
 
 /**
  * La reserva de un servicio por la puerta, tipada con el contrato GENERADO de
- * `Synergos.Bff.Reservas` (011-booking-reserva, ADR 0140): la clave del flujo, sus cinco
- * operaciones y la lectura de su respuesta.
+ * `Synergos.Bff.Reservas` (011-booking-reserva, ADR 0140): la clave del flujo, sus operaciones —las
+ * cinco de la reserva, la lectura de las franjas libres y «mis reservas»— y la lectura de su respuesta.
  *
  * <p>Habla SÓLO con el coordinador (`<synergos-flujo>`) que la vista coloca alrededor del elemento:
  * ninguna ruta propia, ningún `fetch`, y el transporte sale del envoltorio GENERADO del flujo
@@ -43,7 +45,11 @@ export interface ReservaLeida {
   readonly numero: string;
   /** Running, Completed, Compensating, Compensated o CompensationFailed. */
   readonly estado: string;
+  /** La clave de la ficha del servicio, para saber si es el de esta página. */
+  readonly servicio: string | null;
   readonly ventana: Ventana | null;
+  /** Hasta cuándo está apartada, como lo dice la agenda (NB-5). `null`: no se muestra ningún vencimiento. */
+  readonly vence: string | null;
   /** `null` si el servidor no lo dio: la pantalla no muestra precio. */
   readonly total: Importe | null;
   /** Si queda algo por deshacer: mientras tanto no se afirma que no se cobró. */
@@ -55,7 +61,9 @@ export function leerReserva(r: BffReservas.ReservasServicioRespuesta): ReservaLe
     id: r.id,
     numero: r.numero,
     estado: r.estado,
+    servicio: r.datos.servicio?.id ?? null,
     ventana: r.datos.ventana,
+    vence: r.datos.vence,
     total: r.datos.total,
     deshaciendo: r.deshaciendo || r.compensacionesPendientes > 0,
   };
@@ -91,6 +99,41 @@ export async function abrirReserva(
   llave: string,
 ): Promise<ResultadoDelFlujo<ReservaLeida>> {
   return leida(await abrirReservasServicio(desde, { cuerpo: entradaDeLaReserva(servicio, ventana), llave }));
+}
+
+/** Una franja como la lista la agenda, con cuántos cupos le quedan. */
+export interface FranjaLeida {
+  readonly ventana: Ventana;
+  readonly libres: number;
+}
+
+/**
+ * Las franjas del servicio en `rango`, también las llenas, de la lectura `disponibilidad` (NB-3): la pide
+ * quien todavía no inició sesión, no aparta nada y no escribe nada. Lo libre lo cuenta la agenda con la
+ * MISMA ocupación con que aparta; que siga libre al reservar lo dice abrir.
+ */
+export async function franjasDelServicio(desde: Element, servicio: string, rango: Ventana): Promise<ResultadoDelFlujo<readonly FranjaLeida[]>> {
+  const r = await disponibilidadReservasServicio(desde, {
+    cuerpo: { servicio: { kind: 'reservas.servicio', id: servicio }, desde: rango.start, hasta: rango.end },
+  });
+  return r.ok
+    ? { ...r, valor: (r.valor.datos.franjas ?? []).map((f) => ({ ventana: { start: f.inicio, end: f.fin }, libres: f.libres })) }
+    : r;
+}
+
+/** Una página de «mis reservas», de la más nueva a la más vieja. */
+export interface PaginaDeReservas {
+  readonly reservas: readonly ReservaLeida[];
+  readonly total: number;
+  readonly hayMas: boolean;
+}
+
+/** «Mis reservas» (NB-6): las del miembro de la sesión, que pone la puerta. Nunca se pide por dueño. */
+export async function misReservas(desde: Element, limite = 20): Promise<ResultadoDelFlujo<PaginaDeReservas>> {
+  const r = await listarReservasServicio(desde, { consulta: { limit: limite } });
+  return r.ok
+    ? { ...r, valor: { reservas: r.valor.items.map(leerReserva), total: r.valor.total, hayMas: r.valor.hasMore } }
+    : r;
 }
 
 export async function consultarReserva(desde: Element, id: string): Promise<ResultadoDelFlujo<ReservaLeida>> {
@@ -197,6 +240,24 @@ export function guardarPendiente(pendiente: PendienteGuardada): void {
 
 export function olvidarPendiente(servicio: string): void {
   escribirJson(`${PREFIJO}:pendiente:${servicio}`, null);
+}
+
+/** El día y la hora que eligió quien fue a iniciar sesión: al volver, la pantalla los retoma. */
+export interface EleccionGuardada {
+  readonly dia: string;
+  readonly hora: string;
+}
+
+export function guardarEleccion(servicio: string, eleccion: EleccionGuardada): void {
+  escribirJson(`${PREFIJO}:eleccion:${servicio}`, eleccion);
+}
+
+/** La elección guardada del servicio, UNA vez: leerla la olvida. Lo que no tiene su forma se ignora. */
+export function tomarEleccion(servicio: string): EleccionGuardada | null {
+  const clave = `${PREFIJO}:eleccion:${servicio}`;
+  const v = leerJson(clave) as Partial<EleccionGuardada> | null;
+  escribirJson(clave, null);
+  return v && esTexto(v.dia) && esTexto(v.hora) ? { dia: v.dia, hora: v.hora } : null;
 }
 
 /** Cuántas intenciones se recuerdan por servicio: las de una sesión de navegación, no un historial. */
