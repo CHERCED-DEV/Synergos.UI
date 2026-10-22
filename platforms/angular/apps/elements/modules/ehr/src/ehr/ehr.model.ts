@@ -43,7 +43,7 @@ export type EhrAcceso = 'ok' | 'sin-sesion' | 'sin-permiso' | 'sin-historia';
 /**
  * Por dónde agenda el paciente su cita, como lo DECLARA el CMS (`EhrProps.appointmentPath`, ADR 0140):
  * la puerta (`/api/flujos/salud.cita`) o la ruta directa (`/api/ehr/appointment`). El elemento no lo
- * adivina ni cae de uno al otro.
+ * adivina ni cae de uno al otro; sin declaración, la directa, que es lo que hacía siempre.
  */
 export type CaminoDeLaCita = 'puerta' | 'directa';
 
