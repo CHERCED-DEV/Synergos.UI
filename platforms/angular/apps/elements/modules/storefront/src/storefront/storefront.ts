@@ -268,6 +268,8 @@ function lineRefOf(line: OrderLine): string {
 /** Lo que el comprador está a punto de mandar. */
 interface ReturnDraft {
   readonly orderRef: string;
+  /** Con lo que el servidor busca el pedido; `orderRef` es la clave de la pantalla (el número). */
+  readonly apiRef: string;
   readonly line: OrderLine;
   readonly reason: ReturnReason;
 }
@@ -2298,7 +2300,7 @@ export class StorefrontElementComponent implements OnInit {
       return;
     }
     void this.#api
-      .tracking(this.apiBase(), order.orderNumber, order.status)
+      .tracking(this.apiBase(), order.orderRef, order.status)
       .then((tracking) => {
         this.trackingByRef.update((map) => ({
           ...map,
@@ -2407,7 +2409,8 @@ export class StorefrontElementComponent implements OnInit {
    * pedido» de tres artículos cuando llegó uno roto no es lo que nadie quiere.
    */
   openReturn(orderRef: string, line: OrderLine): void {
-    this.returnDraft.set({ orderRef, line, reason: 'damaged' });
+    const apiRef = this.orders().find((order) => order.orderNumber === orderRef)?.orderRef ?? orderRef;
+    this.returnDraft.set({ orderRef, apiRef, line, reason: 'damaged' });
     this.returnError.set('');
   }
 
@@ -2439,7 +2442,7 @@ export class StorefrontElementComponent implements OnInit {
 
     const result = await this.#api.requestReturn(
       this.apiBase(),
-      draft.orderRef,
+      draft.apiRef,
       lineRefOf(draft.line),
       draft.reason,
     );
@@ -2506,7 +2509,7 @@ export class StorefrontElementComponent implements OnInit {
     const resultados = await Promise.all(
       orders.map(async (order) => ({
         ref: order.orderNumber,
-        claims: await this.#api.orderReturns(this.apiBase(), order.orderNumber),
+        claims: await this.#api.orderReturns(this.apiBase(), order.orderRef),
       })),
     );
     const mapa: Record<string, readonly ReturnCase[]> = { ...this.returnsByRef() };

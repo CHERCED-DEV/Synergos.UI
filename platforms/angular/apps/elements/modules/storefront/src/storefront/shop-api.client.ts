@@ -1063,6 +1063,7 @@ function normalizeOrders(value: unknown, fallbackCurrency: string): readonly Sho
       const rawLines = Array.isArray(entry['items']) ? entry['items'] : [];
       return {
         orderNumber,
+        orderRef: readString(entry['orderRef']).trim() || orderNumber,
         date: readString(entry['date']).trim(),
         status: readOrderStatus(entry['status']),
         total: readNumber(entry['total'] ?? entry['amount']),
@@ -1631,6 +1632,7 @@ function mockOrders(currency: string): readonly ShopOrder[] {
   return [
     {
       orderNumber: 'ORD-2026-00481',
+      orderRef: 'ORD-2026-00481',
       date: '2026-06-10',
       status: 'paid',
       total: 1_888_000,
@@ -1648,6 +1650,7 @@ function mockOrders(currency: string): readonly ShopOrder[] {
     },
     {
       orderNumber: 'ORD-2026-00512',
+      orderRef: 'ORD-2026-00512',
       date: '2026-06-22',
       status: 'paid',
       total: 389_000,

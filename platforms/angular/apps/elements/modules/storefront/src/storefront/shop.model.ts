@@ -350,6 +350,12 @@ export interface CompraPendienteDelServidor {
 /** A past order from `GET /api/shop/orders`. */
 export interface ShopOrder {
   readonly orderNumber: string;
+  /**
+   * Con lo que el servidor busca el pedido (`/order/{ref}/tracking`, `/return`): la referencia, no el número que ve
+   * quien compró. Son distintos en los dos caminos (`ord_…`/`SYN-…` en la directa, la saga/`ABCD1234` en la puerta);
+   * pedir por el número daba 404 y la pantalla se quedaba sin seguimiento ni devoluciones.
+   */
+  readonly orderRef: string;
   readonly date: string;
   readonly status: OrderStatus;
   readonly total: number;
