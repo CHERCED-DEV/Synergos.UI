@@ -137,6 +137,13 @@ export type CaseAction = 'take' | 'approve' | 'reject' | 'request-info' | 'resub
 export const CASE_ACTIONS: readonly CaseAction[] = ['take', 'approve', 'reject', 'request-info', 'resubmit'];
 
 /**
+ * Si el ciudadano aceptó al radicar la notificación electrónica de los actos (009, S-7).
+ * `unknown` es «no consta» —los expedientes anteriores, o radicar sin la casilla—, nunca una
+ * aceptación: sin `accepted` no se le notifica por aquí.
+ */
+export type NotificationConsentState = 'accepted' | 'declined' | 'unknown';
+
+/**
  * Estado del cobro de la TASA del trámite, tal como lo emite el borde
  * (`pending · requires-action · authorized · captured · failed · cancelled · refunded ·
  * unavailable`). Es `string` y no una unión cerrada por lo mismo que `priority`: el motor
@@ -277,6 +284,8 @@ export interface GovCase {
   readonly documents: readonly GovDocument[];
   readonly timeline: readonly TimelineEntry[];
   readonly decision?: CaseDecision;
+  /** Si el ciudadano aceptó la notificación electrónica al radicar — ver `NotificationConsentState`. */
+  readonly notificationConsent: NotificationConsentState;
   /** Lo que el proceso le permite al funcionario desde el estado (tomar, decidir), tal como lo sirve el CMS. */
   readonly actions: readonly CaseAction[];
   /** `true` si el proceso no contestó: no hay acciones ahora, y no porque no haya nada que hacer. */
@@ -289,6 +298,11 @@ export interface GovCase {
 export interface CreateApplicationRequest {
   readonly serviceId: string;
   readonly answers: Readonly<Record<string, string>>;
+  /**
+   * Lo que contestó en «Revise sus respuestas» sobre la notificación electrónica, con la versión del
+   * texto que leyó (009, S-7). Marcar o no la casilla es una respuesta: no aceptarla no impide radicar.
+   */
+  readonly notificationConsent?: { readonly accepted: boolean; readonly textVersion: string };
 }
 
 /**

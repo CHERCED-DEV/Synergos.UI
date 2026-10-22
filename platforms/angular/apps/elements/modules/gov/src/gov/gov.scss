@@ -1075,6 +1075,24 @@
   }
 }
 
+// ─── La aceptación de la notificación electrónica (009, S-7) ─────────────────
+.consentimiento {
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-2;
+  margin: 0 0 syn.$space-md;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-md;
+  background: var(--gv-surface-muted);
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  &__casilla { margin-top: syn.px-to-rem(2); flex-shrink: 0; }
+}
+
+.case__consent { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
 // ─── Subsanar (009, D-2) ──────────────────────────────────────────────────────
 .subsanar {
   display: flex;

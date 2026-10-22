@@ -44,7 +44,12 @@ function bordeDeGobierno(
   opciones: {
     readonly caidas?: readonly string[];
     /** El expediente que sirve `GET /case/{id}`: estado, acciones servidas y si el proceso no contestó. */
-    readonly caso?: { readonly status: string; readonly actions: readonly string[]; readonly stale?: boolean };
+    readonly caso?: {
+      readonly status: string;
+      readonly actions: readonly string[];
+      readonly stale?: boolean;
+      readonly notificationConsent?: string;
+    };
     /** La solicitud que sirve `GET /application/{id}` al dueño: estado, acciones, hitos y adjuntos. */
     readonly solicitud?: {
       readonly status: string;
@@ -134,7 +139,10 @@ function bordeDeGobierno(
     if (metodo === 'GET' && delCaso) {
       return responder(
         200,
-        caso(decodeURIComponent(delCaso[1]), casoServido.status, casoServido.actions, { stale: casoServido.stale === true }),
+        caso(decodeURIComponent(delCaso[1]), casoServido.status, casoServido.actions, {
+          stale: casoServido.stale === true,
+          notificationConsent: casoServido.notificationConsent ?? 'unknown',
+        }),
       );
     }
     const deLaSolicitud = /^\/application\/([^/]+)$/.exec(ruta);
@@ -762,6 +770,94 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.canResubmit()).toBe(true);
     expect(component.resubmitNote()).toBe('Lo pedido va en el mensaje.');
     expect(component.errorMessage()).toBe('No pudimos enviar la subsanación. Intente de nuevo.');
+  });
+
+  // ── 009, S-7: la notificación electrónica se acepta EXPRESAMENTE al radicar ─────
+  /** El cuerpo con que se radicó, tal como salió hacia el borde. */
+  function cuerpoDeLaRadicacion(borde: ReturnType<typeof bordeDeGobierno>): Record<string, unknown> {
+    const llamada = borde.fetchDoble.mock.calls.find(([u, init]) =>
+      String(u).endsWith('/application') && (init?.method ?? 'GET').toUpperCase() === 'POST');
+    expect(llamada).toBeTruthy();
+    return JSON.parse(String(llamada?.[1]?.body)) as Record<string, unknown>;
+  }
+
+  it('en «Revise sus respuestas» aparece la casilla, SIN marcar, con el texto de Gov.Tramite', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+    await abrirFormularioDeAntecedentes();
+
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.consentimiento')).toBeNull();
+
+    component.formStep.set('review'); // lo avisa el shell al entrar a «Revise sus respuestas»
+    fixture.detectChanges();
+    const casilla = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.consentimiento input[type=checkbox]');
+    expect(casilla).toBeTruthy();
+    expect(casilla!.checked).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.consentimiento')?.textContent).toContain(
+      'Acepto que la entidad me notifique electrónicamente',
+    );
+  });
+
+  it('marcada, la aceptación viaja con la radicación y la versión del texto', async () => {
+    const borde = bordeDeGobierno();
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirFormularioDeAntecedentes();
+    component.formStep.set('review');
+    fixture.detectChanges();
+
+    const casilla = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.consentimiento input[type=checkbox]')!;
+    casilla.checked = true;
+    casilla.dispatchEvent(new Event('change'));
+    component.onFormSubmit({ answers: { motivoConsulta: 'laboral', aceptaTratamiento: 'true' } });
+    await flushMicrotasks();
+
+    expect(cuerpoDeLaRadicacion(borde)['notificationConsent']).toEqual({ accepted: true, textVersion: '2026-10-v1' });
+    expect(component.view()).toBe('receipt');
+  });
+
+  it('sin marcarla viaja que NO la aceptó, y radica igual: no aceptarla no impide radicar', async () => {
+    const borde = bordeDeGobierno();
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirFormularioDeAntecedentes();
+
+    component.onFormSubmit({ answers: { motivoConsulta: 'laboral', aceptaTratamiento: 'true' } });
+    await flushMicrotasks();
+
+    expect(cuerpoDeLaRadicacion(borde)['notificationConsent']).toEqual({ accepted: false, textVersion: '2026-10-v1' });
+    expect(component.view()).toBe('receipt');
+  });
+
+  it('la consola dice si consta la aceptación, y sin ella no ofrece «Notificar»', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({ caso: { status: 'in-review', actions: ['approve', 'reject', 'request-info'], notificationConsent: 'declined' } }).fetchDoble,
+    );
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase('app-seed-3');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('.case__consent')?.textContent).toContain('No aceptó la notificación electrónica');
+    expect(raiz.textContent).toContain('Sin la aceptación del ciudadano no se notifica por aquí.');
+    expect(Array.from(raiz.querySelectorAll('button')).some((b) => b.textContent?.includes('Poner en conocimiento'))).toBe(false);
+  });
+
+  it('con la aceptación sí se ofrece «Notificar»', async () => {
+    await createComponent(
+      NEGOCIO_DEL_CMS,
+      bordeDeGobierno({ caso: { status: 'in-review', actions: ['approve', 'reject', 'request-info'], notificationConsent: 'accepted' } }).fetchDoble,
+    );
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase('app-seed-3');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('.case__consent')?.textContent).toContain('Aceptó la notificación electrónica.');
+    expect(Array.from(raiz.querySelectorAll('button')).some((b) => b.textContent?.includes('Poner en conocimiento'))).toBe(true);
   });
 
   // ── reactive identity: an input landing AFTER construction re-fetches ─────────
@@ -1714,6 +1810,18 @@ describe('GovApiClient (v2 contract)', () => {
     await expect(client.resubmit('/api/gov', 'app-seed-4', 'Lo pedido.')).rejects.toMatchObject({
       endpoint: 'POST /api/gov/application/{id}/resubmit',
     });
+  });
+
+  it('la aceptación del expediente se lee ESTRICTA: lo que no es accepted ni declined es «no consta»', async () => {
+    const responder = (kase: Record<string, unknown>) =>
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ case: kase }) } as Response));
+    const base = { application: { id: 'c-1', reference: 'RAD-1', status: 'in-review' }, answers: [], documents: [], timeline: [] };
+
+    for (const [crudo, leido] of [['ACCEPTED', 'accepted'], ['declined', 'declined'], ['yes', 'unknown'], [undefined, 'unknown']] as const) {
+      vi.stubGlobal('fetch', responder({ ...base, notificationConsent: crudo }));
+      expect((await createClient().case('/api/gov', 'c-1')).notificationConsent).toBe(leido);
+      TestBed.resetTestingModule();
+    }
   });
 
   it('take() no se degrada: con el borde caído lanza en vez de fingir un expediente tomado', async () => {

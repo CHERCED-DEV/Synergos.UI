@@ -66,6 +66,7 @@ import {
   type GovService,
   type GovServiceDetail,
   type GovView,
+  type NotificationConsentState,
   type QueueCase,
 } from './gov.model';
 import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
@@ -176,6 +177,18 @@ function textosDelTramite() {
     sinAdjuntos: t('Gov.Tramite.Resubmit.NoDocuments', 'No ha adjuntado documentos desde que se le pidió información.'),
     subsanado: t('Gov.Tramite.Resubmit.Done', 'Subsanación enviada: su solicitud vuelve a revisión.'),
     subsanarFallo: t('Gov.Tramite.Resubmit.Failed', 'No pudimos enviar la subsanación. Intente de nuevo.'),
+    aceptacion: t(
+      'Gov.Tramite.Consent.Text',
+      'Acepto que la entidad me notifique electrónicamente las decisiones de este trámite en mi carpeta ciudadana.',
+    ),
+    versionDeLaAceptacion: t('Gov.Tramite.Consent.Version', '2026-10-v1'),
+    aceptada: t('Gov.Tramite.Consent.Accepted', 'Aceptó la notificación electrónica.'),
+    noAceptada: t('Gov.Tramite.Consent.Declined', 'No aceptó la notificación electrónica: se notifica por otro medio.'),
+    noConsta: t(
+      'Gov.Tramite.Consent.Unknown',
+      'No consta la aceptación de la notificación electrónica: se notifica por otro medio.',
+    ),
+    notificarSinAceptacion: t('Gov.Tramite.Notify.NeedsConsent', 'Sin la aceptación del ciudadano no se notifica por aquí.'),
   };
 }
 
@@ -472,7 +485,8 @@ export class GovElementComponent implements OnInit {
    * reintenta sin firmar mientras la bitácora sí.
    */
   async onNotifyAct(kase: GovCase): Promise<void> {
-    if (!this.canNotify() || this.notifying()) {
+    // Sin la aceptación no se notifica por aquí (009, S-7): el servidor lo rechazaría igual.
+    if (!this.canNotify() || this.notifying() || kase.notificationConsent !== 'accepted') {
       return;
     }
     this.notifyError.set('');
@@ -660,6 +674,15 @@ export class GovElementComponent implements OnInit {
 
   /** El mensaje opcional que acompaña la subsanación. */
   readonly resubmitNote = signal('');
+
+  /** El paso del formulario que está en pantalla (lo avisa el shell): la casilla va en «Revise sus respuestas». */
+  readonly formStep = signal('');
+
+  /**
+   * Si acepta la notificación electrónica (009, S-7). Empieza SIN marcar: la aceptación tiene que
+   * ser expresa, y no marcarla también es una respuesta, que viaja.
+   */
+  readonly aceptaNotificacion = signal(false);
 
   /**
    * Si el proceso le permite al dueño subsanar ahora (009, D-2): de las acciones servidas, que
@@ -1155,6 +1178,8 @@ export class GovElementComponent implements OnInit {
   private async beginApplication(serviceId: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
+    this.formStep.set('');
+    this.aceptaNotificacion.set(false);
     try {
       await this.ensureForm(serviceId);
       this.navigate('apply', serviceId);
@@ -1183,6 +1208,7 @@ export class GovElementComponent implements OnInit {
       const summary = await this.#api.createApplication(this.apiBase(), {
         serviceId: service.id,
         answers,
+        notificationConsent: { accepted: this.aceptaNotificacion(), textVersion: this.txt.versionDeLaAceptacion },
       });
       this.confirmedApplication.set(summary);
       this.applicationsLoaded.set(false); // folder must refetch to include the new one
@@ -1350,6 +1376,23 @@ export class GovElementComponent implements OnInit {
       void error;
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** La casilla de la notificación electrónica. */
+  onNotificationConsentChange(event: Event): void {
+    this.aceptaNotificacion.set((event.target as HTMLInputElement | null)?.checked === true);
+  }
+
+  /** Cómo le cuenta la consola al funcionario lo que el ciudadano contestó al radicar. */
+  consentLabel(state: NotificationConsentState): string {
+    switch (state) {
+      case 'accepted':
+        return this.txt.aceptada;
+      case 'declined':
+        return this.txt.noAceptada;
+      default:
+        return this.txt.noConsta;
     }
   }
 

@@ -18,6 +18,7 @@ import {
   type GovMessage,
   type GovService,
   type GovServiceDetail,
+  type NotificationConsentState,
   type QueueCase,
   type TimelineEntry,
   type UploadDocumentRequest,
@@ -695,6 +696,7 @@ function toCase(app: SeedApplication): GovCase {
     // Ver `toDetail`: lo de ejemplo se lee, no se actúa sobre ello.
     actions: [],
     stale: false,
+    notificationConsent: 'unknown',
   };
 }
 
@@ -1131,7 +1133,14 @@ function normalizeCase(value: unknown): GovCase | null {
     decision: normalizeDecision(value['decision']),
     actions: normalizeActions(value['actions']),
     stale: value['stale'] === true,
+    notificationConsent: readNotificationConsent(value['notificationConsent']),
   };
+}
+
+/** La aceptación de la notificación electrónica (009, S-7): lo que no es `accepted` ni `declined` es «no consta». */
+function readNotificationConsent(value: unknown): NotificationConsentState {
+  const raw = readString(value).trim().toLowerCase();
+  return raw === 'accepted' || raw === 'declined' ? raw : 'unknown';
 }
 
 /**
