@@ -382,7 +382,7 @@ export class EhrElementComponent implements OnInit {
   readonly copay = signal<EhrCopay | null>(null);
   #pidiendoCopago = false;
   readonly copayMinor = computed(() => this.copay()?.amountMinor ?? 0);
-  /** Lo que se dice cuando el copago no se pudo saber: ni «Sin costo» ni un número. */
+  /** Lo que se dice cuando el copago no se pudo saber: ni «Sin copago» ni un número. */
   readonly copayUnknown = computed(() => this.copay() === null);
 
   // ─── La cita por la puerta (003-salud-cita, ADR 0140) ──────────────────────────
@@ -937,7 +937,7 @@ export class EhrElementComponent implements OnInit {
       { id: 'proveedor', label: 'Motivo y médico' },
       { id: 'slot', label: 'Fecha y hora' },
     ];
-    // Sin saberlo también hay paso: es donde se dice que no se sabe, en vez de «Sin costo».
+    // Sin saberlo también hay paso: es donde se dice que no se sabe, en vez de «Sin copago».
     const copago = t('Health.Appointment.Copay', 'Copago');
     if (this.copayMinor() > 0 || this.copayUnknown()) {
       steps.push({ id: 'copago', label: copago });
@@ -953,8 +953,8 @@ export class EhrElementComponent implements OnInit {
       processingLabel: 'Agendando…',
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
-      // «Sin costo» sólo con un total 0 que dijo el SERVIDOR; sin saberlo, el rótulo del copago y el aviso.
-      totalLabel: this.copayMinor() > 0 || this.copayUnknown() ? copago : t('Health.Appointment.NoCopay', 'Sin costo'),
+      // «Sin copago» sólo con un total 0 que dijo el SERVIDOR (FR-004); sin saberlo, el rótulo del copago y el aviso.
+      totalLabel: this.copayMinor() > 0 || this.copayUnknown() ? copago : t('Health.Appointment.NoCopay', 'Sin copago'),
       // La cita NO quedó agendada, y lo dice el ASISTENTE, una vez (UI#91). Lo elegido sigue
       // en el carrito: reintentar es un clic. El `APPT-…` del `pay` es local y no mueve
       // dinero; medido, con el texto por defecto esta cita decía «Ya recibimos tu pago

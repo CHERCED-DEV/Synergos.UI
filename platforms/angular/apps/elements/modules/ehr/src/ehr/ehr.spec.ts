@@ -1030,7 +1030,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.scheduleConfig().totalLabel).toBe('Copago');
   });
 
-  it('sin un copago conocido no dice «Sin costo»: dice que no lo sabe', async () => {
+  it('sin un copago conocido no dice «Sin copago»: dice que no lo sabe', async () => {
     await createComponent({ copago: null });
 
     component.navigate('schedule');
@@ -1041,7 +1041,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.scheduleConfig().totalLabel).toBe('Copago');
   });
 
-  it('un copago de cero sí es «Sin costo»', async () => {
+  it('un copago de cero sí es «Sin copago» (FR-004)', async () => {
     await createComponent({ copago: 0 });
 
     component.navigate('schedule');
@@ -1049,7 +1049,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
 
     expect(component.copayUnknown()).toBe(false);
     expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(false);
-    expect(component.scheduleConfig().totalLabel).toBe('Sin costo');
+    expect(component.scheduleConfig().totalLabel).toBe('Sin copago');
   });
 });
 
@@ -1376,7 +1376,7 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     expect(component.scheduleValidity()['copago']).toBe(true);
   });
 
-  it('si cotizar no da el copago, el paso lo dice por su code y NO se deja agendar (ni «Sin costo» ni un cero)', async () => {
+  it('si cotizar no da el copago, el paso lo dice por su code y NO se deja agendar (ni «Sin copago» ni un cero)', async () => {
     const puerta = puertaDeLaCita({ rechazos: { cotizar: { code: 'consent.not_granted', status: 403 } } });
     await montar(puerta);
     component.navigate('schedule');
