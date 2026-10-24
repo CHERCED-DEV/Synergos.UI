@@ -334,6 +334,8 @@ export interface BookingWizardProps {
   readonly destinationLabel?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly bookingPath: string;
 }
 
 /** <synergos-breadcrumb> · pieza · diccionario: Nav.Breadcrumb */
@@ -756,6 +758,8 @@ export interface TravelShellProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly bookingPath: string;
 }
 
 /** <synergos-tree-view> · pieza · diccionario: TreeView */
@@ -1019,13 +1023,14 @@ export const BOOKING_WIZARD_SYNHOST: ElementoSynHost<BookingWizardProps> = {
   record: "BookingWizardProps",
   diccionario: [],
   claves: [],
-  campos: ["destinationLabel","apiBase"],
+  campos: ["destinationLabel","apiBase","bookingPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "destinationLabel": "Hoteles SynergosLabs",
-    "apiBase": "/api/booking"
+    "apiBase": "/api/booking",
+    "bookingPath": "directa"
   },
 };
 
@@ -2701,14 +2706,15 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
   record: "TravelShellProps",
   diccionario: [],
   claves: [],
-  campos: ["heading","subheading","apiBase"],
+  campos: ["heading","subheading","apiBase","bookingPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Reserva tu próximo viaje",
     "subheading": "Vuelos, hoteles y paquetes",
-    "apiBase": "/api/travel"
+    "apiBase": "/api/travel",
+    "bookingPath": "directa"
   },
 };
 
