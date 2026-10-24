@@ -267,6 +267,21 @@ function lineRefOf(line: OrderLine): string {
   return line.variantId ? `${line.productId}/${line.variantId}` : line.productId;
 }
 
+/**
+ * La variante de un producto que no trae ninguna: él mismo, «Estándar». La usan el agregado rápido del catálogo y la
+ * ficha (004-tienda-compra, etapa 3): los productos del CMS llegan con `variants: []`, y la ficha no agregaba nada.
+ */
+function varianteEstandar(product: ShopProduct): ProductVariant {
+  return {
+    variantId: `${product.id}-default`,
+    label: 'Estándar',
+    attributes: {},
+    amount: product.amount,
+    inStock: true,
+    stock: 99,
+  };
+}
+
 /** Lo que el comprador está a punto de mandar. */
 interface ReturnDraft {
   readonly orderRef: string;
@@ -2144,29 +2159,25 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   // ─── Cart (engine wiring) ────────────────────────────────────────────────────
+  /**
+   * Agrega lo que muestra la ficha. **Un producto sin variantes se agrega como tal** (004-tienda-compra, etapa 3): los
+   * del CMS llegan con `variants: []`, `selectedVariant` quedaba en `null` y el botón volvía en silencio. Lo único que
+   * frena aquí es no tener existencias, y entonces el botón está deshabilitado y la ficha dice «Sin stock».
+   */
   addCurrentToCart(): void {
     const detail = this.detail();
-    const variant = this.selectedVariant();
-    if (!detail || !variant || !this.pdpInStock()) {
+    if (!detail || !this.pdpInStock()) {
       return;
     }
-    this.addToCart(detail.product, variant, this.pdpQuantity());
+    this.addToCart(detail.product, this.selectedVariant() ?? varianteEstandar(detail.product), this.pdpQuantity());
   }
 
   quickAdd(product: ShopProduct): void {
     if (!product.inStock) {
       return;
     }
-    // Quick-add from the PLP uses a synthetic default variant.
-    const variant: ProductVariant = {
-      variantId: `${product.id}-default`,
-      label: 'Estándar',
-      attributes: {},
-      amount: product.amount,
-      inStock: true,
-      stock: 99,
-    };
-    this.addToCart(product, variant, 1);
+    // El agregado rápido del catálogo no elige variante: la del producto mismo.
+    this.addToCart(product, varianteEstandar(product), 1);
   }
 
   /**
