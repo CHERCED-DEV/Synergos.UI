@@ -316,11 +316,55 @@ export interface TravelGuest {
   readonly email: string;
 }
 
-/** One line in the checkout request body. */
+/**
+ * One line in the checkout request body — la forma de `CartItemDto` de `TravelController` del CMS.
+ *
+ * **El periodo (`start`/`end`) es obligatorio allá**, porque un apartado de `Api.Booking` ES una ventana
+ * sobre un recurso, y no se deriva del `offerId`. Antes la línea iba sin él (y sin etiqueta, precio ni
+ * moneda) y el checkout contestaba 400 SIEMPRE (defecto 1 de la línea 006, research R1).
+ */
 export interface TravelCheckoutLine {
   readonly product: TravelProduct;
   readonly offerId: string;
+  readonly label: string;
+  /** El precio de la oferta en unidades MAYORES de `currency`, como lo mostró la tarjeta. */
+  readonly price: number;
+  readonly currency: string;
+  /** Desde, ISO-8601 en UTC. */
+  readonly start: string;
+  /** Hasta, ISO-8601 en UTC; posterior a `start`. */
+  readonly end: string;
   readonly detail: Readonly<Record<string, unknown>>;
+}
+
+/** El periodo de un ítem del viaje, ISO-8601 en UTC. */
+export interface TravelPeriod {
+  readonly start: string;
+  readonly end: string;
+}
+
+/**
+ * El periodo de una línea, desde las fechas de la búsqueda de su producto: de medianoche a medianoche UTC, como
+ * la noche de hotel del CMS (`HttpHotelBookingService`). Sin un «hasta» posterior (un vuelo sólo de ida), ocupa
+ * su día. Sin un «desde» que se lea, no hay periodo: el checkout lo rechaza nombrando el ítem, en vez de
+ * inventarlo.
+ */
+export function periodoDeLaBusqueda(desde: string, hasta: string): TravelPeriod {
+  const start = instanteUtc(desde);
+  if (!start) {
+    return { start: '', end: '' };
+  }
+  const end = instanteUtc(hasta);
+  return { start, end: end && end > start ? end : new Date(Date.parse(start) + 86_400_000).toISOString() };
+}
+
+function instanteUtc(fecha: string): string {
+  const texto = fecha.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    return `${texto}T00:00:00.000Z`;
+  }
+  const ms = Date.parse(texto);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
 }
 
 /** `POST /api/travel/checkout` response — opens a single PSP session for the cart. */

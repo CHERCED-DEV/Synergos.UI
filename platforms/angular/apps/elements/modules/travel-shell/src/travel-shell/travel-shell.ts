@@ -78,6 +78,7 @@ import { TravelApiClient, isTravelSinSesion, mockSeatMap } from './travel-api.cl
 import {
   TRAVEL_FLOW,
   TRAVEL_PRODUCTS,
+  periodoDeLaBusqueda,
   type CancelReceipt,
   type CarCriteria,
   type FareFamily,
@@ -1157,6 +1158,7 @@ export class TravelShellElementComponent {
       fareId: fare.id,
       fareLabel: fare.label,
       seat: seats.join(','),
+      ...this.periodoDe('flight'),
     };
     this.commitToCart({
       productRef: flight.offerId,
@@ -1180,6 +1182,7 @@ export class TravelShellElementComponent {
         apiBase: this.apiBase(),
         currency: offer.currency || this.currency(),
         subtitle: offer.subtitle,
+        ...this.periodoDe('car'),
       },
       meta: { subtitle: offer.subtitle, badges: offer.badges },
     });
@@ -1220,6 +1223,7 @@ export class TravelShellElementComponent {
         rateLabel: rate.rateLabel,
         roomLabel: rate.roomLabel,
         refundable: rate.refundable,
+        ...this.periodoDe('hotel'),
       },
       meta: { subtitle, badges: rate.perks },
     });
@@ -1710,6 +1714,21 @@ export class TravelShellElementComponent {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
+  /**
+   * El periodo de lo que se añade al carrito: las fechas de la búsqueda de SU producto (defecto 1 de la
+   * línea 006). Se anota al añadir, no al pagar: buscar otra cosa después no cambia lo que ya está elegido.
+   */
+  private periodoDe(product: TravelProduct): { start: string; end: string } {
+    switch (product) {
+      case 'hotel':
+        return periodoDeLaBusqueda(this.hotelCheckIn(), this.hotelCheckOut());
+      case 'flight':
+        return periodoDeLaBusqueda(this.flightDepart(), this.flightReturn());
+      case 'car':
+        return periodoDeLaBusqueda(this.carPickUp(), this.carDropOff());
+    }
+  }
+
   private criteriaFor(product: TravelProduct): Readonly<Record<string, unknown>> {
     switch (product) {
       case 'hotel':

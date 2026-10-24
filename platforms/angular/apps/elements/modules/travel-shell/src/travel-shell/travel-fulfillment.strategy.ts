@@ -86,7 +86,9 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
       kind: product.kind,
       productRef: product.productRef,
       label: product.label,
-      selection: product.selection,
+      // El precio MAYOR de la oferta viaja con la línea (el checkout lo manda tal cual): volver a
+      // él desde `amount` dividiendo por 100 es la regla 56, que no mira la moneda.
+      selection: { ...product.selection, price: product.amount },
       // Engine pricing is in minor units; offers carry major units.
       amount: Math.round(product.amount * 100),
       quantity: 1,
@@ -204,15 +206,31 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
     };
   }
 
+  /**
+   * Cada línea con la forma de `CartItemDto` del CMS: etiqueta, precio, moneda y su periodo, que la app
+   * anotó en la selección al añadirla (defecto 1 de la línea 006).
+   */
   private toLines(session: SessionData): readonly TravelCheckoutLine[] {
-    return session.items.map((item) => ({
-      product: item.kind as TravelProduct,
-      offerId: item.productRef,
-      detail: item.selection,
-    }));
+    return session.items.map((item) => {
+      const selection = item.selection as Record<string, unknown>;
+      return {
+        product: item.kind as TravelProduct,
+        offerId: item.productRef,
+        label: item.label,
+        price: readNumber(selection['price']),
+        currency: readString(selection['currency']) || session.pricing.currency,
+        start: readString(selection['start']),
+        end: readString(selection['end']),
+        detail: item.selection,
+      };
+    });
   }
 }
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }

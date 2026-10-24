@@ -6,7 +6,21 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
-import type { TravelTrip } from './travel.model';
+import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
+
+/** Una línea del checkout con la forma de `CartItemDto` del CMS (defecto 1 de la línea 006). */
+function lineaDeEjemplo(product: TravelProduct, offerId: string): TravelCheckoutLine {
+  return {
+    product,
+    offerId,
+    label: 'Ítem de ejemplo',
+    price: 1_250_000,
+    currency: 'COP',
+    start: '2026-08-01T00:00:00.000Z',
+    end: '2026-08-05T00:00:00.000Z',
+    detail: {},
+  };
+}
 import { asentar } from '../../../../../../tools/asentar';
 import { TRAVEL_SHELL_SYNHOST } from '@synergos/contracts';
 
@@ -575,6 +589,61 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(window.location.hash).toContain('/confirmacion');
   });
 
+  // ── Defecto 1 de la línea 006: cada línea del carrito lleva su periodo ────────────
+  //
+  // El checkout mandaba `{product, offerId, detail}` y `TravelController` exige el periodo de cada
+  // ítem (un apartado ES una ventana): contestaba 400 SIEMPRE. Tampoco iban la etiqueta, el precio ni
+  // la moneda, y el precio llegaba en 0. Lo que se mira es el cuerpo que SALE.
+  it('el checkout manda cada línea con su periodo, su etiqueta, su precio y su moneda (defecto 1)', async () => {
+    installMemoryStorage();
+    const borde = bordeDeViajes();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    await searchFlights();
+    component.addFlightToCart();
+    await flushMicrotasks();
+    await searchCars();
+    const auto = component.carResults()[0];
+    component.addCarToCart(auto);
+    await flushMicrotasks();
+
+    component.guestName.set('Ada Lovelace');
+    component.guestEmail.set('ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    wizard.next();
+    fixture.detectChanges();
+    wizard.next();
+    fixture.detectChanges();
+    wizard.next();
+    await flushMicrotasks(30);
+
+    const checkout = borde.fetchDoble.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/checkout') && init?.method === 'POST',
+    );
+    const cuerpo = JSON.parse(String(checkout?.[1]?.body)) as {
+      items: { product: string; offerId: string; label: string; price: number; currency: string; start: string; end: string }[];
+    };
+    const [vuelo, carro] = cuerpo.items;
+    expect(vuelo.product).toBe('flight');
+    expect([vuelo.start, vuelo.end]).toEqual(['2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z']);
+    expect(vuelo.label).not.toBe('');
+    expect(vuelo.price).toBeGreaterThan(0);
+    // La moneda va tal cual la trae la oferta; vacía (las de muestra no la traen), el CMS la toma como COP.
+    expect(typeof vuelo.currency).toBe('string');
+    expect(carro).toMatchObject({
+      product: 'car',
+      offerId: auto.offerId,
+      label: auto.title,
+      price: auto.amount,
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+  });
+
   // ── account: mis viajes (SH-4) + timeline + cancelar + wallet ─────────────────
   /** Mis viajes (una LECTURA: degrada a los de ejemplo) y el próximo, cancelable. */
   async function abrirMisViajes(): Promise<TravelTrip> {
@@ -903,7 +972,7 @@ describe('TravelApiClient', () => {
     const client = createClient();
 
     await expect(
-      client.checkout('/api/travel', [{ product: 'hotel', offerId: 'X1', detail: {} }], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+      client.checkout('/api/travel', [lineaDeEjemplo('hotel', 'X1')], { name: 'Ada', email: 'a@b.co' }, 'COP'),
     ).rejects.toMatchObject({ name: 'TravelWriteFailedError', endpoint: 'POST /api/travel/checkout' });
     await expect(client.confirm('/api/travel', 'trv_77')).rejects.toMatchObject({ name: 'TravelWriteFailedError' });
     await expect(client.cancel('/api/travel', 'TRIP-2026-0481')).rejects.toMatchObject({
@@ -918,7 +987,7 @@ describe('TravelApiClient', () => {
 
     const checkout = await client.checkout(
       '/api/travel',
-      [{ product: 'flight', offerId: 'FL-1', detail: {} }],
+      [lineaDeEjemplo('flight', 'FL-1')],
       { name: 'Ada', email: 'a@b.co' },
       'COP',
     );
@@ -1037,4 +1106,19 @@ describe('TravelShellElementComponent — stay loading surface', () => {
     expect(host.textContent).not.toContain('Cargando alojamiento');
   });
 
+});
+
+describe('periodoDeLaBusqueda (defecto 1 de la línea 006)', () => {
+  it('va de medianoche a medianoche UTC; sin un «hasta» posterior ocupa su día; sin «desde» no inventa uno', () => {
+    expect(periodoDeLaBusqueda('2026-08-01', '2026-08-05')).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+    expect(periodoDeLaBusqueda('2026-08-01', '')).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-02T00:00:00.000Z',
+    });
+    expect(periodoDeLaBusqueda('2026-08-05', '2026-08-01').end).toBe('2026-08-06T00:00:00.000Z');
+    expect(periodoDeLaBusqueda('', '2026-08-05')).toEqual({ start: '', end: '' });
+  });
 });
