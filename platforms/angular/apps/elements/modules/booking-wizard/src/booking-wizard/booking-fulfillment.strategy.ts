@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   FulfillmentStrategyBase,
+  SessionStore,
   type FulfillmentConfirmation,
   type FulfillmentPayRequest,
   type FulfillmentPayResult,
@@ -12,16 +13,27 @@ import {
 } from '@synergos/transaction-engine';
 import { BookingApiClient } from './booking-api.client';
 import {
+  abrirEstadia,
+  abrirNoDejoEstadia,
+  cerrarEstadia,
+  consultarEstadia,
+  ventanaDeLaEstadia,
+  type EstadiaLeida,
+} from './booking-viaje';
+import {
   BOOKING_FLOW,
   BOOKING_HOLD_FAILED,
   BOOKING_ITEM_KIND,
   BOOKING_PAYMENT_FAILED,
+  caminoDeLaReserva,
   type BookingGuest,
   type BookingOffer,
   type BookingRoom,
   type BookingSelection,
+  type BookingVoucher,
+  type CaminoDeLaReserva,
 } from './booking.model';
-import { aMenores } from '@synergos/vitals-core';
+import { aMenores, formatearImporte } from '@synergos/vitals-core';
 
 /**
  * La `IFulfillmentStrategy` del flujo de hotel — el único sitio donde vive lo
@@ -54,9 +66,16 @@ interface BookingSearchCriteria {
   readonly rooms: readonly BookingRoom[];
 }
 
-/** Instrumento que la app le pasa a `pay`. */
+/**
+ * Instrumento que la app le pasa a `pay` Y a `confirm` (ADR 0140 F4): viaja por llamada, porque hay UNA estrategia por
+ * página y un campo suyo cruzaría dos instancias (regla 60).
+ */
 interface BookingPayInstrument {
   readonly guest: BookingGuest;
+  /** El `<synergos-booking-wizard>` de ESTA reserva: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
+  readonly host: Element;
+  /** Por dónde reserva, como lo DECLARA el CMS. Una estadía que ya salió se termina por el camino por el que salió. */
+  readonly camino: CaminoDeLaReserva;
 }
 
 @Injectable()
@@ -65,6 +84,7 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
   protected readonly flow = BOOKING_FLOW;
 
   readonly #api = inject(BookingApiClient);
+  readonly #store = inject(SessionStore);
 
   /** Paso 1 — disponibilidad para las fechas y la ocupación. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
@@ -131,13 +151,23 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
     return { item };
   }
 
-  /** Paso 3 — apartar. Un apartado que no sale NO es un fallo de pago. */
+  /**
+   * Paso 3 — apartar. Un apartado que no sale NO es un fallo de pago.
+   *
+   * Por la PUERTA, ABRIR la estadía: aparta la habitación y autoriza el total, sin mover plata, con la llave de la
+   * INTENCIÓN (la sesión). El producto es el `productRef` que dio la búsqueda, nunca uno derivado del `offerId`. El
+   * total pasa a ser el del SERVIDOR. Nunca cae a la directa, ni ante un 503.
+   */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const selection = this.selectionOf(request.session);
     if (!selection) {
       return { accepted: false, reason: BOOKING_HOLD_FAILED };
     }
     const instrument = request.instrument as Partial<BookingPayInstrument>;
+    if (caminoDeLaEstadiaEnCurso(request.session, instrument.camino) === 'puerta') {
+      return this.abrirPorLaPuerta(request.session, selection, instrument.host);
+    }
+    this.anotar((item) => conElCamino(item, 'directa'));
     const guest: BookingGuest = instrument.guest ?? { name: '', email: '' };
 
     const hold = await this.#api.hold(
@@ -154,8 +184,18 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
     return { accepted: true, reference: hold.reservationId };
   }
 
-  /** Paso 4 — cobrar el apartado y devolver el comprobante. */
-  override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
+  /**
+   * Paso 4 — cobrar el apartado y devolver el comprobante.
+   *
+   * Por la PUERTA, CERRAR la estadía (captura y confirma). Si falla y no es transitorio, se CONSULTA antes de decidir
+   * (defecto 3: el asistente no consultaba): completada, se sigue como si hubiera contestado bien; deshecha, el pago de
+   * la sesión queda fallido y el siguiente clic reabre con la misma llave.
+   */
+  override async confirm(session: SessionData, instrument?: Readonly<Record<string, unknown>>): Promise<FulfillmentConfirmation> {
+    const datos = (instrument ?? {}) as Partial<BookingPayInstrument>;
+    if (caminoDeLaEstadiaEnCurso(session, datos.camino) === 'puerta') {
+      return this.cerrarPorLaPuerta(session, datos.host);
+    }
     const selection = this.selectionOf(session);
     const reservationId = session.payments[session.payments.length - 1]?.reference ?? '';
     if (!selection || !reservationId) {
@@ -185,6 +225,95 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
     };
   }
 
+  private async abrirPorLaPuerta(
+    session: SessionData,
+    selection: BookingSelection,
+    host: Element | undefined,
+  ): Promise<FulfillmentPayResult> {
+    if (!(host instanceof Element)) {
+      return { accepted: false, reason: 'cliente.sin_coordinador' };
+    }
+    if (!selection.offer.productRef) {
+      return { accepted: false, reason: 'cliente.sin_producto' };
+    }
+    const ventana = ventanaDeLaEstadia(selection.checkIn, selection.checkOut);
+    if (!ventana) {
+      return { accepted: false, reason: 'cliente.sin_periodo' };
+    }
+    // El camino y la llave quedan en la línea ANTES de salir a la red: desde ahora la estadía puede existir, y sólo
+    // del lado de la puerta.
+    const llave = session.sessionId;
+    this.anotar((item) => ({ ...conElCamino(item, 'puerta'), holdRef: llave }));
+    const abierta = await abrirEstadia(host, selection.offer.productRef, selection.offer.roomTypeName, ventana, llave);
+    if (!abierta.ok) {
+      if (abrirNoDejoEstadia(abierta.rechazo)) {
+        this.anotar(sinLaRetenida);
+      }
+      return { accepted: false, reason: abierta.rechazo.code };
+    }
+    const estadia = abierta.valor;
+    const sesion = this.#store.getValidSession();
+    const total = estadia.total ? aMenores(estadia.total.amount, estadia.total.currency) : sesion.pricing.totalAmount;
+    this.#store.setSession({
+      ...sesion,
+      items: sesion.items.map((item) => ({
+        ...item,
+        ...(estadia.vence ? { expiresAt: estadia.vence } : {}),
+        selection: { ...item.selection, [CAMPO_DE_LA_ESTADIA]: estadia.id },
+      })),
+      pricing: {
+        ...sesion.pricing,
+        currency: estadia.total?.currency ?? sesion.pricing.currency,
+        totalAmount: total,
+        balanceDue: total,
+      },
+    });
+    return { accepted: true, reference: estadia.id };
+  }
+
+  private async cerrarPorLaPuerta(session: SessionData, host: Element | undefined): Promise<FulfillmentConfirmation> {
+    if (!(host instanceof Element)) {
+      return { confirmed: false, vouchers: [], reason: 'cliente.sin_coordinador' };
+    }
+    const id = estadiaDeLaSesion(session) ?? '';
+    const cerrada = await cerrarEstadia(host, id);
+    let estadia: EstadiaLeida | null = cerrada.ok ? cerrada.valor : null;
+    if (!cerrada.ok) {
+      if (cerrada.rechazo.transient) {
+        return { confirmed: false, vouchers: [], reason: cerrada.rechazo.code };
+      }
+      const leida = await consultarEstadia(host, id);
+      estadia = leida.ok && leida.valor.estado === 'Completed' ? leida.valor : null;
+      if (!estadia) {
+        if (leida.ok && leida.valor.estado === 'Compensated') {
+          this.#store.setSession(sinEstadiaPendiente(this.#store.getValidSession()));
+        }
+        return { confirmed: false, vouchers: [], reason: cerrada.rechazo.code };
+      }
+    }
+    const selection = this.selectionOf(session);
+    const total = estadia!.total;
+    const voucher: BookingVoucher = {
+      // El número del viaje es lo que se enseña: por la puerta no sale ningún identificador de la agenda.
+      reservationId: estadia!.numero,
+      status: estadia!.estado,
+      totalPrice: total?.amount ?? 0,
+      totalPriceFormatted: total ? formatearImporte(total.amount, total.currency) : '',
+      currency: total?.currency ?? selection?.currency ?? '',
+      checkIn: selection?.checkIn ?? '',
+      checkOut: selection?.checkOut ?? '',
+    };
+    return {
+      confirmed: true,
+      vouchers: [{ itemId: session.items[0]?.id ?? BOOKING_ITEM_KIND, reference: voucher.reservationId, status: voucher.status, detail: { voucher } }],
+    };
+  }
+
+  private anotar(cambio: (item: SessionItem) => SessionItem): void {
+    const sesion = this.#store.getValidSession();
+    this.#store.setSession({ ...sesion, items: sesion.items.map(cambio) });
+  }
+
   /** La selección de la única línea del carrito, si la hay. */
   private selectionOf(session: SessionData): BookingSelection | null {
     const raw = session.items[0]?.selection as Partial<BookingSelection> | undefined;
@@ -200,4 +329,64 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
       currency: raw.currency ?? '',
     };
   }
+}
+
+/** Dónde queda, en la línea, el id de la estadía que abrió la puerta. */
+export const CAMPO_DE_LA_ESTADIA = 'estadia';
+
+/** Dónde queda, en la línea, el camino por el que salió la estadía. */
+const CAMPO_DEL_CAMINO = 'camino';
+
+function conElCamino(item: SessionItem, camino: CaminoDeLaReserva): SessionItem {
+  return { ...item, selection: { ...item.selection, [CAMPO_DEL_CAMINO]: camino } };
+}
+
+/** El camino por el que SALIÓ la estadía de esta sesión, o `null` si todavía no salió. */
+export function caminoDeLaEstadiaPendiente(session: SessionData): CaminoDeLaReserva | null {
+  const anotado = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DEL_CAMINO];
+  return anotado === 'puerta' || anotado === 'directa' ? anotado : null;
+}
+
+/**
+ * Una estadía que ya salió **se termina por el camino por el que salió**: su viaje o su apartado sólo existe de ese
+ * lado, y cambiar de camino a mitad apartaría dos veces. Si todavía no salió, el que declara el CMS.
+ */
+export function caminoDeLaEstadiaEnCurso(session: SessionData, declarado: unknown): CaminoDeLaReserva {
+  return caminoDeLaEstadiaPendiente(session) ?? caminoDeLaReserva(declarado);
+}
+
+/** El id de la estadía de esta sesión por la puerta: el que abrir contestó, o el del último pago vivo. */
+export function estadiaDeLaSesion(session: SessionData): string | null {
+  const enLaLinea = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DE_LA_ESTADIA];
+  if (typeof enLaLinea === 'string' && enLaLinea !== '') return enLaLinea;
+  const ultimo = session.payments[session.payments.length - 1];
+  return caminoDeLaEstadiaPendiente(session) === 'puerta' && ultimo && ultimo.status !== 'failed' ? (ultimo.reference ?? null) : null;
+}
+
+/**
+ * La estadía PENDIENTE de esta sesión: abierta por la puerta y sin confirmar. Es la única que la pantalla ofrece
+ * cancelar: lo confirmado lo gestiona quien vende (006-P3).
+ */
+export function estadiaPendiente(session: SessionData): string | null {
+  return session.status !== 'confirmed' && caminoDeLaEstadiaPendiente(session) === 'puerta' ? estadiaDeLaSesion(session) : null;
+}
+
+/** La línea sin lo que la ataba a su estadía: la llave retenida, el plazo del apartado, el id y el camino. */
+function sinLaRetenida(item: SessionItem): SessionItem {
+  const { holdRef: _suelta, expiresAt: _vence, ...linea } = item;
+  const { [CAMPO_DE_LA_ESTADIA]: _estadia, [CAMPO_DEL_CAMINO]: _camino, ...seleccion } = linea.selection as Record<string, unknown>;
+  return { ...linea, selection: seleccion };
+}
+
+/**
+ * La sesión sin la estadía pendiente: lo que el servidor deshizo ya no está apartado ni autorizado. El último pago
+ * queda `failed` y la línea deja de estar retenida, así que el siguiente clic vuelve a abrir.
+ */
+export function sinEstadiaPendiente(session: SessionData): SessionData {
+  const ultimo = session.payments.length - 1;
+  return {
+    ...session,
+    items: session.items.map(sinLaRetenida),
+    payments: session.payments.map((pago, indice) => (indice === ultimo ? { ...pago, status: 'failed' as const } : pago)),
+  };
 }

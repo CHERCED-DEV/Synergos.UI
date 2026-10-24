@@ -328,7 +328,7 @@ export interface BlogsProps {
   readonly apiBase: string;
 }
 
-/** <synergos-booking-wizard> · funcionalidad */
+/** <synergos-booking-wizard> · funcionalidad · diccionario: Travel.Booking */
 export interface BookingWizardProps {
   /** contenido */
   readonly destinationLabel?: string;
@@ -1025,8 +1025,8 @@ export const BOOKING_WIZARD_SYNHOST: ElementoSynHost<BookingWizardProps> = {
   nombre: "booking-wizard",
   tipo: "funcionalidad",
   record: "BookingWizardProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Travel.Booking"],
+  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.RoomBadRequest","Travel.Booking.RoomNotBookable","Travel.Booking.RoomTaken","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
   campos: ["destinationLabel","apiBase","bookingPath"],
   listas: {},
   selectores: [],
@@ -2711,7 +2711,7 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
   tipo: "funcionalidad",
   record: "TravelShellProps",
   diccionario: ["Travel.Booking"],
-  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
+  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.RoomBadRequest","Travel.Booking.RoomNotBookable","Travel.Booking.RoomTaken","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
   campos: ["heading","subheading","apiBase","bookingPath"],
   listas: {},
   selectores: [],
