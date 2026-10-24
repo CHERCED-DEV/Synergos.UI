@@ -363,6 +363,16 @@ export interface ShopOrder {
   readonly items: readonly OrderLine[];
 }
 
+/**
+ * Lo que se sabe de «Mis compras» (004-tienda-compra, etapa 3): la lista que dio el servidor, o POR QUÉ no la hay.
+ * Antes un fallo devolvía los pedidos de ejemplo (`ORD-2026-00481`…) y la persona veía compras que no hizo. Sin sesión
+ * (el servidor contestó 401) se pide entrar; con la lectura caída se dice. Se degrada por ausencia, no se inventa.
+ */
+export type LecturaDeCompras =
+  | { readonly estado: 'leidas'; readonly pedidos: readonly ShopOrder[] }
+  | { readonly estado: 'sin-sesion' }
+  | { readonly estado: 'caida' };
+
 /** Coarse fulfilment status of a past order. */
 export type OrderStatus =
   | 'pending'

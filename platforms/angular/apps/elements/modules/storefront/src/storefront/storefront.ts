@@ -83,6 +83,7 @@ import {
 } from '@synergos/shared';
 import type { StorefrontProps } from '@synergos/contracts';
 import { ShopApiClient } from './shop-api.client';
+import { diaDeLaTienda, momentoDeLaTienda } from './fechas-de-la-tienda';
 import {
   CODIGO_COBRO_DEVUELTO,
   CODIGO_COMPRA_SIN_RESOLVER,
@@ -112,6 +113,7 @@ import {
   type AccountSectionId,
   type CaminoDeCompra,
   type CompraPendienteDelServidor,
+  type LecturaDeCompras,
   type MessageThread,
   type ProductCondition,
   type ProductDetail,
@@ -304,6 +306,7 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     apiBase: coerceTrimmedStringInput(value.apiBase),
     purchasePath: coerceTrimmedStringInput(value.purchasePath),
     shippingCountry: coerceTrimmedStringInput(value.shippingCountry),
+    zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
   });
 }
 
@@ -785,6 +788,9 @@ export class StorefrontElementComponent implements OnInit {
   /** El país al que despacha el sitio (ISO 3166-1 alfa-2): lo declara el CMS, el formulario no lo pregunta. */
   readonly shippingCountry = computed(() => coerceTrimmedStringInput(this.config()?.shippingCountry) ?? '');
 
+  /** La zona del sitio (IANA), en la que «Mis compras» dice sus fechas: la declara el CMS (`zonaHoraria`). */
+  readonly zonaHoraria = computed(() => coerceTrimmedStringInput(this.config()?.zonaHoraria) ?? '');
+
   /** Un 401 de la puerta a mitad de la compra: la sesión terminó y se pide otra vez, en el mismo panel. */
   readonly sesionRequerida = signal(false);
 
@@ -918,6 +924,10 @@ export class StorefrontElementComponent implements OnInit {
   readonly threads = signal<readonly MessageThread[]>([]);
   readonly threadsLoaded = signal(false);
   readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
+  /** Por qué «Mis compras» no tiene lista: sin sesión, o con la lectura caída (004-tienda-compra, etapa 3). */
+  readonly estadoDeLasCompras = signal<LecturaDeCompras['estado']>('leidas');
+  /** Los pedidos cuyo seguimiento no se pudo leer: dicen «Seguimiento no disponible», no una línea de tiempo inventada. */
+  readonly seguimientoCaido = signal<ReadonlySet<string>>(new Set<string>());
   /**
    * Los reclamos por pedido, **leídos del servidor** (#32).
    *
@@ -943,6 +953,7 @@ export class StorefrontElementComponent implements OnInit {
     inboxEmptyMessage: 'Todavía no tienes compras.',
     inboxLoadingMessage: 'Cargando tus compras…',
     detailPlaceholder: 'Selecciona una compra para ver el detalle y su seguimiento.',
+    ...this.bandejaSinLista(),
     sections: [
       { id: 'compras', label: 'Mis compras', kind: 'inbox' },
       { id: 'favoritos', label: 'Favoritos', badge: this.wishlist().length || undefined },
@@ -950,6 +961,26 @@ export class StorefrontElementComponent implements OnInit {
       { id: 'perfil', label: 'Mis datos' },
     ],
   }));
+
+  /**
+   * Lo que dice «Mis compras» cuando no hay lista (004-tienda-compra, etapa 3): sin sesión pide entrar, y con la
+   * lectura caída lo dice y ofrece reintentar. Nunca los pedidos de ejemplo.
+   */
+  private bandejaSinLista(): Partial<AccountShellConfig> {
+    switch (this.estadoDeLasCompras()) {
+      case 'sin-sesion':
+        return {
+          inboxEmptyTitle: t('Storefront.Purchase.OrdersSignIn', 'Inicia sesión para ver tus compras'),
+          inboxEmptyMessage: '',
+          inboxEmptyActionLabel: t('Storefront.Purchase.SignIn', 'Iniciar sesión'),
+          inboxEmptyActionHref: this.loginUrl(),
+        };
+      case 'caida':
+        return { errorMessage: t('Storefront.Purchase.OrdersUnavailable', 'No pudimos cargar tus compras.') };
+      default:
+        return {};
+    }
+  }
 
   constructor() {
     // Bind the unified cart to this origin and rehydrate any live session.
@@ -2267,6 +2298,9 @@ export class StorefrontElementComponent implements OnInit {
         reference: voucher.reference,
       })),
     );
+    // Lo comprado ya no está por comprar: el carrito queda vacío al confirmar, en los dos caminos (etapa 3). El
+    // asistente sólo completa con la compra cerrada (por la puerta, `cerrar` contestó), así que no queda nada abierto.
+    this.#store.reset();
     this.ordersLoaded.set(false);
     this.navigate('confirmation');
     const payload = { orderRef: result.reference, orderNumber };
@@ -2302,11 +2336,39 @@ export class StorefrontElementComponent implements OnInit {
     void this.#api
       .tracking(this.apiBase(), order.orderRef, order.status)
       .then((tracking) => {
+        if (tracking === null) {
+          this.seguimientoCaido.update((caidos) => new Set(caidos).add(order.orderNumber));
+          return;
+        }
+        this.seguimientoCaido.update((caidos) => {
+          const resto = new Set(caidos);
+          resto.delete(order.orderNumber);
+          return resto;
+        });
         this.trackingByRef.update((map) => ({
           ...map,
-          [order.orderNumber]: tracking.stages.map((stage) => ({ ...stage })),
+          [order.orderNumber]: tracking.stages.map((stage) => ({
+            ...stage,
+            date: stage.date ? momentoDeLaTienda(stage.date, this.zonaHoraria()) : stage.date,
+          })),
         }));
       });
+  }
+
+  /**
+   * Lo que dice el seguimiento cuando no tiene etapas que pintar (004-tienda-compra, etapa 3): «Consultando…» mientras
+   * se lee, y «Seguimiento no disponible» si la lectura cayó o el pedido todavía no tiene ninguna. Antes una caída
+   * pintaba una línea de tiempo de ejemplo con fechas que nadie registró.
+   */
+  mensajeDelSeguimiento(order: ShopOrder): string {
+    return this.seguimientoCaido().has(order.orderNumber) || this.trackingByRef()[order.orderNumber]
+      ? t('Storefront.Purchase.TrackingUnavailable', 'Seguimiento no disponible')
+      : 'Consultando el seguimiento…';
+  }
+
+  /** El día del pedido, en es-CO y en la hora del sitio: nunca el ISO crudo (etapa 3). */
+  orderDateLabel(order: ShopOrder): string {
+    return order.date ? diaDeLaTienda(order.date, this.zonaHoraria()) : '';
   }
 
   trackingStages(orderRef: string): readonly TrackingStage[] {
@@ -2323,37 +2385,26 @@ export class StorefrontElementComponent implements OnInit {
    * el botón era inalcanzable contra un servidor real (#33). La copia no se
    * desvió por descuido: se desvió porque era una copia.
    *
-   * Lo que queda de este lado son dos cosas que el servidor no sabe:
+   * Lo único que queda de este lado es lo que el servidor no sabe de esta pantalla: **si ya se leyeron los
+   * reclamos** —con la lectura caída, un mapa vacío se leería como «no hay ninguno» y ofrecería abrir un segundo
+   * sobre la misma línea (#32)—.
    *
-   * - **si el pedido LLEGÓ** —vive en el seguimiento, y refina sin habilitar—, y
-   * - **si ya se leyeron los reclamos**: con la lectura caída, un mapa vacío se
-   *   leería como «no hay ninguno» y ofrecería abrir un segundo sobre la misma
-   *   línea (#32).
+   * **El seguimiento ya no decide** (004-tienda-compra, etapa 3). Refinaba con «todavía no llegó», pero nadie avanza
+   * el envío (el efecto «seguimiento del envío» está diferido, es del vendedor) y el seguimiento no pasa de «pagado»:
+   * «Pedir devolución» no se ofrecía nunca, en ninguno de los dos caminos, aunque el servidor dijera `canReturn`.
    */
   canReturnLine(order: ShopOrder, line: OrderLine): boolean {
     return (
       line.canReturn &&
-      this.deliveredKnownOrUnknown(order) &&
       this.returnsLoaded().has(order.orderNumber) &&
       this.claimForLine(order.orderNumber, line) === null
     );
   }
 
   /**
-   * La entrega **REFINA, no habilita**.
-   *
-   * Si el timeline está cargado y dice que todavía no llegó, no se ofrece — y la
-   * línea lo explica en vez de callarse. Si NO se pudo leer, se ofrece igual: la
-   * condición del servidor se cumple, así que no es un botón que vaya a rebotar,
-   * y bloquear la devolución porque se cayó el seguimiento sería cambiar un
-   * problema de información por uno de negocio.
+   * El pedido llegó: la etapa `delivered` del pipeline está alcanzada. Ya no decide la devolución (ver
+   * `canReturnLine`): se conserva para quien lea la entrega.
    */
-  private deliveredKnownOrUnknown(order: ShopOrder): boolean {
-    const stages = this.trackingStages(order.orderNumber);
-    return stages.length === 0 || this.isDelivered(order);
-  }
-
-  /** El pedido llegó: la etapa `delivered` del pipeline está alcanzada. */
   isDelivered(order: ShopOrder): boolean {
     return this.trackingStages(order.orderNumber).some(
       (stage) => stage.id === DELIVERED_STAGE && stage.state === 'done',
@@ -2378,7 +2429,7 @@ export class StorefrontElementComponent implements OnInit {
       // devolver lo que nunca recibió.
       return RETURN_BLOCK_LABELS[line.returnBlock ?? ''] ?? '';
     }
-    return this.isDelivered(order) ? '' : 'Podrás devolverlo cuando llegue.';
+    return '';
   }
 
   /** Si todavía no se sabe si este pedido tiene reclamos. */
@@ -2484,12 +2535,18 @@ export class StorefrontElementComponent implements OnInit {
     this.ordersLoading.set(true);
     try {
       const customer = this.customerEmail().trim();
-      const orders = await this.#api.orders(this.apiBase(), customer, this.currency());
-      this.orders.set(orders);
+      const lectura = await this.#api.orders(this.apiBase(), customer, this.currency());
+      this.estadoDeLasCompras.set(lectura.estado);
+      if (lectura.estado !== 'leidas') {
+        // Sin lista no hay pedidos que pintar: ni los de ejemplo ni los de una lectura anterior (etapa 3).
+        this.orders.set([]);
+        return;
+      }
+      this.orders.set(lectura.pedidos);
       this.ordersLoaded.set(true);
       // Y los reclamos, que es lo que faltaba: sin esto el mapa arrancaba vacío
       // en cada carga y el comprador podía abrir un segundo reclamo (#32).
-      await this.loadReturns(orders);
+      await this.loadReturns(lectura.pedidos);
     } catch (error) {
       this.errorMessage.set('No pudimos cargar tus compras.');
       void error;
@@ -2523,6 +2580,11 @@ export class StorefrontElementComponent implements OnInit {
     }
     this.returnsByRef.set(mapa);
     this.returnsLoaded.set(cargados);
+  }
+
+  /** El reintento de «Mis compras» con la lectura caída (el botón del estado de error). */
+  reintentarCompras(): void {
+    void this.loadOrders();
   }
 
   private loadThreads(): void {
