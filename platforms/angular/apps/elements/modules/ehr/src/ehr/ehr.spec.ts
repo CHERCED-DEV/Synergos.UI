@@ -10,7 +10,9 @@ import {
   EhrWriteFailedError,
 } from './ehr-api.client';
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
-import { EhrElementComponent } from './ehr';
+import { EhrElementComponent, estadoDeLaCita, mensajeDeLaCita, sanitizeEhrConfig } from './ehr';
+import { relojEnZona, ventanaDeLaCita } from './ehr-cita';
+import { definirCoordinador } from '@synergos/vitals-core';
 import {
   ENFERMERIA,
   MARIA,
@@ -1028,7 +1030,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.scheduleConfig().totalLabel).toBe('Copago');
   });
 
-  it('sin un copago conocido no dice «Sin costo»: dice que no lo sabe', async () => {
+  it('sin un copago conocido no dice «Sin copago»: dice que no lo sabe', async () => {
     await createComponent({ copago: null });
 
     component.navigate('schedule');
@@ -1039,7 +1041,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.scheduleConfig().totalLabel).toBe('Copago');
   });
 
-  it('un copago de cero sí es «Sin costo»', async () => {
+  it('un copago de cero sí es «Sin copago» (FR-004)', async () => {
     await createComponent({ copago: 0 });
 
     component.navigate('schedule');
@@ -1047,7 +1049,495 @@ describe('EhrElementComponent (v2 dual portal)', () => {
 
     expect(component.copayUnknown()).toBe(false);
     expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(false);
-    expect(component.scheduleConfig().totalLabel).toBe('Sin costo');
+    expect(component.scheduleConfig().totalLabel).toBe('Sin copago');
+  });
+});
+
+// ── El camino de la cita lo DECLARA el CMS (ADR 0140) ────────────────────────────────────────────
+//
+// `EhrProps.appointmentPath` viaja con «puerta» o «directa»; el sanitizador lo conserva tal cual y
+// cualquier otra cosa se cae, para que nadie elija un tercer camino desde el atributo.
+describe('sanitizeEhrConfig: el camino de la cita', () => {
+  it.each(['puerta', 'directa'])('conserva «%s»', (camino) => {
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, appointmentPath: camino })).toEqual({
+      ...NEGOCIO_DEL_CMS,
+      appointmentPath: camino,
+    });
+  });
+
+  it.each([
+    ['sin declarar', NEGOCIO_DEL_CMS],
+    ['con un valor que no es ninguno de los dos', { ...NEGOCIO_DEL_CMS, appointmentPath: 'por-ahi' }],
+    ['con otra caja', { ...NEGOCIO_DEL_CMS, appointmentPath: 'PUERTA' }],
+  ])('%s, no hay camino', (_caso, config) => {
+    expect(sanitizeEhrConfig(config)).toEqual(NEGOCIO_DEL_CMS);
+  });
+});
+
+// ══ LA CITA POR LA PUERTA (003-salud-cita, ADR 0140, fase 9) ═══════════════════════════════════════
+//
+// El elemento agenda por el `<synergos-flujo flujo="salud.cita">` que coloca la vista, con el envoltorio
+// GENERADO del flujo: abrir aparta y autoriza, cerrar captura y confirma. Lo que se mira es lo que viajó a
+// la puerta —la llave, el profesional con su clase, la franja en la hora del SITIO— y lo que el SERVIDOR
+// contestó, nunca un comprobante del navegador.
+
+/** Un rechazo guionado de la puerta, como lo devuelve: `problem+json` con su `code`. */
+interface RechazoGuionado {
+  readonly code: string;
+  readonly status?: number;
+  readonly detail?: string;
+}
+
+type OperacionDeLaCita = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar';
+
+interface GuionDeLaPuerta {
+  /** El copago que dice el servidor, en unidades MAYORES. */
+  readonly total?: number;
+  readonly rechazos?: Partial<Record<OperacionDeLaCita, RechazoGuionado>>;
+  /** Lo que `consultar` dice de la cita después de un `cerrar` rechazado. */
+  readonly estadoTrasCerrar?: string;
+  /** El estado de la cita que lee el enlace del aviso. */
+  readonly estadoInicial?: string;
+}
+
+interface PedidoALaPuerta {
+  readonly operacion: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly cuerpo: { profesional?: { kind: string; id: string }; ventana?: { start: string; end: string } } | null;
+}
+
+const ID_DE_LA_CITA = 'cita-77';
+
+/** La puerta de la cita sobre el servidor falso de siempre: lo demás lo sigue sirviendo el `EhrController`. */
+function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions = {}) {
+  const base = servidorFalso(opciones);
+  const pedidos: PedidoALaPuerta[] = [];
+  const rutas: string[] = [];
+  let estado = guion.estadoInicial ?? 'Running';
+  let profesional = { kind: 'salud.profesional', id: 'doc-mendez' };
+  let ventana = { start: '2026-08-01T15:00:00Z', end: '2026-08-01T15:30:00Z' };
+  const total = { amount: guion.total ?? 50_000, currency: 'COP' };
+  const json = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  const cita = () => ({
+    id: ID_DE_LA_CITA,
+    flujo: 'salud.cita',
+    numero: 'SAL-0077',
+    estado,
+    datos: { profesional, ventana, total, reservaId: estado === 'Completed' ? 'res-1' : null },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+  });
+  const fetchDoble = vi.fn((url: string, init?: RequestInit): Promise<Response> => {
+    const ruta = String(url);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    rutas.push(`${metodo} ${ruta}`);
+    const m = /\/api\/flujos\/salud\.cita\/([a-z]+)/.exec(ruta);
+    if (!m) {
+      return base(url, init);
+    }
+    const operacion = m[1] as OperacionDeLaCita;
+    const cabeceras = new Headers(init?.headers);
+    const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoALaPuerta['cuerpo']) : null;
+    pedidos.push({ operacion, url: ruta, llave: cabeceras.get('Idempotency-Key'), cuerpo });
+    if (cuerpo?.profesional) profesional = cuerpo.profesional;
+    if (cuerpo?.ventana) ventana = cuerpo.ventana;
+    const rechazo = guion.rechazos?.[operacion];
+    if (rechazo) {
+      if (operacion === 'cerrar' && guion.estadoTrasCerrar) estado = guion.estadoTrasCerrar;
+      return json(rechazo.status ?? 409, { code: rechazo.code, detail: rechazo.detail ?? 'guionado', title: 'Conflict' });
+    }
+    switch (operacion) {
+      case 'cotizar':
+        return json(200, { flujo: 'salud.cita', datos: { profesional, ventana, total, reservaId: null } });
+      case 'abrir':
+        estado = 'Running';
+        return json(201, cita());
+      case 'cerrar':
+        estado = 'Completed';
+        return json(200, cita());
+      case 'cancelar':
+        estado = estado === 'Running' ? 'Compensated' : estado;
+        return json(200, cita());
+      default:
+        return json(200, cita());
+    }
+  });
+  return {
+    fetchDoble,
+    pedidos,
+    veces: (operacion: OperacionDeLaCita) => pedidos.filter((p) => p.operacion === operacion).length,
+    directas: () => rutas.filter((r) => r.startsWith('POST') && r.includes('/appointment')).length,
+    alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
+    copagosDirectos: () => rutas.filter((r) => r.includes('/copay')).length,
+  };
+}
+
+/** Lo que el CMS manda cuando la puerta abre la cita (`CaminoDeCompra.Decidir`). */
+const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, appointmentPath: 'puerta', zona: 'America/Bogota' };
+
+describe('La cita por la puerta (003-salud-cita)', () => {
+  let fixture: ComponentFixture<EhrElementComponent>;
+  let component: EhrElementComponent;
+
+  beforeAll(() => definirCoordinador());
+
+  async function montar(
+    puerta: ReturnType<typeof puertaDeLaCita>,
+    config: object = POR_LA_PUERTA,
+    { conCoordinador = true }: { conCoordinador?: boolean } = {},
+  ): Promise<void> {
+    window.location.hash = '';
+    vi.stubGlobal('fetch', puerta.fetchDoble);
+    await TestBed.configureTestingModule({
+      imports: [EhrElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        EhrApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: EhrFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(EhrElementComponent);
+    component = fixture.componentInstance;
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la cita encuentra por ancestro.
+    if (conCoordinador) {
+      const flujo = document.createElement('synergos-flujo');
+      flujo.setAttribute('flujo', 'salud.cita');
+      document.body.appendChild(flujo);
+      flujo.appendChild(fixture.nativeElement as HTMLElement);
+    }
+    fixture.componentRef.setInput('config', config);
+    fixture.detectChanges();
+    await asentar(12);
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    window.history.replaceState({}, '', '/');
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+  }
+
+  /** Elige médico, motivo y franja (10:00 del 1 de agosto en el SITIO) y avanza hasta el último paso. */
+  async function elegirYAvanzar(): Promise<void> {
+    component.navigate('schedule');
+    await asentar(12);
+    component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
+    component.scheduleReason.set('Control de hipertensión');
+    component.selectSlot({ date: '2026-08-01', time: '10:00' });
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+  }
+
+  async function confirmar(): Promise<void> {
+    asistente().next(); // submit → pay (abrir) → confirm (cerrar)
+    await asentar(30);
+    fixture.detectChanges();
+  }
+
+  /** Lo que la pantalla dice: el aviso del asistente, lo que anuncia `syn-live-region` y los textos de la vista. */
+  function alertas(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"], syn-live-region, .ehr__panel-text'))
+      .map((nodo) => (nodo.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  // ── T028 + T032: «puerta» abre y cierra por el coordinador, nunca por /api/ehr/appointment ──────────
+
+  it('«puerta»: abre con la llave de la intención, el profesional con su clase y la franja en la hora del sitio; cierra por su id; ninguna reserva directa', async () => {
+    const puerta = puertaDeLaCita();
+    await montar(puerta);
+
+    await elegirYAvanzar();
+    await confirmar();
+
+    const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
+    expect(abrir.cuerpo).toEqual({
+      profesional: { kind: 'salud.profesional', id: 'doc-mendez' },
+      // Las 10:00 de Bogotá (UTC−5), no las del navegador.
+      ventana: { start: '2026-08-01T15:00:00Z', end: '2026-08-01T15:30:00Z' },
+    });
+    expect(abrir.llave).toMatch(/\S/);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cerrar')!.url).toContain(`id=${ID_DE_LA_CITA}`);
+    expect(puerta.directas()).toBe(0);
+    expect(puerta.copagosDirectos()).toBe(0);
+    expect(component.confirmedAppointmentRef()).toBe(ID_DE_LA_CITA);
+    expect(component.myAppointments()[0]).toMatchObject({ id: ID_DE_LA_CITA, date: '2026-08-01', time: '10:00' });
+  });
+
+  it('reintentar abrir con la MISMA elección manda la MISMA llave: la puerta devuelve la cita, no aparta otra', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { abrir: { code: 'booking.at_capacity' } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+
+    await confirmar();
+    await confirmar();
+
+    const llaves = puerta.pedidos.filter((p) => p.operacion === 'abrir').map((p) => p.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[0]).toBe(llaves[1]);
+  });
+
+  it('una cita que salió por la puerta se TERMINA por la puerta aunque la página pase a declarar la directa', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { cerrar: { code: 'salud.not_continuable' } }, estadoTrasCerrar: 'Running' });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+    expect(puerta.veces('cerrar')).toBe(1);
+
+    // El CMS cambia de camino durante el incidente: la cita abierta sólo existe del lado de la puerta. El
+    // asistente vuelve al primer paso con la configuración nueva, y la persona lo recorre otra vez.
+    fixture.componentRef.setInput('config', { ...POR_LA_PUERTA, appointmentPath: 'directa' });
+    fixture.detectChanges();
+    await asentar(12);
+    while (!asistente().isLastStep()) {
+      asistente().next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+    await confirmar();
+
+    expect(puerta.veces('cerrar')).toBe(2);
+    expect(puerta.directas()).toBe(0);
+  });
+
+  it('un 503 de la puerta NO cae a la ruta directa: dice que la agenda no está disponible', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { abrir: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    expect(puerta.directas()).toBe(0);
+    expect(component.confirmedAppointmentRef()).toBe('');
+    expect(alertas()).toContain('La agenda en línea no está disponible en este momento.');
+  });
+
+  it('agendar PARA OTRO paciente (el portal clínico) va siempre por la directa, aunque el CMS declare la puerta (FR-026)', async () => {
+    await montar(puertaDeLaCita());
+    expect(component.caminoDeLaCita()).toBe('puerta');
+
+    component.setRole('doctor');
+    await asentar(12);
+
+    expect(component.caminoDeLaCita()).toBe('directa');
+    expect(component.scheduleInstrument()['camino']).toBe('directa');
+  });
+
+  it('«directa» (o sin declarar): ni una petición a /api/flujos; reserva en /api/ehr/appointment como siempre', async () => {
+    for (const config of [{ ...POR_LA_PUERTA, appointmentPath: 'directa' }, NEGOCIO_DEL_CMS]) {
+      const puerta = puertaDeLaCita();
+      await montar(puerta, config);
+      await elegirYAvanzar();
+      await confirmar();
+
+      expect(puerta.alaPuerta()).toBe(0);
+      expect(puerta.directas()).toBe(1);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('«puerta» sin <synergos-flujo> arriba: «no disponible», sin asistente y sin tocar la red', async () => {
+    const puerta = puertaDeLaCita();
+    await montar(puerta, POR_LA_PUERTA, { conCoordinador: false });
+    component.navigate('schedule');
+    await asentar(12);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(CheckoutWizardComponent))).toBeNull();
+    expect(alertas()).toContain('La agenda en línea no está disponible en este momento.');
+    expect(puerta.alaPuerta()).toBe(0);
+  });
+
+  // ── T029: el copago sale de `cotizar`; sin él no se agenda ───────────────────────────────────────
+
+  it('el copago por la puerta es el de COTIZAR con el profesional y la franja, y no se pide /copay', async () => {
+    const puerta = puertaDeLaCita({ total: 65_000 });
+    await montar(puerta);
+    await elegirYAvanzar();
+
+    expect(puerta.veces('cotizar')).toBe(1);
+    expect(puerta.copagosDirectos()).toBe(0);
+    expect(component.copay()).toEqual({ amountMinor: 6_500_000, currency: 'COP' });
+    expect(component.scheduleValidity()['copago']).toBe(true);
+  });
+
+  it('si cotizar no da el copago, el paso lo dice por su code y NO se deja agendar (ni «Sin copago» ni un cero)', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { cotizar: { code: 'consent.not_granted', status: 403 } } });
+    await montar(puerta);
+    component.navigate('schedule');
+    await asentar(12);
+    component.setScheduleDoctor('doc-mendez');
+    component.scheduleReason.set('Control');
+    component.selectSlot({ date: '2026-08-01', time: '10:00' });
+    fixture.detectChanges();
+    await asentar(12);
+
+    expect(component.copay()).toBeNull();
+    expect(component.scheduleValidity()['copago']).toBe(false);
+    expect(component.scheduleConfig().totalLabel).toBe('Copago');
+    expect(component.textoDelCopago()).toBe('Para agendar necesitamos tu autorización de tratamiento de datos de salud.');
+  });
+
+  // ── T030: los mensajes por code, el estado y «Cancelar» sólo sobre una pendiente ──────────────────
+
+  it('el aviso de un rechazo lo elige su CODE, no su título', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { abrir: { code: 'booking.at_capacity', detail: 'Conflict' } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    expect(alertas()).toContain('Esa franja ya no está disponible. Elige otra.');
+  });
+
+  it('si la franja vence tras cobrar, se dice que se devolvió el copago; sin copago, que venció', async () => {
+    for (const [total, texto] of [
+      [50_000, 'No pudimos confirmar tu cita; te devolvimos el copago.'],
+      [0, 'Tu franja venció antes de confirmar. Elige otra.'],
+    ] as const) {
+      const puerta = puertaDeLaCita({ total, rechazos: { cerrar: { code: 'booking.hold_expired' } }, estadoTrasCerrar: 'Compensated' });
+      await montar(puerta);
+      await elegirYAvanzar();
+      await confirmar();
+
+      expect(alertas()).toContain(texto);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('«Cancelar cita» sólo sobre una cita PENDIENTE: suelta la franja y dice que no se cobró nada', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { cerrar: { code: 'salud.not_continuable' } }, estadoTrasCerrar: 'Running' });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    const boton = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Cancelar cita',
+    );
+    expect(component.citaPendiente()).toBe(ID_DE_LA_CITA);
+    expect(boton).toBeDefined();
+
+    boton!.click();
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(puerta.veces('cancelar')).toBe(1);
+    expect(component.citaPendiente()).toBeNull();
+    expect(alertas()).toContain('Cancelaste la cita. No se te cobró nada.');
+  });
+
+  it('una cita confirmada no ofrece «Cancelar cita» (en el enlace del aviso, sólo la pendiente)', async () => {
+    for (const [estado, ofrece] of [
+      ['Completed', false],
+      ['Running', true],
+    ] as const) {
+      window.history.replaceState({}, '', `/healthcare/?cita=${ID_DE_LA_CITA}`);
+      await montar(puertaDeLaCita({ estadoInicial: estado }));
+      fixture.detectChanges();
+
+      const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).filter(
+        (b) => b.textContent?.trim() === 'Cancelar cita',
+      );
+      expect(botones.length > 0).toBe(ofrece);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  // ── T031: el enlace del aviso abre la cita con la sesión ────────────────────────────────────────
+
+  it('el enlace del aviso (?cita={id}, en la CONSULTA de la página) abre la cita en «Mis citas»', async () => {
+    window.history.replaceState({}, '', `/healthcare/?cita=${ID_DE_LA_CITA}`);
+    const puerta = puertaDeLaCita({ estadoInicial: 'Completed' });
+    await montar(puerta);
+    fixture.detectChanges();
+
+    expect(puerta.pedidos.find((p) => p.operacion === 'consultar')?.url).toContain(`id=${ID_DE_LA_CITA}`);
+    expect(component.view()).toBe('visits');
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain('Tu cita SAL-0077');
+    expect(texto).toContain('Confirmada');
+  });
+});
+
+describe('mensajeDeLaCita: los rechazos medidos de salud.cita (T025)', () => {
+  it.each([
+    ['consent.not_granted', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'],
+    ['consent.revoked', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'],
+    ['consent.expired', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'],
+    ['booking.resource_not_found', 'Este profesional no tiene agenda disponible.'],
+    ['pricing.price_not_in_effect', 'No pudimos calcular el copago. Intenta de nuevo en un momento.'],
+    ['booking.at_capacity', 'Esa franja ya no está disponible. Elige otra.'],
+    ['booking.window_in_the_past', 'Esa hora no está en la agenda del profesional. Elige otra.'],
+    ['booking.outside_opening_hours', 'Esa hora no está en la agenda del profesional. Elige otra.'],
+    ['booking.off_slot_grid', 'Esa hora no está en la agenda del profesional. Elige otra.'],
+    ['booking.bad_slot_length', 'Esa hora no está en la agenda del profesional. Elige otra.'],
+    ['booking.crosses_midnight', 'Esa hora no está en la agenda del profesional. Elige otra.'],
+    ['payments.payment_declined', 'No pudimos procesar el copago. No se te cobró nada.'],
+    ['payments.payment_failed', 'No pudimos procesar el copago. No se te cobró nada.'],
+    ['payments.voided', 'No pudimos procesar el copago. No se te cobró nada.'],
+    ['booking.hold_expired', 'Tu franja venció antes de confirmar. Elige otra.'],
+    ['booking.hold_released', 'Tu franja venció antes de confirmar. Elige otra.'],
+    ['salud.not_continuable', 'Esta cita ya no se puede confirmar.'],
+    ['salud.already_completed', 'Esta cita ya está confirmada; no se puede cancelar en línea.'],
+    ['salud.saga_not_found', 'No encontramos esa cita en tu cuenta.'],
+    ['salud.entrada_invalida', 'Revisa los datos de la cita: falta alguno o no es válido.'],
+    ['puerta.sesion_requerida', 'Inicia sesión para ver y agendar tus citas.'],
+    ['cliente.sin_coordinador', 'La agenda en línea no está disponible en este momento.'],
+    ['puerta.flujo_no_disponible', 'La agenda en línea no está disponible en este momento.'],
+    ['puerta.respuesta_invalida', 'No pudimos agendar tu cita. Intenta de nuevo.'],
+    ['salud.compensation_in_flight', 'No pudimos agendar tu cita. Intenta de nuevo.'],
+  ])('%s', (code, texto) => {
+    expect(mensajeDeLaCita(code)).toBe(texto);
+  });
+
+  it.each([
+    ['Running', 'Pendiente de confirmar'],
+    ['Completed', 'Confirmada'],
+    ['Compensated', 'No quedó agendada'],
+    ['CompensationFailed', 'En revisión'],
+    ['Stuck', 'En revisión'],
+  ])('el estado %s se lee «%s»', (estado, texto) => {
+    expect(estadoDeLaCita(estado)).toBe(texto);
+  });
+});
+
+describe('la franja de la cita en la hora del sitio', () => {
+  it('las 10:00 del sitio viajan como su instante, con la duración de la cita', () => {
+    expect(ventanaDeLaCita('2026-08-01', '10:00', 30, 'America/Bogota')).toEqual({
+      start: '2026-08-01T15:00:00Z',
+      end: '2026-08-01T15:30:00Z',
+    });
+    // Madrid en verano (UTC+2): la misma hora de reloj es otro instante.
+    expect(ventanaDeLaCita('2026-08-01', '10:00', 30, 'Europe/Madrid')?.start).toBe('2026-08-01T08:00:00Z');
+  });
+
+  it('sin una zona válida, o con una fecha u hora que no lo son, no hay franja que mandar', () => {
+    expect(ventanaDeLaCita('2026-08-01', '10:00', 30, '')).toBeNull();
+    expect(ventanaDeLaCita('2026-08-01', '10:00', 30, 'Marte/Olympus')).toBeNull();
+    expect(ventanaDeLaCita('2026-8-1', '10:00', 30, 'America/Bogota')).toBeNull();
+    expect(ventanaDeLaCita('2026-08-01', '25:00', 30, 'America/Bogota')).toBeNull();
+  });
+
+  it('y se lee de vuelta en la zona del sitio', () => {
+    expect(relojEnZona('2026-08-01T15:00:00Z', 'America/Bogota')).toEqual({ fecha: '2026-08-01', hora: '10:00' });
   });
 });
 

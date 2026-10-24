@@ -22,7 +22,12 @@ import {
  *  - `POST /api/alquiler/rentals/{id}/return`        → `RentalDto`
  *  - `POST /api/alquiler/rentals/{id}/cancel`        → `RentalDto`
  *  - `GET  /api/alquiler/rentals`                    → `AgreementDto[]`   🔒 sesión
- *  - `GET  /api/alquiler/rentals/{id}/agreement`     → `AgreementDto`
+ *  - `GET  /api/alquiler/rentals/{id}/agreement`     → `AgreementDto`   🔒 sesión (también el de la puerta)
+ *  - `POST /api/alquiler/rentals/{id}/declare-return` → `RentalDto`   🔒 sesión, el dueño
+ *  - `GET  /api/alquiler/staff/returns`              → `AgreementDto[]` 🔒 personal (403 si no)
+ *
+ * La renta por la PUERTA no pasa por aquí: va por el coordinador con las funciones generadas de
+ * `alquiler.renta` (`alquiler-renta.strategy.ts`). Su contrato, en cambio, sí se lee de este lado.
  *
  * **Nada degrada a datos de ejemplo, y es la diferencia con los seis verticales anteriores.**
  * Ellos nacieron antes que su backend y su `catch` servía un seed visible; éste nace después, y
@@ -140,11 +145,30 @@ export class AlquilerApiClient {
     return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
   }
 
+  /**
+   * «Devolví el equipo»: quien alquiló DECLARA la devolución (decisión 5 del lote 1). No lleva monto —el daño lo fija
+   * el personal al confirmar— y la garantía sigue retenida hasta entonces.
+   */
+  async declareReturn(apiBase: string, rentalId: string): Promise<Rental> {
+    const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/declare-return`;
+    const idempotencyKey = llaveDe('declare', rentalId);
+    return this.alquilerDe(await this.postJson(url, { idempotencyKey }));
+  }
+
   /** Se cancela antes de que salga. `amount` es la penalidad; la llave, como en `return`. */
   async cancel(apiBase: string, rentalId: string, amount: number): Promise<Rental> {
     const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/cancel`;
     const idempotencyKey = llaveDe('cancel', rentalId, String(amount));
     return this.alquilerDe(await this.postJson(url, { amount, idempotencyKey }));
+  }
+
+  /**
+   * El contrato de UN alquiler, con su sello comprobado. El de una renta de la puerta lo emite el CMS al leerlo
+   * (T024): por eso se pide en cuanto `cerrar` contesta. `null` si todavía no hay contrato que emitir.
+   */
+  async agreement(apiBase: string, rentalId: string): Promise<RentalAgreement | null> {
+    const url = `${apiBase}/rentals/${encodeURIComponent(rentalId)}/agreement`;
+    return normalizeAgreement(await this.getJson(url));
   }
 
   /** Mis contratos. Lanza `AlquilerUnauthorizedError` sin sesión. */
@@ -154,6 +178,23 @@ export class AlquilerApiClient {
     return Array.isArray(data)
       ? data.map(normalizeAgreement).filter((a): a is RentalAgreement => a !== null)
       : [];
+  }
+
+  /**
+   * Las devoluciones declaradas que esperan al personal, de la más vieja a la más nueva. `null` si quien está en
+   * sesión no es del personal (403) o no hay sesión (401): la cara del personal no se enseña, ni vacía.
+   */
+  async staffReturns(apiBase: string): Promise<readonly RentalAgreement[] | null> {
+    const url = `${apiBase}/staff/returns`;
+    try {
+      const data = await this.getJson(url);
+      return Array.isArray(data)
+        ? data.map(normalizeAgreement).filter((a): a is RentalAgreement => a !== null)
+        : [];
+    } catch (error) {
+      if (isUnauthorized(error) || (isRejected(error) && error.code === 'alquiler.staff_required')) return null;
+      throw error;
+    }
   }
 
   /** Lo que contestó un cierre, o un error: un acuse que no es un alquiler no se da por bueno. */

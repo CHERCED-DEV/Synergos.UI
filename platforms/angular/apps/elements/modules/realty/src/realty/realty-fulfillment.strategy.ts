@@ -10,7 +10,9 @@ import {
   type SessionData,
   type SessionItem,
 } from '@synergos/transaction-engine';
+import { idAleatorio } from '@synergos/vitals-core';
 import { RealtyApiClient } from './realty-api.client';
+import { abrirVisita, cerrarYAsentar, type VisitaLeida } from './realty-visita.puerta';
 import {
   REALTY_FLOW,
   REALTY_KIND,
@@ -19,6 +21,7 @@ import {
   type SearchCriteria,
   type Visit,
   type VisitMode,
+  type VisitPath,
   type VisitSelectionPayload,
   type VisitSlot,
 } from './realty.model';
@@ -29,14 +32,26 @@ interface RealtySearchCriteria {
   readonly criteria: SearchCriteria;
 }
 
-/** "Instrument" the visit wizard hands the strategy on `pay` — NO real payment. */
+/**
+ * Lo que el asistente le pasa a la estrategia en `pay` Y en `confirm`.
+ *
+ * `host` es el `<synergos-realty>` de ESTA visita: desde él se encuentra, por ancestro, su
+ * `<synergos-flujo>` (008-propiedades-visita). Viaja por llamada porque hay UNA estrategia por
+ * página (la app se crea una vez por etiqueta) y un campo suyo cruzaría dos instancias (regla 60),
+ * como en Eventos. Por la ruta directa no hace falta.
+ */
 interface RealtyVisitInstrument {
-  readonly apiBase: string;
-  readonly listingId: string;
-  readonly listingTitle: string;
-  readonly slot: VisitSlot;
-  readonly mode: VisitMode;
-  readonly contact: ContactInfo;
+  readonly host?: Element;
+  readonly apiBase?: string;
+}
+
+/**
+ * El camino de una visita YA elegida: el que se anotó en su línea al elegirla. Lo que el CMS declare
+ * después no cambia el de una visita en curso: su saga sólo existe de un lado (la lección de Eventos,
+ * UI `e05f441`). Sin anotación, la directa: es el camino de siempre y el de por defecto (008-P1).
+ */
+export function caminoDeLaVisitaEnCurso(selection: Readonly<Record<string, unknown>>): VisitPath {
+  return selection['path'] === 'puerta' ? 'puerta' : 'directa';
 }
 
 /**
@@ -108,6 +123,13 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
         contactName: payload.contact.name,
         contactEmail: payload.contact.email,
         contactPhone: payload.contact.phone,
+        // El camino de ESTA visita y lo que la puerta pide: los instantes de la franja (la ventana) y
+        // la llave de la intención, que se queda con la línea —elegir otra franja la reemplaza y trae
+        // otra llave; reintentar la misma la repite y no aparta dos veces—.
+        path: payload.path === 'puerta' ? 'puerta' : 'directa',
+        slotStart: payload.slot.start ?? '',
+        slotEnd: payload.slot.end ?? '',
+        llave: idAleatorio(),
       },
       amount: 0,
       quantity: 1,
@@ -121,10 +143,29 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
    * `confirm`, donde se agenda la visita de verdad.
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
-    if (request.session.items.length === 0) {
+    const line = request.session.items[0];
+    if (!line) {
       return { accepted: false, reason: 'empty-cart' };
     }
-    return { accepted: true, reference: `VISIT-${Date.now().toString(36).toUpperCase()}` };
+    const selection = line.selection as Record<string, unknown>;
+    if (caminoDeLaVisitaEnCurso(selection) === 'directa') {
+      return { accepted: true, reference: `VISIT-${Date.now().toString(36).toUpperCase()}` };
+    }
+
+    // Por la puerta, «pagar» es APARTAR la franja (la fase que abre `propiedades.visita`): no se
+    // cobra nada, y la franja queda guardada a tu nombre mientras confirmas.
+    const host = (request.instrument as RealtyVisitInstrument).host;
+    if (!(host instanceof Element)) {
+      return { accepted: false, reason: 'cliente.sin_coordinador' };
+    }
+    const start = readString(selection['slotStart']);
+    const end = readString(selection['slotEnd']);
+    if (start === '' || end === '') {
+      return { accepted: false, reason: 'propiedades.franja_sin_instantes' };
+    }
+    const mode: VisitMode = readString(selection['mode']) === 'video' ? 'video' : 'in-person';
+    const r = await abrirVisita(host, readString(selection['listingId']), { start, end }, mode, readString(selection['llave']));
+    return r.ok ? { accepted: true, reference: r.valor.id } : { accepted: false, reason: r.rechazo.code };
   }
 
   /**
@@ -137,12 +178,18 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
    * dice UNA vez que el horario no quedó reservado (su `confirmFailedMessage`), la
    * selección sigue en la sesión y volver a pulsar reintenta sólo este paso.
    */
-  override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
+  override async confirm(
+    session: SessionData,
+    instrument?: Readonly<Record<string, unknown>>,
+  ): Promise<FulfillmentConfirmation> {
     const line = session.items[0];
     if (!line) {
       return { confirmed: false, vouchers: [] };
     }
     const selection = line.selection as Record<string, unknown>;
+    if (caminoDeLaVisitaEnCurso(selection) === 'puerta') {
+      return this.confirmarPorLaPuerta(session, line.id, selection, (instrument ?? {}) as RealtyVisitInstrument);
+    }
     const apiBase = readString(selection['apiBase']);
     const listingId = readString(selection['listingId']);
     const listingTitle = readString(selection['listingTitle']);
@@ -184,6 +231,39 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
     };
   }
 
+  /**
+   * Confirmar por la puerta es CERRAR la saga que abrió `pay` (confirmar la reserva y avisar). Si
+   * cerrar no contesta con la visita, se consulta: lo que dice qué quedó es su estado. Sólo una visita
+   * `Completed` se da por agendada.
+   */
+  private async confirmarPorLaPuerta(
+    session: SessionData,
+    itemId: string,
+    selection: Readonly<Record<string, unknown>>,
+    instrument: RealtyVisitInstrument,
+  ): Promise<FulfillmentConfirmation> {
+    const host = instrument.host;
+    const id = session.payments[session.payments.length - 1]?.reference ?? '';
+    if (!(host instanceof Element) || id === '') {
+      return { confirmed: false, reason: 'cliente.sin_coordinador', vouchers: [] };
+    }
+    const { visita, rechazo } = await cerrarYAsentar(host, id);
+    if (!visita || visita.estado !== 'Completed') {
+      return { confirmed: false, reason: rechazo?.code ?? `visita.${visita?.estado ?? 'desconocida'}`, vouchers: [] };
+    }
+    return {
+      confirmed: true,
+      vouchers: [
+        {
+          itemId,
+          reference: visita.numero,
+          status: 'confirmed',
+          detail: detalleDeLaVisita(visita, selection),
+        },
+      ],
+    };
+  }
+
   private toProduct(listing: Listing): FulfillmentProduct {
     return {
       productRef: listing.id,
@@ -202,6 +282,18 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
       },
     };
   }
+}
+
+/** El comprobante de una visita de la puerta: la hora es la que se eligió, ya en la del sitio. */
+function detalleDeLaVisita(visita: VisitaLeida, selection: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return {
+    visitId: visita.id,
+    listingId: visita.inmueble || readString(selection['listingId']),
+    listingTitle: readString(selection['listingTitle']),
+    date: readString(selection['slotDate']),
+    time: readString(selection['slotTime']),
+    mode: visita.modo,
+  };
 }
 
 function readString(value: unknown): string {

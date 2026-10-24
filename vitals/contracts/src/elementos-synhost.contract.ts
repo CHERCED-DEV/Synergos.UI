@@ -430,10 +430,14 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
-/** <synergos-ehr> · funcionalidad */
+/** <synergos-ehr> · funcionalidad · diccionario: Health.Appointment */
 export interface EhrProps {
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly appointmentPath: string;
+  /** negocio */
+  readonly zona: string;
 }
 
 /** <synergos-eventos> · funcionalidad · diccionario: Events.Sale, Events.Purchase */
@@ -602,6 +606,10 @@ export interface RealtyProps {
   readonly apiBase: string;
   /** negocio */
   readonly defaultRatePercent: number;
+  /** negocio */
+  readonly visitPath: string;
+  /** negocio */
+  readonly zonaHoraria: string;
 }
 
 /** <synergos-reserva> · funcionalidad · diccionario: Booking.Slot */
@@ -819,7 +827,7 @@ export const ALQUILER_SYNHOST: ElementoSynHost<AlquilerProps> = {
   tipo: "funcionalidad",
   record: "AlquilerProps",
   diccionario: ["Alquiler"],
-  claves: ["Alquiler.Catalog.DepositHeld","Alquiler.Catalog.EmptyMessage","Alquiler.Catalog.EmptyTitle","Alquiler.Catalog.Failed","Alquiler.Catalog.Loading","Alquiler.Catalog.Open","Alquiler.Catalog.PerDay","Alquiler.Catalog.Units","Alquiler.Defaults.Heading","Alquiler.Defaults.Subheading","Alquiler.Detail.Back","Alquiler.Detail.Includes","Alquiler.Detail.Loading","Alquiler.Detail.RateFrom","Alquiler.Detail.RatePerDay","Alquiler.Detail.Rates","Alquiler.Detail.Requires","Alquiler.Done.Line","Alquiler.Done.Title","Alquiler.Errors.CancelFailed","Alquiler.Errors.DetailFailed","Alquiler.Errors.DetailGone","Alquiler.Errors.QuoteFailed","Alquiler.Errors.ReserveFailed","Alquiler.Errors.ReturnFailed","Alquiler.Errors.SignInToRent","Alquiler.Form.Asked","Alquiler.Form.Bounds","Alquiler.Form.From","Alquiler.Form.Quote","Alquiler.Form.Quoting","Alquiler.Form.To","Alquiler.Form.Units","Alquiler.Mine.Cancel","Alquiler.Mine.DepositUnknown","Alquiler.Mine.EmptyMessage","Alquiler.Mine.EmptyTitle","Alquiler.Mine.Failed","Alquiler.Mine.Line","Alquiler.Mine.Loading","Alquiler.Mine.Returned","Alquiler.Mine.SealMismatch","Alquiler.Mine.SealUnverified","Alquiler.Mine.SealVerified","Alquiler.Mine.SignInMessage","Alquiler.Mine.SignInTitle","Alquiler.Nav.Equipment","Alquiler.Nav.Mine","Alquiler.Nav.Sections","Alquiler.Quote.Deposit","Alquiler.Quote.Line","Alquiler.Quote.Reserve","Alquiler.Quote.Reserving","Alquiler.Seal.Mismatch","Alquiler.Seal.Unverified","Alquiler.Seal.Verified"],
+  claves: ["Alquiler.Catalog.DepositHeld","Alquiler.Catalog.EmptyMessage","Alquiler.Catalog.EmptyTitle","Alquiler.Catalog.Failed","Alquiler.Catalog.Loading","Alquiler.Catalog.Open","Alquiler.Catalog.PerDay","Alquiler.Catalog.Units","Alquiler.Defaults.Heading","Alquiler.Defaults.Subheading","Alquiler.Detail.Back","Alquiler.Detail.Includes","Alquiler.Detail.Loading","Alquiler.Detail.RateFrom","Alquiler.Detail.RatePerDay","Alquiler.Detail.Rates","Alquiler.Detail.Requires","Alquiler.Done.Line","Alquiler.Done.Title","Alquiler.Errors.AlreadyStarted","Alquiler.Errors.BadQuantity","Alquiler.Errors.BadWindow","Alquiler.Errors.Busy","Alquiler.Errors.CancelFailed","Alquiler.Errors.ConfirmFailed","Alquiler.Errors.DamageExceedsDeposit","Alquiler.Errors.DetailFailed","Alquiler.Errors.DetailGone","Alquiler.Errors.NoUnits","Alquiler.Errors.PriceUnavailable","Alquiler.Errors.QuoteFailed","Alquiler.Errors.ReserveFailed","Alquiler.Errors.RetentionExpired","Alquiler.Errors.ReturnFailed","Alquiler.Errors.SignInToRent","Alquiler.Errors.StaffRequired","Alquiler.Errors.WindowOutOfBounds","Alquiler.Errors.WindowTooLong","Alquiler.Form.Asked","Alquiler.Form.Bounds","Alquiler.Form.From","Alquiler.Form.Quote","Alquiler.Form.Quoting","Alquiler.Form.To","Alquiler.Form.Units","Alquiler.Mine.Cancel","Alquiler.Mine.CancelUntil","Alquiler.Mine.DepositUnknown","Alquiler.Mine.EmptyMessage","Alquiler.Mine.EmptyTitle","Alquiler.Mine.Failed","Alquiler.Mine.Line","Alquiler.Mine.Loading","Alquiler.Mine.Outcome","Alquiler.Mine.OutcomeUnknown","Alquiler.Mine.Returned","Alquiler.Mine.SealMismatch","Alquiler.Mine.SealUnverified","Alquiler.Mine.SealVerified","Alquiler.Mine.SignInMessage","Alquiler.Mine.SignInTitle","Alquiler.Mine.StateCancelled","Alquiler.Mine.StateConfirmed","Alquiler.Mine.StateDeclared","Alquiler.Mine.StateReturned","Alquiler.Nav.Equipment","Alquiler.Nav.Mine","Alquiler.Nav.Sections","Alquiler.Quote.Confirm","Alquiler.Quote.Confirming","Alquiler.Quote.Deposit","Alquiler.Quote.Expired","Alquiler.Quote.Held","Alquiler.Quote.HeldCancelled","Alquiler.Quote.Line","Alquiler.Quote.NotOffered","Alquiler.Quote.Reserve","Alquiler.Quote.Reserving","Alquiler.Quote.Undone","Alquiler.Seal.Mismatch","Alquiler.Seal.Pending","Alquiler.Seal.Unverified","Alquiler.Seal.Verified","Alquiler.Staff.BadAmount","Alquiler.Staff.Cancel","Alquiler.Staff.Confirm","Alquiler.Staff.Damage","Alquiler.Staff.EmptyTitle","Alquiler.Staff.Failed","Alquiler.Staff.Penalty","Alquiler.Staff.Title","Alquiler.Staff.Waiting"],
   campos: ["heading","subheading","category","apiBase","rentalPath"],
   listas: {},
   selectores: [],
@@ -1357,14 +1365,16 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
   nombre: "ehr",
   tipo: "funcionalidad",
   record: "EhrProps",
-  diccionario: [],
-  claves: [],
-  campos: ["apiBase"],
+  diccionario: ["Health.Appointment"],
+  claves: ["Health.Appointment.BadRequest","Health.Appointment.BadWindow","Health.Appointment.Cancel","Health.Appointment.CancelledNoCharge","Health.Appointment.ConsentMissing","Health.Appointment.Copay","Health.Appointment.CopayUnavailable","Health.Appointment.Generic","Health.Appointment.Heading","Health.Appointment.Loading","Health.Appointment.NoAgenda","Health.Appointment.NoCopay","Health.Appointment.NotCancellable","Health.Appointment.NotConfirmable","Health.Appointment.NotFound","Health.Appointment.PaymentFailed","Health.Appointment.RefundIssued","Health.Appointment.SignInRequired","Health.Appointment.SlotExpired","Health.Appointment.SlotTaken","Health.Appointment.StateConfirmed","Health.Appointment.StatePending","Health.Appointment.StateReview","Health.Appointment.StateUndone","Health.Appointment.Unavailable"],
+  campos: ["apiBase","appointmentPath","zona"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
-    "apiBase": "/api/ehr"
+    "apiBase": "/api/ehr",
+    "appointmentPath": "directa",
+    "zona": "America/Bogota"
   },
 };
 
@@ -2173,8 +2183,8 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
   tipo: "funcionalidad",
   record: "RealtyProps",
   diccionario: ["Realty.Visit"],
-  claves: ["Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading"],
-  campos: ["heading","subheading","apiBase","defaultRatePercent"],
+  claves: ["Realty.Visit.Cancel","Realty.Visit.CancelAsk","Realty.Visit.CancelFailed","Realty.Visit.CancelNo","Realty.Visit.CancelTooLate","Realty.Visit.CancelYes","Realty.Visit.Cancelled","Realty.Visit.CancelledHeading","Realty.Visit.DefaultMode","Realty.Visit.FromEmail","Realty.Visit.InPast","Realty.Visit.InvalidSlot","Realty.Visit.NoAgenda","Realty.Visit.NoticeLabel","Realty.Visit.NoticeToAccount","Realty.Visit.OutsideHours","Realty.Visit.SessionRequired","Realty.Visit.SlotTaken","Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading","Realty.Visit.Unavailable"],
+  campos: ["heading","subheading","apiBase","defaultRatePercent","visitPath","zonaHoraria"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -2182,7 +2192,9 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
     "heading": "Encuentra el lugar que estás buscando",
     "subheading": "Compra y arriendo, en lista y en mapa",
     "apiBase": "/api/realty",
-    "defaultRatePercent": 12
+    "defaultRatePercent": 12,
+    "visitPath": "directa",
+    "zonaHoraria": "America/Bogota"
   },
 };
 

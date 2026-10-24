@@ -546,7 +546,11 @@ export class RealtyApiClient {
 
   /** Fold any in-session leads / published listings into the desk view. */
   private mergeAgentDesk(base: AgentDeskResult): AgentDeskResult {
-    const leads = [...this.#agentLeads, ...base.leads];
+    // Desde 008 (D-1) el servidor SÍ devuelve los leads del agente: uno que esta pestaña acaba de mandar llega por
+    // los dos lados con el mismo id. Gana el del servidor —lleva su estado en el embudo— y la copia local se queda
+    // sólo para lo que el servidor todavía no trae.
+    const delServidor = new Set(base.leads.map((lead) => lead.id));
+    const leads = [...this.#agentLeads.filter((lead) => !delServidor.has(lead.id)), ...base.leads];
     const portfolio = [...this.#publishedListings, ...base.portfolio];
     return {
       ...base,
@@ -709,7 +713,17 @@ function normalizeVisitSlot(value: unknown): VisitSlot | null {
   }
   const date = readString(value['date']).trim();
   const time = readString(value['time']).trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time) ? { date, time } : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    return null;
+  }
+  // Los instantes y `checked` son aditivos (008-propiedades-visita, R5): un borde anterior no los
+  // manda y la franja sigue sirviendo a la ruta directa. Sólo se aceptan instantes legibles: uno
+  // inventado mandaría a la puerta una ventana que nadie ofreció.
+  const start = readString(value['start']).trim();
+  const end = readString(value['end']).trim();
+  const instantes = !Number.isNaN(Date.parse(start)) && !Number.isNaN(Date.parse(end)) ? { start, end } : {};
+  const checked = typeof value['checked'] === 'boolean' ? { checked: value['checked'] } : {};
+  return { date, time, ...instantes, ...checked };
 }
 
 function pluck(value: unknown, key: string): unknown {

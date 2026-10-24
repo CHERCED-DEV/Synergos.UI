@@ -58,6 +58,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  LiveRegionComponent,
   SegmentedComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -66,6 +67,15 @@ import {
 } from '@synergos/shared';
 import type { RealtyProps } from '@synergos/contracts';
 import { RealtyApiClient, isRealtyForbidden, isRealtyUnauthorized } from './realty-api.client';
+import {
+  FLUJO_CANCELACION,
+  cancelarVisitaConfirmada,
+  consultarVisita,
+  esDeSesion,
+  franjasDeLaVisita,
+  misVisitasDeLaPuerta,
+  type VisitaLeida,
+} from './realty-visita.puerta';
 import { calculateMortgage } from './mortgage.calc';
 import {
   REALTY_FLOW,
@@ -74,6 +84,7 @@ import {
   type AgentLead,
   type Amenity,
   type BookedVisit,
+  type EstadoDeLaCancelacion,
   type ContactInfo,
   type Facet,
   type Listing,
@@ -90,6 +101,7 @@ import {
   type SortKey,
   type Visit,
   type VisitMode,
+  type VisitPath,
   type VisitSelectionPayload,
   type VisitSlot,
   type VisitStep,
@@ -97,7 +109,7 @@ import {
   type AgentView,
   type RealtyView,
 } from './realty.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, t } from '@synergos/vitals-core';
+import { baseDeRuta, idAleatorio, mismaRuta, segmentosDeRuta, formatearImporte, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynRealty</c>.
@@ -173,6 +185,13 @@ const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevan
 
 const VISIT_STEPS: readonly VisitStep[] = ['mode', 'slot', 'contact', 'review'];
 
+/**
+ * Cuántos días de franjas se ofrecen por la puerta, desde mañana en la hora del sitio: los mismos que ofrecía la regla del
+ * CMS (008-P3). Qué franjas hay en cada día lo dice la agenda del inmueble, no esto.
+ */
+const DIAS_DE_VISITA = 3;
+const DIA_EN_MS = 86_400_000;
+
 /** The agent sections addressable inside the SH-5 console (order = sidebar). */
 const AGENT_SECTIONS: readonly AgentView[] = ['portfolio', 'leads', 'agenda', 'analytics'];
 
@@ -194,7 +213,16 @@ export function sanitizeRealtyConfig(value: RealtyConfig): RealtyConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     defaultRatePercent: coerceRate(value.defaultRatePercent),
+    // El camino de la visita y la hora del sitio (008-propiedades-visita): sólo los dos caminos que existen; lo
+    // demás se descarta y la visita va por la directa, la de por defecto.
+    visitPath: coerceVisitPath(value.visitPath),
+    zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
   });
+}
+
+function coerceVisitPath(value: unknown): VisitPath | undefined {
+  const raw = coerceTrimmedStringInput(value)?.toLowerCase();
+  return raw === 'puerta' || raw === 'directa' ? raw : undefined;
 }
 
 function coerceRole(value: unknown): RealtyRole | undefined {
@@ -240,6 +268,7 @@ let realtyInstanceId = 0;
     AuthoringWizardComponent,
     CompareTableComponent,
     SegmentedComponent,
+    LiveRegionComponent,
   ],
   templateUrl: './realty.html',
   styleUrl: './realty.scss',
@@ -255,11 +284,40 @@ export class RealtyElementComponent implements OnInit {
   readonly agendaCargando = computed(() => t('Realty.Visit.SlotsLoading', 'Cargando la agenda del agente…'));
   readonly agendaFallo = computed(() => t('Realty.Visit.SlotsFailed', 'No pudimos cargar la agenda del agente. No te mostramos horarios que no podamos confirmar.'));
   readonly agendaVacia = computed(() => t('Realty.Visit.SlotsEmpty', 'No hay franjas disponibles para este inmueble por ahora.'));
+  /** Los textos de la visita por la puerta (008-propiedades-visita), de la misma sección del diccionario. */
+  readonly visitaPideSesion = computed(() =>
+    t('Realty.Visit.SessionRequired', 'Para agendar en línea inicia sesión: la visita queda en tu cuenta y el aviso llega a tu correo.'),
+  );
+  readonly visitaModalidadPorDefecto = computed(() =>
+    t('Realty.Visit.DefaultMode', 'Si no eliges la modalidad, la visita es presencial.'),
+  );
+  readonly visitasDelCorreo = computed(() =>
+    t('Realty.Visit.FromEmail', 'Las visitas que agendas en línea las consultas desde el enlace del correo que te enviamos.'),
+  );
+  readonly visitaAvisoEtiqueta = computed(() => t('Realty.Visit.NoticeLabel', 'Aviso'));
+  readonly visitaAvisoAlCorreo = computed(() => t('Realty.Visit.NoticeToAccount', 'Al correo de tu cuenta'));
+  /** Cancelar una visita confirmada por la puerta (008-P5), de la misma sección. */
+  readonly visitaCancelar = computed(() => t('Realty.Visit.Cancel', 'Cancelar la visita'));
+  readonly visitaCancelarPregunta = computed(() =>
+    t('Realty.Visit.CancelAsk', '¿Cancelas esta visita? La franja vuelve a quedar libre para otra persona.'),
+  );
+  readonly visitaCancelarSi = computed(() => t('Realty.Visit.CancelYes', 'Sí, cancelarla'));
+  readonly visitaCancelarNo = computed(() => t('Realty.Visit.CancelNo', 'No, mantenerla'));
+  readonly visitaCanceladaTitulo = computed(() => t('Realty.Visit.CancelledHeading', 'Visita cancelada'));
+  readonly visitaCancelada = computed(() => t('Realty.Visit.Cancelled', 'Cancelaste esta visita. La franja quedó libre.'));
+  readonly visitaCancelarTarde = computed(() =>
+    t('Realty.Visit.CancelTooLate', 'Ya no se puede cancelar en línea. Escríbele al agente desde la ficha del inmueble.'),
+  );
+  readonly visitaCancelarFallo = computed(() =>
+    t('Realty.Visit.CancelFailed', 'No pudimos cancelar la visita. Inténtalo de nuevo en un momento.'),
+  );
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<RealtyBus>>(TransactionEventBusService);
   readonly #api = inject(RealtyApiClient);
+  /** El `<synergos-realty>` de ESTA página: desde él la estrategia encuentra su `<synergos-flujo>`. */
+  readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<RealtyConfig | undefined, unknown>(undefined, {
@@ -307,6 +365,13 @@ export class RealtyElementComponent implements OnInit {
    * —una tasa 0 sería un crédito sin intereses—: el simulador espera a que la escriban.
    */
   readonly initialRate = computed(() => this.config()?.defaultRatePercent ?? null);
+
+  /**
+   * Por dónde se agenda la visita, como lo DECLARA el CMS (`visitPath`, 008-P1). Sin declaración, la directa: la
+   * de siempre y la de por defecto. Una visita que ya salió no lo mira: se termina por el camino de su línea.
+   */
+  readonly visitPath = computed<VisitPath>(() => (this.config()?.visitPath === 'puerta' ? 'puerta' : 'directa'));
+  readonly porLaPuerta = computed(() => this.visitPath() === 'puerta');
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -360,7 +425,30 @@ export class RealtyElementComponent implements OnInit {
   // ─── Confirmación (SH-11) ───────────────────────────────────────────────────
   // Dos desenlaces con la misma estructura. Lo que cambia es el rótulo del
   // número y qué sigue: una visita tiene hora y sitio; un lead, una espera.
-  readonly confirmationConfig = computed<ConfirmationShellConfig>(() =>
+  /**
+   * La confirmación de una visita de la puerta que se puede cancelar (008-P5): mientras se pregunta, la pregunta; hecha,
+   * lo dice; si no se pudo, por qué. El resto, la confirmación de siempre.
+   */
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => {
+    const base = this.#confirmacionDeSiempre();
+    const visita = this.visitaCancelable();
+    const c = this.cancelacion();
+    if (!this.confirmedVisit() || !visita || c.id !== visita.id) {
+      return base;
+    }
+    switch (c.fase) {
+      case 'preguntando':
+        return { ...base, summary: this.visitaCancelarPregunta() };
+      case 'hecha':
+        return { ...base, heading: this.visitaCanceladaTitulo(), summary: this.visitaCancelada() };
+      case 'fallo':
+        return { ...base, summary: c.texto ?? this.visitaCancelarFallo() };
+      default:
+        return base;
+    }
+  });
+
+  readonly #confirmacionDeSiempre = computed<ConfirmationShellConfig>(() =>
     this.confirmedVisit()
       ? {
           heading: '¡Visita agendada!',
@@ -413,17 +501,52 @@ export class RealtyElementComponent implements OnInit {
         ],
   );
 
-  readonly confirmationActions: readonly ConfirmationAction[] = [
+  readonly #accionesDeSiempre: readonly ConfirmationAction[] = [
     { id: 'cuenta', label: 'Ver mi cuenta', kind: 'primary' },
     { id: 'buscar', label: 'Seguir buscando' },
   ];
 
-  onConfirmationAction(id: string): void {
-    if (id === 'cuenta') {
-      this.goToAccount();
-      return;
+  /**
+   * Las acciones de la confirmación. Una visita de la puerta todavía por venir suma «Cancelar la visita» (008-P5), que
+   * primero PREGUNTA: cancelar suelta la franja para otra persona y no se deshace. Hecha, o fuera de plazo, ya no se ofrece.
+   */
+  readonly confirmationActions = computed<readonly ConfirmationAction[]>(() => {
+    const visita = this.visitaCancelable();
+    if (!this.confirmedVisit() || !visita || !this.cancelacionColocada()) {
+      return this.#accionesDeSiempre;
     }
-    this.startOver();
+    const c = this.cancelacion();
+    const deEsta = c.id === visita.id;
+    if (deEsta && c.fase === 'preguntando') {
+      return [
+        { id: 'cancelar-si', label: this.visitaCancelarSi(), kind: 'primary' },
+        { id: 'cancelar-no', label: this.visitaCancelarNo() },
+      ];
+    }
+    if ((deEsta && (c.fase === 'cancelando' || c.fase === 'hecha' || (c.fase === 'fallo' && c.final))) || !this.esFutura(visita.start)) {
+      return this.#accionesDeSiempre;
+    }
+    return [...this.#accionesDeSiempre, { id: 'cancelar-visita', label: this.visitaCancelar() }];
+  });
+
+  onConfirmationAction(id: string): void {
+    const visita = this.visitaCancelable()?.id;
+    switch (id) {
+      case 'cuenta':
+        this.goToAccount();
+        return;
+      case 'cancelar-visita':
+        this.pedirCancelar(visita);
+        return;
+      case 'cancelar-si':
+        void this.cancelarVisita(visita);
+        return;
+      case 'cancelar-no':
+        this.noCancelar();
+        return;
+      default:
+        this.startOver();
+    }
   }
   /**
    * Contenedor del panel de acceso (el de la cuenta y el de la consola del agente). Los dos
@@ -498,6 +621,16 @@ export class RealtyElementComponent implements OnInit {
   // Confirmation + account
   readonly confirmedVisit = signal<Visit | null>(null);
   readonly confirmedLeadId = signal('');
+
+  /**
+   * La visita de la puerta que la confirmación puede cancelar (008-P5): la que abrió el enlace del correo o la que se
+   * acaba de agendar por la puerta. Su `id` es el de la saga, lo que lee la cancelación; `start`, cuándo empieza.
+   */
+  readonly visitaCancelable = signal<{ readonly id: string; readonly start: string } | null>(null);
+  /** En qué va la cancelación, y de qué visita: la misma en la confirmación y en «Mis visitas». */
+  readonly cancelacion = signal<EstadoDeLaCancelacion>({ fase: 'nada' });
+  /** Si «Mis visitas» pudo leer las de la puerta: sin eso, «todavía ninguna» negaría una que existe (FR-026). */
+  readonly visitasDeLaPuertaLeidas = signal(false);
 
   /**
    * La bandeja de «mis visitas». Hasta el #73 lo único que la llenaba era lo que se acababa
@@ -668,7 +801,15 @@ export class RealtyElementComponent implements OnInit {
   readonly visitSlots = signal<readonly VisitSlot[]>([]);
   /** `cargando` · `ok` (con o sin franjas) · `fallo` (no se pudo leer la agenda). */
   readonly visitSlotsState = signal<'cargando' | 'ok' | 'fallo'>('cargando');
-  readonly availableSlots = computed<readonly VisitSlot[]>(() => this.visitSlots());
+  /**
+   * Por la puerta se ofrecen SÓLO las franjas que la agenda comprobó y que traen sus instantes (FR-020): una franja
+   * libre por degradación sería prometer una hora que nadie confirmó. Por la directa, todas, como siempre.
+   */
+  readonly availableSlots = computed<readonly VisitSlot[]>(() =>
+    this.porLaPuerta()
+      ? this.visitSlots().filter((slot) => slot.checked !== false && !!slot.start && !!slot.end)
+      : this.visitSlots(),
+  );
 
   readonly availableDays = computed<readonly string[]>(() => {
     const seen = new Set<string>();
@@ -679,13 +820,15 @@ export class RealtyElementComponent implements OnInit {
   });
 
   // ─── Visit checkout (SH-3 wizard — pago apagado; the visit form IS the wizard) ─
-  readonly visitCheckoutConfig: CheckoutWizardConfig = {
+  readonly visitCheckoutConfig = computed<CheckoutWizardConfig>(() => ({
+    // Por la puerta no hay paso de «Tus datos»: el aviso va al correo de la sesión, así que pedir nombre y correo
+    // sería pedir datos que no se usan (principio VI).
     steps: [
       { id: 'mode', label: 'Modalidad' },
       { id: 'slot', label: 'Fecha y hora' },
       { id: 'contact', label: 'Tus datos' },
       { id: 'agendar', label: 'Confirmar' },
-    ],
+    ].filter((paso) => !(this.porLaPuerta() && paso.id === 'contact')),
     stepsLabel: 'Pasos para agendar la visita',
     summaryHeading: 'Tu visita',
     submitLabel: 'Agendar visita',
@@ -697,18 +840,51 @@ export class RealtyElementComponent implements OnInit {
     confirmFailedMessage: 'No pudimos agendar la visita: el horario no quedó reservado. Intenta de nuevo.',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
-  };
+    // Cada rechazo de la puerta dice lo suyo (franja tomada, fuera de horario, sin agenda…); lo demás, el de arriba.
+    mensajeDeFallo: (motivo: string) => this.mensajeDeLaVisita(motivo),
+  }));
+
+  /** El texto de cada rechazo de la visita, del diccionario; `null` deja el del asistente. */
+  private mensajeDeLaVisita(motivo: string): string | null {
+    switch (motivo) {
+      case 'puerta.sesion_requerida':
+      case 'cliente.redirigido':
+        return this.visitaPideSesion();
+      case 'booking.at_capacity':
+        return t('Realty.Visit.SlotTaken', 'Ese horario ya lo tomaron. Elige otro de la agenda.');
+      case 'booking.outside_opening_hours':
+        return t('Realty.Visit.OutsideHours', 'Ese horario está fuera de la agenda de visitas.');
+      case 'booking.window_in_the_past':
+        return t('Realty.Visit.InPast', 'Ese horario ya pasó. Elige uno de los próximos días.');
+      case 'booking.resource_not_found':
+        return t('Realty.Visit.NoAgenda', 'Este inmueble todavía no recibe visitas en línea. Escríbele al agente y la coordinan.');
+      case 'booking.off_slot_grid':
+      case 'booking.bad_slot_length':
+      case 'propiedades.duracion_invalida':
+      case 'propiedades.franja_sin_instantes':
+      case 'propiedades.entrada_invalida':
+      case 'propiedades.modalidad_invalida':
+        return t('Realty.Visit.InvalidSlot', 'Elige una de las franjas de la agenda.');
+      case 'puerta.flujo_no_disponible':
+      case 'puerta.orquestador_no_disponible':
+      case 'cliente.sin_coordinador':
+        return t('Realty.Visit.Unavailable', 'La agenda en línea no está disponible ahora. Escríbele al agente y la coordinan.');
+      default:
+        return null;
+    }
+  }
 
   /** Per-step gating for the SH-3 visit wizard. */
   readonly visitCheckoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     mode: true,
     slot: this.visitSlotValid(),
     contact: this.visitContactValid(),
-    agendar: this.visitSlotValid() && this.visitContactValid(),
+    agendar: this.visitSlotValid() && (this.porLaPuerta() || this.visitContactValid()),
   }));
 
   /** Instrument handed to the strategy's `pay` (no PSP token — pago OFF). */
   readonly visitInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
+    host: this.#host,
     apiBase: this.apiBase(),
     provider: 'realty-visit',
     listingId: this.visitListing()?.id ?? '',
@@ -722,7 +898,10 @@ export class RealtyElementComponent implements OnInit {
     // «Todavía no tienes visitas agendadas» sólo es verdad cuando se pudo LEER la bandeja.
     // Con un 401 o con el borde caído es una afirmación sobre una cuenta que no se miró, así
     // que el shell pinta su estado de error en vez del vacío (regla 17).
-    inboxEmptyMessage: 'Todavía no tienes visitas agendadas.',
+    // Por la puerta, la bandeja suma las visitas en línea cuando las pudo LEER (la lectura por dueño, FR-026); sin
+    // leerlas, «todavía ninguna» negaría una visita que existe, y se dice dónde se consultan.
+    inboxEmptyMessage:
+      this.porLaPuerta() && !this.visitasDeLaPuertaLeidas() ? this.visitasDelCorreo() : 'Todavía no tienes visitas agendadas.',
     inboxLoadingMessage: 'Cargando tus visitas…',
     detailPlaceholder: 'Selecciona una visita para ver el detalle y su seguimiento.',
     ...(this.visitsState() === 'unreadable'
@@ -935,8 +1114,117 @@ export class RealtyElementComponent implements OnInit {
     if (this.role() === 'agent') {
       void this.loadDesk().then(() => this.applyHash());
     } else {
-      void this.runSearch().then(() => this.applyHash());
+      void this.runSearch().then(() => this.applyHash()).then(() => this.abrirVisitaDelEnlace());
     }
+  }
+
+  /**
+   * El enlace del aviso (`?visita=<id>`, 008-propiedades-visita): con la sesión de su dueño, la visita confirmada que
+   * agendó por la puerta. Con otra sesión, o sin ella, no se muestra nada: la puerta contesta que no existe.
+   */
+  private async abrirVisitaDelEnlace(): Promise<void> {
+    const id = this.porLaPuerta() ? (new URLSearchParams(window.location.search).get('visita') ?? '').trim() : '';
+    if (id === '') {
+      return;
+    }
+    const r = await consultarVisita(this.#host, id);
+    if (!r.ok || r.valor.estado !== 'Completed' || !r.valor.ventana) {
+      return;
+    }
+    const inmueble = r.valor.inmueble;
+    this.visitaCancelable.set({ id: r.valor.id, start: r.valor.ventana.start });
+    this.cancelacion.set({ fase: 'nada' });
+    this.confirmedVisit.set({
+      id: r.valor.numero,
+      listingId: inmueble,
+      listingTitle: this.listings().find((l) => l.id === inmueble)?.title ?? '',
+      slot: this.enLaHoraDelSitio(r.valor.ventana.start),
+      mode: r.valor.modo,
+      status: 'confirmed',
+      contact: { name: '', email: '', phone: '' },
+    });
+    this.confirmedLeadId.set('');
+    this.navigate('confirmation');
+  }
+
+  /** Si la visita todavía no empezó: sólo entonces tiene sentido ofrecer cancelarla. El plazo lo decide la agenda. */
+  esFutura(instante: string | undefined): boolean {
+    return !!instante && Date.parse(instante) > Date.now();
+  }
+
+  /** Si «Mis visitas» ofrece cancelar esta visita: de la puerta, confirmada y por venir (008-P5). */
+  puedeCancelarDesdeLaBandeja(visita: BookedVisit): boolean {
+    const c = this.cancelacion();
+    const cerrada = c.id === visita.id && (c.fase === 'hecha' || (c.fase === 'fallo' && !!c.final));
+    return (
+      visita.camino === 'puerta' && visita.status === 'confirmed' && !cerrada && this.esFutura(visita.slot?.start) && this.cancelacionColocada()
+    );
+  }
+
+  /**
+   * Si la vista colocó el coordinador de la cancelación alrededor del portal (008-P5). La clave la pone el servidor, no
+   * el bundle, y cada coordinador atiende sólo su flujo: sin ése no hay a quién pedirla, y la pantalla no ofrece lo que
+   * no puede hacer (degrada por ausencia, FR-027).
+   */
+  cancelacionColocada(): boolean {
+    return !!this.#host.closest(`synergos-flujo[flujo="${FLUJO_CANCELACION}"]`);
+  }
+
+  /** En qué va la cancelación de ESTA visita (la bandeja pinta una por fila). */
+  cancelacionDe(id: string): EstadoDeLaCancelacion['fase'] {
+    const c = this.cancelacion();
+    return c.id === id ? c.fase : 'nada';
+  }
+
+  /** Lo que la bandeja dice de la cancelación de esta visita: hecha, o por qué no. */
+  textoDeLaCancelacion(id: string): string {
+    const c = this.cancelacion();
+    if (c.id !== id) return '';
+    if (c.fase === 'hecha') return this.visitaCancelada();
+    if (c.fase === 'fallo') return c.texto ?? this.visitaCancelarFallo();
+    return '';
+  }
+
+  /** Pregunta antes de cancelar: suelta la franja para otra persona y no se deshace. */
+  pedirCancelar(id: string | undefined): void {
+    if (id && this.cancelacion().fase !== 'cancelando') {
+      this.cancelacion.set({ fase: 'preguntando', id });
+    }
+  }
+
+  noCancelar(): void {
+    this.cancelacion.set({ fase: 'nada' });
+  }
+
+  /**
+   * Cancela por la puerta una visita confirmada (008-P5). El plazo de aviso lo decide la agenda: fuera de él lo dice, y la
+   * pantalla deja de ofrecerla. Una ya cancelada (otra pestaña) es lo mismo que hecha. La llave es la de ESTE intento:
+   * mientras corre no se pide otro; repetir con la suya un intento que falló devolvería el mismo fallo, y cancelar dos
+   * veces la misma reserva la agenda lo contesta como ya cancelada.
+   */
+  async cancelarVisita(id: string | undefined): Promise<void> {
+    if (!id || this.cancelacion().fase === 'cancelando') {
+      return;
+    }
+    this.cancelacion.set({ fase: 'cancelando', id });
+    const r = await cancelarVisitaConfirmada(this.#host, id, idAleatorio());
+    if (r.ok || r.rechazo.code === 'booking.already_cancelled') {
+      this.cancelacion.set({ fase: 'hecha', id });
+      this.myVisits.update((visitas) => visitas.map((v) => (v.id === id ? { ...v, status: 'cancelled' } : v)));
+      return;
+    }
+    const final = r.rechazo.code === 'booking.cancellation_too_late';
+    const texto = final ? this.visitaCancelarTarde() : esDeSesion(r.rechazo) ? this.visitaPideSesion() : this.visitaCancelarFallo();
+    this.cancelacion.set({ fase: 'fallo', id, texto, final });
+  }
+
+  /** Un instante en la hora del sitio (`zonaHoraria`, la del CMS): la visita de las 9 de Bogotá es «09:00». */
+  private enLaHoraDelSitio(instante: string): VisitSlot {
+    const zona = this.config()?.zonaHoraria || undefined;
+    const fecha = new Date(instante);
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(fecha);
+    const time = new Intl.DateTimeFormat('en-GB', { timeZone: zona, hour: '2-digit', minute: '2-digit', hour12: false }).format(fecha);
+    return { date, time };
   }
 
   /**
@@ -1516,6 +1804,9 @@ export class RealtyElementComponent implements OnInit {
     if (this.visitsLoaded()) {
       return;
     }
+    if (this.porLaPuerta()) {
+      void this.cargarVisitasDeLaPuerta();
+    }
     void this.#api
       .myVisits(this.apiBase())
       .then((visitas) => {
@@ -1534,6 +1825,33 @@ export class RealtyElementComponent implements OnInit {
         }
         this.visitsState.set('unreadable');
       });
+  }
+
+  /**
+   * «Mis visitas» de la puerta (FR-026): las confirmadas de la sesión, y las que canceló, se suman a las de la ruta directa,
+   * cada una una vez (por su id, el de la saga, el mismo que guardó esta pestaña al agendarla). Sin poder leerlas, la
+   * bandeja sigue diciendo dónde se consultan.
+   */
+  private async cargarVisitasDeLaPuerta(): Promise<void> {
+    const r = await misVisitasDeLaPuerta(this.#host);
+    if (!r.ok) {
+      return;
+    }
+    const deLaPuerta = r.valor.visitas.map((v) => this.visitaDeLaBandeja(v, r.valor.canceladas.has(v.id)));
+    this.myVisits.update((actuales) => this.mergeVisits(deLaPuerta, actuales));
+    this.visitasDeLaPuertaLeidas.set(true);
+  }
+
+  private visitaDeLaBandeja(v: VisitaLeida, cancelada: boolean): BookedVisit {
+    return {
+      id: v.id,
+      listingId: v.inmueble,
+      listingTitle: this.listings().find((l) => l.id === v.inmueble)?.title ?? null,
+      slot: v.ventana ? { ...this.enLaHoraDelSitio(v.ventana.start), start: v.ventana.start, end: v.ventana.end } : null,
+      mode: v.modo,
+      status: cancelada ? 'cancelled' : 'confirmed',
+      camino: 'puerta',
+    };
   }
 
   /**
@@ -1711,7 +2029,9 @@ export class RealtyElementComponent implements OnInit {
     this.visitSlots.set([]);
     this.visitSlotsState.set('cargando');
     try {
-      const slots = await this.#api.visitSlots(this.apiBase(), listingId);
+      const slots = this.porLaPuerta()
+        ? await this.franjasPorLaPuerta(listingId)
+        : await this.#api.visitSlots(this.apiBase(), listingId);
       if (this.visitListing()?.id !== listingId) {
         return;
       }
@@ -1724,6 +2044,34 @@ export class RealtyElementComponent implements OnInit {
       this.visitSlotsState.set('fallo');
       void error;
     }
+  }
+
+  /**
+   * Por la puerta, las franjas las dice la AGENDA del inmueble (008-P3): su horario y su franja, por la lectura
+   * «disponibilidad», desde mañana y por {@link DIAS_DE_VISITA} días en la hora del sitio, y sólo las que tienen lugar.
+   * Un inmueble sin agenda, o cuya agenda no declara horario y franja, no tiene franjas; una agenda que no contesta es un
+   * fallo, no una lista inventada (FR-020).
+   */
+  private async franjasPorLaPuerta(listingId: string): Promise<readonly VisitSlot[]> {
+    const ahora = new Date();
+    const r = await franjasDeLaVisita(this.#host, listingId, {
+      desde: ahora.toISOString(),
+      hasta: new Date(ahora.getTime() + (DIAS_DE_VISITA + 1) * DIA_EN_MS).toISOString(),
+    });
+    if (!r.ok) {
+      if (r.rechazo.code === 'booking.resource_not_found' || r.rechazo.code === 'booking.slots_undefined') {
+        return [];
+      }
+      throw r.rechazo;
+    }
+    // Los días de calendario del sitio, de mañana en adelante: hoy no se ofrece, y un día sin lugar sigue contando.
+    const dias = new Set(
+      Array.from({ length: DIAS_DE_VISITA }, (_, i) => this.enLaHoraDelSitio(new Date(ahora.getTime() + (i + 1) * DIA_EN_MS).toISOString()).date),
+    );
+    return r.valor
+      .filter((f) => f.libres > 0)
+      .map((f): VisitSlot => ({ ...this.enLaHoraDelSitio(f.start), start: f.start, end: f.end, checked: true }))
+      .filter((s) => dias.has(s.date));
   }
 
   /** Vuelve a pedir la agenda del inmueble de la visita. */
@@ -1773,12 +2121,19 @@ export class RealtyElementComponent implements OnInit {
       email: this.visitEmail().trim(),
       phone: this.visitPhone().trim(),
     };
+    const elegida = this.visitSlots().find((slot) => slot.date === this.visitDate() && slot.time === this.visitTime());
     const payload: VisitSelectionPayload = {
       listingId: listing.id,
       listingTitle: listing.title,
-      slot: { date: this.visitDate(), time: this.visitTime() },
+      slot: {
+        date: this.visitDate(),
+        time: this.visitTime(),
+        ...(elegida?.start && elegida.end ? { start: elegida.start, end: elegida.end } : {}),
+      },
       mode: this.visitMode(),
       contact,
+      // El camino se anota en la línea al elegir: una visita que ya salió se termina por donde salió.
+      path: this.visitPath(),
     };
     const selection = await this.#fulfillment.select(
       {
@@ -1822,6 +2177,10 @@ export class RealtyElementComponent implements OnInit {
     };
     this.confirmedVisit.set(visit);
     this.confirmedLeadId.set('');
+    // Por la puerta, la que se acaba de agendar se puede cancelar desde aquí mismo (008-P5): su id es el de la saga.
+    const elegida = this.porLaPuerta() ? this.availableSlots().find((s) => s.date === visit.slot.date && s.time === visit.slot.time) : undefined;
+    this.visitaCancelable.set(elegida?.start ? { id: visit.id, start: elegida.start } : null);
+    this.cancelacion.set({ fase: 'nada' });
     // A la bandeja entra como fila del REGISTRO y no como acuse: es el mismo tipo que traerá
     // el servidor en la siguiente carga, así que la plantilla no tiene que saber de cuál de
     // los dos sitios vino. Acá los tres campos SÍ se saben —los acaba de mandar esta pestaña—,
@@ -1831,9 +2190,10 @@ export class RealtyElementComponent implements OnInit {
         id: visit.id,
         listingId: visit.listingId,
         listingTitle: visit.listingTitle || null,
-        slot: visit.slot,
+        slot: elegida ? { ...visit.slot, start: elegida.start, end: elegida.end } : visit.slot,
         mode: visit.mode,
         status: visit.status,
+        ...(elegida ? { camino: 'puerta' as const } : {}),
       },
       ...visits,
     ]);

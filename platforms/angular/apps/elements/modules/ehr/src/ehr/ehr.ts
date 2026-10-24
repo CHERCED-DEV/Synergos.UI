@@ -3,8 +3,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   type OnInit,
-  type ElementRef,
   computed,
   effect,
   inject,
@@ -38,6 +38,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  LiveRegionComponent,
   SegmentedComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
@@ -49,10 +50,28 @@ import {
 } from '@synergos/shared';
 import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
-import { EHR_FLOW } from './ehr-fulfillment.strategy';
+import {
+  cancelarCita,
+  consultarCita,
+  cotizarCita,
+  escribirYAsentar,
+  relojEnZona,
+  ventanaDeLaCita,
+  zonaValida,
+  type CitaLeida,
+} from './ehr-cita';
+import {
+  EHR_FLOW,
+  MINUTOS_DE_LA_CITA,
+  caminoDeLaCita,
+  citaPendiente,
+  lineaDeLaCita,
+  sinCitaPendiente,
+} from './ehr-fulfillment.strategy';
 import {
   type Appointment,
   type BillingStatement,
+  type CaminoDeLaCita,
   type EhrAcceso,
   type ChartTab,
   type ClinicalAlert,
@@ -86,13 +105,20 @@ import {
   type Vitals,
 } from './ehr.model';
 import {
+  FLUJO_SALUD_CITA,
+  aMenores,
+  avisoDelFlujo,
   baseDeRuta,
+  elegirMensaje,
+  hayCoordinador,
   mismaRuta,
   segmentosDeRuta,
   formatearImporte,
   desdeMenores,
   diaLocal,
   diaLocalMas,
+  t,
+  type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 
 /**
@@ -130,6 +156,61 @@ const DEFAULT_SCOPE = 'ehr';
 
 /** El fallo del asistente de citas, con o sin copago: la cita NO quedó (UI#91). */
 const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
+
+/**
+ * Lo que se dice de un rechazo de la cita por la puerta, elegido por su `code` y nunca por su `title`
+ * (sección `Health.Appointment`, 003-salud-cita T025). Lo que no tiene texto propio cae al de su clase.
+ */
+export function mensajeDeLaCita(code: string): string {
+  const porCodigo: Readonly<Record<string, string>> = {
+    'consent.not_granted': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
+    'consent.revoked': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
+    'consent.expired': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
+    'booking.resource_not_found': t('Health.Appointment.NoAgenda', 'Este profesional no tiene agenda disponible.'),
+    'booking.at_capacity': t('Health.Appointment.SlotTaken', 'Esa franja ya no está disponible. Elige otra.'),
+    'booking.window_in_the_past': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
+    'booking.outside_opening_hours': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
+    'booking.off_slot_grid': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
+    'booking.bad_slot_length': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
+    'booking.crosses_midnight': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
+    'booking.hold_expired': t('Health.Appointment.SlotExpired', 'Tu franja venció antes de confirmar. Elige otra.'),
+    'booking.hold_released': t('Health.Appointment.SlotExpired', 'Tu franja venció antes de confirmar. Elige otra.'),
+    'payments.payment_declined': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
+    'payments.payment_failed': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
+    'payments.voided': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
+    'salud.not_continuable': t('Health.Appointment.NotConfirmable', 'Esta cita ya no se puede confirmar.'),
+    'salud.already_completed': t('Health.Appointment.NotCancellable', 'Esta cita ya está confirmada; no se puede cancelar en línea.'),
+    'salud.saga_not_found': t('Health.Appointment.NotFound', 'No encontramos esa cita en tu cuenta.'),
+    'salud.entrada_invalida': t('Health.Appointment.BadRequest', 'Revisa los datos de la cita: falta alguno o no es válido.'),
+  };
+  if (code.startsWith('pricing.')) {
+    return t('Health.Appointment.CopayUnavailable', 'No pudimos calcular el copago. Intenta de nuevo en un momento.');
+  }
+  // Sólo se sabe el `code` (el asistente pasa el motivo): lo transitorio y lo negado dicen lo mismo.
+  const rechazo: RechazoDelFlujo = { code, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} };
+  const generico = t('Health.Appointment.Generic', 'No pudimos agendar tu cita. Intenta de nuevo.');
+  return elegirMensaje(rechazo, porCodigo, {
+    sesion: t('Health.Appointment.SignInRequired', 'Inicia sesión para ver y agendar tus citas.'),
+    no_disponible: t('Health.Appointment.Unavailable', 'La agenda en línea no está disponible en este momento.'),
+    reintentable: generico,
+    defecto: generico,
+    negado: generico,
+  });
+}
+
+/** El estado de una cita como lo lee el paciente (`Health.Appointment`). */
+export function estadoDeLaCita(estado: string): string {
+  switch (estado) {
+    case 'Running':
+      return t('Health.Appointment.StatePending', 'Pendiente de confirmar');
+    case 'Completed':
+      return t('Health.Appointment.StateConfirmed', 'Confirmada');
+    case 'Compensated':
+      return t('Health.Appointment.StateUndone', 'No quedó agendada');
+    default:
+      return t('Health.Appointment.StateReview', 'En revisión');
+  }
+}
 
 const DEFAULT_ROLE: EhrRole = 'patient';
 /** El login del sitio, con la vuelta a ESTA página (el mismo de gov, blogs y realty). */
@@ -206,7 +287,14 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
   // lo resuelve el servidor por la sesión del miembro.
   return omitUndefinedProperties<EhrProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    appointmentPath: normalizeAppointmentPath(value.appointmentPath),
+    zona: zonaValida(value.zona) ? value.zona : undefined,
   });
+}
+
+/** El camino de la cita que declara el CMS (ADR 0140): uno de los dos, o nada. */
+function normalizeAppointmentPath(value: unknown): CaminoDeLaCita | undefined {
+  return value === 'puerta' || value === 'directa' ? value : undefined;
 }
 
 function coerceRole(value: unknown): EhrRole | undefined {
@@ -234,6 +322,7 @@ let ehrInstanceId = 0;
     SegmentedComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
+    LiveRegionComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -293,8 +382,45 @@ export class EhrElementComponent implements OnInit {
   readonly copay = signal<EhrCopay | null>(null);
   #pidiendoCopago = false;
   readonly copayMinor = computed(() => this.copay()?.amountMinor ?? 0);
-  /** Lo que se dice cuando el copago no se pudo saber: ni «Sin costo» ni un número. */
+  /** Lo que se dice cuando el copago no se pudo saber: ni «Sin copago» ni un número. */
   readonly copayUnknown = computed(() => this.copay() === null);
+
+  // ─── La cita por la puerta (003-salud-cita, ADR 0140) ──────────────────────────
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /**
+   * Por dónde agenda ESTA página: lo DECLARA el CMS en `appointmentPath` —la puerta o la ruta directa— y el
+   * elemento no lo adivina. **Agendar PARA OTRO paciente va siempre por la directa** (FR-026): la puerta es el
+   * autoservicio del paciente, y lo que no es su portal no pasa por ella.
+   */
+  readonly caminoDeLaCita = computed<CaminoDeLaCita>(() =>
+    this.portal() === 'patient' ? caminoDeLaCita(this.config()?.appointmentPath) : 'directa',
+  );
+  readonly porLaPuerta = computed(() => this.caminoDeLaCita() === 'puerta');
+  /** La zona del sitio, en la que el paciente elige la hora (`EhrProps.zona`). */
+  readonly zona = computed(() => this.config()?.zona ?? '');
+  /** Por la puerta sin `<synergos-flujo>` arriba: se dice que no está disponible y no se toca la red. */
+  readonly sinCoordinador = signal(false);
+  /** El `code` con que `cotizar` no dio el copago, o `null`: lo que se dice en el paso del copago. */
+  readonly rechazoDelCopago = signal<string | null>(null);
+  readonly cotizando = signal(false);
+  #ultimaCotizacion = '';
+  readonly textoDelCopago = computed(() =>
+    this.rechazoDelCopago() !== null
+      ? mensajeDeLaCita(this.rechazoDelCopago()!)
+      : t('Health.Appointment.CopayUnavailable', 'No pudimos calcular el copago. Intenta de nuevo en un momento.'),
+  );
+  readonly textoNoDisponible = t('Health.Appointment.Unavailable', 'La agenda en línea no está disponible en este momento.');
+  /** La cita abierta por la puerta y sin confirmar de esta sesión: la única que se puede cancelar aquí. */
+  readonly citaPendiente = computed(() => (this.porLaPuerta() ? citaPendiente(this.#store.session()) : null));
+  readonly textoCancelar = t('Health.Appointment.Cancel', 'Cancelar cita');
+  /** Lo que quedó de la última acción sobre una cita (cancelarla, resolver la pendiente). */
+  readonly avisoDeLaCita = signal('');
+  readonly cancelando = signal(false);
+  /** La cita del enlace del aviso (`?cita={id}`), leída del servidor con la sesión. */
+  readonly citaDelEnlace = signal<CitaLeida | null>(null);
+  readonly estadoDelEnlace = signal<'nada' | 'cargando' | 'leida' | 'aviso'>('nada');
+  readonly textoDelEnlace = signal('');
+  #idDelEnlace = '';
 
   readonly instanceId = (ehrInstanceId += 1);
   readonly fieldId = `syn-ehr-${this.instanceId}`;
@@ -811,11 +937,14 @@ export class EhrElementComponent implements OnInit {
       { id: 'proveedor', label: 'Motivo y médico' },
       { id: 'slot', label: 'Fecha y hora' },
     ];
-    // Sin saberlo también hay paso: es donde se dice que no se sabe, en vez de «Sin costo».
+    // Sin saberlo también hay paso: es donde se dice que no se sabe, en vez de «Sin copago».
+    const copago = t('Health.Appointment.Copay', 'Copago');
     if (this.copayMinor() > 0 || this.copayUnknown()) {
-      steps.push({ id: 'copago', label: 'Copago' });
+      steps.push({ id: 'copago', label: copago });
     }
     steps.push({ id: 'confirmar', label: 'Confirmar' });
+    const porLaPuerta = this.porLaPuerta();
+    const copagoCobrable = this.copayMinor() > 0;
     return {
       steps,
       stepsLabel: 'Pasos para agendar la cita',
@@ -824,20 +953,30 @@ export class EhrElementComponent implements OnInit {
       processingLabel: 'Agendando…',
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
-      totalLabel: this.copayMinor() > 0 || this.copayUnknown() ? 'Copago' : 'Sin costo',
+      // «Sin copago» sólo con un total 0 que dijo el SERVIDOR (FR-004); sin saberlo, el rótulo del copago y el aviso.
+      totalLabel: this.copayMinor() > 0 || this.copayUnknown() ? copago : t('Health.Appointment.NoCopay', 'Sin copago'),
       // La cita NO quedó agendada, y lo dice el ASISTENTE, una vez (UI#91). Lo elegido sigue
       // en el carrito: reintentar es un clic. El `APPT-…` del `pay` es local y no mueve
       // dinero; medido, con el texto por defecto esta cita decía «Ya recibimos tu pago
       // (referencia APPT-…)», y la ficha repetía el fallo en un segundo `role="alert"`.
       payFailedMessage: CITA_NO_AGENDADA,
       confirmFailedMessage: CITA_NO_AGENDADA,
+      // Por la puerta el aviso lo elige el `code` (T030). Cerrar captura ANTES de confirmar: si lo que falló
+      // fue la franja y había copago, el copago ya se había cobrado y se devuelve.
+      mensajeDeFallo: (motivo) =>
+        !porLaPuerta
+          ? null
+          : motivo.startsWith('booking.hold_') && copagoCobrable
+            ? t('Health.Appointment.RefundIssued', 'No pudimos confirmar tu cita; te devolvimos el copago.')
+            : mensajeDeLaCita(motivo),
     };
   });
 
   readonly scheduleValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     proveedor: this.scheduleDoctorId().trim() !== '' && this.scheduleReason().trim().length >= 3,
     slot: this.scheduleValid(),
-    copago: true,
+    // Sin un copago que haya dicho el servidor no se agenda: ni un cero inventado ni un número de antes.
+    copago: !this.copayUnknown(),
     confirmar: this.scheduleValid(),
   }));
 
@@ -845,6 +984,11 @@ export class EhrElementComponent implements OnInit {
     provider: 'ehr-appointment',
     patientId: this.patientId(),
     doctorId: this.scheduleDoctorId(),
+    // Lo que es de ESTE elemento y la estrategia necesita (ADR 0140 F4): de dónde pedir al coordinador, por
+    // dónde va la cita y en qué zona se lee la hora.
+    host: this.#host,
+    camino: this.caminoDeLaCita(),
+    zona: this.zona(),
   }));
 
   constructor() {
@@ -900,6 +1044,129 @@ export class EhrElementComponent implements OnInit {
       // El CONTENEDOR, no el botón: así el lector lee el porqué antes que las acciones.
       panel.nativeElement.focus();
     });
+
+    // El copago por la puerta sale de `cotizar` (T029), con el profesional y la franja elegidos: corre el
+    // permiso, el copago y la agenda del profesional sin apartar nada. Una vez por elección.
+    effect(() => {
+      if (this.view() !== 'schedule' || !this.porLaPuerta() || !this.scheduleValid()) {
+        return;
+      }
+      const doctor = this.scheduleDoctorId();
+      const fecha = this.scheduleDate();
+      const hora = this.scheduleTime();
+      const zona = this.zona();
+      untracked(() => void this.cotizarElCopago(doctor, fecha, hora, zona));
+    });
+
+    // El enlace del aviso (`?cita={id}`, T031): el id viaja en la CONSULTA de la página —la que arma
+    // `Aviso.Ruta` de la puerta—, no en el hash del router. Se lee una vez, cuando el CMS ya dijo el camino.
+    if (typeof window !== 'undefined') {
+      const parametro = avisoDelFlujo(FLUJO_SALUD_CITA)?.parametro ?? 'cita';
+      this.#idDelEnlace = new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+    }
+    effect(() => {
+      if (!this.#idDelEnlace || !this.config() || this.estadoDelEnlace() !== 'nada') {
+        return;
+      }
+      untracked(() => void this.abrirElEnlace(this.#idDelEnlace));
+    });
+  }
+
+  /** Cotiza el copago de ESTA elección por la puerta; lo que contesta otra elección anterior se descarta. */
+  private async cotizarElCopago(doctor: string, fecha: string, hora: string, zona: string): Promise<void> {
+    const clave = `${doctor}|${fecha}|${hora}`;
+    if (clave === this.#ultimaCotizacion) {
+      return;
+    }
+    this.#ultimaCotizacion = clave;
+    this.copay.set(null);
+    this.rechazoDelCopago.set(null);
+    const ventana = ventanaDeLaCita(fecha, hora, MINUTOS_DE_LA_CITA, zona);
+    if (!ventana) {
+      this.rechazoDelCopago.set('cliente.sin_zona');
+      return;
+    }
+    this.cotizando.set(true);
+    const r = await cotizarCita(this.#host, doctor, ventana);
+    if (clave !== this.#ultimaCotizacion) {
+      return;
+    }
+    this.cotizando.set(false);
+    if (r.ok && r.valor) {
+      this.copay.set({ amountMinor: aMenores(r.valor.amount, r.valor.currency), currency: r.valor.currency });
+    } else {
+      // Sin total del servidor no hay copago: ni un cero inventado ni el de otra elección.
+      this.rechazoDelCopago.set(r.ok ? 'cliente.sin_total' : r.rechazo.code);
+    }
+  }
+
+  /** Abre la cita del enlace del aviso con la sesión: la consulta y la pinta en «Mis citas». */
+  private async abrirElEnlace(id: string): Promise<void> {
+    if (!this.porLaPuerta()) {
+      return;
+    }
+    this.estadoDelEnlace.set('cargando');
+    this.textoDelEnlace.set(t('Health.Appointment.Loading', 'Buscando tu cita…'));
+    this.navigate('visits');
+    const r = await consultarCita(this.#host, id);
+    if (r.ok) {
+      this.citaDelEnlace.set(r.valor);
+      this.estadoDelEnlace.set('leida');
+      this.textoDelEnlace.set('');
+      return;
+    }
+    this.estadoDelEnlace.set('aviso');
+    this.textoDelEnlace.set(mensajeDeLaCita(r.rechazo.code));
+  }
+
+  /** Lo que se lee de una cita: su número, su estado y su hora en la zona del sitio. */
+  encabezadoDeLaCita(cita: CitaLeida): string {
+    return t('Health.Appointment.Heading', 'Tu cita {numero}', { numero: cita.numero });
+  }
+
+  estadoDe(cita: CitaLeida): string {
+    return estadoDeLaCita(cita.estado);
+  }
+
+  horaDeLaCita(cita: CitaLeida): string {
+    const reloj = cita.ventana ? relojEnZona(cita.ventana.start, this.zona()) : null;
+    return reloj ? `${this.formatDate(reloj.fecha)} · ${reloj.hora}` : '';
+  }
+
+  /**
+   * «Cancelar cita» sólo sobre una cita PENDIENTE —abierta y sin confirmar— (T030): suelta la franja y anula
+   * la autorización. Lo que se dice sale de lo que QUEDÓ (se consulta si la cancelación no contestó): «no se te
+   * cobró nada» sólo cuando la cita se deshizo antes de capturar.
+   */
+  async cancelarLaCita(id: string): Promise<void> {
+    if (this.cancelando()) {
+      return;
+    }
+    this.cancelando.set(true);
+    this.avisoDeLaCita.set('');
+    try {
+      const asentada = await escribirYAsentar(this.#host, id, cancelarCita);
+      if (asentada.tipo !== 'leida') {
+        this.avisoDeLaCita.set(mensajeDeLaCita(asentada.rechazo.code));
+        return;
+      }
+      const cita = asentada.cita;
+      if (this.citaDelEnlace()?.id === cita.id) {
+        this.citaDelEnlace.set(cita);
+      }
+      if (cita.estado === 'Compensated') {
+        if (citaPendiente(this.#store.session()) === cita.id) {
+          this.#store.setSession(sinCitaPendiente(this.#store.getValidSession()));
+        }
+        this.avisoDeLaCita.set(t('Health.Appointment.CancelledNoCharge', 'Cancelaste la cita. No se te cobró nada.'));
+        return;
+      }
+      this.avisoDeLaCita.set(
+        asentada.rechazo ? mensajeDeLaCita(asentada.rechazo.code) : estadoDeLaCita(cita.estado),
+      );
+    } finally {
+      this.cancelando.set(false);
+    }
   }
 
   /**
@@ -1041,7 +1308,13 @@ export class EhrElementComponent implements OnInit {
         return;
       case 'schedule':
         void this.conElPaciente(() => this.ensureDoctors());
-        this.#store.reset();
+        // Por la puerta sin `<synergos-flujo>` arriba no se agenda: se dice, sin tocar la red (T032).
+        this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_SALUD_CITA));
+        // Una cita abierta por la puerta y sin confirmar NO se olvida al volver: se termina o se cancela por
+        // su id (lección D2). Olvidarla la dejaba apartada hasta el barrido de abandono.
+        if (!citaPendiente(this.#store.getValidSession())) {
+          this.#store.reset();
+        }
         return;
       case 'results':
         if (!this.resultsLoaded()) {
@@ -1549,7 +1822,8 @@ export class EhrElementComponent implements OnInit {
   private async ensureDoctors(): Promise<void> {
     // El copago se pide junto al directorio: los dos hacen falta para agendar. Una vez por
     // vez: entrar a agendar llama acá dos veces antes de que vuelva la primera (medido).
-    if (this.copay() === null && !this.#pidiendoCopago) {
+    // Por la puerta no: el copago sale de `cotizar`, con el profesional y la franja (T029).
+    if (!this.porLaPuerta() && this.copay() === null && !this.#pidiendoCopago) {
       this.#pidiendoCopago = true;
       void this.#api
         .copay(this.apiBase())
@@ -1639,6 +1913,18 @@ export class EhrElementComponent implements OnInit {
   private async selectAppointmentIntoCart(): Promise<void> {
     const doctor = this.doctors().find((entry) => entry.id === this.scheduleDoctorId());
     const session = this.#store.getValidSession();
+    const pendiente = citaPendiente(session);
+    if (pendiente) {
+      // La MISMA elección con su cita pendiente se sigue: es la misma intención y la misma llave.
+      if (session.items[0]?.id === lineaDeLaCita(this.scheduleDoctorId(), this.scheduleDate(), this.scheduleTime())) {
+        return;
+      }
+      // Otra franja: la pendiente se resuelve PRIMERO por su id (lección D2). Si no se pudo saber en qué
+      // quedó, no se elige otra: serían dos franjas apartadas y dos copagos autorizados.
+      if (!(await this.resolverLaPendiente(pendiente))) {
+        return;
+      }
+    }
     const selection = await this.#fulfillment.select(
       {
         productRef: this.scheduleDoctorId(),
@@ -1673,6 +1959,16 @@ export class EhrElementComponent implements OnInit {
           ? [{ code: 'copay', label: 'Copago de la cita', amount: this.copayMinor() }]
           : [],
     });
+  }
+
+  /** Cancela la cita pendiente antes de elegir otra; `true` si quedó deshecha (o ya era una cita confirmada). */
+  private async resolverLaPendiente(id: string): Promise<boolean> {
+    const asentada = await escribirYAsentar(this.#host, id, cancelarCita);
+    if (asentada.tipo === 'leida' && asentada.cita.estado !== 'Running' && !asentada.cita.deshaciendo) {
+      return true;
+    }
+    this.avisoDeLaCita.set(mensajeDeLaCita(asentada.rechazo?.code ?? ''));
+    return false;
   }
 
   /**
@@ -2346,6 +2642,11 @@ export class EhrElementComponent implements OnInit {
 
   formatMinor(minorUnits: number, currency: string): string {
     return formatearImporte(desdeMenores(minorUnits, currency), currency);
+  }
+
+  /** Un importe del contrato de la cita, que viaja en unidades MAYORES de su moneda. */
+  importeDe(total: { readonly amount: number; readonly currency: string }): string {
+    return formatearImporte(total.amount, total.currency);
   }
 
   formatDate(iso: string): string {
