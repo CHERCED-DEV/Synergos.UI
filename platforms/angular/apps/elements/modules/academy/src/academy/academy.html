@@ -60,6 +60,13 @@
   @if (errorMessage()) {
     <p class="academy__error" role="alert">{{ errorMessage() }}</p>
   }
+  <!-- Lo que se pudo leer de la matrícula del enlace del aviso (010): en la raíz y no en la ficha, porque sin sesión o
+       con una matrícula ajena no hay ficha que abrir y el aviso tiene que verse igual. La región sólo ANUNCIA (pinta su
+       texto con un color fijo que no sigue el tema); lo visible es un párrafo con los colores de la academia. -->
+  <syn-live-region [message]="avisoDeLaMatricula()" announceInitial />
+  @if (avisoDeLaMatricula(); as aviso) {
+    <p class="academy__mod-notice">{{ aviso }}</p>
+  }
 
   <!-- ═══════════════════════════════ ALUMNO ═══════════════════════════════════ -->
   @if (role() === 'student') {
@@ -295,8 +302,6 @@
               {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
             </button>
           }
-          <!-- Lo que se pudo leer de la matrícula del enlace del aviso: nace con la ficha y se anuncia aunque llegue ya escrito. -->
-          <syn-live-region class="academy__buybox-note" [message]="avisoDeLaMatricula()" [visuallyHidden]="false" announceInitial />
           <p class="academy__buybox-note">
             {{ totalLessons() }} lecciones · {{ durationLabel(detail.course.durationMinutes) }} · Certificado
           </p>
@@ -903,8 +908,12 @@
           (rowaction)="onConsoleAction($event)"
         />
 
-        <!-- Lo que pasó con la última devolución: la región nace con la consola y habla cuando cambia. -->
-        <syn-live-region class="academy__mod-notice" [message]="avisoDeLaDevolucion()" [visuallyHidden]="false" />
+        <!-- Lo que pasó con la última devolución: la región nace con la consola y ANUNCIA cuando cambia; lo visible es un
+             párrafo con los colores de la academia (la región pinta con un color fijo que no sigue el tema). -->
+        <syn-live-region [message]="avisoDeLaDevolucion()" />
+        @if (avisoDeLaDevolucion(); as aviso) {
+          <p class="academy__mod-notice">{{ aviso }}</p>
+        }
 
         @if (moderationNotice(); as aviso) {
           <p

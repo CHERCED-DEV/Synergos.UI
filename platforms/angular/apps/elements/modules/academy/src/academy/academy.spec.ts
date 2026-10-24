@@ -1826,6 +1826,13 @@ describe('La matrícula por la puerta (010-educacion-matricula)', () => {
     fixture.detectChanges();
   }
 
+  /** Los avisos que se VEN (párrafos con los colores de la academia), no los que sólo se anuncian. */
+  function avisosVisibles(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.academy__mod-notice'))
+      .map((nodo) => (nodo.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
   function alertas(): string[] {
     return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"], [role="status"], syn-live-region'))
       .map((nodo) => (nodo.textContent ?? '').trim())
@@ -2035,6 +2042,23 @@ describe('La matrícula por la puerta (010-educacion-matricula)', () => {
 
       expect(puerta.anotadas).toEqual([]);
       expect(component.avisoDeLaMatricula()).toBe('No encontramos esa matrícula.');
+      // Y SE VE aunque no haya ficha abierta (hallado en vivo: la región vivía dentro de la ficha).
+      await flushMicrotasks(5);
+      fixture.detectChanges();
+      expect(component.view()).toBe('catalog');
+      expect(avisosVisibles()).toContain('No encontramos esa matrícula.');
+    });
+
+    it('sin sesión el enlace dice que hay que iniciarla, en el catálogo, sin anotar nada', async () => {
+      window.history.replaceState({}, '', '/?matricula=mat-7');
+      const puerta = puertaDeLaMatricula({ rechazos: { consultar: { code: 'puerta.sesion_requerida', status: 401 } } });
+
+      await montar(puerta);
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+
+      expect(puerta.anotadas).toEqual([]);
+      expect(avisosVisibles()).toContain('Inicia sesión para matricularte.');
     });
   });
 
@@ -2142,6 +2166,7 @@ describe('La matrícula por la puerta (010-educacion-matricula)', () => {
 
     expect(consola.pedidos).toEqual([{ url: expect.stringContaining('/instructor/devolver'), cuerpo: { matricula: 'mat-ana' } }]);
     expect(component.avisoDeLaDevolucion()).toContain('Matrícula devuelta. Reembolso:');
+    expect(avisosVisibles().some((t) => t.startsWith('Matrícula devuelta. Reembolso:'))).toBe(true);
     // Devuelta, la fila sale de la consola al releerla, y con ella la columna.
     expect(component.desk()!.students.map((s) => s.name)).toEqual(['Beto Salas']);
     expect(component.consoleColumns()).toBe(component.studentColumns);
