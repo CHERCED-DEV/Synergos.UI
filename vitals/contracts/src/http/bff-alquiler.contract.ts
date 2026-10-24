@@ -10,6 +10,28 @@
 // lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
 // regla 24 de CLAUDE.md.
 
+export interface AlquilerCancelacionEntrada {
+  readonly alquiler: string;
+}
+
+export interface AlquilerCancelacionPagina {
+  readonly items: readonly AlquilerCancelacionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface AlquilerCancelacionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly alquiler: string | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 export interface AlquilerRentaCotizacion {
   readonly flujo: string;
   readonly datos: { readonly total: { readonly amount: number; readonly currency: string; } | null; readonly garantia: { readonly amount: number; readonly currency: string; } | null; readonly garantiaId: string | null; readonly cobroId: string | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly equipo: string | null; readonly cantidad: number | null; };
@@ -68,6 +90,12 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
 
 /** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
 export interface OperacionesDeLaPuerta {
+  readonly "alquiler.cancelacion": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, AlquilerCancelacionEntrada, AlquilerCancelacionRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, AlquilerCancelacionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, AlquilerCancelacionRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, AlquilerCancelacionPagina, "ninguna">;
+  };
   readonly "alquiler.renta": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, AlquilerRentaEntrada, AlquilerRentaRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, AlquilerRentaRespuesta, "ninguna">;
@@ -100,6 +128,12 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
 export const OPERACIONES_DE_LA_PUERTA = {
+  "alquiler.cancelacion": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
   "alquiler.renta": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },

@@ -3,6 +3,7 @@
 // del CMS, y la tabla de sus avisos. NO se edita a mano.
 
 export * from './avisos';
+export * from './alquiler.cancelacion';
 export * from './alquiler.renta';
 export * from './eventos.compra';
 export * from './reservas.servicio';
