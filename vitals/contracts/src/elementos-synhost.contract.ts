@@ -754,7 +754,7 @@ export interface TourGuideProps {
   readonly autoStart?: boolean;
 }
 
-/** <synergos-travel-shell> · funcionalidad */
+/** <synergos-travel-shell> · funcionalidad · diccionario: Travel.Booking */
 export interface TravelShellProps {
   /** contenido */
   readonly heading?: string;
@@ -2710,8 +2710,8 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
   nombre: "travel-shell",
   tipo: "funcionalidad",
   record: "TravelShellProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Travel.Booking"],
+  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
   campos: ["heading","subheading","apiBase","bookingPath"],
   listas: {},
   selectores: [],
