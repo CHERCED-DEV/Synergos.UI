@@ -1,8 +1,15 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  definirCoordinador,
+  type CoordinadorDelFlujo,
+  type Peticion,
+  type ResultadoDelFlujo,
+} from '@synergos/vitals-core';
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent, sanitizeAlquilerConfig } from './alquiler';
-import { normalizeRental, readRentalState } from './alquiler.model';
+import { normalizeAgreement, normalizeRental, readRentalState } from './alquiler.model';
+import { montoTecleado } from './alquiler-personal';
 import { asentar } from '../../../../../../tools/asentar';
 
 /**
@@ -69,6 +76,7 @@ const CONTRATO = {
   issuedUtc: '2026-09-22T15:00:00+00:00',
   seal: 'a1b2c3d4e5f60718',
   verified: true,
+  state: 'reserved',
 };
 
 const ALQUILER = {
@@ -307,12 +315,13 @@ describe('AlquilerElementComponent', () => {
   it('un 409 enseña el MOTIVO del borde y un 503 NO', async () => {
     // Los dos traen `code` y `detail`. Enseñar el del 503 le diría a quien alquila que el
     // problema es lo que pidió, cuando el problema es que el servicio no está (#129).
+    let code = 'alquiler.not_cancellable';
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
       if ((init?.method ?? 'GET') === 'GET') {
         return new Response(JSON.stringify([EQUIPO]), { status: 200 });
       }
       return new Response(
-        JSON.stringify({ code: 'alquiler.window_too_long', detail: 'Este equipo no se alquila por más de 30 días.' }),
+        JSON.stringify({ code, detail: 'Este alquiler ya no se puede cancelar.' }),
         { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
       );
     }));
@@ -320,7 +329,13 @@ describe('AlquilerElementComponent', () => {
 
     await component.devolver('alq-1', 0);
     await drenar();
-    expect(component.problema()).toBe('Este equipo no se alquila por más de 30 días.');
+    expect(component.problema()).toBe('Este alquiler ya no se puede cancelar.');
+
+    // Con texto propio para su código (sección Alquiler.Errors, T033), el texto se elige por el código.
+    code = 'alquiler.window_too_long';
+    await component.devolver('alq-1', 0);
+    await drenar();
+    expect(component.problema()).toBe('No alquilamos por tantos días.');
   });
 
   it('la llave de idempotencia es la MISMA en dos intentos sobre lo mismo', async () => {
@@ -352,7 +367,8 @@ describe('AlquilerElementComponent', () => {
     await component.devolver('alq-1', 120000);
     await drenar();
 
-    const cierres = llamadas.filter((l) => l.url.includes('/return'));
+    // Los POST: «mis alquileres» también lee `/staff/returns` para saber si enseñar la cara del personal.
+    const cierres = llamadas.filter((l) => l.metodo === 'POST' && l.url.includes('/return'));
     const llaves = cierres.map((c) => (c.cuerpo as Record<string, string>)['idempotencyKey']);
     // Sin el monto dentro, corregir el daño y repetir devolvería el resultado de antes
     // contestando 200 y diciendo «puesto».
@@ -371,15 +387,18 @@ describe('AlquilerElementComponent', () => {
     expect(component.mios()?.estado).toBe('sin-sesion');
   });
 
-  it('el sello tiene TRES respuestas y «no consta» no se pinta como «comprobado»', async () => {
+  it('el sello tiene CUATRO respuestas y «no consta» no se pinta como «comprobado»', async () => {
     servidor(GUION_FELIZ);
     await montar();
+    const contrato = normalizeAgreement(CONTRATO)!;
 
-    expect(component.sello({ ...CONTRATO, verified: true })).toBe('comprobado');
-    expect(component.sello({ ...CONTRATO, verified: false })).toBe('no-cuadra');
+    expect(component.sello({ ...contrato, verified: true })).toBe('comprobado');
+    expect(component.sello({ ...contrato, verified: false })).toBe('no-cuadra');
     // La clave ausente llega como `null` por el normalizador, y ésa es la tercera respuesta:
     // un comprobante pintado como válido sin haberlo comprobado es lo que el sello impide.
-    expect(component.sello({ ...CONTRATO, verified: null })).toBe('sin-comprobar');
+    expect(component.sello({ ...contrato, verified: null })).toBe('sin-comprobar');
+    // Y la cuarta (T034): el servicio de firma no contestó al emitirlo. Ni «no cuadra» ni «comprobado».
+    expect(component.sello({ ...contrato, verified: null, sealPending: true })).toBe('pendiente');
   });
 
   it('un alquiler con un estado que no se reconoce se deja FUERA en vez de darlo por reservado', async () => {
@@ -519,6 +538,490 @@ describe('AlquilerElementComponent', () => {
     expect(component.garantiaRetenida(400000, '')).toBe('Deposit held: 400.000');
     // La clave que la página no trae sale por su respaldo, no vacía.
     expect(component.txt.misAlquileres).toBe('Mis alquileres');
+  });
+});
+
+// ── «Mis alquileres» (T034) ──────────────────────────────────────────────────────────────────────
+describe('«Mis alquileres»', () => {
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+
+  async function montar(contratos: unknown[]): Promise<ReturnType<typeof servidor>> {
+    const s = servidor({
+      ...GUION_FELIZ,
+      'GET /api/alquiler/rentals': contratos,
+      'POST /api/alquiler/rentals/alq-1/declare-return': { ...ALQUILER, state: 'declared' },
+    });
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    component = fixture.componentInstance;
+    component.ahora = () => new Date(2026, 9, 1, 10, 0, 0);
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler' });
+    fixture.detectChanges();
+    await drenar();
+    await component.cargarMios();
+    fixture.detectChanges();
+    return s;
+  }
+
+  const texto = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
+  const botones = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.sg-alquiler__agreement button'))
+    .map((b) => b.textContent?.trim());
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('«Devolví el equipo» DECLARA la devolución, sin monto, y no la confirma', async () => {
+    const { llamadas } = await montar([CONTRATO]);
+
+    await component.declarar('alq-1');
+    await drenar();
+
+    const escritas = llamadas.filter((l) => l.metodo === 'POST');
+    expect(escritas.map((l) => l.url)).toEqual(['/api/alquiler/rentals/alq-1/declare-return']);
+    expect(Object.keys(escritas[0]!.cuerpo as object)).toEqual(['idempotencyKey']);
+  });
+
+  it('lo confirmado se puede declarar y, antes del día de inicio, cancelar, con hasta cuándo', async () => {
+    await montar([CONTRATO]);
+
+    expect(texto()).toContain('Confirmado');
+    expect(texto()).toContain('Puedes cancelar hasta el 2026-10-04.');
+    expect(botones()).toEqual(['Devolví el equipo', 'Cancelar']);
+  });
+
+  it('desde el día de inicio ya no se ofrece cancelar', async () => {
+    await montar([{ ...CONTRATO, start: '2026-10-01' }]);
+
+    expect(botones()).toEqual(['Devolví el equipo']);
+    expect(texto()).not.toContain('Puedes cancelar');
+  });
+
+  it('declarada, devuelta o cancelada no ofrece nada, y dice en qué quedó', async () => {
+    await montar([
+      { ...CONTRATO, rentalId: 'alq-d', state: 'declared' },
+      {
+        ...CONTRATO, rentalId: 'alq-r', state: 'returned',
+        outcome: { confirmedUtc: '2026-10-13T15:00:00Z', damage: 50000, depositReleased: 750000, verified: true, sealPending: false },
+      },
+      {
+        ...CONTRATO, rentalId: 'alq-x', state: 'returned',
+        outcome: { confirmedUtc: '2026-10-14T15:00:00Z', damage: 0, depositReleased: null, verified: null, sealPending: false },
+      },
+      { ...CONTRATO, rentalId: 'alq-c', state: 'cancelled' },
+    ]);
+
+    expect(botones()).toEqual([]);
+    expect(texto()).toContain('Devolución declarada: el personal la está revisando');
+    expect(texto()).toContain(
+      `Devuelto el 2026-10-13. Daño cobrado: ${component.plata(50000, 'COP')}. Garantía liberada: ${component.plata(750000, 'COP')}.`);
+    expect(texto()).toContain('Devuelto el 2026-10-14. No sabemos si la garantía ya se liberó: escríbenos.');
+    expect(texto()).toContain('Cancelado');
+  });
+
+  it('un sello pendiente se dice distinto de «no cuadra» y de «comprobado»', async () => {
+    await montar([{ ...CONTRATO, verified: null, sealPending: true, seal: '' }]);
+
+    expect(texto()).toContain('Sello pendiente: lo ponemos en cuanto el servicio de firma responda.');
+    expect(texto()).not.toContain('NO cuadra');
+    expect(texto()).not.toContain('Sello comprobado');
+  });
+
+  it('un estado que no se reconoce no se pinta como confirmado ni ofrece acciones', async () => {
+    await montar([{ ...CONTRATO, state: 'compensated' }]);
+
+    expect(botones()).toEqual([]);
+    expect(texto()).not.toContain('Confirmado');
+  });
+});
+
+// ── La cara del personal (T035) ──────────────────────────────────────────────────────────────────
+describe('la cara del personal', () => {
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+  const DECLARADA = { ...CONTRATO, state: 'declared', declaredUtc: '2026-09-28T09:00:00Z' };
+
+  /** Un borde con la bandeja del personal en `staff`: 200 con su lista, o 403 si no es del personal. */
+  async function montar(staff: 'personal' | 'inquilino', cierre: { status: number; cuerpo: unknown } = { status: 200, cuerpo: ALQUILER }) {
+    const llamadas: { metodo: string; url: string; cuerpo: unknown }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      const metodo = (init?.method ?? 'GET').toUpperCase();
+      llamadas.push({ metodo, url, cuerpo: init?.body ? JSON.parse(String(init.body)) : null });
+      const json = (status: number, cuerpo: unknown) => new Response(JSON.stringify(cuerpo), {
+        status, headers: { 'Content-Type': status >= 400 ? 'application/problem+json' : 'application/json' },
+      });
+      if (url.endsWith('/staff/returns')) {
+        return staff === 'personal' ? json(200, [DECLARADA]) : json(403, { code: 'alquiler.staff_required', detail: '' });
+      }
+      if (url.endsWith('/rentals') && metodo === 'GET') return json(200, [CONTRATO]);
+      if (metodo === 'POST') return json(cierre.status, cierre.cuerpo);
+      return json(200, [EQUIPO]);
+    }));
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    component = fixture.componentInstance;
+    component.ahora = () => new Date('2026-10-01T12:00:00Z');
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler' });
+    fixture.detectChanges();
+    await drenar();
+    await component.cargarMios();
+    await drenar();
+    fixture.detectChanges();
+    return llamadas;
+  }
+
+  const pestanas = () => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.sg-alquiler__tab'))
+    .map((b) => b.textContent?.trim());
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('al personal le aparece la pestaña y ve cuánto lleva esperando cada devolución', async () => {
+    await montar('personal');
+    expect(pestanas()).toContain('Devoluciones por confirmar');
+
+    await component.cargarPersonal();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Declarada hace 3 día(s)');
+  });
+
+  it('a quien no es del personal (403) la cara NO se le enseña, ni vacía', async () => {
+    await montar('inquilino');
+
+    expect(component.personal()).toBeNull();
+    expect(pestanas()).not.toContain('Devoluciones por confirmar');
+  });
+
+  it('confirmar manda el daño en pesos —el punto es de miles— y relee la bandeja', async () => {
+    const llamadas = await montar('personal');
+    await component.cargarPersonal();
+
+    await component.confirmarDevolucion('alq-1', '50.000');
+    await drenar();
+
+    const cierre = llamadas.find((l) => l.metodo === 'POST')!;
+    expect(cierre.url).toBe('/api/alquiler/rentals/alq-1/return');
+    expect((cierre.cuerpo as { amount: number }).amount).toBe(50000);
+    expect(llamadas.filter((l) => l.url.endsWith('/staff/returns')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('un monto que no se puede leer no se manda, y un daño que supera la garantía se dice por su código', async () => {
+    const llamadas = await montar('personal', { status: 409, cuerpo: { code: 'alquiler.damage_exceeds_deposit', detail: 'x' } });
+    await component.cargarPersonal();
+
+    await component.confirmarDevolucion('alq-1', '1.234,5');
+    expect(llamadas.some((l) => l.metodo === 'POST')).toBe(false);
+    expect(component.problema()).toBe('Escribe el monto en pesos, sin centavos: 50000 o 50.000.');
+
+    await component.cancelarComoPersonal('alq-1', '900.000');
+    await drenar();
+    expect(llamadas.filter((l) => l.metodo === 'POST').map((l) => (l.cuerpo as { amount: number }).amount)).toEqual([900000]);
+    expect(component.problema()).toBe('El daño supera la garantía retenida.');
+  });
+});
+
+describe('montoTecleado (es-CO: el punto es de miles)', () => {
+  it.each([
+    ['', 0], ['0', 0], ['50000', 50000], ['50.000', 50000], ['500.000', 500000], ['1.234.567', 1234567],
+  ])('«%s» es %d', (valor, esperado) => {
+    expect(montoTecleado(valor)).toBe(esperado);
+  });
+
+  it.each(['1.234,5', '50,5', '5.00', '-1', '12.34', 'mil'])('«%s» no se lee', (valor) => {
+    expect(montoTecleado(valor)).toBeNull();
+  });
+});
+
+// ── La renta por la PUERTA (T032, T033) ──────────────────────────────────────────────────────────
+//
+// El elemento va dentro del coordinador que coloca la vista (`<synergos-flujo flujo="alquiler.renta">`), y su
+// transporte es un doble con la forma de la puerta: lo que se mira es qué operación sale, con qué cuerpo y con
+// qué llave, y que la ruta directa del CMS NO se toque para la transacción (sí para el catálogo y el contrato).
+describe('AlquilerElementComponent por la puerta', () => {
+  beforeAll(() => definirCoordinador());
+
+  let fixture: ComponentFixture<AlquilerElementComponent>;
+  let component: AlquilerElementComponent;
+  let flujo: CoordinadorDelFlujo;
+  const puerta: Peticion[] = [];
+
+  const renta = (estado: string, extra: Record<string, unknown> = {}) => ({
+    id: 'pta-1',
+    flujo: 'alquiler.renta',
+    numero: 'BB1A3E18',
+    estado,
+    datos: {
+      total: { amount: 270000, currency: 'COP' },
+      garantia: { amount: 800000, currency: 'COP' },
+      garantiaId: 'pg-g',
+      cobroId: 'pg-c',
+      ventana: { start: '2026-11-05T00:00:00Z', end: '2026-11-08T00:00:00Z' },
+      equipo: 'andamio-6m',
+      cantidad: 2,
+    },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+    ...extra,
+  });
+
+  const ok = (valor: unknown): ResultadoDelFlujo<unknown> => ({ ok: true, valor, estado: 200, correlacion: '' });
+  const no = (code: string, transient = false): ResultadoDelFlujo<unknown> => ({
+    ok: false, rechazo: { code, status: 409, transient, detail: `detalle de ${code}`, origen: 'servidor', extra: {} }, correlacion: '',
+  });
+
+  /** La puerta por operación: lo que contesta a cada una, y por defecto la renta feliz. */
+  function laPuerta(respuestas: Partial<Record<string, () => ResultadoDelFlujo<unknown>>> = {}): void {
+    flujo.enviar = (p) => {
+      puerta.push(p);
+      const op = p.url.replace(/^\/api\/flujos\/alquiler\.renta\//, '').replace(/\?.*$/, '');
+      const propia = respuestas[op];
+      if (propia) return Promise.resolve(propia());
+      switch (op) {
+        case 'cotizar': return Promise.resolve(ok({ flujo: 'alquiler.renta', datos: renta('Running').datos }));
+        case 'abrir': return Promise.resolve(ok(renta('Running')));
+        case 'cerrar': return Promise.resolve(ok(renta('Completed')));
+        case 'cancelar': return Promise.resolve(ok(renta('Compensated')));
+        case 'consultar': return Promise.resolve(ok(renta('Running')));
+        default: return Promise.resolve(no('puerta.operacion_desconocida'));
+      }
+    };
+  }
+
+  async function montar(
+    rentalPath: 'puerta' | 'directa' = 'puerta',
+    respuestas: Partial<Record<string, () => ResultadoDelFlujo<unknown>>> = {},
+  ): Promise<void> {
+    puerta.length = 0;
+    flujo = document.createElement('synergos-flujo') as CoordinadorDelFlujo;
+    flujo.setAttribute('flujo', 'alquiler.renta');
+    document.body.appendChild(flujo);
+    laPuerta(respuestas);
+
+    await TestBed.configureTestingModule({
+      imports: [AlquilerElementComponent],
+      providers: [provideZonelessChangeDetection(), AlquilerApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AlquilerElementComponent);
+    flujo.appendChild(fixture.nativeElement as HTMLElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler', rentalPath });
+    fixture.detectChanges();
+    await drenar();
+  }
+
+  /** La ficha abierta y el pedido puesto: 2 unidades, del 5 al 8 de noviembre. */
+  async function pedir(): Promise<void> {
+    await component.abrir('andamio-6m');
+    component.desde.set('2026-11-05');
+    component.hasta.set('2026-11-08');
+    component.unidades.set(2);
+    await drenar();
+  }
+
+  const ops = () => puerta.map((p) => p.url);
+
+  afterEach(() => {
+    flujo?.remove();
+    sessionStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  it('cotiza, aparta y confirma por la puerta; el contrato lo emite el CMS al leerlo', async () => {
+    const { llamadas } = servidor({ ...GUION_FELIZ, 'GET /api/alquiler/rentals/pta-1/agreement': { ...CONTRATO, rentalId: 'pta-1' } });
+    await montar();
+    await pedir();
+
+    await component.cotizar();
+    expect(component.cotizacionPuerta()?.total).toEqual({ amount: 270000, currency: 'COP' });
+    await component.reservar();
+    expect(component.apartada()).toBe(true);
+    await component.confirmar();
+    await drenar();
+
+    expect(ops()).toEqual([
+      '/api/flujos/alquiler.renta/cotizar',
+      '/api/flujos/alquiler.renta/abrir',
+      '/api/flujos/alquiler.renta/cerrar?id=pta-1',
+    ]);
+    expect(puerta[0]!.cabeceras['Idempotency-Key']).toBeUndefined();
+    expect(puerta[1]!.cabeceras['Idempotency-Key']).toMatch(/^[0-9a-f]{32}$/);
+    expect(component.renta()?.estado).toBe('Completed');
+    expect(component.contratoPuerta()?.rentalId).toBe('pta-1');
+    // La transacción no tocó la ruta directa: sólo el catálogo, la ficha y el contrato.
+    expect(llamadas.filter((l) => l.metodo === 'POST')).toEqual([]);
+    expect(llamadas.some((l) => l.url.endsWith('/api/alquiler/rentals/pta-1/agreement'))).toBe(true);
+  });
+
+  it('el cuerpo de abrir y de cotizar lleva SÓLO equipo, unidades y fechas: el precio lo pone el servidor', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+
+    await component.cotizar();
+    await component.reservar();
+
+    const esperado = {
+      equipo: 'andamio-6m',
+      unidades: [{ unidad: 1 }, { unidad: 2 }],
+      ventana: { start: '2026-11-05T00:00:00Z', end: '2026-11-08T00:00:00Z' },
+    };
+    expect(JSON.parse(puerta[0]!.cuerpo ?? '{}')).toEqual(esperado);
+    expect(JSON.parse(puerta[1]!.cuerpo ?? '{}')).toEqual(esperado);
+  });
+
+  it('lo apartado por la puerta se confirma por la puerta aunque la página diga hoy «directa»', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar('puerta');
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    fixture.componentRef.setInput('config', { apiBase: '/api/alquiler', rentalPath: 'directa' });
+    fixture.detectChanges();
+    await component.confirmar();
+    await drenar();
+
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/cerrar?id=pta-1');
+    expect(llamadas.filter((l) => l.metodo === 'POST')).toEqual([]);
+  });
+
+  it('por la directa no sale nada a la puerta', async () => {
+    const { llamadas } = servidor(GUION_FELIZ);
+    await montar('directa');
+    await pedir();
+
+    await component.cotizar();
+    await component.reservar();
+
+    expect(puerta).toEqual([]);
+    expect(llamadas.filter((l) => l.metodo === 'POST').map((l) => l.url)).toEqual(['/api/alquiler/quote', '/api/alquiler/rentals']);
+  });
+
+  it('sin oferta no se ofrece reservar y se dice que no se puede alquilar ahora', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    laPuerta({ cotizar: () => no('alquiler.equipment_not_offered') });
+    await pedir();
+
+    await component.cotizar();
+    fixture.detectChanges();
+
+    expect(component.cotizacionPuerta()).toBeNull();
+    expect(component.problema()).toBe('Este equipo no se puede alquilar ahora.');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Reservar');
+  });
+
+  it('cada rechazo dice lo suyo por su código, con los límites de la ficha', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+
+    laPuerta({ abrir: () => no('booking.at_capacity') });
+    await component.reservar();
+    expect(component.problema()).toBe('No quedan unidades de este equipo en esas fechas.');
+
+    laPuerta({ abrir: () => no('alquiler.window_out_of_bounds') });
+    await component.reservar();
+    expect(component.problema()).toBe('Este equipo se alquila entre 3 y 30 días.');
+
+    // Un código que la pantalla no conoce no se traduce a algo concreto: el genérico de la operación.
+    laPuerta({ abrir: () => no('booking.algo_nuevo') });
+    await component.reservar();
+    expect(component.problema()).toBe('No pudimos reservar el equipo. Vuelve a intentarlo.');
+  });
+
+  it('soltar lo apartado lo deshace y dice que no se cobró nada', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    await component.soltar();
+
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/cancelar?id=pta-1');
+    expect(component.apartada()).toBe(false);
+    expect(component.aviso()).toBe('Reserva cancelada: no se cobró nada.');
+  });
+
+  it('al volver a la ficha retoma lo apartado desde esta pestaña, y lo vencido lo dice', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+
+    await component.abrir('andamio-6m');
+    expect(ops().at(-1)).toBe('/api/flujos/alquiler.renta/consultar?id=pta-1');
+    expect(component.apartada()).toBe(true);
+    expect([component.desde(), component.hasta(), component.unidades()]).toEqual(['2026-11-05', '2026-11-08', 2]);
+
+    laPuerta({ consultar: () => ok(renta('Compensated')) });
+    await component.abrir('andamio-6m');
+    expect(component.apartada()).toBe(false);
+    expect(component.aviso()).toBe('Tu reserva venció y no se cobró nada. Vuelve a reservar.');
+  });
+
+  it('el enlace del correo (?alquiler=) consulta la renta, emite su contrato y abre «mis alquileres» con ella', async () => {
+    window.history.replaceState(null, '', '/alquiler/?alquiler=pta-1&utm=correo');
+    const { llamadas } = servidor({
+      ...GUION_FELIZ,
+      'GET /api/alquiler/rentals/pta-1/agreement': { ...CONTRATO, rentalId: 'pta-1' },
+      'GET /api/alquiler/rentals': [{ ...CONTRATO, rentalId: 'pta-1' }],
+    });
+    await montar('puerta', { consultar: () => ok(renta('Completed')) });
+    await drenar();
+
+    expect(ops()).toEqual(['/api/flujos/alquiler.renta/consultar?id=pta-1']);
+    expect(llamadas.some((l) => l.url.endsWith('/api/alquiler/rentals/pta-1/agreement'))).toBe(true);
+    expect(component.vista()).toBe('mios');
+    expect(component.resaltado()).toBe('pta-1');
+    // Leído, el parámetro sale de la URL (lo demás de la consulta se queda): si no, cada recarga lo reabriría.
+    expect(window.location.search).toBe('?utm=correo');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('sin sesión el enlace del correo pide entrar y CONSERVA el parámetro para volver', async () => {
+    window.history.replaceState(null, '', '/alquiler/?alquiler=pta-1');
+    servidor(GUION_FELIZ);
+    await montar('puerta', { consultar: () => no('puerta.sesion_requerida') });
+    await drenar();
+
+    expect(component.mios()?.estado).toBe('sin-sesion');
+    expect(window.location.search).toBe('?alquiler=pta-1');
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('una confirmación que falla se CONSULTA antes de decir nada', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await pedir();
+    await component.cotizar();
+    await component.reservar();
+    laPuerta({ cerrar: () => no('payments.unreachable', true), consultar: () => ok(renta('Running')) });
+
+    await component.confirmar();
+
+    expect(ops().slice(-2)).toEqual(['/api/flujos/alquiler.renta/cerrar?id=pta-1', '/api/flujos/alquiler.renta/consultar?id=pta-1']);
+    expect(component.apartada()).toBe(true);
+    expect(component.problema()).toBe('No pudimos confirmar el alquiler. Vuelve a intentarlo.');
   });
 });
 

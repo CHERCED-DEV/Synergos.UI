@@ -5,6 +5,8 @@ import {
   cerrarSaludCita,
   consultarSaludCita,
   cotizarSaludCita,
+  instanteEnZona,
+  zonaValida,
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
@@ -125,50 +127,10 @@ export async function escribirYAsentar(
 
 // ── La hora del sitio ───────────────────────────────────────────────────────────────────────────────
 //
-// Interino (NN-19): la misma aritmética que `reserva/reserva.horario.ts` (011). Un elemento publicado es una
-// app y no se importa de otro, y subirla a `vitals/core` es del núcleo; cuando viva allí, esto se va.
+// La aritmética es la de `vitals/core` (`formato/hora-del-sitio.ts`, NN-21). Aquí sólo queda lo de la cita: la
+// franja con su duración.
 
-const HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const FECHA = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/** Si `zona` es una zona IANA que el navegador conoce. Sin ella no se arma ninguna franja. */
-export function zonaValida(zona: string | null | undefined): zona is string {
-  if (!zona) return false;
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: zona });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function desfaseMs(instante: number, zona: string): number {
-  const partes = new Intl.DateTimeFormat('en-US', {
-    timeZone: zona,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(instante));
-  const valor = (tipo: Intl.DateTimeFormatPartTypes): number => Number(partes.find((p) => p.type === tipo)?.value ?? 0);
-  const reloj = Date.UTC(valor('year'), valor('month') - 1, valor('day'), valor('hour') % 24, valor('minute'), valor('second'));
-  return reloj - Math.floor(instante / 1000) * 1000;
-}
-
-/** El instante UTC de una fecha (`YYYY-MM-DD`) y una hora (`HH:mm`) DE RELOJ en `zona`. */
-export function instanteEnZona(fecha: string, hora: string, zona: string): number {
-  const f = FECHA.exec(fecha);
-  const h = HORA.exec(hora);
-  if (!f || !h) return Number.NaN;
-  const reloj = Date.UTC(Number(f[1]), Number(f[2]) - 1, Number(f[3]), Number(h[1]), Number(h[2]));
-  const primero = reloj - desfaseMs(reloj, zona);
-  // Si en medio hay un cambio de hora, el desfase del instante buscado no es el del de reloj.
-  const segundo = reloj - desfaseMs(primero, zona);
-  return segundo === primero ? primero : segundo;
-}
+export { relojEnZona, zonaValida } from '@synergos/vitals-core';
 
 const iso = (instante: number): string => new Date(instante).toISOString().replace('.000Z', 'Z');
 
@@ -181,21 +143,4 @@ export function ventanaDeLaCita(fecha: string, hora: string, minutos: number, zo
   const inicio = instanteEnZona(fecha, hora, zona);
   if (!Number.isFinite(inicio) || !(minutos > 0)) return null;
   return { start: iso(inicio), end: iso(inicio + minutos * 60_000) };
-}
-
-/** El día (`YYYY-MM-DD`) y la hora (`HH:mm`) de un instante en `zona`: lo que la pantalla muestra de la cita. */
-export function relojEnZona(instante: string, zona: string | null | undefined): { readonly fecha: string; readonly hora: string } | null {
-  const ms = Date.parse(instante);
-  if (!Number.isFinite(ms) || !zonaValida(zona)) return null;
-  const partes = new Intl.DateTimeFormat('en-CA', {
-    timeZone: zona,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).formatToParts(new Date(ms));
-  const p = (tipo: Intl.DateTimeFormatPartTypes): string => partes.find((x) => x.type === tipo)?.value ?? '';
-  return { fecha: `${p('year')}-${p('month')}-${p('day')}`, hora: `${p('hour')}:${p('minute')}` };
 }

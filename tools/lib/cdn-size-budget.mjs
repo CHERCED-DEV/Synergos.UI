@@ -111,7 +111,12 @@ export const TECHO_POR_TIER = {
  */
 export const EXCEPCIONES = {
   academy: { techo: 484 * KB, razon: 'vertical completa: cursos, matrícula, progreso. 449 KB medidos, 257 de shells (57 %)' },
-  realty: { techo: 428 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas. 397 KB medidos, 229 de shells (58 %)' },
+  // Resubido el 2026-10-22 (008-propiedades-visita): 428,7 KB medidos, contra 402,3 del realty de master (85a5115, el
+  // mismo día): +26,4 KB de la línea. Lo que entró es la visita por la PUERTA, que en master no está: el coordinador y el
+  // transporte de los flujos de vitals-core, los envoltorios generados de propiedades.visita y de su cancelación, las
+  // franjas de la agenda (la lectura sin saga), «Mis visitas» de la puerta y cancelar una confirmada con su pregunta:
+  // funcionalidad, no código muerto. El margen, el ~8 % de la regla de arriba.
+  realty: { techo: 463 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas y la visita por la puerta con su cancelación. 429 KB medidos el 2026-10-22' },
   // Resubido el 2026-10-14 (ADR 0140, CMS#201): 423,1 KB medidos, 233 de shells (55 %) y 144 del
   // propio componente. Lo que entró desde los 390 es la compra por la PUERTA (F4: abrir/cerrar,
   // asistentes y entradas por el artefacto, la sesión que vence), el cupón de verdad y su
@@ -124,10 +129,27 @@ export const EXCEPCIONES = {
   blogs: { techo: 356 * KB, razon: 'vertical completa: índice, artículo, comentarios. 329 KB medidos, 142 de shells (43 %)' },
   gov: { techo: 344 * KB, razon: 'vertical completa: trámites, formularios, expediente. 319 KB medidos, 181 de shells (57 %)' },
   ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas. 288 KB medidos, 109 de shells (38 %)' },
-  storefront: { techo: 456 * KB, razon: 'tienda entera: catálogo, carrito, checkout. 423 KB medidos, 253 de shells (60 %)' },
+  // Resubido el 2026-10-22 (ADR 0140, 004-tienda-compra): 459,1 KB medidos en el CI de master
+  // `87724914`, 459,5 (470 570 bytes) sobre el merge con 003, que le suma 424 de `salud.cita`, y 254
+  // de shells (55 %). Lo que entró desde los 426 que daba el mismo build justo antes de la línea es
+  // la compra por la PUERTA (US 1–8): +22,7 KB del propio componente (la compra con sus fallos y sus
+  // inciertos, la sesión que vence, la compra pendiente, el cupón y «Mis compras» con su devolución),
+  // +8,5 del cliente genérico de la puerta (`vitals/core/src/flujos`, que el storefront carga por
+  // primera vez) y +1,8 de las tablas del contrato HTTP; el camino directo sigue vivo al lado.
+  // Funcionalidad, no código muerto. Se miró qué reducir antes de subirlo: los literales repetidos
+  // suman 666 bytes, y el grueso evitable vuelve a ser del build —7 033 escapes `\uXXXX` de los `ɵɵ`,
+  // 42 KB de los 459—, que es la decisión de `charset` que ya anotó eventos, no un recorte de este
+  // vertical.
+  storefront: { techo: 480 * KB, razon: 'tienda entera: catálogo, carrito, checkout, compra por la puerta, compra pendiente, cupón y devoluciones. 459 KB medidos el 2026-10-22, 254 de shells (55 %)' },
   'travel-shell': { techo: 440 * KB, razon: 'vertical completa: búsqueda, pax, itinerario. 408 KB medidos, 263 de shells (65 %)' },
   seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
   'booking-wizard': { techo: 100 * KB, razon: 'asistente de reserva: pasos, cobro y acuse. 89 KB medidos, 41 de shells (46 %) — el tier «module» son 72 KB y ninguna vertical cabe ahí' },
+  // Entró el 2026-10-22 (línea 005, ADR 0140): 87,0 KB medidos (89 129 B) desde los 49,6 de antes de la puerta. Medido
+  // qué entró, reempaquetando la entrada AOT con metafile: 0 de shells; 68 KB del propio componente con su plantilla
+  // —el catálogo, la renta por la puerta (cotizar, apartar, retomar, confirmar), «mis alquileres» con sus estados y la
+  // cara del personal— y 8,6 de la puerta común (vitals/core/flujos: coordinador, transporte, rechazos). Lo evitable no
+  // es de este vertical: 6,3 KB son escapes `ɵ` de Angular, lo mismo que en eventos (`charset: 'utf8'` es del build).
+  alquiler: { techo: 94 * KB, razon: 'vertical completa: catálogo, renta por la puerta, mis alquileres y la cara del personal. 87 KB medidos el 2026-10-22, 0 de shells; 68 del componente y 8,6 de la puerta' },
   'product-detail': { techo: 104 * KB, razon: 'ficha con galería, variantes y motor de precio' },
 };
 

@@ -89,6 +89,12 @@
   background: var(--al-surface);
 }
 
+// La renta que trajo el enlace del correo (T036): la misma tarjeta, señalada con el color de acción del tema.
+.sg-alquiler__agreement--resaltado {
+  border-color: var(--al-brand);
+  box-shadow: 0 0 0 1px var(--al-brand);
+}
+
 .sg-alquiler__cover,
 .sg-alquiler__shot {
   width: 100%;
@@ -106,6 +112,12 @@
   margin: 0;
   font-size: 0.85rem;
   color: var(--al-muted);
+
+  // El aviso de la puerta va en un syn-live-region VISIBLE (T032): su texto toma el color del tema de aquí y no el gris
+  // fijo del primitivo, que sobre el fondo de los temas oscuros daba 1,4:1 (medido en dark y eventsNight).
+  ::ng-deep .syn-live-region {
+    color: inherit;
+  }
 }
 
 .sg-alquiler__summary {
