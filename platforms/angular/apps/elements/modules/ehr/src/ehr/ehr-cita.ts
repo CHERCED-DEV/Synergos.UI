@@ -125,7 +125,7 @@ export async function escribirYAsentar(
 
 // ── La hora del sitio ───────────────────────────────────────────────────────────────────────────────
 //
-// Interino (NN-19): la misma aritmética que `reserva/reserva.horario.ts` (011). Un elemento publicado es una
+// Interino (NN-21): la misma aritmética que `reserva/reserva.horario.ts` (011). Un elemento publicado es una
 // app y no se importa de otro, y subirla a `vitals/core` es del núcleo; cuando viva allí, esto se va.
 
 const HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
