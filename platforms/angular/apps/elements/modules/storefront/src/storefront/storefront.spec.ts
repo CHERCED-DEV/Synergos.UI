@@ -1648,6 +1648,44 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       );
       expect(fechas).toEqual(['23 de octubre de 2026, 04:30']);
     });
+
+    it('la ficha de un producto del CMS, sin variantes, lo agrega TAL CUAL con su cantidad: el botón no es mudo', async () => {
+      // El CMS da `variants: []` (medido en vivo: BOLIGRAFO-ALU-001). `selectedVariant` quedaba en `null` y
+      // «Agregar al carrito» volvía sin hacer nada ni decir nada.
+      const boli: ShopProduct = { ...PRODUCT_A, id: 'BOLI-1', title: 'Bolígrafo de aluminio', amount: 38_000 };
+      installMemoryStorage();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          String(url).includes('/product/BOLI-1')
+            ? Promise.resolve(json({ product: boli, variants: [], reviews: [], questions: [], canReview: false }))
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent();
+      component.openProduct(boli);
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.detail()?.variants).toEqual([]);
+      expect(component.selectedVariant()).toBeNull();
+      expect(component.pdpInStock()).toBe(true);
+      component.changeQuantity(1);
+      fixture.detectChanges();
+
+      const agregar = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')).find(
+        (b) => b.textContent?.trim() === 'Agregar al carrito',
+      )!;
+      expect(agregar.disabled).toBe(false);
+      agregar.click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.cartLineCount()).toBe(1);
+      expect(component.cartCount()).toBe(2);
+      expect(component.cartTotalMinor()).toBe(38_000 * 2 * 100);
+      expect(component.addFailedId()).toBeNull();
+    });
   });
 
   describe('consola del vendedor', () => {
