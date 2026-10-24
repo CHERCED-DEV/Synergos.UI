@@ -240,7 +240,7 @@ export interface TreeViewNode {
   readonly expanded?: boolean;
 }
 
-/** <synergos-academy> · funcionalidad */
+/** <synergos-academy> · funcionalidad · diccionario: Academy.Enrollment */
 export interface AcademyProps {
   /** contenido */
   readonly heading?: string;
@@ -248,6 +248,8 @@ export interface AcademyProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly enrollmentPath: string;
 }
 
 /** <synergos-accordion> · pieza */
@@ -784,16 +786,17 @@ export const ACADEMY_SYNHOST: ElementoSynHost<AcademyProps> = {
   nombre: "academy",
   tipo: "funcionalidad",
   record: "AcademyProps",
-  diccionario: [],
-  claves: [],
-  campos: ["heading","subheading","apiBase"],
+  diccionario: ["Academy.Enrollment"],
+  claves: ["Academy.Enrollment.Activating","Academy.Enrollment.Active","Academy.Enrollment.AlreadyEnrolled","Academy.Enrollment.BadRequest","Academy.Enrollment.ChangePlan","Academy.Enrollment.Enroll","Academy.Enrollment.Free","Academy.Enrollment.Generic","Academy.Enrollment.GoToClassroom","Academy.Enrollment.Heading","Academy.Enrollment.Loading","Academy.Enrollment.NotFound","Academy.Enrollment.Pay","Academy.Enrollment.PaymentFailed","Academy.Enrollment.SignInRequired","Academy.Enrollment.Total","Academy.Enrollment.Transient","Academy.Enrollment.Unavailable"],
+  campos: ["heading","subheading","apiBase","enrollmentPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Aprende lo que el mercado pide",
     "subheading": "Catálogo, lecciones e instructores a tu ritmo",
-    "apiBase": "/api/academy"
+    "apiBase": "/api/academy",
+    "enrollmentPath": "directa"
   },
 };
 

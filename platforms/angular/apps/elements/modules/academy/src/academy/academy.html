@@ -250,9 +250,9 @@
       <ng-template #courseCta>
         <div class="academy__buybox">
           <p class="academy__buybox-price">{{ pdpPriceLabel() }}</p>
-          @if (!isFreeCourse() && detail.plans.length > 0) {
+          @if (!isFreeCourse() && planesOfrecidos().length > 0) {
             <ul class="academy__plans" role="radiogroup" aria-label="Planes">
-              @for (plan of detail.plans; track plan.id) {
+              @for (plan of planesOfrecidos(); track plan.id) {
                 <li>
                   <button
                     type="button"
@@ -266,9 +266,9 @@
                       <span class="academy__plan-label">{{ plan.label }}</span>
                       <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
                     </span>
-                    @if (plan.installments) {
-                      <span class="academy__plan-inst">o {{ plan.installments }}</span>
-                    }
+                    <!-- Sin «o N x $X» (lote 8, 010-P1 A): se cobra el total de una vez por los dos caminos, y la
+                         ficha no promete cuotas que nadie cobra en cuotas; el plan en cuotas ni se lista
+                         (D-010-P1, `planesOfrecidos`). El dato sigue en el plan (superset). -->
                     @if (plan.featured) {
                       <span class="academy__plan-tag">Recomendado</span>
                     }
@@ -284,9 +284,19 @@
               }
             </ul>
           }
-          <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="startEnrollment()">
-            {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
-          </button>
+          @if (matriculaDelCurso(); as matricula) {
+            <!-- Ya lo tiene activo (FR-014): el aula, no una segunda matrícula. -->
+            <p class="academy__buybox-note">{{ textoYaMatriculado }}</p>
+            <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="continueLearning(matricula)">
+              {{ textoIrAlAula }}
+            </button>
+          } @else {
+            <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="startEnrollment()">
+              {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
+            </button>
+          }
+          <!-- Lo que se pudo leer de la matrícula del enlace del aviso: nace con la ficha y se anuncia aunque llegue ya escrito. -->
+          <syn-live-region class="academy__buybox-note" [message]="avisoDeLaMatricula()" [visuallyHidden]="false" announceInitial />
           <p class="academy__buybox-note">
             {{ totalLessons() }} lecciones · {{ durationLabel(detail.course.durationMinutes) }} · Certificado
           </p>
@@ -388,7 +398,7 @@
               <fieldset class="academy__form">
                 <legend class="academy__section-title">Elige tu plan</legend>
                 <ul class="academy__plans academy__plans--wizard" role="radiogroup" aria-label="Planes">
-                  @for (plan of detail.plans; track plan.id) {
+                  @for (plan of planesOfrecidos(); track plan.id) {
                     <li>
                       <button
                         type="button"

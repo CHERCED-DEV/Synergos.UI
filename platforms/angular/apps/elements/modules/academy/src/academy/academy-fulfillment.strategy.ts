@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   FulfillmentStrategyBase,
+  SessionStore,
   type FulfillmentConfirmation,
   type FulfillmentPayRequest,
   type FulfillmentPayResult,
@@ -12,11 +13,13 @@ import {
   type SessionItem,
 } from '@synergos/transaction-engine';
 import { AcademyApiClient, AcademyWriteFailedError } from './academy-api.client';
+import { abrirMatricula, cancelarMatricula, cerrarMatricula, consultarMatricula, type MatriculaLeida } from './academy-matricula';
 import {
   ACADEMY_FLOW,
   ACADEMY_KIND,
   type AcademyCourse,
   type AcademyStudent,
+  type CaminoDeLaMatricula,
   type CatalogCriteria,
   type EnrollConfirmation,
   type EnrollResult,
@@ -76,10 +79,20 @@ export interface EnrollSelectionPayload {
   readonly apiBase?: string;
 }
 
-/** PSP instrument the academy hands the strategy on `pay`. */
+/**
+ * Lo que la academia le pasa a la estrategia en `pay` Y en `confirm`. Viaja por llamada: hay UNA estrategia por
+ * página y un campo suyo cruzaría dos instancias.
+ */
 interface AcademyPayInstrument {
   readonly apiBase: string;
   readonly student: AcademyStudent;
+  /** El `<synergos-academy>` de ESTA matrícula: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
+  readonly host?: Element;
+  /**
+   * Por dónde se matricula, como lo DECLARA el CMS (`enrollmentPath`, «directa» por defecto). Una matrícula que ya
+   * salió no lo mira: se termina por el camino por el que salió.
+   */
+  readonly camino?: CaminoDeLaMatricula;
 }
 
 /**
@@ -95,6 +108,13 @@ interface AcademyPayInstrument {
  * puede hacer. The cart is single-line (one course per enrolment); "confirmed"
  * means the matrícula is active and the classroom unlocks. Free courses are already
  * active after `pay` — su `confirm` no sale a la red.
+ *
+ * **La matrícula va por el camino que DECLARA el CMS** (`instrument.camino`, 010-educacion-matricula; ninguno se
+ * retira). Por la **directa**, lo de siempre. Por la **puerta**: `pay` la ABRE —autoriza el cobro, sin mover plata—
+ * con la llave del curso, y `confirm` la CIERRA —captura y avisa— y le pide al CMS que la anote en el libro que abre el
+ * aula; las dos se le piden al `<synergos-flujo>` ancestro con el envoltorio generado. **Nunca se cae de un camino al
+ * otro** —ni ante un 503 de la puerta—: dos caminos para la misma intención cobrarían dos veces. Y una matrícula que ya
+ * salió se termina por el camino por el que salió.
  */
 @Injectable()
 export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
@@ -102,6 +122,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
   protected readonly flow = ACADEMY_FLOW;
 
   readonly #api = inject(AcademyApiClient);
+  readonly #store = inject(SessionStore);
 
   /** Step 1 — catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
@@ -172,6 +193,10 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
     }
     const selection = line.selection as Record<string, unknown>;
     const planId = typeof selection['planId'] === 'string' ? selection['planId'] : '';
+    if (caminoDeLaMatriculaEnCurso(request.session, instrument.camino) === 'puerta') {
+      return this.abrirPorLaPuerta(line, planId, instrument.host);
+    }
+    this.anotar((item) => conElCamino(item, 'directa'));
     const currency = request.session.pricing.currency;
 
     let enroll: EnrollResult;
@@ -201,11 +226,15 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
    * capturado y ofrece reintentar: reconfirmar el mismo `orderRef` es idempotente
    * del otro lado, volver a `enroll` no lo es.
    */
-  override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
+  override async confirm(session: SessionData, instrument?: Readonly<Record<string, unknown>>): Promise<FulfillmentConfirmation> {
     const reference = session.payments[session.payments.length - 1]?.reference ?? '';
     const line = session.items[0];
     if (!line) {
       return { confirmed: false, vouchers: [], reason: 'empty-cart' };
+    }
+    const datos = (instrument ?? {}) as Partial<AcademyPayInstrument>;
+    if (caminoDeLaMatriculaEnCurso(session, datos.camino) === 'puerta') {
+      return this.cerrarPorLaPuerta(line, datos.host);
     }
 
     if (isFreeLine(line)) {
@@ -229,6 +258,111 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
         ? [this.voucher(line, confirmation.enrollmentId, confirmation.status)]
         : [],
     };
+  }
+
+  /**
+   * Por la PUERTA, ABRIR la matrícula con la llave del curso: autoriza el cobro (o lo omite con total cero). El camino
+   * queda en la línea ANTES de salir a la red: desde ahora la matrícula puede existir, y sólo de ese lado. Si la que
+   * vuelve está abierta con OTRO plan (otra pestaña, un cambio de plan), se cancela y se abre la del plan elegido: un
+   * solo cobro, el del plan que la pantalla muestra.
+   */
+  private async abrirPorLaPuerta(line: SessionItem, planId: string, host: Element | undefined): Promise<FulfillmentPayResult> {
+    if (!(host instanceof Element)) {
+      return { accepted: false, reason: 'cliente.sin_coordinador' };
+    }
+    const cursoId = line.productRef;
+    this.anotar((item) => conElCamino(item, 'puerta'));
+    let abierta = await abrirMatricula(host, cursoId, planId || null);
+    if (abierta.ok && abierta.valor.estado === 'Running' && (abierta.valor.plan ?? '') !== planId) {
+      const cancelada = await cancelarMatricula(host, abierta.valor.id);
+      if (!cancelada.ok) {
+        return { accepted: false, reason: cancelada.rechazo.code };
+      }
+      abierta = await abrirMatricula(host, cursoId, planId || null);
+    }
+    if (!abierta.ok) {
+      return { accepted: false, reason: abierta.rechazo.code };
+    }
+    const matricula = abierta.valor;
+    const sesion = this.#store.getValidSession();
+    const total = matricula.total ? aMenores(matricula.total.amount, matricula.total.currency) : 0;
+    this.#store.setSession({
+      ...sesion,
+      items: sesion.items.map((item) => ({ ...item, selection: { ...item.selection, [CAMPO_DE_LA_MATRICULA]: matricula.id } })),
+      pricing: {
+        ...sesion.pricing,
+        currency: matricula.total?.currency ?? sesion.pricing.currency,
+        totalAmount: total,
+        balanceDue: total,
+      },
+    });
+    return { accepted: true, reference: matricula.id };
+  }
+
+  /**
+   * Por la PUERTA, CERRAR la matrícula (captura y avisa) y pedirle al CMS que la anote en el libro que abre el aula.
+   * «Activa» sólo cuando el CMS la anotó: si cerrar llegó y anotar no, el cobro ya está y el reintento repite las dos
+   * cosas, que son idempotentes (y «mi aprendizaje» la reconcilia igual). Un cerrar que no contesta bien se CONSULTA
+   * antes de decidir: una respuesta ilegible puede llegar con la matrícula cerrada.
+   */
+  private async cerrarPorLaPuerta(line: SessionItem, host: Element | undefined): Promise<FulfillmentConfirmation> {
+    if (!(host instanceof Element)) {
+      return { confirmed: false, reason: 'cliente.sin_coordinador', vouchers: [] };
+    }
+    const id = matriculaDeLaLinea(line) ?? '';
+    const cerrada = await cerrarMatricula(host, id);
+    let matricula: MatriculaLeida | null = cerrada.ok ? cerrada.valor : null;
+    if (!cerrada.ok) {
+      if (cerrada.rechazo.transient) {
+        return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
+      }
+      const leida = await consultarMatricula(host, id);
+      matricula = leida.ok && leida.valor.estado === 'Completed' ? leida.valor : null;
+      if (!matricula) {
+        if (leida.ok && leida.valor.estado === 'Compensated') {
+          this.anotar(sinLaMatricula);
+        }
+        return { confirmed: false, reason: cerrada.rechazo.code, vouchers: [] };
+      }
+    }
+    if (matricula!.estado !== 'Completed') {
+      return { confirmed: false, reason: 'educacion.not_continuable', vouchers: [] };
+    }
+    let anotada;
+    try {
+      anotada = await this.#api.anotarMatriculaDeLaPuerta(this.apiBaseOfLine(line), matricula!.id);
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: RAZON_ACTIVANDO, vouchers: [] };
+    }
+    return {
+      confirmed: true,
+      vouchers: [
+        {
+          itemId: line.id,
+          reference: anotada.enrollmentId,
+          status: 'active',
+          detail: {
+            courseId: line.productRef,
+            courseTitle: typeof (line.selection as Record<string, unknown>)['courseTitle'] === 'string'
+              ? ((line.selection as Record<string, unknown>)['courseTitle'] as string)
+              : line.label,
+            enrollmentId: anotada.enrollmentId,
+            numero: matricula!.numero,
+          },
+        },
+      ],
+    };
+  }
+
+  private apiBaseOfLine(line: SessionItem): string {
+    const base = (line.selection as Record<string, unknown>)['apiBase'];
+    return typeof base === 'string' && base.trim() ? base.trim() : '';
+  }
+
+  private anotar(cambio: (item: SessionItem) => SessionItem): void {
+    const sesion = this.#store.getValidSession();
+    this.#store.setSession({ ...sesion, items: sesion.items.map(cambio) });
   }
 
   /** El comprobante de la matrícula — un id que salió del borde, nunca uno de aquí. */
@@ -278,4 +412,53 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
       },
     };
   }
+}
+
+/**
+ * La razón cuando cerrar llegó y el CMS todavía no anotó la matrícula: el cobro ya está, y reintentar repite cerrar y
+ * anotar, que son idempotentes. La ficha la nombra aparte para no decir «no se te cobró».
+ */
+export const RAZON_ACTIVANDO = 'academy.activando';
+
+/** Dónde queda, en la línea, el id de la matrícula que abrió la puerta. */
+export const CAMPO_DE_LA_MATRICULA = 'matricula';
+
+/** Dónde queda, en la línea, el camino por el que salió la matrícula. */
+const CAMPO_DEL_CAMINO = 'camino';
+
+function conElCamino(item: SessionItem, camino: CaminoDeLaMatricula): SessionItem {
+  return { ...item, selection: { ...item.selection, [CAMPO_DEL_CAMINO]: camino } };
+}
+
+/** La línea sin lo que la ataba a su matrícula: el id y el camino por el que salió. */
+function sinLaMatricula(item: SessionItem): SessionItem {
+  const { [CAMPO_DE_LA_MATRICULA]: _matricula, [CAMPO_DEL_CAMINO]: _camino, ...seleccion } = item.selection as Record<string, unknown>;
+  void _matricula;
+  void _camino;
+  return { ...item, selection: seleccion };
+}
+
+/**
+ * El camino que declara el CMS: `puerta` sólo si lo declaró así; cualquier otra cosa —o nada— es la directa, lo de
+ * siempre en este elemento («directa» por defecto, 010-educacion-matricula).
+ */
+export function caminoDeLaMatricula(camino: unknown): CaminoDeLaMatricula {
+  return camino === 'puerta' ? 'puerta' : 'directa';
+}
+
+/** El camino por el que SALIÓ la matrícula de esta sesión, o `null` si todavía no salió. */
+export function caminoDeLaPendiente(session: SessionData): CaminoDeLaMatricula | null {
+  const camino = (session.items[0]?.selection as Record<string, unknown> | undefined)?.[CAMPO_DEL_CAMINO];
+  return camino === 'puerta' || camino === 'directa' ? camino : null;
+}
+
+/** Una matrícula que ya salió se termina por su camino; si no, el declarado. */
+export function caminoDeLaMatriculaEnCurso(session: SessionData, declarado: unknown): CaminoDeLaMatricula {
+  return caminoDeLaPendiente(session) ?? caminoDeLaMatricula(declarado);
+}
+
+/** El id de la matrícula de esta línea por la puerta, si la abrió. */
+export function matriculaDeLaLinea(line: SessionItem | undefined): string | null {
+  const id = (line?.selection as Record<string, unknown> | undefined)?.[CAMPO_DE_LA_MATRICULA];
+  return typeof id === 'string' && id ? id : null;
 }

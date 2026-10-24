@@ -35,6 +35,12 @@ export const ACADEMY_FLOW = 'academy';
 /** Every academy cart line is a `course` kind for the engine. */
 export const ACADEMY_KIND: SessionItemKind = 'course';
 
+/**
+ * Por dónde se matricula (010-educacion-matricula): la `puerta` —el flujo `educacion.matricula`, con sesión— o la
+ * `directa` —la ruta de la academia, la de siempre—. Lo DECLARA el CMS en `enrollmentPath`.
+ */
+export type CaminoDeLaMatricula = 'puerta' | 'directa';
+
 /** Which cara of the app the user is on (role-switch). */
 export type AcademyRole = 'student' | 'instructor';
 
@@ -152,6 +158,11 @@ export interface AcademyPlan {
   readonly amount: number;
   /** Optional installment hint, already formatted by the API ("4 x $120.000"). */
   readonly installments?: string;
+  /**
+   * Cuántas cuotas declara el plan (`installmentCount` del servidor). Con más de una es el plan financiado, que la ficha
+   * NO ofrece por ningún camino: se cobra el total de una vez y la capacidad de pagos no sabe de cuotas (D-010-P1).
+   */
+  readonly cuotas?: number;
   /** Bullet perks for the plan card. */
   readonly perks: readonly string[];
   /** Highlight the recommended plan. */

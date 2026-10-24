@@ -374,6 +374,26 @@ export class AcademyApiClient {
     }
   }
 
+  /**
+   * Anota en el libro del CMS la matrícula que cerró la PUERTA (010-educacion-matricula): el CMS la lee al
+   * orquestador con el sujeto de la sesión y sólo la anota si está cerrada; desde ahí la ven el aula y «mi
+   * aprendizaje». **Idempotente del otro lado**, así que reintentarla es seguro; y si nunca llega, «mi aprendizaje» la
+   * reconcilia al leer.
+   */
+  async anotarMatriculaDeLaPuerta(apiBase: string, matriculaId: string): Promise<{ readonly enrollmentId: string; readonly courseId: string }> {
+    const url = `${apiBase}/puerta/${encodeURIComponent(matriculaId)}/anotar`;
+    try {
+      const data = (await this.postJson(apiBase, url, {})) as Record<string, unknown> | null;
+      const enrollmentId = typeof data?.['enrollmentId'] === 'string' ? data['enrollmentId'] : '';
+      if (enrollmentId) {
+        return { enrollmentId, courseId: typeof data?.['courseId'] === 'string' ? data['courseId'] : '' };
+      }
+      throw new Error('anotar-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/academy/puerta/{id}/anotar', error);
+    }
+  }
+
   // ─── Progress (read) ─────────────────────────────────────────────────────────
 
   /** El `?student=` tampoco va aquí: el borde lo ignora desde que cerró el IDOR. */
@@ -934,6 +954,7 @@ function normalizePlan(value: unknown, fallbackAmount: number): AcademyPlan | nu
     description: readString(value['description']).trim(),
     amount: readNumber(value['amount'] ?? value['price']) || fallbackAmount,
     installments: readString(value['installments']).trim() || undefined,
+    cuotas: Math.trunc(readNumber(value['installmentCount'])) || undefined,
     perks: readStringArray(value['perks']),
     featured: readBoolean(value['featured']),
   };

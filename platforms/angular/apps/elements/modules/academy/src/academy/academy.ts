@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   type OnInit,
   computed,
   inject,
@@ -64,6 +65,7 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  LiveRegionComponent,
   SegmentedComponent,
   TabsComponent,
   coerceTrimmedStringInput,
@@ -75,7 +77,13 @@ import {
 } from '@synergos/shared';
 import type { AcademyProps } from '@synergos/contracts';
 import { AcademyApiClient } from './academy-api.client';
-import type { EnrollSelectionPayload } from './academy-fulfillment.strategy';
+import {
+  RAZON_ACTIVANDO,
+  caminoDeLaMatricula,
+  caminoDeLaMatriculaEnCurso,
+  type EnrollSelectionPayload,
+} from './academy-fulfillment.strategy';
+import { consultarMatricula, type MatriculaLeida } from './academy-matricula';
 import {
   ACADEMY_FLOW,
   type AcademyCourse,
@@ -104,7 +112,19 @@ import {
   type LessonQuestion,
   type ProgressUpdate,
 } from './academy.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, diaLocal } from '@synergos/vitals-core';
+import {
+  FLUJO_EDUCACION_MATRICULA,
+  avisoDelFlujo,
+  baseDeRuta,
+  elegirMensaje,
+  hayCoordinador,
+  mismaRuta,
+  segmentosDeRuta,
+  formatearImporte,
+  diaLocal,
+  t,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynAcademy</c>.
@@ -197,7 +217,53 @@ export function sanitizeAcademyConfig(value: AcademyConfig): AcademyConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    enrollmentPath: coerceTrimmedStringInput(value.enrollmentPath),
   });
+}
+
+/**
+ * Lo que se dice de un rechazo de la matrícula por la puerta, elegido por su `code` y nunca por su `title`
+ * (sección `Academy.Enrollment`, 010-educacion-matricula). Lo que no tiene texto propio cae al de su clase; un código
+ * desconocido nunca enseña el mensaje del servidor.
+ */
+export function mensajeDeLaMatricula(code: string): string {
+  const noDisponible = t('Academy.Enrollment.Unavailable', 'Este curso no admite matrícula en línea ahora.');
+  const pagoFallido = t('Academy.Enrollment.PaymentFailed', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.');
+  const porCodigo: Readonly<Record<string, string>> = {
+    [RAZON_ACTIVANDO]: t('Academy.Enrollment.Activating', 'Tu pago quedó registrado. Estamos abriendo tu aula…'),
+    'educacion.entrada_invalida': t('Academy.Enrollment.BadRequest', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.'),
+    'educacion.saga_not_found': t('Academy.Enrollment.NotFound', 'No encontramos esa matrícula.'),
+    'pricing.price_not_found': noDisponible,
+    'pricing.price_not_in_effect': noDisponible,
+    'puerta.flujo_no_disponible': noDisponible,
+    'payments.payment_declined': pagoFallido,
+    'payments.payment_failed': pagoFallido,
+    'payments.capture_failed': pagoFallido,
+    'payments.voided': pagoFallido,
+  };
+  // Al asistente llega sólo el `code`: una capacidad caída se reconoce por él (`pricing.unavailable`,
+  // `payments.provider_unavailable`…) y pide «intenta en unos minutos», no «el pago no se pudo».
+  const transitorio = code.endsWith('unavailable');
+  if (code.startsWith('payments.') && !porCodigo[code] && !transitorio) {
+    return pagoFallido;
+  }
+  const rechazo: RechazoDelFlujo = { code, status: 0, transient: transitorio, detail: '', origen: 'servidor', extra: {} };
+  const generico = t('Academy.Enrollment.Generic', 'Algo salió mal con tu matrícula. Intenta de nuevo.');
+  return elegirMensaje(rechazo, porCodigo, {
+    sesion: t('Academy.Enrollment.SignInRequired', 'Inicia sesión para matricularte.'),
+    no_disponible: noDisponible,
+    reintentable: t('Academy.Enrollment.Transient', 'No pudimos completar la matrícula ahora. Intenta en unos minutos.'),
+    defecto: generico,
+    negado: generico,
+  });
+}
+
+/**
+ * Si la ficha OFRECE el plan: sólo los de un solo pago. El financiado (más de una cuota) queda declarado en el dato y sin
+ * ofrecer por ningún camino —se cobraría su recargo de una vez— hasta que la capacidad de pagos sepa de cuotas (D-010-P1).
+ */
+export function planOfrecido(plan: AcademyPlan): boolean {
+  return !(plan.cuotas !== undefined && plan.cuotas > 1);
 }
 
 function coerceRole(value: unknown): AcademyRole | undefined {
@@ -224,6 +290,7 @@ let academyInstanceId = 0;
     AuthoringWizardComponent,
     TabsComponent,
     SegmentedComponent,
+    LiveRegionComponent,
     NgTemplateOutlet,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -243,6 +310,29 @@ export class AcademyElementComponent implements OnInit {
   readonly #bus = inject<TransactionEventBusService<AcademyBus>>(TransactionEventBusService);
   readonly #api = inject(AcademyApiClient);
   readonly #identity = inject(HostIdentityService);
+
+  // ─── La matrícula por la puerta (010-educacion-matricula, ADR 0140) ──────────
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /**
+   * Por dónde se matricula ESTA página: lo DECLARA el CMS en `enrollmentPath` —la puerta o la ruta directa, «directa»
+   * por defecto— y el elemento no lo adivina ni cae nunca de un camino al otro.
+   */
+  readonly caminoDeLaMatricula = computed(() => caminoDeLaMatricula(this.config()?.enrollmentPath));
+  readonly porLaPuerta = computed(() => this.caminoDeLaMatricula() === 'puerta');
+  /**
+   * La matrícula activa del alumno en el curso abierto, leída de «mi aprendizaje» (FR-014): con ella la ficha ofrece
+   * el aula y no matricularse otra vez.
+   */
+  readonly matriculaDelCurso = computed(() => {
+    const id = this.detail()?.course.id;
+    return id ? (this.enrollments().find((e) => e.course.id === id) ?? null) : null;
+  });
+  /** La matrícula del enlace del aviso (`?matricula={id}`), leída del servidor con la sesión. */
+  readonly matriculaDelEnlace = signal<MatriculaLeida | null>(null);
+  /** Lo que se dice de la matrícula del enlace cuando no se pudo leer o ya no vale. */
+  readonly avisoDeLaMatricula = signal('');
+  readonly textoYaMatriculado = t('Academy.Enrollment.AlreadyEnrolled', 'Ya estás matriculado en este curso.');
+  readonly textoIrAlAula = t('Academy.Enrollment.GoToClassroom', 'Ir al aula');
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<AcademyConfig | undefined, unknown>(undefined, {
@@ -458,16 +548,16 @@ export class AcademyElementComponent implements OnInit {
   });
 
   // ─── PDD derived (SH-2) ───────────────────────────────────────────────────────
+  /** Los planes que la ficha ofrece, por los dos caminos: los de un solo pago (D-010-P1). */
+  readonly planesOfrecidos = computed<readonly AcademyPlan[]>(() => (this.detail()?.plans ?? []).filter(planOfrecido));
+
   readonly selectedPlan = computed<AcademyPlan | null>(() => {
-    const detail = this.detail();
-    if (!detail) {
-      return null;
-    }
+    const planes = this.planesOfrecidos();
     const id = this.selectedPlanId();
     return (
-      detail.plans.find((plan) => plan.id === id) ??
-      detail.plans.find((plan) => plan.featured) ??
-      detail.plans[0] ??
+      planes.find((plan) => plan.id === id) ??
+      planes.find((plan) => plan.featured) ??
+      planes[0] ??
       null
     );
   });
@@ -599,6 +689,13 @@ export class AcademyElementComponent implements OnInit {
     confirmFailedMessage:
       'Ya recibimos tu pago (referencia {referencia}) pero la matrícula todavía no quedó activa. ' +
       'Vuelve a pulsar «Pagar e inscribirme»: no se te cobrará de nuevo.',
+    // Por la puerta el aviso lo elige el `code` (010-educacion-matricula): la sesión, el plan, el curso sin precio, el
+    // cobro. Por la directa, los dos textos de arriba, como siempre. El camino se lee AL FALLAR y es el de la matrícula
+    // en curso: leerlo aquí rehacía la config, y el asistente vuelve al primer paso cuando cambian sus pasos.
+    mensajeDeFallo: (motivo: string) =>
+      caminoDeLaMatriculaEnCurso(this.#store.getValidSession(), this.caminoDeLaMatricula()) === 'puerta'
+        ? mensajeDeLaMatricula(motivo)
+        : null,
   }));
 
   /** Per-step gating for the SH-3 enrolment wizard. */
@@ -617,6 +714,10 @@ export class AcademyElementComponent implements OnInit {
         ? 'academy-pse'
         : 'academy-card',
     student: { name: this.studentName().trim(), email: this.studentEmail().trim() },
+    // Lo que es de ESTE elemento y la estrategia necesita (ADR 0140 F4): de dónde pedir al coordinador y por dónde va
+    // la matrícula.
+    host: this.#host,
+    camino: this.caminoDeLaMatricula(),
   }));
 
   // ─── Mi aprendizaje (SH-4 account) ────────────────────────────────────────────
@@ -921,6 +1022,47 @@ export class AcademyElementComponent implements OnInit {
       void this.loadDesk().then(() => this.applyHash());
     } else {
       void this.runSearch().then(() => this.applyHash());
+      void this.abrirElEnlaceDelAviso();
+    }
+  }
+
+  /**
+   * El enlace del aviso (`?matricula={id}`, FR-015): el id viaja en la CONSULTA de la página —la que arma `Aviso.Ruta`
+   * de la puerta—, no en el hash. Cerrada, se anota en el libro (idempotente) y la ficha ofrece el aula. Abierta o
+   * deshecha, se abre la ficha del curso: su botón la retoma con la misma llave (una abierta vuelve tal cual; una
+   * deshecha abre otro intento), sin afirmar un cobro que no se sabe. Ilegible o ajena, se dice por su `code`.
+   */
+  private async abrirElEnlaceDelAviso(): Promise<void> {
+    if (typeof window === 'undefined' || !hayCoordinador(this.#host, FLUJO_EDUCACION_MATRICULA)) {
+      return;
+    }
+    const parametro = avisoDelFlujo(FLUJO_EDUCACION_MATRICULA)?.parametro ?? 'matricula';
+    const id = new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+    if (!id) {
+      return;
+    }
+    const leida = await consultarMatricula(this.#host, id);
+    if (!leida.ok) {
+      this.avisoDeLaMatricula.set(mensajeDeLaMatricula(leida.rechazo.code));
+      return;
+    }
+    this.matriculaDelEnlace.set(leida.valor);
+    if (leida.valor.estado !== 'Completed') {
+      if (leida.valor.cursoId) {
+        await this.loadCourse(leida.valor.cursoId);
+      }
+      return;
+    }
+    try {
+      await this.#api.anotarMatriculaDeLaPuerta(this.apiBase(), id);
+    } catch (error) {
+      void error;
+      this.avisoDeLaMatricula.set(mensajeDeLaMatricula(RAZON_ACTIVANDO));
+      return;
+    }
+    this.reloadLearning();
+    if (leida.valor.cursoId) {
+      await this.loadCourse(leida.valor.cursoId);
     }
   }
 
@@ -1183,11 +1325,16 @@ export class AcademyElementComponent implements OnInit {
         this.#api.course(this.apiBase(), id, this.currency()),
       );
       this.detail.set(detail);
-      const featured = detail.plans.find((plan) => plan.featured) ?? detail.plans[0] ?? null;
+      const ofrecidos = detail.plans.filter(planOfrecido);
+      const featured = ofrecidos.find((plan) => plan.featured) ?? ofrecidos[0] ?? null;
       this.selectedPlanId.set(featured?.id ?? '');
       const first = detail.sections[0];
       this.expandedSections.set(first ? { [first.id]: true } : {});
       this.view.set('course');
+      // Con sesión, «mi aprendizaje» dice si ya tiene este curso (FR-014): la ficha ofrece el aula, no otra matrícula.
+      if (this.#identity.isAuthenticated()) {
+        this.loadLearning();
+      }
     } catch (error) {
       this.errorMessage.set('No pudimos abrir el curso. Intenta de nuevo.');
       void error;
@@ -1230,7 +1377,7 @@ export class AcademyElementComponent implements OnInit {
   }
 
   private async enrollFree(detail: CourseDetail): Promise<void> {
-    const plan = this.selectedPlan() ?? detail.plans[0] ?? null;
+    const plan = this.selectedPlan() ?? this.planesOfrecidos()[0] ?? null;
     await this.selectIntoCart(detail.course, plan);
     this.studentName.set(this.studentName() || 'Estudiante invitado');
     this.studentEmail.set(this.studentEmail() || 'estudiante@synergos.academy');
@@ -1305,17 +1452,16 @@ export class AcademyElementComponent implements OnInit {
       name: this.studentName().trim(),
       email: this.studentEmail().trim(),
     };
+    // El mismo instrumento para abrir y para cerrar: por la puerta, ESTE elemento y su camino.
+    const instrument = { apiBase: this.apiBase(), student, host: this.#host, camino: this.caminoDeLaMatricula() };
     this.loading.set(true);
     this.errorMessage.set('');
     this.#store.setStatus('paying');
     try {
       const session = this.#store.getValidSession();
-      const payResult = await this.#fulfillment.pay({
-        session,
-        instrument: { apiBase: this.apiBase(), student },
-      });
+      const payResult = await this.#fulfillment.pay({ session, instrument });
       if (!payResult.accepted || !payResult.reference) {
-        throw new Error('payment-rejected');
+        throw new Error(payResult.reason ?? 'payment-rejected');
       }
       const paid = {
         ...this.#store.getValidSession(),
@@ -1331,9 +1477,9 @@ export class AcademyElementComponent implements OnInit {
         status: 'paying' as const,
       };
       this.#store.setSession(paid);
-      const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession());
+      const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession(), instrument);
       if (!confirmation.confirmed) {
-        throw new Error('not-confirmed');
+        throw new Error(confirmation.reason ?? 'not-confirmed');
       }
       const voucher = confirmation.vouchers[0];
       const enrollmentId = voucher?.reference ?? payResult.reference;
@@ -1345,9 +1491,14 @@ export class AcademyElementComponent implements OnInit {
       // se queda donde estaba con el botón listo para reintentar (CMS#117). Un curso
       // gratis no mueve dinero, así que aquí no hay nada que rescatar salvo decirlo.
       this.loading.set(false);
-      this.errorMessage.set('No pudimos completar tu inscripción. Intenta de nuevo.');
+      // Por la puerta lo dice el `code` (la sesión, el curso sin precio…); por la directa, como siempre.
+      this.errorMessage.set(
+        caminoDeLaMatriculaEnCurso(this.#store.getValidSession(), this.caminoDeLaMatricula()) === 'puerta' &&
+          error instanceof Error
+          ? mensajeDeLaMatricula(error.message)
+          : 'No pudimos completar tu inscripción. Intenta de nuevo.',
+      );
       this.#store.setStatus('building');
-      void error;
     }
   }
 

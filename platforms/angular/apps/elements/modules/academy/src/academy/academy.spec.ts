@@ -4,10 +4,12 @@ import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { AcademyApiClient } from './academy-api.client';
-import { AcademyFulfillmentStrategy } from './academy-fulfillment.strategy';
-import { AcademyElementComponent } from './academy';
+import { AcademyFulfillmentStrategy, RAZON_ACTIVANDO } from './academy-fulfillment.strategy';
+import { AcademyElementComponent, mensajeDeLaMatricula, sanitizeAcademyConfig } from './academy';
+import { entradaDeLaMatricula, leerMatricula, llaveDeLaMatricula } from './academy-matricula';
 import { asentar } from '../../../../../../tools/asentar';
 import { ACADEMY_SYNHOST } from '@synergos/contracts';
+import { definirCoordinador } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: ACADEMY_SYNHOST.ejemplo.apiBase };
@@ -1639,5 +1641,491 @@ describe('AcademyApiClient', () => {
     expect(client.degraded).toBe(true);
     expect(desk.courses.some((course) => course.title === 'Nuevo')).toBe(false);
     expect(desk.questions.length).toBeGreaterThan(0);
+  });
+});
+
+// ══ LA MATRÍCULA POR LA PUERTA (010-educacion-matricula, ADR 0140) ═════════════════════════════════
+//
+// La academia se matricula por el `<synergos-flujo flujo="educacion.matricula">` que coloca la vista, con el
+// envoltorio GENERADO del flujo: abrir autoriza, cerrar captura y avisa, y después el CMS anota la matrícula en el
+// libro que abre el aula. Lo que se mira es lo que viajó a la puerta —la llave del curso, el curso con su clase, el
+// plan— y lo que el SERVIDOR contestó, nunca un comprobante del navegador.
+
+type OperacionDeLaMatricula = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar';
+
+interface GuionDeLaMatricula {
+  /** El total que dice el servidor, en unidades MAYORES. */
+  readonly total?: number;
+  readonly rechazos?: Partial<Record<OperacionDeLaMatricula, { readonly code: string; readonly status?: number }>>;
+  /** Si el CMS no consigue anotar la matrícula cerrada. */
+  readonly anotarCaido?: boolean;
+  /** El plan con el que vuelve la PRIMERA apertura (otra pestaña abrió con otro). */
+  readonly planAbierto?: string | null;
+  /** La ficha que sirve el CMS en `GET …/course/{id}`; sin ella, cae a la muestra. */
+  readonly ficha?: (id: string) => unknown;
+  /** Una matrícula que ya existe antes de la página (la del enlace del aviso): su estado y su curso. */
+  readonly existente?: { readonly estado: string; readonly cursoId: string };
+}
+
+interface PedidoALaMatricula {
+  readonly operacion: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly cuerpo: { curso?: { kind: string; id: string }; plan?: string | null } | null;
+}
+
+/** La puerta de la matrícula y la ruta del CMS que la anota; lo demás cae (el catálogo tiene su muestra). */
+function puertaDeLaMatricula(guion: GuionDeLaMatricula = {}) {
+  const pedidos: PedidoALaMatricula[] = [];
+  const rutas: string[] = [];
+  const anotadas: string[] = [];
+  let estado = guion.existente?.estado ?? 'Running';
+  let plan: string | null = null;
+  let curso = { kind: 'educacion.curso', id: guion.existente?.cursoId ?? '' };
+  let intento = 0;
+  const total = { amount: guion.total ?? 180_000, currency: 'COP' };
+  const json = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  const matricula = () => ({
+    id: `mat-${intento}`,
+    flujo: 'educacion.matricula',
+    numero: `EDU-000${intento}`,
+    estado,
+    datos: { curso, plan, total },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+  });
+  const fetchDoble = vi.fn((url: string, init?: RequestInit): Promise<Response> => {
+    const ruta = String(url);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    rutas.push(`${metodo} ${ruta}`);
+    const anotar = /\/api\/academy\/puerta\/([^/]+)\/anotar/.exec(ruta);
+    if (anotar) {
+      anotadas.push(decodeURIComponent(anotar[1]));
+      return guion.anotarCaido
+        ? json(503, { code: 'academy.orquestador_no_disponible', transient: true, title: 'Service Unavailable' })
+        : json(200, { enrollmentId: 'ENR-PUERTA-1', courseId: curso.id, yaEstaba: false });
+    }
+    const ficha = /\/course\/([^/?]+)/.exec(ruta);
+    if (ficha && guion.ficha) {
+      return json(200, guion.ficha(decodeURIComponent(ficha[1])));
+    }
+    const m = /\/api\/flujos\/educacion\.matricula\/([a-z]+)/.exec(ruta);
+    if (!m) {
+      return Promise.reject(new Error('offline'));
+    }
+    const operacion = m[1] as OperacionDeLaMatricula;
+    const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoALaMatricula['cuerpo']) : null;
+    pedidos.push({ operacion, url: ruta, llave: new Headers(init?.headers).get('Idempotency-Key'), cuerpo });
+    if (cuerpo?.curso) curso = cuerpo.curso;
+    const rechazo = guion.rechazos?.[operacion];
+    if (rechazo) {
+      const status = rechazo.status ?? 409;
+      return json(status, { code: rechazo.code, detail: 'guionado', title: 'Conflict', transient: status >= 500 });
+    }
+    switch (operacion) {
+      case 'cotizar':
+        return json(200, { flujo: 'educacion.matricula', datos: { curso, plan: cuerpo?.plan ?? null, total } });
+      case 'abrir':
+        if (intento === 0 || estado === 'Compensated') {
+          intento += 1;
+          estado = 'Running';
+          plan = intento === 1 && guion.planAbierto !== undefined ? guion.planAbierto : (cuerpo?.plan ?? null);
+        }
+        return json(201, matricula());
+      case 'cerrar':
+        estado = 'Completed';
+        return json(200, matricula());
+      case 'cancelar':
+        if (estado === 'Running') estado = 'Compensated';
+        return json(200, matricula());
+      default:
+        return json(200, matricula());
+    }
+  });
+  return {
+    fetchDoble,
+    pedidos,
+    anotadas,
+    veces: (operacion: OperacionDeLaMatricula) => pedidos.filter((p) => p.operacion === operacion).length,
+    directas: () => rutas.filter((r) => r.startsWith('POST') && (r.includes('/api/academy/enroll') || r.includes('/api/academy/confirm'))).length,
+    alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
+  };
+}
+
+/** Lo que el CMS manda cuando el sitio declara la puerta para la matrícula. */
+const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, enrollmentPath: 'puerta' };
+
+describe('La matrícula por la puerta (010-educacion-matricula)', () => {
+  let fixture: ComponentFixture<AcademyElementComponent>;
+  let component: AcademyElementComponent;
+
+  beforeAll(() => definirCoordinador());
+
+  async function montar(puerta: ReturnType<typeof puertaDeLaMatricula>, config: object = POR_LA_PUERTA): Promise<void> {
+    window.location.hash = '';
+    installMemoryStorage();
+    vi.stubGlobal('fetch', puerta.fetchDoble);
+    await TestBed.configureTestingModule({
+      imports: [AcademyElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        AcademyApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: AcademyFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(AcademyElementComponent);
+    component = fixture.componentInstance;
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la matrícula encuentra por ancestro.
+    const flujo = document.createElement('synergos-flujo');
+    flujo.setAttribute('flujo', 'educacion.matricula');
+    document.body.appendChild(flujo);
+    flujo.appendChild(fixture.nativeElement as HTMLElement);
+    fixture.componentRef.setInput('config', config);
+    fixture.detectChanges();
+    await flushMicrotasks();
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    window.history.replaceState({}, '', '/');
+    window.location.hash = '';
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+  }
+
+  /** Abre el curso de pago, elige un plan y llega al último paso del asistente. */
+  async function hastaElUltimoPaso(plan?: string): Promise<void> {
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
+    await flushMicrotasks();
+    if (plan) {
+      component.selectPlan(component.detail()!.plans.find((p) => p.id === plan)!);
+    }
+    component.studentName.set('Ada Lovelace');
+    component.studentEmail.set('ada@example.com');
+    component.startEnrollment();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+  }
+
+  async function pagar(): Promise<void> {
+    asistente().next(); // submit → pay (abrir) → confirm (cerrar y anotar)
+    await flushMicrotasks(40);
+    fixture.detectChanges();
+  }
+
+  function alertas(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"], [role="status"], syn-live-region'))
+      .map((nodo) => (nodo.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  it('«puerta»: abre con la llave del curso y el curso con su clase, cierra por su id y el CMS la anota; ni una llamada a /enroll ni a /confirm', async () => {
+    const puerta = puertaDeLaMatricula();
+    await montar(puerta);
+    await hastaElUltimoPaso();
+    const cursoId = component.detail()!.course.id;
+    const planId = component.selectedPlan()?.id ?? '';
+
+    await pagar();
+
+    const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
+    expect(abrir.llave).toBe(llaveDeLaMatricula(cursoId));
+    expect(abrir.cuerpo).toEqual(entradaDeLaMatricula(cursoId, planId));
+    expect(puerta.pedidos.find((p) => p.operacion === 'cerrar')!.url).toContain('id=mat-1');
+    expect(puerta.anotadas).toEqual(['mat-1']);
+    expect(puerta.directas()).toBe(0);
+    expect(component.view()).toBe('enrolled');
+    // El id es el que anotó el CMS en el libro del aula, no uno del navegador.
+    expect(component.enrollmentId()).toBe('ENR-PUERTA-1');
+  });
+
+  it('un curso gratis por la puerta abre, cierra y se anota sin pasar por el asistente', async () => {
+    const puerta = puertaDeLaMatricula({ total: 0 });
+    await montar(puerta);
+    component.openCourse(component.courses().find((c) => c.amount <= 0)!);
+    await flushMicrotasks();
+
+    component.startEnrollment();
+    await flushMicrotasks(40);
+
+    expect(puerta.veces('abrir')).toBe(1);
+    expect(puerta.veces('cerrar')).toBe(1);
+    expect(puerta.anotadas).toEqual(['mat-1']);
+    expect(puerta.directas()).toBe(0);
+    expect(component.enrollmentId()).toBe('ENR-PUERTA-1');
+  });
+
+  it('sin sesión la puerta dice que hay que iniciarla, y no se anota nada', async () => {
+    const puerta = puertaDeLaMatricula({ rechazos: { abrir: { code: 'puerta.sesion_requerida', status: 401 } } });
+    await montar(puerta);
+    await hastaElUltimoPaso();
+
+    await pagar();
+
+    expect(component.enrollmentId()).toBe('');
+    expect(puerta.anotadas).toEqual([]);
+    expect(alertas()).toContain('Inicia sesión para matricularte.');
+  });
+
+  it('un 503 de la puerta NO cae a la ruta directa: dice que la matrícula en línea no está disponible', async () => {
+    const puerta = puertaDeLaMatricula({ rechazos: { abrir: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    await montar(puerta);
+    await hastaElUltimoPaso();
+
+    await pagar();
+
+    expect(puerta.directas()).toBe(0);
+    expect(component.enrollmentId()).toBe('');
+    expect(alertas()).toContain('Este curso no admite matrícula en línea ahora.');
+  });
+
+  it('si cerrar llegó y el CMS no la anotó, NO dice «activa»: dice que el pago quedó y que abre el aula', async () => {
+    const puerta = puertaDeLaMatricula({ anotarCaido: true });
+    await montar(puerta);
+    await hastaElUltimoPaso();
+
+    await pagar();
+
+    expect(puerta.veces('cerrar')).toBe(1);
+    expect(component.view()).not.toBe('enrolled');
+    expect(component.enrollmentId()).toBe('');
+    expect(alertas()).toContain(mensajeDeLaMatricula(RAZON_ACTIVANDO));
+  });
+
+  it('una matrícula abierta con OTRO plan se cancela antes de abrir la del plan elegido: un solo cobro, el del plan que se muestra', async () => {
+    const puerta = puertaDeLaMatricula({ planAbierto: 'otro-plan' });
+    await montar(puerta);
+    await hastaElUltimoPaso();
+    const planId = component.selectedPlan()?.id ?? '';
+
+    await pagar();
+
+    expect(puerta.veces('abrir')).toBe(2);
+    expect(puerta.veces('cancelar')).toBe(1);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cancelar')!.url).toContain('id=mat-1');
+    expect(puerta.pedidos.filter((p) => p.operacion === 'abrir').map((p) => p.cuerpo?.plan ?? null)).toEqual([planId || null, planId || null]);
+    expect(puerta.anotadas).toEqual(['mat-2']);
+  });
+
+  it('una matrícula que salió por la puerta se TERMINA por la puerta aunque la página pase a declarar la directa', async () => {
+    const puerta = puertaDeLaMatricula({ anotarCaido: true });
+    await montar(puerta);
+    await hastaElUltimoPaso();
+    await pagar();
+    expect(puerta.veces('cerrar')).toBe(1);
+
+    fixture.componentRef.setInput('config', { ...POR_LA_PUERTA, enrollmentPath: 'directa' });
+    fixture.detectChanges();
+    await flushMicrotasks();
+    await pagar();
+
+    expect(puerta.veces('cerrar')).toBe(2);
+    expect(puerta.directas()).toBe(0);
+  });
+
+  it('«directa» (o sin declarar): ni una petición a /api/flujos; matricula por /api/academy/enroll como siempre', async () => {
+    for (const config of [{ ...POR_LA_PUERTA, enrollmentPath: 'directa' }, NEGOCIO_DEL_CMS]) {
+      const puerta = puertaDeLaMatricula();
+      await montar(puerta, config);
+      expect(component.caminoDeLaMatricula()).toBe('directa');
+      await hastaElUltimoPaso();
+      await pagar();
+
+      expect(puerta.alaPuerta()).toBe(0);
+      expect(puerta.directas()).toBeGreaterThan(0);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('con el curso ya activo en «mi aprendizaje», la ficha ofrece el aula y no otra matrícula (FR-014)', async () => {
+    const puerta = puertaDeLaMatricula();
+    await montar(puerta);
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
+    await flushMicrotasks();
+    const curso = component.detail()!.course;
+    component.learning.set({
+      status: 'ok',
+      enrollments: [{ enrollmentId: 'ENR-YA', course: curso, percent: 20, lessonCount: 5, completedCount: 1, lastActivityAt: '2026-10-01', completed: false }],
+      paths: [],
+    } as never);
+    fixture.detectChanges();
+
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(component.matriculaDelCurso()?.enrollmentId).toBe('ENR-YA');
+    expect(texto).toContain('Ya estás matriculado en este curso.');
+    expect(texto).toContain('Ir al aula');
+    expect(texto).not.toContain('Inscribirme');
+  });
+
+  it('la ficha no promete cuotas que nadie cobra en cuotas (lote 8, 010-P1 A), por los dos caminos', async () => {
+    for (const config of [POR_LA_PUERTA, NEGOCIO_DEL_CMS]) {
+      await montar(puertaDeLaMatricula(), config);
+      component.openCourse(component.courses().find((c) => c.amount > 0)!);
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(component.detail()!.plans.some((p) => !!p.installments)).toBe(true);
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelectorAll('.academy__plan-inst').length).toBe(0);
+      expect(raiz.querySelector('.academy__plans')?.textContent ?? '').not.toMatch(/\d+\s*x\s*\$/);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  describe('el enlace del aviso (?matricula={id}, FR-015)', () => {
+    const ficha = (id: string) => ({
+      course: { id, title: 'Gestión ágil', amount: 320000, currency: 'COP' },
+      plans: [{ id: 'full', label: 'Pago de contado', amount: 320000, installmentCount: 1 }],
+    });
+
+    it('una matrícula cerrada se anota en el libro y abre la ficha de su curso', async () => {
+      window.history.replaceState({}, '', '/?matricula=mat-7');
+      const puerta = puertaDeLaMatricula({ ficha, existente: { estado: 'Completed', cursoId: 'gestion-agil' } });
+
+      await montar(puerta);
+      await flushMicrotasks(20);
+
+      expect(puerta.pedidos.find((p) => p.operacion === 'consultar')!.url).toContain('id=mat-7');
+      expect(puerta.anotadas).toEqual(['mat-7']);
+      expect(component.view()).toBe('course');
+      expect(component.detail()?.course.id).toBe('gestion-agil');
+    });
+
+    it('una abierta o deshecha NO se anota: abre la ficha para retomarla con la misma llave', async () => {
+      for (const estado of ['Running', 'Compensated']) {
+        window.history.replaceState({}, '', '/?matricula=mat-7');
+        const puerta = puertaDeLaMatricula({ ficha, existente: { estado, cursoId: 'gestion-agil' } });
+
+        await montar(puerta);
+        await flushMicrotasks(20);
+
+        expect(puerta.anotadas).toEqual([]);
+        expect(component.detail()?.course.id).toBe('gestion-agil');
+        expect(component.avisoDeLaMatricula()).toBe('');
+        document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+        vi.unstubAllGlobals();
+        TestBed.resetTestingModule();
+      }
+    });
+
+    it('una ajena o que no existe se dice por su code, sin anotar nada', async () => {
+      window.history.replaceState({}, '', '/?matricula=mat-ajena');
+      const puerta = puertaDeLaMatricula({ rechazos: { consultar: { code: 'educacion.saga_not_found', status: 404 } } });
+
+      await montar(puerta);
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+
+      expect(puerta.anotadas).toEqual([]);
+      expect(component.avisoDeLaMatricula()).toBe('No encontramos esa matrícula.');
+    });
+  });
+
+  it('la ficha no ofrece el plan en cuotas aunque venga recomendado: sólo el de contado, por los dos caminos (D-010-P1)', async () => {
+    // Lo que sirve el CMS con las reglas de precio de hoy: contado y «3 cuotas» con su recargo del 8 %.
+    const ficha = (id: string) => ({
+      course: { id, title: 'Gestión ágil', amount: 320000, currency: 'COP' },
+      plans: [
+        { id: 'full', label: 'Pago de contado', amount: 320000, installments: '', installmentCount: 1 },
+        { id: 'emi-3', label: '3 cuotas', amount: 345600, installments: '3 x $115.200', installmentCount: 3, featured: true },
+      ],
+    });
+    for (const config of [POR_LA_PUERTA, NEGOCIO_DEL_CMS]) {
+      await montar(puertaDeLaMatricula({ ficha }), config);
+      component.openCourse(component.courses().find((c) => c.amount > 0)!);
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      // El dato sigue entero (superset); lo que cambia es lo que se ofrece.
+      expect(component.detail()!.plans.map((p) => p.id)).toEqual(['full', 'emi-3']);
+      expect(component.planesOfrecidos().map((p) => p.id)).toEqual(['full']);
+      expect(component.selectedPlan()?.id).toBe('full');
+      const planes = (fixture.nativeElement as HTMLElement).querySelector('.academy__plans');
+      expect(planes?.querySelectorAll('.academy__plan').length).toBe(1);
+      expect(planes?.textContent ?? '').not.toContain('3 cuotas');
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+});
+
+describe('mensajeDeLaMatricula y el camino (010-educacion-matricula)', () => {
+  it.each([
+    ['puerta.sesion_requerida', 'Inicia sesión para matricularte.'],
+    ['pricing.price_not_found', 'Este curso no admite matrícula en línea ahora.'],
+    ['pricing.price_not_in_effect', 'Este curso no admite matrícula en línea ahora.'],
+    ['puerta.flujo_no_disponible', 'Este curso no admite matrícula en línea ahora.'],
+    ['educacion.entrada_invalida', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.'],
+    ['educacion.saga_not_found', 'No encontramos esa matrícula.'],
+    ['payments.payment_declined', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.'],
+    ['payments.cualquier_otro', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.'],
+    [RAZON_ACTIVANDO, 'Tu pago quedó registrado. Estamos abriendo tu aula…'],
+    ['pricing.unavailable', 'No pudimos completar la matrícula ahora. Intenta en unos minutos.'],
+    ['payments.provider_unavailable', 'No pudimos completar la matrícula ahora. Intenta en unos minutos.'],
+  ])('«%s» → %s', (code, texto) => {
+    expect(mensajeDeLaMatricula(code)).toBe(texto);
+  });
+
+  it('un código desconocido dice el genérico, nunca el mensaje del servidor', () => {
+    expect(mensajeDeLaMatricula('algo.que_nadie_conoce')).toBe('Algo salió mal con tu matrícula. Intenta de nuevo.');
+  });
+
+  it('el camino del CMS viaja saneado, y sin él la academia sigue por la directa', () => {
+    expect(sanitizeAcademyConfig({ enrollmentPath: '  puerta ' })).toEqual({ enrollmentPath: 'puerta' });
+    expect(sanitizeAcademyConfig({})).toEqual({});
+  });
+});
+
+describe('El transporte de la matrícula (010-educacion-matricula, T017)', () => {
+  it('el curso viaja con la clase que declara el flujo, y el plan por su código (sin plan, null)', () => {
+    expect(entradaDeLaMatricula('gestion-agil', ' premium ')).toEqual({
+      curso: { kind: 'educacion.curso', id: 'gestion-agil' },
+      plan: 'premium',
+    });
+    expect(entradaDeLaMatricula('gestion-agil', '  ')).toEqual({ curso: { kind: 'educacion.curso', id: 'gestion-agil' }, plan: null });
+  });
+
+  it('la llave es la del curso: la misma en dos pestañas o tras una recarga', () => {
+    expect(llaveDeLaMatricula('gestion-agil')).toBe('matricula-gestion-agil');
+  });
+
+  it('lee lo que contestó el servidor sin inventar: sin total, null; con compensaciones pendientes, deshaciendo', () => {
+    const leida = leerMatricula({
+      id: 'mat-1',
+      flujo: 'educacion.matricula',
+      numero: 'EDU-0001',
+      estado: 'Running',
+      datos: { curso: { kind: 'educacion.curso', id: 'gestion-agil' }, plan: null, total: null },
+      compensacionesPendientes: 1,
+      error: null,
+      deshaciendo: false,
+    } as never);
+    expect(leida).toEqual({
+      id: 'mat-1',
+      numero: 'EDU-0001',
+      estado: 'Running',
+      cursoId: 'gestion-agil',
+      plan: null,
+      total: null,
+      deshaciendo: true,
+    });
   });
 });
