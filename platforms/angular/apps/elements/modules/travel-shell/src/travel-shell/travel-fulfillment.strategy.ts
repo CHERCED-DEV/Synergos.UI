@@ -337,7 +337,7 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
 }
 
 /** Cada línea del carrito como ítem del viaje: el producto de la oferta, su nombre y su periodo. */
-function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
+export function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
   return session.items.map((item) => {
     const selection = item.selection as Record<string, unknown>;
     return {

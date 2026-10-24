@@ -6,10 +6,12 @@ import {
   DestroyRef,
   ElementRef,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import {
@@ -101,6 +103,7 @@ import {
 import {
   FLUJO_VIAJES_RESERVA,
   baseDeRuta,
+  clasificarRechazo,
   elegirMensaje,
   hayCoordinador,
   mismaRuta,
@@ -109,8 +112,8 @@ import {
   t,
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
-import { sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
-import { cancelarViaje } from './travel-viaje';
+import { caminoDelViajePendiente, itemsDelViaje, sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
+import { cancelarViaje, cotizarViaje, type Importe } from './travel-viaje';
 
 /**
  * Lo que se dice de un rechazo del viaje por la puerta, elegido por su `code` y nunca por su `title` (sección
@@ -860,9 +863,21 @@ export class TravelShellElementComponent {
   readonly cartCount = this.#store.itemCount;
   readonly hasCart = this.#store.hasItems;
   readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
-  readonly cartTotalLabel = computed(() =>
-    this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency()),
-  );
+
+  /**
+   * Por la puerta, el total que el SERVIDOR cotizó para el carrito antes de apartar nada (`cotizar`, T024 de la
+   * línea 006): es el que abrir autoriza después. `null` mientras no hay cotización, o si el viaje ya salió (desde
+   * ahí el total de la sesión es el del servidor).
+   */
+  readonly totalCotizado = signal<Importe | null>(null);
+  #cotizacion = 0;
+
+  readonly cartTotalLabel = computed(() => {
+    const cotizado = this.totalCotizado();
+    return cotizado
+      ? this.formatPrice(cotizado.amount, cotizado.currency)
+      : this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency());
+  });
   readonly liveConflict = this.#store.liveSessionConflict;
   readonly degraded = computed(() => {
     // Recompute on each navigation/data load; the flag is set by the API client.
@@ -952,6 +967,43 @@ export class TravelShellElementComponent {
 
     // Honour a deep link on boot.
     this.applyHash();
+
+    // Por la puerta, cada carrito distinto se cotiza: el total que se enseña es el del servidor, no la suma del
+    // navegador.
+    effect(() => {
+      void this.cartItems();
+      if (this.porLaPuerta()) {
+        untracked(() => void this.cotizarElCarrito());
+      }
+    });
+  }
+
+  /**
+   * Cotiza el carrito por la puerta, sin llave y sin apartar nada. Sólo un viaje que todavía no salió: el que salió
+   * ya tiene el total del servidor en la sesión. Una respuesta vieja no pisa a una nueva. Sin sesión no se cotiza
+   * (lo dirá el asistente al reservar); cualquier otro rechazo se dice.
+   */
+  async cotizarElCarrito(): Promise<void> {
+    const turno = ++this.#cotizacion;
+    const sesion = this.#store.getValidSession();
+    const items = itemsDelViaje(sesion);
+    if (
+      items.length === 0 ||
+      items.some((item) => !item.start || !item.end) ||
+      caminoDelViajePendiente(sesion) !== null ||
+      !hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)
+    ) {
+      this.totalCotizado.set(null);
+      return;
+    }
+    const r = await cotizarViaje(this.#host, items);
+    if (turno !== this.#cotizacion) {
+      return;
+    }
+    this.totalCotizado.set(r.ok ? r.valor : null);
+    if (!r.ok && clasificarRechazo(r.rechazo) !== 'sesion') {
+      this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+    }
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────

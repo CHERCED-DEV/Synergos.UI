@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
-import { definirCoordinador } from '@synergos/vitals-core';
+import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
@@ -1403,6 +1403,37 @@ describe('El viaje por la puerta (línea 006)', () => {
       vi.unstubAllGlobals();
       TestBed.resetTestingModule();
     }
+  });
+
+  it('el total del carrito es el que COTIZÓ el servidor, sin llave y sin apartar nada (T024)', async () => {
+    const puerta = puertaDelViaje({ total: 2_345_000 });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    const cotizaciones = puerta.pedidos.filter((p) => p.operacion === 'cotizar');
+    expect(cotizaciones.length).toBeGreaterThan(0);
+    expect(cotizaciones.every((p) => p.llave === null)).toBe(true);
+    expect(cotizaciones.at(-1)!.cuerpo!.items![0].ventana).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+    expect(puerta.veces('abrir')).toBe(0);
+    expect(component.cartTotalLabel()).toBe(formatearImporte(2_345_000, 'COP'));
+  });
+
+  it('si cotizar no puede dar el total lo dice, y el carrito no inventa uno del servidor', async () => {
+    const puerta = puertaDelViaje({ rechazos: { cotizar: { code: 'pricing.price_not_found', status: 404 } } });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.totalCotizado()).toBeNull();
+    expect(alertas()).toContain('No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
   });
 
   it('«puerta» sin <synergos-flujo> arriba: «no disponible», sin asistente y sin tocar la red', async () => {
