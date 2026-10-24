@@ -684,6 +684,15 @@ export class GovElementComponent implements OnInit {
    */
   readonly aceptaNotificacion = signal(false);
 
+  /** La casilla de la aceptación, que vive tras el `@if` de «Revise sus respuestas». */
+  readonly casillaDeAceptacion = viewChild<ElementRef<HTMLInputElement>>('casillaDeAceptacion');
+  /**
+   * "El ciudadano acaba de entrar a «Revise sus respuestas»; en cuanto la casilla exista, llévale la
+   * vista y el foco." De UNA vez y sólo por su navegación (el aviso del shell), como el del panel de
+   * acceso: que la casilla aparezca por otra vía no le mueve el foco.
+   */
+  readonly #casillaPendiente = signal(false);
+
   /**
    * Si el proceso le permite al dueño subsanar ahora (009, D-2): de las acciones servidas, que
    * sólo la traen en «información solicitada». El elemento no lo deduce del estado.
@@ -861,6 +870,23 @@ export class GovElementComponent implements OnInit {
       // markup lleva `tabindex="-1"` (enfocable por código) y no `0` (que además lo metería
       // en el orden de tabulación, donde un contenedor no pinta nada).
       panel.nativeElement.focus();
+    });
+
+    // La casilla de la aceptación va ANTES del shell del formulario, y el shell no mueve la vista al
+    // cambiar de paso: en móvil quedaba 891 px por encima de «Radicar solicitud» (medido en vivo, T018)
+    // y, en el orden del documento, detrás del lector de pantalla. Al entrar a la revisión se la trae
+    // al centro (no bajo la cabecera fija) y recibe el foco: lo primero que lee es la pregunta.
+    // Instantáneo, no con el `scroll-behavior: smooth` del sitio: es un cambio de paso, y el suave
+    // —que avanza con los cuadros que pinta el navegador— quedaba en la posición del botón cuando
+    // la página no pintaba (medido en vivo: ni un evento de scroll, la casilla a -252 px).
+    effect(() => {
+      const casilla = this.casillaDeAceptacion();
+      if (!this.#casillaPendiente() || !casilla) {
+        return;
+      }
+      this.#casillaPendiente.set(false);
+      casilla.nativeElement.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+      casilla.nativeElement.focus({ preventScroll: true });
     });
   }
 
@@ -1377,6 +1403,12 @@ export class GovElementComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** El paso que avisa el shell; entrar a «Revise sus respuestas» pide llevar la vista a la casilla. */
+  onFormStep(step: string): void {
+    this.formStep.set(step);
+    this.#casillaPendiente.set(step === 'review');
   }
 
   /** La casilla de la notificación electrónica. */

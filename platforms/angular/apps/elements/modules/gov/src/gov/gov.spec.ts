@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
 import { OUTCOME_TO_STATUS, isClosedStatus, type ApplicationSummary } from './gov.model';
@@ -825,6 +826,46 @@ describe('GovElementComponent (v2 dual face)', () => {
 
     expect(cuerpoDeLaRadicacion(borde)['notificationConsent']).toEqual({ accepted: false, textVersion: '2026-10-v1' });
     expect(component.view()).toBe('receipt');
+  });
+
+  /** El aviso del shell al cambiar de paso, por la plantilla: como llega en el navegador. */
+  function avisarPaso(paso: string): void {
+    const shell = fixture.debugElement.query(By.css('syn-dynamic-form'));
+    expect(shell).toBeTruthy(); // control: el formulario está pintado
+    (shell.componentInstance as { stepchange: { emit(valor: string): void } }).stepchange.emit(paso);
+  }
+
+  // Medido en vivo (T018, copia piloto, 375×812): la casilla va antes del shell y quedaba 891 px por
+  // encima de «Radicar solicitud», y detrás del lector de pantalla en el orden del documento.
+  it('al entrar a «Revise sus respuestas» la casilla recibe el foco', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+    await abrirFormularioDeAntecedentes();
+    fixture.detectChanges();
+
+    avisarPaso('0'); // control: un paso de datos ni la pinta ni mueve el foco
+    fixture.detectChanges();
+    await flushMicrotasks();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.consentimiento')).toBeNull();
+
+    avisarPaso('review');
+    fixture.detectChanges();
+    await flushMicrotasks();
+    const casilla = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.consentimiento input[type=checkbox]');
+    expect(casilla).not.toBeNull();
+    expect(document.activeElement).toBe(casilla);
+  });
+
+  it('el foco lo mueve la navegación del ciudadano, no que la casilla aparezca por otra vía', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+    await abrirFormularioDeAntecedentes();
+    fixture.detectChanges();
+    const antes = document.activeElement;
+
+    component.formStep.set('review');
+    fixture.detectChanges();
+    await flushMicrotasks();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.consentimiento input[type=checkbox]')).not.toBeNull(); // control: está
+    expect(document.activeElement).toBe(antes);
   });
 
   it('la consola dice si consta la aceptación, y sin ella no ofrece «Notificar»', async () => {

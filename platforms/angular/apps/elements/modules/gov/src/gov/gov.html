@@ -257,10 +257,13 @@
 
       <!-- La notificación electrónica de los actos se acepta EXPRESAMENTE al radicar (009, S-7): la
            casilla aparece en «Revise sus respuestas», sin marcar, y su respuesta —marcada o no— viaja
-           con la radicación junto con la versión del texto. No aceptarla no impide radicar. -->
+           con la radicación junto con la versión del texto. No aceptarla no impide radicar. Va antes
+           del shell, que no tiene dónde ponerla junto a «Radicar»: al entrar al paso se lleva la vista
+           y el foco (onFormStep), o en móvil queda más de una pantalla por encima del botón. -->
       @if (formStep() === 'review') {
         <label class="consentimiento">
           <input
+            #casillaDeAceptacion
             type="checkbox"
             class="consentimiento__casilla"
             [checked]="aceptaNotificacion()"
@@ -275,7 +278,7 @@
         [config]="formConfig"
         [submitting]="submitting()"
         (formsubmit)="onFormSubmit($event)"
-        (stepchange)="formStep.set($event)"
+        (stepchange)="onFormStep($event)"
       />
     </section>
   }
