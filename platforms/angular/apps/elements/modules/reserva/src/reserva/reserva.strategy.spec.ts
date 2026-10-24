@@ -1,11 +1,12 @@
 import {
   definirCoordinador,
+  instanteEnZona,
   type CoordinadorDelFlujo,
   type Enviar,
   type Peticion,
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
-import { diasAbiertos, franjaLegible, horasDelDia, instanteEnZona, ventanaDe } from './reserva.horario';
+import { diasAbiertos, franjaLegible, horasDelDia, ventanaDe } from './reserva.horario';
 import {
   cerrarReserva,
   cotizarReserva,

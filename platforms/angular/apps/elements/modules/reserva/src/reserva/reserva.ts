@@ -24,7 +24,9 @@ import {
   elegirMensaje,
   formatearImporte,
   hayCoordinador,
+  horaEnZona,
   t,
+  zonaValida,
   type ClaseDeRechazo,
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
@@ -32,12 +34,10 @@ import {
   diasAbiertos,
   esDiaDeLaSemana,
   franjaLegible,
-  horaEnZona,
   horasDelDia,
   minutosDe,
   rangoDelDia,
   ventanaDe,
-  zonaValida,
   type Ventana,
 } from './reserva.horario';
 import {
