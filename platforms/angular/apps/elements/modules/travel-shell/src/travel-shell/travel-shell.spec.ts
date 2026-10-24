@@ -1130,7 +1130,7 @@ describe('periodoDeLaBusqueda (defecto 1 de la línea 006)', () => {
 // del flujo: abrir aparta cada ítem y autoriza el total, cerrar captura y confirma. Lo que se mira es lo que viajó a
 // la puerta —la llave, cada ítem con su producto, su etiqueta y su periodo— y lo que el SERVIDOR contestó.
 
-type OperacionDelViaje = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar';
+type OperacionDelViaje = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'listar';
 
 interface GuionDelViaje {
   /** El total que dice el servidor, en unidades MAYORES. */
@@ -1151,6 +1151,10 @@ interface PedidoAlViaje {
 
 const ID_DEL_VIAJE = 'viaje-77';
 const NUMERO_DEL_VIAJE = 'VIA-0077';
+/** El itinerario que dice el servidor del viaje: lo que «Mis viajes» pinta. */
+const ITINERARIO_DEL_VIAJE = [
+  { producto: 'AV-8020', etiqueta: 'Bogotá → Cartagena', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z' },
+];
 
 /** La puerta del viaje sobre el borde de siempre: lo demás (búsquedas, checkout directo) lo sirve el de antes. */
 function puertaDelViaje(guion: GuionDelViaje = {}) {
@@ -1166,7 +1170,7 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     flujo: 'viajes.reserva',
     numero: NUMERO_DEL_VIAJE,
     estado,
-    datos: { itinerario: [], subtotal: total, descuento: null, impuesto: null, total, vence: '2026-08-01T10:15:00Z' },
+    datos: { itinerario: ITINERARIO_DEL_VIAJE, subtotal: total, descuento: null, impuesto: null, total, vence: '2026-08-01T10:15:00Z' },
     compensacionesPendientes: 0,
     error: null,
     deshaciendo: false,
@@ -1203,6 +1207,10 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
       case 'cancelar':
         estado = estado === 'Running' ? 'Compensated' : estado;
         return json(200, viaje());
+      case 'listar':
+        // Un viaje confirmado: lo que el orquestador devuelve con `estado=Completed`.
+        estado = 'Completed';
+        return json(200, { items: [viaje()], total: 1, offset: 0, hasMore: false });
       default:
         return json(200, viaje());
     }
@@ -1210,6 +1218,7 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
   return {
     fetchDoble,
     pedidos,
+    rutas,
     veces: (operacion: OperacionDelViaje) => pedidos.filter((p) => p.operacion === operacion).length,
     directas: () => rutas.filter((r) => r.startsWith('POST') && /\/(checkout|confirm)$/.test(r)).length,
     alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
@@ -1434,6 +1443,57 @@ describe('El viaje por la puerta (línea 006)', () => {
 
     expect(component.totalCotizado()).toBeNull();
     expect(alertas()).toContain('No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
+  });
+
+  // ── «Mis viajes» y el enlace del aviso (T028) ───────────────────────────────────────────────────────────
+
+  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar`, con lo que dice el servidor; ni /trips ni cancelar aquí', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+    component.goToAccount();
+    fixture.detectChanges();
+    await asentar(20);
+
+    const listar = puerta.pedidos.find((p) => p.operacion === 'listar')!;
+    expect(new URL(listar.url, 'http://x').searchParams.get('estado')).toBe('Completed');
+    expect(puerta.rutas.some((r) => r.includes('/trips'))).toBe(false);
+    const [trip] = component.trips();
+    expect(trip.ref).toBe(NUMERO_DEL_VIAJE);
+    expect(trip.title).toBe('Bogotá → Cartagena');
+    expect([trip.startDate, trip.endDate]).toEqual(['2026-08-01', '2026-08-05']);
+    expect(trip.total).toBe(1_900_000);
+    // Confirmado por la puerta, lo gestiona quien vende (006-P3).
+    expect(component.canCancel(trip)).toBe(false);
+  });
+
+  describe('el enlace del aviso', () => {
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('?viaje={id} abre «Mis viajes» y CONSULTA ese viaje; leído, el parámetro sale de la URL', async () => {
+      window.history.replaceState(null, '', `/viajes/?viaje=${ID_DEL_VIAJE}&utm=correo`);
+      const puerta = puertaDelViaje();
+      puerta.fetchDoble.mockClear();
+      await montar(puerta);
+      await asentar(20);
+      fixture.detectChanges();
+
+      expect(puerta.pedidos.find((p) => p.operacion === 'consultar')!.url).toContain(`id=${ID_DEL_VIAJE}`);
+      expect(component.view()).toBe('account');
+      expect(component.viajeDelAviso()?.ref).toBe(NUMERO_DEL_VIAJE);
+      expect(fixture.nativeElement.querySelector('.travel__trip-aviso')?.textContent).toContain('Bogotá → Cartagena');
+      expect(new URLSearchParams(window.location.search).has('viaje')).toBe(false);
+      expect(new URLSearchParams(window.location.search).get('utm')).toBe('correo');
+    });
+
+    it('sin sesión el parámetro SE QUEDA (el login vuelve aquí) y se pide entrar', async () => {
+      window.history.replaceState(null, '', `/viajes/?viaje=${ID_DEL_VIAJE}`);
+      const puerta = puertaDelViaje({ rechazos: { consultar: { code: 'puerta.sesion_requerida', status: 401 } } });
+      await montar(puerta);
+      await asentar(20);
+
+      expect(component.tripsAccess()).toBe('sin-sesion');
+      expect(new URLSearchParams(window.location.search).get('viaje')).toBe(ID_DEL_VIAJE);
+    });
   });
 
   it('«puerta» sin <synergos-flujo> arriba: «no disponible», sin asistente y sin tocar la red', async () => {

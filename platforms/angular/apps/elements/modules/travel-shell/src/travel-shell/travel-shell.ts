@@ -5,6 +5,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  type OnInit,
   computed,
   effect,
   inject,
@@ -102,6 +103,7 @@ import {
 } from './travel.model';
 import {
   FLUJO_VIAJES_RESERVA,
+  avisoDelFlujo,
   baseDeRuta,
   clasificarRechazo,
   elegirMensaje,
@@ -113,7 +115,7 @@ import {
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 import { caminoDelViajePendiente, itemsDelViaje, sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
-import { cancelarViaje, cotizarViaje, type Importe } from './travel-viaje';
+import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe } from './travel-viaje';
 
 /**
  * Lo que se dice de un rechazo del viaje por la puerta, elegido por su `code` y nunca por su `title` (sección
@@ -155,6 +157,32 @@ export function mensajeDelViaje(code: string): string {
     defecto: generico,
     negado: generico,
   });
+}
+
+/**
+ * Con qué parámetro llega a la página el enlace del correo del viaje: el de la tabla GENERADA de las rutas del CMS
+ * (`Synergos:Puerta:Flujos:viajes.reserva:Aviso:Ruta`, núcleo N3), no un literal de aquí. Vacío si nadie avisa.
+ */
+function parametroDelAviso(): string {
+  return avisoDelFlujo(FLUJO_VIAJES_RESERVA)?.parametro ?? '';
+}
+
+/** El viaje del enlace del aviso (`?viaje={id}`), o vacío. */
+function viajeDelEnlace(): string {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return '';
+  return new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+}
+
+/** Quita el parámetro del aviso de la URL: se usa una vez, y lo que quede lo reabriría en cada recarga. */
+function consumirViajeDelEnlace(): void {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return;
+  const consulta = new URLSearchParams(window.location.search);
+  if (!consulta.has(parametro)) return;
+  consulta.delete(parametro);
+  const texto = consulta.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`);
 }
 
 /**
@@ -279,7 +307,7 @@ let travelShellInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-travel-shell' },
 })
-export class TravelShellElementComponent {
+export class TravelShellElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -838,9 +866,7 @@ export class TravelShellElementComponent {
   readonly walletCredentials = computed<readonly WalletCredential[]>(() => {
     const credentials: WalletCredential[] = [];
     for (const trip of this.trips()) {
-      for (const item of trip.items) {
-        credentials.push(this.tripItemToCredential(trip, item));
-      }
+      trip.items.forEach((item, indice) => credentials.push(this.tripItemToCredential(trip, item, indice)));
     }
     return credentials;
   });
@@ -1764,6 +1790,11 @@ export class TravelShellElementComponent {
       return;
     }
     this.tripsLoading.set(true);
+    if (this.porLaPuerta()) {
+      await this.cargarViajesDeLaPuerta();
+      this.tripsLoading.set(false);
+      return;
+    }
     try {
       const trips = await this.#api.trips(this.apiBase(), this.currency());
       this.trips.set(trips);
@@ -1775,9 +1806,73 @@ export class TravelShellElementComponent {
         this.tripsAccess.set('sin-sesion');
         return;
       }
-      this.errorMessage.set('No pudimos cargar tus viajes.');
+      this.errorMessage.set(this.textoViajesNoCargados);
     } finally {
       this.tripsLoading.set(false);
+    }
+  }
+
+  readonly textoViajesNoCargados = 'No pudimos cargar tus viajes.';
+
+  /**
+   * «Mis viajes» por la puerta (`listar`, T028 de la línea 006): los viajes CONFIRMADOS de quien tiene la sesión, con
+   * lo que dice el servidor. Sin coordinador no se reserva ni se lista: se dice.
+   */
+  private async cargarViajesDeLaPuerta(): Promise<void> {
+    if (!hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)) {
+      this.errorMessage.set(this.textoNoDisponible);
+      return;
+    }
+    const r = await listarViajes(this.#host);
+    if (r.ok) {
+      const ahora = Date.now();
+      this.trips.set(r.valor.map((viaje) => viajeComoTrip(viaje, ahora)).filter((trip): trip is TravelTrip => trip !== null));
+      this.tripsLoaded.set(true);
+      this.tripsAccess.set('ok');
+      return;
+    }
+    if (clasificarRechazo(r.rechazo) === 'sesion') {
+      this.trips.set([]);
+      this.tripsAccess.set('sin-sesion');
+      return;
+    }
+    this.errorMessage.set(this.textoViajesNoCargados);
+  }
+
+  /** El viaje que abrió el enlace del aviso, con lo que dijo `consultar`: se enseña encima de «Mis viajes». */
+  readonly viajeDelAviso = signal<TravelTrip | null>(null);
+
+  /**
+   * El enlace del correo del viaje (`?viaje={id}`, T028): abre «Mis viajes» y CONSULTA ese viaje por la puerta. Sin
+   * sesión el parámetro se QUEDA en la URL: el login vuelve a esta misma página y lo vuelve a abrir. Leído (o si no
+   * existe), sale de la URL.
+   */
+  async abrirDelAviso(id: string): Promise<void> {
+    this.navigate('account', 'viajes');
+    if (!hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)) {
+      return;
+    }
+    const r = await consultarViaje(this.#host, id);
+    if (!r.ok && clasificarRechazo(r.rechazo) === 'sesion') {
+      this.tripsAccess.set('sin-sesion');
+      return;
+    }
+    consumirViajeDelEnlace();
+    if (!r.ok) {
+      this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+      return;
+    }
+    this.viajeDelAviso.set(viajeComoTrip(r.valor, Date.now()));
+  }
+
+  /**
+   * Lo que se hace al montar, con las entradas del CMS ya puestas: en un custom element llegan después del
+   * constructor y antes de `ngOnInit`.
+   */
+  ngOnInit(): void {
+    const delAviso = viajeDelEnlace();
+    if (delAviso) {
+      void this.abrirDelAviso(delAviso);
     }
   }
 
@@ -1825,11 +1920,12 @@ export class TravelShellElementComponent {
   }
 
   tripCredentials(trip: TravelTrip): readonly WalletCredential[] {
-    return trip.items.map((item) => this.tripItemToCredential(trip, item));
+    return trip.items.map((item, indice) => this.tripItemToCredential(trip, item, indice));
   }
 
   canCancel(trip: TravelTrip): boolean {
-    return trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
+    // Un viaje confirmado por la puerta lo gestiona quien vende (006-P3): aquí no se cancela.
+    return !trip.porLaPuerta && trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
   }
 
   cancelReceipt(ref: string): CancelReceipt | null {
@@ -1963,11 +2059,12 @@ export class TravelShellElementComponent {
     };
   }
 
-  private tripItemToCredential(trip: TravelTrip, item: TravelTrip['items'][number]): WalletCredential {
+  private tripItemToCredential(trip: TravelTrip, item: TravelTrip['items'][number], indice: number): WalletCredential {
     const cancelled = this.cancelByRef()[trip.ref] || trip.status === 'cancelled';
     return {
-      id: item.reservationId,
-      kind: this.productLabel(item.product),
+      // Por la puerta todos los ítems comparten el localizador (el número del viaje): el id los distingue.
+      id: trip.porLaPuerta ? `${item.reservationId}-${indice + 1}` : item.reservationId,
+      kind: item.product ? this.productLabel(item.product) : undefined,
       title: item.title,
       subtitle: item.subtitle || undefined,
       reference: item.reservationId,

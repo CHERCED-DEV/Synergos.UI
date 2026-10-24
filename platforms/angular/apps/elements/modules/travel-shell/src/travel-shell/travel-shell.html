@@ -740,6 +740,15 @@
         [actionHref]="loginUrl()"
       />
     } @else {
+      @if (avisoDelViaje()) {
+        <syn-live-region class="travel__notice" [message]="avisoDelViaje()" [visuallyHidden]="false" announceInitial />
+      }
+      <!-- El viaje del enlace del aviso (?viaje={id}): lo que dijo consultar, encima de la lista. -->
+      @if (viajeDelAviso(); as trip) {
+        <section class="travel__trip-aviso">
+          <ng-container [ngTemplateOutlet]="tripDetail" [ngTemplateOutletContext]="{ $implicit: trip }"></ng-container>
+        </section>
+      }
       <syn-account-shell
         [config]="accountConfig()"
         [items]="trips()"

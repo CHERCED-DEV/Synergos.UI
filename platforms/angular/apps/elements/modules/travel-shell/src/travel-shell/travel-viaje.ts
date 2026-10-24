@@ -6,9 +6,11 @@ import {
   clasificarRechazo,
   consultarViajesReserva,
   cotizarViajesReserva,
+  listarViajesReserva,
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
+import type { TravelTrip, TripStatus } from './travel.model';
 
 /**
  * La reserva de un viaje por la puerta (línea 006, ADR 0140), tipada con el contrato GENERADO de
@@ -109,6 +111,51 @@ export async function cancelarViaje(desde: Element, id: string): Promise<Resulta
 
 export async function consultarViaje(desde: Element, id: string): Promise<ResultadoDelFlujo<ViajeLeido>> {
   return leido(await consultarViajesReserva(desde, { consulta: { id } }));
+}
+
+/** Cuántos viajes trae «Mis viajes» de una vez: la ventana más grande que acepta el orquestador. */
+const VIAJES_POR_PAGINA = 100;
+
+/** Los viajes CONFIRMADOS de quien tiene la sesión (`listar`): lo deshecho o sin confirmar no es un viaje suyo. */
+export async function listarViajes(desde: Element): Promise<ResultadoDelFlujo<readonly ViajeLeido[]>> {
+  const r = await listarViajesReserva(desde, { consulta: { estado: 'Completed', limit: VIAJES_POR_PAGINA } });
+  return r.ok ? { ...r, valor: r.valor.items.map(leerViaje) } : r;
+}
+
+/**
+ * Un viaje CONFIRMADO por la puerta como lo pinta «Mis viajes»; `null` si no está confirmado, que no se enseña
+ * como si lo estuviera. Las fechas son las del itinerario —cada ventana va de medianoche a medianoche UTC, así que su
+ * día es el de la reserva— y el estado sale de ellas. El localizador de cada ítem es el número del viaje: por la
+ * puerta no sale ningún identificador de la agenda.
+ */
+export function viajeComoTrip(viaje: ViajeLeido, ahora: number): TravelTrip | null {
+  if (viaje.estado !== 'Completed') {
+    return null;
+  }
+  const dia = (instante: string) => instante.slice(0, 10);
+  const inicios = viaje.itinerario.map((p) => p.inicio).sort();
+  const fines = viaje.itinerario.map((p) => p.fin).sort();
+  const desde = inicios[0] ?? '';
+  const hasta = fines[fines.length - 1] ?? '';
+  const status: TripStatus =
+    hasta && Date.parse(hasta) <= ahora ? 'completed' : desde && Date.parse(desde) <= ahora ? 'inprogress' : 'upcoming';
+  return {
+    ref: viaje.numero,
+    title: viaje.itinerario.map((p) => p.etiqueta || p.producto).join(' · ') || viaje.numero,
+    destination: viaje.numero,
+    startDate: dia(desde),
+    endDate: dia(hasta),
+    status,
+    total: viaje.total?.amount ?? 0,
+    currency: viaje.total?.currency ?? '',
+    items: viaje.itinerario.map((p) => ({
+      product: null,
+      title: p.etiqueta || p.producto,
+      subtitle: `${dia(p.inicio)} → ${dia(p.fin)}`,
+      reservationId: viaje.numero,
+    })),
+    porLaPuerta: true,
+  };
 }
 
 /**

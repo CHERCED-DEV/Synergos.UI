@@ -427,11 +427,17 @@ export interface TravelTrip {
   readonly currency: string;
   /** The booked items (hotel + flight + car) with their reservation ids. */
   readonly items: readonly TravelTripItem[];
+  /**
+   * Reservado por la puerta (`viajes.reserva`, línea 006). Confirmado, lo gestiona quien vende (006-P3): esta
+   * pantalla no lo cancela.
+   */
+  readonly porLaPuerta?: true;
 }
 
 /** One booked item inside a trip (feeds the SH-10 wallet + timeline). */
 export interface TravelTripItem {
-  readonly product: TravelProduct;
+  /** `null` cuando el servidor no lo dice: el itinerario de la puerta trae el producto y su nombre, no su clase. */
+  readonly product: TravelProduct | null;
   readonly title: string;
   readonly subtitle: string;
   readonly reservationId: string;
