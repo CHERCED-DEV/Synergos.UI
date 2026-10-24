@@ -23,6 +23,52 @@ export interface Rechazo {
   readonly transient: boolean;
 }
 
+export interface ViajesCancelacionEntrada {
+  readonly viaje: string;
+  readonly retener: { readonly amount: number; readonly currency: string; };
+}
+
+export interface ViajesCancelacionPagina {
+  readonly items: readonly ViajesCancelacionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface ViajesCancelacionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly viaje: string | null; readonly retener: { readonly amount: number; readonly currency: string; } | null; readonly aDevolver: { readonly amount: number; readonly currency: string; } | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export interface ViajesDevolucionEntrada {
+  readonly viaje: string;
+  readonly monto: { readonly amount: number; readonly currency: string; };
+}
+
+export interface ViajesDevolucionPagina {
+  readonly items: readonly ViajesDevolucionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface ViajesDevolucionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly viaje: string | null; readonly monto: { readonly amount: number; readonly currency: string; } | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 export interface ViajesReservaCotizacion {
   readonly flujo: string;
   readonly datos: { readonly itinerario: readonly { readonly producto: string; readonly etiqueta: string; readonly inicio: string; readonly fin: string; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
@@ -66,6 +112,18 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
 
 /** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
 export interface OperacionesDeLaPuerta {
+  readonly "viajes.cancelacion": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, ViajesCancelacionEntrada, ViajesCancelacionRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, ViajesCancelacionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, ViajesCancelacionRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, ViajesCancelacionPagina, "ninguna">;
+  };
+  readonly "viajes.devolucion": {
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, ViajesDevolucionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, ViajesDevolucionRespuesta, "ninguna">;
+    readonly devolver: OperacionDeLaPuerta<"POST", undefined, ViajesDevolucionEntrada, ViajesDevolucionRespuesta, "requerida">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, ViajesDevolucionPagina, "ninguna">;
+  };
   readonly "viajes.reserva": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, ViajesReservaEntrada, ViajesReservaRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, ViajesReservaRespuesta, "ninguna">;
@@ -98,6 +156,18 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
 export const OPERACIONES_DE_LA_PUERTA = {
+  "viajes.cancelacion": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "viajes.devolucion": {
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    devolver: { metodo: "POST", llave: "requerida", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
   "viajes.reserva": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
