@@ -93,6 +93,8 @@ interface AcademyPayInstrument {
    * salió no lo mira: se termina por el camino por el que salió.
    */
   readonly camino?: CaminoDeLaMatricula;
+  /** Cuántas matrículas de este curso le devolvió el personal al alumno: numera la llave (010-P2 B). */
+  readonly devueltas?: number;
 }
 
 /**
@@ -194,7 +196,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
     const selection = line.selection as Record<string, unknown>;
     const planId = typeof selection['planId'] === 'string' ? selection['planId'] : '';
     if (caminoDeLaMatriculaEnCurso(request.session, instrument.camino) === 'puerta') {
-      return this.abrirPorLaPuerta(line, planId, instrument.host);
+      return this.abrirPorLaPuerta(line, planId, instrument.host, instrument.devueltas ?? 0);
     }
     this.anotar((item) => conElCamino(item, 'directa'));
     const currency = request.session.pricing.currency;
@@ -266,19 +268,21 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
    * vuelve está abierta con OTRO plan (otra pestaña, un cambio de plan), se cancela y se abre la del plan elegido: un
    * solo cobro, el del plan que la pantalla muestra.
    */
-  private async abrirPorLaPuerta(line: SessionItem, planId: string, host: Element | undefined): Promise<FulfillmentPayResult> {
+  private async abrirPorLaPuerta(
+    line: SessionItem, planId: string, host: Element | undefined, devueltas: number,
+  ): Promise<FulfillmentPayResult> {
     if (!(host instanceof Element)) {
       return { accepted: false, reason: 'cliente.sin_coordinador' };
     }
     const cursoId = line.productRef;
     this.anotar((item) => conElCamino(item, 'puerta'));
-    let abierta = await abrirMatricula(host, cursoId, planId || null);
+    let abierta = await abrirMatricula(host, cursoId, planId || null, devueltas);
     if (abierta.ok && abierta.valor.estado === 'Running' && (abierta.valor.plan ?? '') !== planId) {
       const cancelada = await cancelarMatricula(host, abierta.valor.id);
       if (!cancelada.ok) {
         return { accepted: false, reason: cancelada.rechazo.code };
       }
-      abierta = await abrirMatricula(host, cursoId, planId || null);
+      abierta = await abrirMatricula(host, cursoId, planId || null, devueltas);
     }
     if (!abierta.ok) {
       return { accepted: false, reason: abierta.rechazo.code };

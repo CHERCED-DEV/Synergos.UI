@@ -333,6 +333,27 @@ export class AcademyElementComponent implements OnInit {
   readonly avisoDeLaMatricula = signal('');
   readonly textoYaMatriculado = t('Academy.Enrollment.AlreadyEnrolled', 'Ya estás matriculado en este curso.');
   readonly textoIrAlAula = t('Academy.Enrollment.GoToClassroom', 'Ir al aula');
+  /**
+   * Cuántas matrículas del curso abierto le devolvió el personal al alumno (010-P2 B), de «mi aprendizaje»: numeran la
+   * llave de la matrícula nueva, porque la devuelta sigue completada en el orquestador.
+   */
+  readonly devueltasDelCurso = computed(() => {
+    const id = this.detail()?.course.id;
+    const aprendizaje = this.learning();
+    return id && aprendizaje?.status === 'ok' ? (aprendizaje.devueltas?.[id] ?? 0) : 0;
+  });
+
+  // ─── La devolución del personal (lote 8, 010-P2 B) ─────────────────────────
+  readonly textoDevolver = t('Academy.Enrollment.Refund', 'Devolver');
+  readonly textoConfirmarDevolucion = t('Academy.Enrollment.RefundConfirm', 'Confirmar devolución');
+  readonly textoDevuelta = t('Academy.Enrollment.Refunded', 'Matrícula devuelta. Reembolso:');
+  readonly textoDevolucionFallida = t('Academy.Enrollment.RefundFailed', 'No se pudo devolver la matrícula. Intenta de nuevo.');
+  /** La matrícula cuyo «Devolver» ya se pulsó una vez y espera la confirmación: mueve plata, no va de un clic. */
+  readonly porDevolver = signal('');
+  /** La matrícula que se está devolviendo: su botón no admite otro clic mientras tanto. */
+  readonly devolviendo = signal('');
+  /** Lo que pasó con la última devolución: lo devuelto, o que no se devolvió. */
+  readonly avisoDeLaDevolucion = signal('');
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<AcademyConfig | undefined, unknown>(undefined, {
@@ -718,6 +739,7 @@ export class AcademyElementComponent implements OnInit {
     // la matrícula.
     host: this.#host,
     camino: this.caminoDeLaMatricula(),
+    devueltas: this.devueltasDelCurso(),
   }));
 
   // ─── Mi aprendizaje (SH-4 account) ────────────────────────────────────────────
@@ -925,10 +947,17 @@ export class AcademyElementComponent implements OnInit {
     }
   });
 
+  /**
+   * La columna «Devolver» sólo existe si alguna fila la tiene (010-P2 B): quién puede devolver y qué fila se devuelve lo
+   * decide el servidor (`matriculaDevolvible`), y a un instructor no le llega ninguna.
+   */
+  readonly columnaDevolver: ConsoleColumn = { key: 'devolver', label: this.textoDevolver, align: 'end' };
+  readonly hayDevolvibles = computed(() => (this.desk()?.students ?? []).some((s) => !!s.matriculaDevolvible));
+
   readonly consoleColumns = computed<readonly ConsoleColumn[]>(() => {
     switch (this.instructorView()) {
       case 'students':
-        return this.studentColumns;
+        return this.hayDevolvibles() ? [...this.studentColumns, this.columnaDevolver] : this.studentColumns;
       case 'qa':
         return this.questionColumns;
       case 'moderation':
@@ -1853,6 +1882,36 @@ export class AcademyElementComponent implements OnInit {
   reloadDesk(): void {
     this.deskLoaded.set(false);
     void this.loadDesk();
+  }
+
+  /**
+   * «Devolver» de la consola (010-P2 B): el primer clic pide confirmar —mueve plata y no se deshace—, el segundo la
+   * devuelve. Lo devuelto lo dice el servidor; devuelta, la fila sale de la consola al releerla. Un fallo lo dice y la
+   * fila se queda: reintentar no devuelve dos veces (la llave es la de la matrícula).
+   */
+  async devolverMatricula(fila: InstructorStudent): Promise<void> {
+    const matricula = fila.matriculaDevolvible;
+    if (!matricula || this.devolviendo()) {
+      return;
+    }
+    if (this.porDevolver() !== matricula) {
+      this.porDevolver.set(matricula);
+      return;
+    }
+    this.porDevolver.set('');
+    this.devolviendo.set(matricula);
+    this.avisoDeLaDevolucion.set('');
+    try {
+      const devuelta = await this.#api.devolverMatricula(this.apiBase(), matricula);
+      this.avisoDeLaDevolucion.set(`${this.textoDevuelta} ${this.formatPrice(devuelta.devuelto, devuelta.moneda || this.currency())}`);
+      this.deskLoaded.set(false);
+      await this.loadDesk();
+    } catch (error) {
+      void error;
+      this.avisoDeLaDevolucion.set(this.textoDevolucionFallida);
+    } finally {
+      this.devolviendo.set('');
+    }
   }
 
   setStudentFilter(event: Event): void {

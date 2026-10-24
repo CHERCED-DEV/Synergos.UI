@@ -903,6 +903,9 @@
           (rowaction)="onConsoleAction($event)"
         />
 
+        <!-- Lo que pasó con la última devolución: la región nace con la consola y habla cuando cambia. -->
+        <syn-live-region class="academy__mod-notice" [message]="avisoDeLaDevolucion()" [visuallyHidden]="false" />
+
         @if (moderationNotice(); as aviso) {
           <p
             class="academy__mod-notice"
@@ -947,6 +950,21 @@
               <span class="academy__cell-sub">{{ row.courseTitle }} · {{ row.rating }}★</span>
             }
             @case ('moderationBody') { <span class="academy__cell-clamp">{{ row.body }}</span> }
+            <!-- La devolución del personal (010-P2 B): sólo en la fila que el servidor marca devolvible, y con dos
+                 clics —el segundo confirma—, porque mueve plata y no se deshace. -->
+            @case ('devolver') {
+              @if (row.matriculaDevolvible) {
+                <button
+                  type="button"
+                  class="academy__btn academy__btn--sm"
+                  [class.academy__btn--primary]="porDevolver() === row.matriculaDevolvible"
+                  [disabled]="devolviendo() === row.matriculaDevolvible"
+                  (click)="devolverMatricula(row)"
+                >
+                  {{ porDevolver() === row.matriculaDevolvible ? textoConfirmarDevolucion : textoDevolver }}
+                </button>
+              }
+            }
           }
         </ng-template>
 

@@ -438,6 +438,11 @@ export type LearningResult =
        * curada que no existe en ningún seam. Vacío → la sección no se pinta.
        */
       readonly paths: readonly LearningPath[];
+      /**
+       * Cuántas matrículas de la puerta de cada curso le devolvió el personal al alumno (010-P2 B), por id de curso: la
+       * llave de una matrícula nueva se numera con ellas. Sin devoluciones, vacío.
+       */
+      readonly devueltas?: Readonly<Record<string, number>>;
     }
   | { readonly status: 'anon' }
   | { readonly status: 'unreadable' };
@@ -531,6 +536,11 @@ export interface InstructorStudent {
   /** Percent complete (0–100). */
   readonly percent: number;
   readonly enrolledAt: string;
+  /**
+   * La matrícula que el administrador puede devolver (010-P2 B). La decide el SERVIDOR —quien mira es `admin` y la
+   * fila salió por la puerta con algo cobrado—; sin ella, la fila no ofrece «Devolver».
+   */
+  readonly matriculaDevolvible?: string;
 }
 
 /** One inbound question in the instructor Q&A dashboard (SH-5 qa queue). */

@@ -10,6 +10,28 @@
 // lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
 // regla 24 de CLAUDE.md.
 
+export interface EducacionDevolucionEntrada {
+  readonly matricula: string;
+}
+
+export interface EducacionDevolucionPagina {
+  readonly items: readonly EducacionDevolucionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface EducacionDevolucionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly matricula: string | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 export interface EducacionMatriculaCotizacion {
   readonly flujo: string;
   readonly datos: { readonly curso: { readonly kind: "educacion.curso"; readonly id: string; } | null; readonly plan: string | null; readonly total: { readonly amount: number; readonly currency: string; } | null; };
@@ -67,6 +89,12 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
 
 /** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
 export interface OperacionesDeLaPuerta {
+  readonly "educacion.devolucion": {
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, EducacionDevolucionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, EducacionDevolucionRespuesta, "ninguna">;
+    readonly devolver: OperacionDeLaPuerta<"POST", undefined, EducacionDevolucionEntrada, EducacionDevolucionRespuesta, "requerida">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, EducacionDevolucionPagina, "ninguna">;
+  };
   readonly "educacion.matricula": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, EducacionMatriculaEntrada, EducacionMatriculaRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, EducacionMatriculaRespuesta, "ninguna">;
@@ -99,6 +127,12 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
 export const OPERACIONES_DE_LA_PUERTA = {
+  "educacion.devolucion": {
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    devolver: { metodo: "POST", llave: "requerida", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
   "educacion.matricula": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },

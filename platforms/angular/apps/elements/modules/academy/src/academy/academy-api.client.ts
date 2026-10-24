@@ -394,6 +394,25 @@ export class AcademyApiClient {
     }
   }
 
+  /**
+   * El administrador DEVUELVE una matrícula de la puerta (010-P2 B): el CMS abre la devolución del personal por la
+   * puerta y, completada, la da de baja. Lo devuelto es lo que dice el flujo —el total cobrado—, nunca un monto de aquí.
+   * **Un fallo no se disfraza**: sale como `AcademyWriteFailedError` y la pantalla dice que no se devolvió.
+   */
+  async devolverMatricula(apiBase: string, matricula: string): Promise<{ readonly devuelto: number; readonly moneda: string }> {
+    const url = `${apiBase}/instructor/devolver`;
+    try {
+      const data = (await this.postJson(apiBase, url, { matricula })) as Record<string, unknown> | null;
+      const devuelto = readNumber(data?.['devuelto']);
+      if (devuelto > 0) {
+        return { devuelto, moneda: readString(data?.['moneda']).trim() };
+      }
+      throw new Error('devolver-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/academy/instructor/devolver', error);
+    }
+  }
+
   // ─── Progress (read) ─────────────────────────────────────────────────────────
 
   /** El `?student=` tampoco va aquí: el borde lo ignora desde que cerró el IDOR. */
@@ -553,13 +572,14 @@ export class AcademyApiClient {
   private mergeLearning(base: {
     readonly enrollments: readonly EnrolledCourse[];
     readonly paths: readonly LearningPath[];
+    readonly devueltas: Readonly<Record<string, number>>;
   }): LearningResult {
     if (this.#enrollments.length === 0) {
       return { status: 'ok', ...base };
     }
     const inSessionIds = new Set(this.#enrollments.map((entry) => entry.course.id));
     const rest = base.enrollments.filter((entry) => !inSessionIds.has(entry.course.id));
-    return { status: 'ok', paths: base.paths, enrollments: [...this.#enrollments, ...rest] };
+    return { status: 'ok', paths: base.paths, devueltas: base.devueltas, enrollments: [...this.#enrollments, ...rest] };
   }
 
   // ─── Instructor desk (cursos + alumnos + Q&A) ────────────────────────────────
@@ -1225,7 +1245,11 @@ function normalizePath(value: unknown): LearningPath | null {
 function normalizeLearning(
   value: unknown,
   fallbackCurrency: string,
-): { enrollments: readonly EnrolledCourse[]; paths: readonly LearningPath[] } | null {
+): {
+  enrollments: readonly EnrolledCourse[];
+  paths: readonly LearningPath[];
+  devueltas: Readonly<Record<string, number>>;
+} | null {
   if (!isRecord(value) || !Array.isArray(value['enrollments'])) {
     return null;
   }
@@ -1238,7 +1262,20 @@ function normalizeLearning(
     paths: rawPaths
       .map((entry) => normalizePath(entry))
       .filter((entry): entry is LearningPath => entry !== null),
+    devueltas: normalizeDevueltas(value['devueltas']),
   };
+}
+
+/** `[{ courseId, veces }]` → por curso; lo que no se lee (sin curso, veces no positivas) no cuenta. */
+function normalizeDevueltas(value: unknown): Readonly<Record<string, number>> {
+  const devueltas: Record<string, number> = {};
+  for (const entry of Array.isArray(value) ? value : []) {
+    if (!isRecord(entry)) continue;
+    const curso = readString(entry['courseId']).trim();
+    const veces = Math.trunc(readNumber(entry['veces']));
+    if (curso && veces > 0) devueltas[curso] = veces;
+  }
+  return devueltas;
 }
 
 function normalizeInstructorCourse(value: unknown, fallbackCurrency: string): InstructorCourse | null {
@@ -1278,6 +1315,7 @@ function normalizeInstructorStudent(value: unknown): InstructorStudent | null {
     courseTitle: readString(value['courseTitle']).trim() || 'Curso',
     percent: clampPercent(readNumber(value['percent'])),
     enrolledAt: readString(value['enrolledAt']).trim(),
+    matriculaDevolvible: readString(value['matriculaDevolvible']).trim() || undefined,
   };
 }
 

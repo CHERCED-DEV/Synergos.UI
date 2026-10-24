@@ -2065,6 +2065,122 @@ describe('La matrícula por la puerta (010-educacion-matricula)', () => {
       TestBed.resetTestingModule();
     }
   });
+
+  // ── La devolución del personal (lote 8, 010-P2 B, T035 y T036) ─────────────────────────
+
+  it('tras una devolución, la matrícula nueva abre con la llave numerada que entrega «mi aprendizaje» (T035)', async () => {
+    const puerta = puertaDeLaMatricula();
+    await montar(puerta);
+    await hastaElUltimoPaso();
+    const cursoId = component.detail()!.course.id;
+    component.learning.set({ status: 'ok', enrollments: [], paths: [], devueltas: { [cursoId]: 1 } });
+    fixture.detectChanges();
+
+    await pagar();
+
+    expect(puerta.pedidos.find((p) => p.operacion === 'abrir')!.llave).toBe(llaveDeLaMatricula(cursoId, 1));
+    expect(puerta.anotadas).toEqual(['mat-1']);
+  });
+
+  /** La consola de un admin con dos alumnos: Ana salió por la puerta con cobro (devolvible), Beto no. */
+  function consolaConDevolvible(guion: { devolverFalla?: boolean } = {}) {
+    const pedidos: { url: string; cuerpo: unknown }[] = [];
+    let devuelta = false;
+    const json = (status: number, body: unknown): Promise<Response> =>
+      Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+    const fetchDoble = vi.fn((url: string, init?: RequestInit): Promise<Response> => {
+      const ruta = String(url);
+      if (ruta.includes('/instructor/devolver')) {
+        pedidos.push({ url: ruta, cuerpo: JSON.parse(String(init?.body ?? 'null')) });
+        if (guion.devolverFalla) {
+          return json(409, { code: 'payments.refund_over_captured', transient: false, title: 'Conflict' });
+        }
+        devuelta = true;
+        return json(200, { matricula: 'mat-ana', devuelto: 320000, moneda: 'COP' });
+      }
+      if (ruta.includes('/instructor/courses')) {
+        const ana = { id: 'ana-op', name: 'Ana Rincón', courseId: 'gestion-agil', courseTitle: 'Gestión ágil', percent: 40, enrolledAt: '2026-10-20', matriculaDevolvible: 'mat-ana' };
+        const beto = { id: 'beto-op', name: 'Beto Salas', courseId: 'gestion-agil', courseTitle: 'Gestión ágil', percent: 10, enrolledAt: '2026-10-21' };
+        return json(200, { courses: [], students: devuelta ? [beto] : [ana, beto], questions: [], currency: 'COP' });
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    return { fetchDoble, pedidos } as unknown as ReturnType<typeof puertaDeLaMatricula> & { pedidos: typeof pedidos };
+  }
+
+  async function aLosAlumnos(): Promise<HTMLElement> {
+    component.setRole('instructor');
+    await flushMicrotasks();
+    component.onInstructorSectionChange('students');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  function botonesDevolver(raiz: HTMLElement): HTMLButtonElement[] {
+    return Array.from(raiz.querySelectorAll<HTMLButtonElement>('button.academy__btn--sm'))
+      .filter((b) => ['Devolver', 'Confirmar devolución'].includes((b.textContent ?? '').trim()));
+  }
+
+  it('la consola ofrece «Devolver» sólo en la fila que el servidor marca, y pide confirmar antes de devolver (T036)', async () => {
+    const consola = consolaConDevolvible();
+    await montar(consola);
+    const raiz = await aLosAlumnos();
+
+    expect(component.consoleColumns().map((c) => c.key)).toContain('devolver');
+    expect(botonesDevolver(raiz)).toHaveLength(1);
+
+    botonesDevolver(raiz)[0].click();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(consola.pedidos).toHaveLength(0);
+    expect((botonesDevolver(raiz)[0].textContent ?? '').trim()).toBe('Confirmar devolución');
+
+    botonesDevolver(raiz)[0].click();
+    await flushMicrotasks(20);
+    fixture.detectChanges();
+
+    expect(consola.pedidos).toEqual([{ url: expect.stringContaining('/instructor/devolver'), cuerpo: { matricula: 'mat-ana' } }]);
+    expect(component.avisoDeLaDevolucion()).toContain('Matrícula devuelta. Reembolso:');
+    // Devuelta, la fila sale de la consola al releerla, y con ella la columna.
+    expect(component.desk()!.students.map((s) => s.name)).toEqual(['Beto Salas']);
+    expect(component.consoleColumns()).toBe(component.studentColumns);
+  });
+
+  it('una devolución que falla lo dice y la fila se queda (T036)', async () => {
+    const consola = consolaConDevolvible({ devolverFalla: true });
+    await montar(consola);
+    const raiz = await aLosAlumnos();
+
+    botonesDevolver(raiz)[0].click();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    botonesDevolver(raiz)[0].click();
+    await flushMicrotasks(20);
+    fixture.detectChanges();
+
+    expect(component.avisoDeLaDevolucion()).toBe('No se pudo devolver la matrícula. Intenta de nuevo.');
+    expect(component.desk()!.students.map((s) => s.name)).toEqual(['Ana Rincón', 'Beto Salas']);
+  });
+
+  it('«mi aprendizaje» lee las devueltas por curso y descarta lo que no se puede leer (T035)', async () => {
+    const cuerpo = { enrollments: [], paths: [], devueltas: [{ courseId: 'c1', veces: 2 }, { courseId: '', veces: 1 }, { courseId: 'c2', veces: 0 }] };
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200, headers: { 'content-type': 'application/json' } }))));
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), AcademyApiClient] });
+
+    const aprendizaje = await TestBed.inject(AcademyApiClient).learning('/api/academy', 'COP');
+
+    expect(aprendizaje).toEqual({ status: 'ok', enrollments: [], paths: [], devueltas: { c1: 2 } });
+  });
+
+  it('sin filas devolvibles (un instructor, o la ruta directa) no hay columna ni botón', async () => {
+    await montar(puertaDeLaMatricula());
+    const raiz = await aLosAlumnos();
+
+    expect(component.consoleColumns()).toBe(component.studentColumns);
+    expect(botonesDevolver(raiz)).toHaveLength(0);
+  });
 });
 
 describe('mensajeDeLaMatricula y el camino (010-educacion-matricula)', () => {
@@ -2105,6 +2221,12 @@ describe('El transporte de la matrícula (010-educacion-matricula, T017)', () =>
 
   it('la llave es la del curso: la misma en dos pestañas o tras una recarga', () => {
     expect(llaveDeLaMatricula('gestion-agil')).toBe('matricula-gestion-agil');
+  });
+
+  it('tras n devoluciones del curso la llave se numera, porque la devuelta sigue completada (010-P2 B)', () => {
+    expect(llaveDeLaMatricula('gestion-agil', 0)).toBe('matricula-gestion-agil');
+    expect(llaveDeLaMatricula('gestion-agil', 1)).toBe('matricula-gestion-agil-1');
+    expect(llaveDeLaMatricula('gestion-agil', 2)).toBe('matricula-gestion-agil-2');
   });
 
   it('lee lo que contestó el servidor sin inventar: sin total, null; con compensaciones pendientes, deshaciendo', () => {

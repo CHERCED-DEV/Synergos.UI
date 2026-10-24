@@ -68,9 +68,13 @@ export function entradaDeLaMatricula(cursoId: string, plan: string | null | unde
  * La llave de abrir: la del CURSO, determinista. El orquestador la guarda por alumno, así que dos pestañas, una recarga
  * o una respuesta perdida caen en la MISMA matrícula y un solo cobro (FR-007). Una deshecha deja volver a intentar con
  * identidad propia; una completada se devuelve tal cual.
+ *
+ * <p>Por eso, tras una DEVOLUCIÓN del personal (010-P2 B) la llave cambia: la devuelta sigue completada en el
+ * orquestador y la misma llave la devolvería a ella. `devueltas` —las de ese curso, que entrega «mi aprendizaje»— la
+ * numera (`matricula-{curso}-{n}`); sin devoluciones es la de siempre.</p>
  */
-export function llaveDeLaMatricula(cursoId: string): string {
-  return `matricula-${cursoId}`;
+export function llaveDeLaMatricula(cursoId: string, devueltas = 0): string {
+  return devueltas > 0 ? `matricula-${cursoId}-${devueltas}` : `matricula-${cursoId}`;
 }
 
 /** El total SIN abrir nada: el orquestador corre la fase que abre hasta antes de autorizar y no guarda nada. */
@@ -80,8 +84,13 @@ export async function cotizarMatricula(desde: Element, cursoId: string, plan: st
 }
 
 /** Abre la matrícula: autoriza el cobro (o lo omite con total cero), sin mover plata. */
-export async function abrirMatricula(desde: Element, cursoId: string, plan: string | null): Promise<ResultadoDelFlujo<MatriculaLeida>> {
-  return leida(await abrirEducacionMatricula(desde, { cuerpo: entradaDeLaMatricula(cursoId, plan), llave: llaveDeLaMatricula(cursoId) }));
+export async function abrirMatricula(
+  desde: Element, cursoId: string, plan: string | null, devueltas = 0,
+): Promise<ResultadoDelFlujo<MatriculaLeida>> {
+  return leida(await abrirEducacionMatricula(desde, {
+    cuerpo: entradaDeLaMatricula(cursoId, plan),
+    llave: llaveDeLaMatricula(cursoId, devueltas),
+  }));
 }
 
 /** Captura el cobro y avisa. Idempotente sobre una matrícula ya cerrada. */
