@@ -1,9 +1,9 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, type Provider } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
-import { ShopApiClient } from './shop-api.client';
+import { MUESTRAS_DE_LA_CUENTA, ShopApiClient } from './shop-api.client';
 import { ShopFulfillmentStrategy } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
 import type { ShopOrder } from './shop.model';
@@ -175,13 +175,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<StorefrontElementComponent>;
   let component: StorefrontElementComponent;
 
-  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: readonly Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [StorefrontElementComponent],
       providers: [
         provideZonelessChangeDetection(),
         ShopApiClient,
         { provide: FULFILLMENT_STRATEGIES, useClass: ShopFulfillmentStrategy, multi: true },
+        ...extra,
       ],
     }).compileComponents();
 
@@ -622,6 +623,8 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       'Mouse Pro (servidor)',
     ]);
     expect(window.location.hash).toContain('/confirmacion');
+    // Lo comprado ya no está por comprar (etapa 3): antes seguía en el carrito hasta «Seguir comprando».
+    expect(component.cartCount()).toBe(0);
   });
 
   // ── UI#92: sin orden abierta no hay pedido, ni cobro, ni anuncio ──────────────
@@ -769,10 +772,11 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   });
 
   // ── Account (SH-4): orders inbox + tracking timeline + return ────────────────
-  it('loads mis compras, derives the tracking timeline and opens a return (SH-4 case)', async () => {
+  it('con la marca de demo DECLARADA, mis compras y el seguimiento de ejemplo; sin ella no salen (SH-4 case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+    // Los pedidos de ejemplo sólo los pinta una demo que lo escribe (etapa 3): el camino real ya no los inventa.
+    await createComponent(NEGOCIO_DEL_CMS, [{ provide: MUESTRAS_DE_LA_CUENTA, useValue: true }]);
 
     component.goToAccount();
     await flushMicrotasks();
@@ -1152,9 +1156,26 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   // ── devoluciones y consola de vendedor (#32) ─────────────────────────────────
   describe('devoluciones', () => {
     /** Deja la cuenta abierta con pedidos y un servidor que contesta lo que se le diga. */
+    /** El pedido de los reclamos de abajo, como lo da el servidor: pagado y con su permiso de devolver. */
+    const PEDIDO_DEL_SERVIDOR = {
+      orderNumber: 'ORD-2026-00481',
+      orderRef: 'ORD-2026-00481',
+      date: '2026-09-10T15:00:00+00:00',
+      status: 'paid',
+      total: 1_499_000,
+      currency: 'COP',
+      items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000, productId: 'SONY-XM5', canReturn: true }],
+    };
+
     async function abrirCuenta(responder: (url: string) => Response): Promise<void> {
       installMemoryStorage();
-      vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
+      // Los pedidos los sirve el servidor: antes salían de los de ejemplo, que el camino real ya no pinta (etapa 3).
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          Promise.resolve(String(url).endsWith('/orders') ? json({ orders: [PEDIDO_DEL_SERVIDOR] }) : responder(String(url))),
+        ),
+      );
       await createComponent();
       component.goToAccount();
       await flushMicrotasks(20);
@@ -1352,7 +1373,9 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       expect(component.returnBlockedReason(order, order.items[0])).toBe('');
     });
 
-    it('EL caso: la entrega REFINA — si no llegó, no se ofrece y se dice por qué', async () => {
+    it('EL caso: el seguimiento ya NO decide — sin entregar, con `canReturn`, se ofrece y no se explica nada (etapa 3)', async () => {
+      // Refinaba con «todavía no llegó», pero nadie avanza el envío y el seguimiento no pasa de «pagado»: «Pedir
+      // devolución» no salía nunca, en ninguno de los dos caminos. Manda el servidor (`canReturn`).
       await conPedidos((url) => {
         if (url.includes('/tracking')) return json(etapas(false));
         if (url.includes('/return')) return json({ returns: [] });
@@ -1364,8 +1387,8 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       await flushMicrotasks(10);
 
       expect(component.isDelivered(order)).toBe(false);
-      expect(component.canReturnLine(order, order.items[0])).toBe(false);
-      expect(component.returnBlockedReason(order, order.items[0])).toContain('cuando llegue');
+      expect(component.canReturnLine(order, order.items[0])).toBe(true);
+      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('EL caso: si el SEGUIMIENTO no se pudo leer, se ofrece igual', async () => {
@@ -1467,6 +1490,163 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         expect(component.returnBlockedReason(order, order.items[0])).toBe('');
         TestBed.resetTestingModule();
       }
+    });
+  });
+
+  // ── La tienda que no miente (004-tienda-compra, etapa 3) ──────────────────────
+  //
+  // Lo que destapó el vivo del 2026-10-22: con la sesión caída «Mis compras» pintaba dos pedidos que la persona no hizo
+  // (`ORD-2026-00481`, `ORD-2026-00512`), con el seguimiento caído una línea de tiempo con fechas falsas, «Pedir
+  // devolución» no salía nunca porque el seguimiento no pasa de «pagado», y las fechas salían en ISO crudo.
+  describe('la tienda que no miente (etapa 3)', () => {
+    const json = (body: unknown, status = 200): Response =>
+      ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
+
+    const pedidoReal = (orderRef: string, orderNumber: string, date = '2026-10-23T02:30:00+00:00') => ({
+      orderNumber,
+      orderRef,
+      date,
+      status: 'paid',
+      total: 120_000,
+      currency: 'COP',
+      items: [{ title: 'Cafetera', qty: 1, amount: 120_000, productId: 'SKU-CAF', canReturn: true }],
+    });
+
+    /** El seguimiento tal como sale hoy: pagado y nada más, porque nadie avanza el envío. */
+    const soloPagado = (orderRef: string) => ({
+      orderRef,
+      stages: [
+        { id: 'paid', label: 'Pago confirmado', state: 'done', date: '2026-10-23T02:30:00Z' },
+        { id: 'shipped', label: 'Enviado', state: 'pending' },
+        { id: 'delivered', label: 'Entregado', state: 'pending' },
+      ],
+    });
+
+    async function cuenta(responder: (url: string) => Response, config: object = NEGOCIO_DEL_CMS): Promise<void> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
+      await createComponent(config);
+      component.goToAccount();
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+    }
+
+    const texto = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
+    const filas = (): HTMLButtonElement[] =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.syn-account__row'));
+
+    async function abrirPedido(indice: number): Promise<void> {
+      filas()[indice].click();
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+    }
+
+    it('sin sesión (el servidor contestó 401) pide entrar, y no pinta ningún pedido de ejemplo', async () => {
+      await cuenta((url) => (url.endsWith('/orders') ? json({ error: 'sin sesión' }, 401) : json({}, 404)));
+
+      expect(component.estadoDeLasCompras()).toBe('sin-sesion');
+      expect(component.orders()).toEqual([]);
+      expect(component.accountConfig().inboxEmptyTitle).toBe('Inicia sesión para ver tus compras');
+      expect(component.accountConfig().inboxEmptyActionHref).toContain('/account/login?returnUrl=');
+      expect(texto()).toContain('Inicia sesión para ver tus compras');
+      expect(texto()).toContain('Iniciar sesión');
+      expect(texto()).not.toContain('ORD-2026');
+    });
+
+    it('con la lectura caída lo dice y reintenta; nunca los pedidos de ejemplo', async () => {
+      let caida = true;
+      await cuenta((url) => {
+        if (url.endsWith('/orders')) return caida ? json({}, 503) : json({ orders: [pedidoReal('ord_1', 'SYN-1')] });
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({}, 404);
+      });
+
+      expect(component.estadoDeLasCompras()).toBe('caida');
+      expect(component.accountConfig().errorMessage).toBe('No pudimos cargar tus compras.');
+      expect(texto()).toContain('No pudimos cargar tus compras.');
+      expect(texto()).not.toContain('ORD-2026');
+      expect(component.orders()).toEqual([]);
+
+      caida = false;
+      component.reintentarCompras();
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+
+      expect(component.estadoDeLasCompras()).toBe('leidas');
+      expect(component.accountConfig().errorMessage).toBeUndefined();
+      expect(component.orders().map((o) => o.orderNumber)).toEqual(['SYN-1']);
+    });
+
+    it('el seguimiento caído dice «Seguimiento no disponible», sin una línea de tiempo inventada', async () => {
+      await cuenta((url) => {
+        if (url.endsWith('/orders')) return json({ orders: [pedidoReal('ord_1', 'SYN-1')] });
+        if (url.includes('/tracking')) return json({}, 500);
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({}, 404);
+      });
+
+      filas()[0].click();
+      fixture.detectChanges();
+      expect(texto()).toContain('Consultando el seguimiento…');
+
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+      const detalle = (fixture.nativeElement as HTMLElement).querySelector('.storefront__order-detail')!;
+      expect(detalle.textContent).toContain('Seguimiento no disponible');
+      expect(detalle.querySelectorAll('.syn-timeline__date')).toHaveLength(0);
+      expect(component.trackingStages('SYN-1')).toEqual([]);
+    });
+
+    it('«Pedir devolución» se ofrece con `canReturn` en los DOS caminos, aunque el seguimiento siga en «pagado»', async () => {
+      // La directa: `ord_…` y `SYN-…`. La puerta: la saga y su número de ocho. Devolver sigue siendo del personal.
+      await cuenta((url) => {
+        if (url.endsWith('/orders')) {
+          return json({ orders: [pedidoReal('ord_1', 'SYN-1'), pedidoReal('pta-saga-2', 'ABCD1234')] });
+        }
+        if (url.includes('/tracking')) return json(soloPagado(url.includes('pta-') ? 'pta-saga-2' : 'ord_1'));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({}, 404);
+      });
+
+      for (const [indice, numero] of [[0, 'SYN-1'], [1, 'ABCD1234']] as const) {
+        await abrirPedido(indice);
+        const pedido = component.orders()[indice];
+        expect(pedido.orderNumber).toBe(numero);
+        expect(component.isDelivered(pedido)).toBe(false);
+        expect(component.canReturnLine(pedido, pedido.items[0])).toBe(true);
+
+        const devolver = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '.storefront__order-item button',
+        )).find((b) => b.textContent?.trim() === 'Devolver')!;
+        devolver.click();
+        fixture.detectChanges();
+        expect(texto()).toContain('Pedir devolución');
+        component.closeReturn();
+        fixture.detectChanges();
+      }
+    });
+
+    it('las fechas salen en es-CO y en la hora del SITIO, no en ISO crudo', async () => {
+      // 02:30 UTC del 23 son las 04:30 del 23 en Madrid. Un sitio que NO es el huso de esta máquina (Bogotá): si la
+      // zona del sitio se perdiera y se leyera la del navegador, saldría el 22 a las 21:30.
+      await cuenta(
+        (url) => {
+          if (url.endsWith('/orders')) return json({ orders: [pedidoReal('ord_1', 'SYN-1')] });
+          if (url.includes('/tracking')) return json(soloPagado('ord_1'));
+          if (url.includes('/return')) return json({ returns: [] });
+          return json({}, 404);
+        },
+        { ...NEGOCIO_DEL_CMS, zonaHoraria: 'Europe/Madrid' },
+      );
+
+      expect(filas()[0].textContent).toContain('23 de octubre de 2026');
+      expect(texto()).not.toContain('2026-10-23T');
+
+      await abrirPedido(0);
+      const fechas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.syn-timeline__date')).map((f) =>
+        f.textContent?.trim(),
+      );
+      expect(fechas).toEqual(['23 de octubre de 2026, 04:30']);
     });
   });
 
@@ -1892,14 +2072,21 @@ describe('ShopApiClient', () => {
     expect(result.products.every((product) => product.brand === 'Sony')).toBe(true);
   });
 
-  it('degrades tracking to a status-coherent timeline (a READ)', async () => {
+  it('el seguimiento caído es `null`, sin cartel de ejemplo; la línea de tiempo de ejemplo, sólo con la marca de demo', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    const client = createClient();
+    // Sin la marca (el camino real, etapa 3): no se inventa una línea de tiempo con fechas que nadie registró.
+    const real = createClient();
+    expect(await real.tracking('/api/shop', 'ORD-2026-00512', 'paid')).toBeNull();
+    expect(real.degraded).toBe(false);
+    TestBed.resetTestingModule();
+
+    TestBed.configureTestingModule({ providers: [ShopApiClient, { provide: MUESTRAS_DE_LA_CUENTA, useValue: true }] });
+    const client = TestBed.inject(ShopApiClient);
 
     // El estado que se pasa es `paid` porque es el ÚNICO que un pedido comprado
     // puede valer: el enum del CMS tiene `Pending | Paid | Cancelled` y nada más.
     // La FASE la lleva el seguimiento, por pedido (#33).
-    const tracking = await client.tracking('/api/shop', 'ORD-2026-00512', 'paid');
+    const tracking = (await client.tracking('/api/shop', 'ORD-2026-00512', 'paid'))!;
     expect(client.degraded).toBe(true);
     expect(tracking.orderRef).toBe('ORD-2026-00512');
     expect(tracking.stages.find((stage) => stage.id === 'shipped')?.state).toBe('current');
@@ -1907,7 +2094,7 @@ describe('ShopApiClient', () => {
     expect(tracking.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
 
     // Y un pedido sin pagar NO avanza, esté donde esté en el mapa del ejemplo.
-    const sinPagar = await client.tracking('/api/shop', 'ORD-2026-00481', 'pending');
+    const sinPagar = (await client.tracking('/api/shop', 'ORD-2026-00481', 'pending'))!;
     expect(sinPagar.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
 
     // Los mensajes SÍ degradan visibles — son una lectura.
