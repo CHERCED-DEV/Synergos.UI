@@ -99,6 +99,8 @@ export function sanitizeBookingWizardConfig(value: BookingWizardConfig): Booking
   return omitUndefinedProperties<BookingWizardProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
     destinationLabel: coerceTrimmedStringInput(value.destinationLabel),
+    // Por dónde reserva (ADR 0140; línea 006), como lo DECLARA el CMS: uno de los dos, o nada (la directa).
+    bookingPath: value.bookingPath === 'puerta' || value.bookingPath === 'directa' ? value.bookingPath : undefined,
   });
 }
 

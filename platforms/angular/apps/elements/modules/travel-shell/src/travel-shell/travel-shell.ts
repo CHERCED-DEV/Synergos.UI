@@ -156,6 +156,7 @@ export function sanitizeTravelShellConfig(value: TravelShellConfig): TravelShell
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    bookingPath: value.bookingPath === 'puerta' || value.bookingPath === 'directa' ? value.bookingPath : undefined,
   });
 }
 

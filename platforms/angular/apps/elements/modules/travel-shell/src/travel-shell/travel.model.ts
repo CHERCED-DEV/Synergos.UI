@@ -27,6 +27,21 @@ export const TRAVEL_FLOW = 'travel';
 /** All products, in tab order. */
 export const TRAVEL_PRODUCTS: readonly TravelProduct[] = ['hotel', 'flight', 'car'];
 
+/**
+ * Por dónde reserva el portal, como lo DECLARA el CMS (`TravelShellProps.bookingPath`, ADR 0140; línea 006):
+ * la puerta (`viajes.reserva`) o la ruta directa (`/api/travel`). El CMS declara siempre uno de los dos,
+ * «directa» por defecto.
+ */
+export type CaminoDeLaReserva = 'puerta' | 'directa';
+
+/**
+ * El camino que declara el CMS: `puerta` sólo si lo declaró así; cualquier otra cosa —o nada: el tag crudo, una
+ * página de antes— es la directa, lo de siempre en este elemento.
+ */
+export function caminoDeLaReserva(camino: unknown): CaminoDeLaReserva {
+  return camino === 'puerta' ? 'puerta' : 'directa';
+}
+
 /** A `SessionItem.kind` is just the product id for travel lines. */
 export function productToKind(product: TravelProduct): SessionItemKind {
   return product;
