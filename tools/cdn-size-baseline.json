@@ -101,8 +101,8 @@
     "booking-wizard/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 91579,
-      "gzip": 18123
+      "bytes": 114179,
+      "gzip": 24937
     },
     "breadcrumb/angular": {
       "tier": "primitive",
@@ -767,8 +767,8 @@
     "travel-shell/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 417430,
-      "gzip": 67337
+      "bytes": 446773,
+      "gzip": 75663
     },
     "tree-view/angular": {
       "tier": "module",
