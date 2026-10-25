@@ -1816,27 +1816,44 @@ export class TravelShellElementComponent implements OnInit {
 
   /**
    * «Mis viajes» por la puerta (`listar`, T028 de la línea 006): los viajes CONFIRMADOS de quien tiene la sesión, con
-   * lo que dice el servidor. Sin coordinador no se reserva ni se lista: se dice.
+   * lo que dice el servidor, y JUNTO a ellos los reservados antes por la ruta directa, de sólo lectura y marcados (lote 10,
+   * 006-H1): al pasar un sitio a la puerta, lo de antes no desaparece. Sin coordinador no se reserva ni se lista: se dice.
+   * Si una de las dos fuentes no contesta, se enseña la otra y se dice cuál faltó.
    */
   private async cargarViajesDeLaPuerta(): Promise<void> {
     if (!hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)) {
       this.errorMessage.set(this.textoNoDisponible);
       return;
     }
-    const r = await listarViajes(this.#host);
-    if (r.ok) {
-      const ahora = Date.now();
-      this.trips.set(r.valor.map((viaje) => viajeComoTrip(viaje, ahora)).filter((trip): trip is TravelTrip => trip !== null));
-      this.tripsLoaded.set(true);
-      this.tripsAccess.set('ok');
-      return;
-    }
-    if (clasificarRechazo(r.rechazo) === 'sesion') {
+    const [r, deAntes] = await Promise.all([listarViajes(this.#host), this.viajesDeAntes()]);
+    if (!r.ok && clasificarRechazo(r.rechazo) === 'sesion') {
       this.trips.set([]);
       this.tripsAccess.set('sin-sesion');
       return;
     }
-    this.errorMessage.set(this.textoViajesNoCargados);
+    const ahora = Date.now();
+    const deLaPuerta = r.ok ? r.valor.map((viaje) => viajeComoTrip(viaje, ahora)).filter((trip): trip is TravelTrip => trip !== null) : [];
+    this.trips.set([...deLaPuerta, ...(deAntes ?? [])]);
+    this.tripsLoaded.set(true);
+    this.tripsAccess.set('ok');
+    if (!r.ok) {
+      this.errorMessage.set(this.textoViajesNoCargados);
+    } else if (deAntes === null) {
+      this.avisoDelViaje.set(this.textoViajesDeAntesNoCargados);
+    }
+  }
+
+  readonly textoSoloLectura = t('Travel.Booking.ReadOnlyTrip', 'Reservado antes · sólo lectura');
+  readonly textoViajesDeAntesNoCargados = t('Travel.Booking.PastTripsUnavailable', 'No pudimos cargar tus viajes de antes.');
+
+  /** Lo reservado por la ruta directa, de sólo lectura; `null` si no se pudo leer (nunca viajes de muestra). */
+  private async viajesDeAntes(): Promise<readonly TravelTrip[] | null> {
+    try {
+      const deAntes = await this.#api.trips(this.apiBase(), this.currency(), { muestras: false });
+      return deAntes.map((trip) => ({ ...trip, soloLectura: true as const }));
+    } catch {
+      return null;
+    }
   }
 
   /** El viaje que abrió el enlace del aviso, con lo que dijo `consultar`: se enseña encima de «Mis viajes». */
@@ -1925,7 +1942,8 @@ export class TravelShellElementComponent implements OnInit {
 
   canCancel(trip: TravelTrip): boolean {
     // Un viaje confirmado por la puerta lo gestiona quien vende (006-P3): aquí no se cancela.
-    return !trip.porLaPuerta && trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
+    // Lo de antes, junto a la puerta, es de sólo lectura (006-H1).
+    return !trip.porLaPuerta && !trip.soloLectura && trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
   }
 
   cancelReceipt(ref: string): CancelReceipt | null {

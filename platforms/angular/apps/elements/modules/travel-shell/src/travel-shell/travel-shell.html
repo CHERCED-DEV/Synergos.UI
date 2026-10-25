@@ -767,6 +767,9 @@
         <span class="travel__trip-title">{{ trip.title }}</span>
         <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
       </span>
+      @if (trip.soloLectura) {
+        <span class="travel__trip-readonly">{{ textoSoloLectura }}</span>
+      }
       <span class="travel__trip-dates">{{ trip.startDate }} → {{ trip.endDate }} · {{ tripTotalLabel(trip) }}</span>
     </ng-template>
 
@@ -777,6 +780,9 @@
           <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
         </div>
         <p class="travel__trip-meta">{{ trip.destination }} · {{ tripTotalLabel(trip) }}</p>
+        @if (trip.soloLectura) {
+          <p class="travel__trip-readonly">{{ textoSoloLectura }}</p>
+        }
 
         <syn-tracking-timeline
           heading="Estado del viaje"

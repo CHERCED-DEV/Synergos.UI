@@ -1139,6 +1139,8 @@ interface GuionDelViaje {
   readonly rechazos?: Partial<Record<OperacionDelViaje, { readonly code: string; readonly status?: number; readonly transient?: boolean }>>;
   /** Lo que `consultar` dice del viaje después de un `cerrar` rechazado. */
   readonly estadoTrasCerrar?: string;
+  /** Los viajes reservados antes por la ruta directa (`GET /api/travel/trips`); sin esto, esa ruta no contesta. */
+  readonly viajesDeAntes?: readonly unknown[];
 }
 
 interface PedidoAlViaje {
@@ -1180,6 +1182,9 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     const ruta = String(url);
     const metodo = (init?.method ?? 'GET').toUpperCase();
     rutas.push(`${metodo} ${ruta}`);
+    if (guion.viajesDeAntes && /\/api\/travel\/trips$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, { trips: guion.viajesDeAntes });
+    }
     const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
     if (!m) {
       return borde.fetchDoble(url, init);
@@ -1228,6 +1233,19 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
 
 /** Lo que el CMS manda cuando un sitio declara la puerta (`CaminoDeCompra.Decidir`, «directa» por defecto). */
 const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, bookingPath: 'puerta' };
+
+/** Un viaje reservado antes por la ruta directa, como lo devuelve `GET /api/travel/trips`. */
+const VIAJE_DE_ANTES = {
+  ref: 'TRV-ANTES-1',
+  title: 'Medellín de puente',
+  destination: 'Medellín',
+  startDate: '2026-07-10',
+  endDate: '2026-07-13',
+  status: 'upcoming',
+  total: 1_250_000,
+  currency: 'COP',
+  items: [{ product: 'Flight', title: 'BOG → MDE', subtitle: '', reservationId: 'res_antes_1' }],
+};
 
 describe('El viaje por la puerta (línea 006)', () => {
   let fixture: ComponentFixture<TravelShellElementComponent>;
@@ -1450,23 +1468,41 @@ describe('El viaje por la puerta (línea 006)', () => {
 
   // ── «Mis viajes» y el enlace del aviso (T028) ───────────────────────────────────────────────────────────
 
-  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar`, con lo que dice el servidor; ni /trips ni cancelar aquí', async () => {
-    const puerta = puertaDelViaje();
+  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar` y, junto a ellos, los de antes por /trips, de sólo lectura (006-H1)', async () => {
+    const puerta = puertaDelViaje({ viajesDeAntes: [VIAJE_DE_ANTES] });
     await montar(puerta);
     component.goToAccount();
     fixture.detectChanges();
     await asentar(20);
+    fixture.detectChanges();
 
     const listar = puerta.pedidos.find((p) => p.operacion === 'listar')!;
     expect(new URL(listar.url, 'http://x').searchParams.get('estado')).toBe('Completed');
-    expect(puerta.rutas.some((r) => r.includes('/trips'))).toBe(false);
-    const [trip] = component.trips();
+    const [trip, deAntes] = component.trips();
+    expect(component.trips()).toHaveLength(2);
+    // Lo de antes: el de la ruta directa, marcado y sin acciones.
+    expect(deAntes.ref).toBe('TRV-ANTES-1');
+    expect(deAntes.soloLectura).toBe(true);
+    expect(component.canCancel(deAntes)).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.travel__trip-readonly')?.textContent?.trim()).toBe('Reservado antes · sólo lectura');
     expect(trip.ref).toBe(NUMERO_DEL_VIAJE);
     expect(trip.title).toBe('Bogotá → Cartagena');
     expect([trip.startDate, trip.endDate]).toEqual(['2026-08-01', '2026-08-05']);
     expect(trip.total).toBe(1_900_000);
     // Confirmado por la puerta, lo gestiona quien vende (006-P3).
     expect(component.canCancel(trip)).toBe(false);
+  });
+
+  it('si lo de antes no contesta se enseña lo de la puerta y se dice; nunca viajes de muestra', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+    component.goToAccount();
+    fixture.detectChanges();
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(component.trips().map((t) => t.ref)).toEqual([NUMERO_DEL_VIAJE]);
+    expect(alertas()).toContain('No pudimos cargar tus viajes de antes.');
   });
 
   describe('el enlace del aviso', () => {
