@@ -35,6 +35,12 @@ export const ACADEMY_FLOW = 'academy';
 /** Every academy cart line is a `course` kind for the engine. */
 export const ACADEMY_KIND: SessionItemKind = 'course';
 
+/**
+ * Por dónde se matricula (010-educacion-matricula): la `puerta` —el flujo `educacion.matricula`, con sesión— o la
+ * `directa` —la ruta de la academia, la de siempre—. Lo DECLARA el CMS en `enrollmentPath`.
+ */
+export type CaminoDeLaMatricula = 'puerta' | 'directa';
+
 /** Which cara of the app the user is on (role-switch). */
 export type AcademyRole = 'student' | 'instructor';
 
@@ -152,6 +158,11 @@ export interface AcademyPlan {
   readonly amount: number;
   /** Optional installment hint, already formatted by the API ("4 x $120.000"). */
   readonly installments?: string;
+  /**
+   * Cuántas cuotas declara el plan (`installmentCount` del servidor). Con más de una es el plan financiado, que la ficha
+   * NO ofrece por ningún camino: se cobra el total de una vez y la capacidad de pagos no sabe de cuotas (D-010-P1).
+   */
+  readonly cuotas?: number;
   /** Bullet perks for the plan card. */
   readonly perks: readonly string[];
   /** Highlight the recommended plan. */
@@ -427,6 +438,11 @@ export type LearningResult =
        * curada que no existe en ningún seam. Vacío → la sección no se pinta.
        */
       readonly paths: readonly LearningPath[];
+      /**
+       * Cuántas matrículas de la puerta de cada curso le devolvió el personal al alumno (010-P2 B), por id de curso: la
+       * llave de una matrícula nueva se numera con ellas. Sin devoluciones, vacío.
+       */
+      readonly devueltas?: Readonly<Record<string, number>>;
     }
   | { readonly status: 'anon' }
   | { readonly status: 'unreadable' };
@@ -520,6 +536,11 @@ export interface InstructorStudent {
   /** Percent complete (0–100). */
   readonly percent: number;
   readonly enrolledAt: string;
+  /**
+   * La matrícula que el administrador puede devolver (010-P2 B). La decide el SERVIDOR —quien mira es `admin` y la
+   * fila salió por la puerta con algo cobrado—; sin ella, la fila no ofrece «Devolver».
+   */
+  readonly matriculaDevolvible?: string;
 }
 
 /** One inbound question in the instructor Q&A dashboard (SH-5 qa queue). */

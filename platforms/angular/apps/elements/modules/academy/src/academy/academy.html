@@ -60,6 +60,13 @@
   @if (errorMessage()) {
     <p class="academy__error" role="alert">{{ errorMessage() }}</p>
   }
+  <!-- Lo que se pudo leer de la matrícula del enlace del aviso (010): en la raíz y no en la ficha, porque sin sesión o
+       con una matrícula ajena no hay ficha que abrir y el aviso tiene que verse igual. La región sólo ANUNCIA (pinta su
+       texto con un color fijo que no sigue el tema); lo visible es un párrafo con los colores de la academia. -->
+  <syn-live-region [message]="avisoDeLaMatricula()" announceInitial />
+  @if (avisoDeLaMatricula(); as aviso) {
+    <p class="academy__mod-notice">{{ aviso }}</p>
+  }
 
   <!-- ═══════════════════════════════ ALUMNO ═══════════════════════════════════ -->
   @if (role() === 'student') {
@@ -250,9 +257,9 @@
       <ng-template #courseCta>
         <div class="academy__buybox">
           <p class="academy__buybox-price">{{ pdpPriceLabel() }}</p>
-          @if (!isFreeCourse() && detail.plans.length > 0) {
+          @if (!isFreeCourse() && planesOfrecidos().length > 0) {
             <ul class="academy__plans" role="radiogroup" aria-label="Planes">
-              @for (plan of detail.plans; track plan.id) {
+              @for (plan of planesOfrecidos(); track plan.id) {
                 <li>
                   <button
                     type="button"
@@ -266,9 +273,9 @@
                       <span class="academy__plan-label">{{ plan.label }}</span>
                       <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
                     </span>
-                    @if (plan.installments) {
-                      <span class="academy__plan-inst">o {{ plan.installments }}</span>
-                    }
+                    <!-- Sin «o N x $X» (lote 8, 010-P1 A): se cobra el total de una vez por los dos caminos, y la
+                         ficha no promete cuotas que nadie cobra en cuotas; el plan en cuotas ni se lista
+                         (D-010-P1, `planesOfrecidos`). El dato sigue en el plan (superset). -->
                     @if (plan.featured) {
                       <span class="academy__plan-tag">Recomendado</span>
                     }
@@ -284,9 +291,17 @@
               }
             </ul>
           }
-          <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="startEnrollment()">
-            {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
-          </button>
+          @if (matriculaDelCurso(); as matricula) {
+            <!-- Ya lo tiene activo (FR-014): el aula, no una segunda matrícula. -->
+            <p class="academy__buybox-note">{{ textoYaMatriculado }}</p>
+            <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="continueLearning(matricula)">
+              {{ textoIrAlAula }}
+            </button>
+          } @else {
+            <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="startEnrollment()">
+              {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
+            </button>
+          }
           <p class="academy__buybox-note">
             {{ totalLessons() }} lecciones · {{ durationLabel(detail.course.durationMinutes) }} · Certificado
           </p>
@@ -388,7 +403,7 @@
               <fieldset class="academy__form">
                 <legend class="academy__section-title">Elige tu plan</legend>
                 <ul class="academy__plans academy__plans--wizard" role="radiogroup" aria-label="Planes">
-                  @for (plan of detail.plans; track plan.id) {
+                  @for (plan of planesOfrecidos(); track plan.id) {
                     <li>
                       <button
                         type="button"
@@ -893,6 +908,13 @@
           (rowaction)="onConsoleAction($event)"
         />
 
+        <!-- Lo que pasó con la última devolución: la región nace con la consola y ANUNCIA cuando cambia; lo visible es un
+             párrafo con los colores de la academia (la región pinta con un color fijo que no sigue el tema). -->
+        <syn-live-region [message]="avisoDeLaDevolucion()" />
+        @if (avisoDeLaDevolucion(); as aviso) {
+          <p class="academy__mod-notice">{{ aviso }}</p>
+        }
+
         @if (moderationNotice(); as aviso) {
           <p
             class="academy__mod-notice"
@@ -937,6 +959,21 @@
               <span class="academy__cell-sub">{{ row.courseTitle }} · {{ row.rating }}★</span>
             }
             @case ('moderationBody') { <span class="academy__cell-clamp">{{ row.body }}</span> }
+            <!-- La devolución del personal (010-P2 B): sólo en la fila que el servidor marca devolvible, y con dos
+                 clics —el segundo confirma—, porque mueve plata y no se deshace. -->
+            @case ('devolver') {
+              @if (row.matriculaDevolvible) {
+                <button
+                  type="button"
+                  class="academy__btn academy__btn--sm"
+                  [class.academy__btn--primary]="porDevolver() === row.matriculaDevolvible"
+                  [disabled]="devolviendo() === row.matriculaDevolvible"
+                  (click)="devolverMatricula(row)"
+                >
+                  {{ porDevolver() === row.matriculaDevolvible ? textoConfirmarDevolucion : textoDevolver }}
+                </button>
+              }
+            }
           }
         </ng-template>
 
