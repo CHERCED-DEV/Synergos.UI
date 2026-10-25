@@ -435,12 +435,7 @@
                   <span class="academy__label">Correo electrónico</span>
                   <input class="academy__input" type="email" [value]="studentEmail()" (input)="bind(studentEmail.set)($event)" />
                 </label>
-                <syn-segmented
-                  ariaLabel="Método de pago"
-                  [options]="paymentMethods"
-                  [value]="paymentMethod()"
-                  (valueChange)="setPaymentMethod($event)"
-                />
+                <ng-container [ngTemplateOutlet]="metodoDePago" />
               </fieldset>
             }
             @case ('review') {
@@ -453,9 +448,22 @@
                   <div class="academy__summary-row"><dt>Correo</dt><dd>{{ studentEmail() || '—' }}</dd></div>
                   <div class="academy__summary-row"><dt>Método</dt><dd>{{ paymentMethod() === 'pse' ? 'PSE' : 'Tarjeta' }}</dd></div>
                 </dl>
+                <!-- Sin el paso «Tus datos» (la sesión los trae), el método de pago se elige aquí. -->
+                @if (datosDeLaSesion()) {
+                  <ng-container [ngTemplateOutlet]="metodoDePago" />
+                }
               </div>
             }
           }
+        </ng-template>
+
+        <ng-template #metodoDePago>
+          <syn-segmented
+            ariaLabel="Método de pago"
+            [options]="paymentMethods"
+            [value]="paymentMethod()"
+            (valueChange)="setPaymentMethod($event)"
+          />
         </ng-template>
       </section>
     }

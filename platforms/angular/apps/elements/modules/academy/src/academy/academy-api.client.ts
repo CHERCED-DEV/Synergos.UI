@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
   type AcademyCourse,
@@ -104,8 +104,8 @@ export class AcademyWriteFailedError extends Error {
  *  - `POST /api/academy/progress` `{ course, lessonId }`    → `{ percent }`
  *  - `GET  /api/academy/certificate?course=`                → `{ certificate: {…} | null }`
  *  - `GET  /api/academy/learning`                            → `{ enrollments, paths }` — el alumno sale de la SESIÓN
- *  - `GET  /api/academy/instructor/courses` anida cada fila bajo `course` y no trae
- *    `students`/`questions`: la consola SH-5 cae al mock siempre (CMS#102)
+ *  - `GET  /api/academy/instructor/courses`                 → `{ courses, students, … }`; vacía es una respuesta: la
+ *    consola dice que no hay cursos asignados, y los de ejemplo sólo salen con {@link MUESTRAS_DE_LA_CONSOLA}
  *  - `POST /api/academy/course`  `{ title, summary, modules:[{title}] }` → `{ courseId }`
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
@@ -145,9 +145,24 @@ function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Respo
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
 }
 
+/**
+ * Los cursos, alumnos y preguntas DE EJEMPLO de la consola del instructor, sólo para una demo que lo declare
+ * (010-educacion-matricula, decisión del director sobre su hallazgo 1). El molde de `MUESTRAS_DE_LA_CUENTA` de la Tienda.
+ *
+ * La consola caía a `mockInstructorDesk` con la respuesta vacía y con cualquier fallo: un admin del catálogo real veía
+ * «Mostrando datos de ejemplo — el motor de la academia aún no responde» y cursos inventados, aunque el servidor sí
+ * había respondido. El camino real ya no los pinta (la T2, «la UI no miente»): vacía dice que no hay cursos asignados,
+ * y caída, que no se pudo cargar. Se conservan detrás de esta marca, que una demo provee a propósito
+ * (`{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }`) y que nadie hereda sin escribirla.
+ */
+export const MUESTRAS_DE_LA_CONSOLA = new InjectionToken<boolean>('MUESTRAS_DE_LA_CONSOLA', {
+  factory: () => false,
+});
+
 @Injectable()
 export class AcademyApiClient {
   readonly #logger = inject(LoggerService);
+  readonly #muestrasDeLaConsola = inject(MUESTRAS_DE_LA_CONSOLA);
 
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
@@ -584,6 +599,11 @@ export class AcademyApiClient {
 
   // ─── Instructor desk (cursos + alumnos + Q&A) ────────────────────────────────
 
+  /**
+   * La consola del instructor. **No inventa**: vacía es una consola sin cursos asignados, y una lectura caída o con
+   * otra forma LANZA —quien llama dice que no se pudo cargar—. Los cursos de ejemplo sólo salen con
+   * {@link MUESTRAS_DE_LA_CONSOLA}, y entonces con su cartel.
+   */
   async instructorDesk(apiBase: string, instructor: string): Promise<InstructorDeskResult> {
     const query = instructor ? `?instructor=${encodeURIComponent(instructor)}` : '';
     const url = `${apiBase}/instructor/courses${query}`;
@@ -595,8 +615,12 @@ export class AcademyApiClient {
       }
       throw new Error('instructor-desk-shape');
     } catch (error) {
-      this.markDegraded('GET /api/academy/instructor/courses', error);
-      return this.mergeInstructorDesk(mockInstructorDesk());
+      if (this.#muestrasDeLaConsola) {
+        this.markDegraded('GET /api/academy/instructor/courses', error);
+        return this.mergeInstructorDesk(mockInstructorDesk());
+      }
+      this.#logger.warn('Academy API "GET /api/academy/instructor/courses" unavailable.', error);
+      throw error;
     }
   }
 
@@ -1362,17 +1386,18 @@ function normalizeModerationItem(value: unknown): ModerationItem | null {
   };
 }
 
+/**
+ * La consola como la contestó el borde, o `null` si no tiene su forma. **Sin cursos es una respuesta** —la de quien
+ * no tiene ninguno asignado—: antes daba `null` y la consola caía a los de ejemplo.
+ */
 function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
-  if (!isRecord(value)) {
+  if (!isRecord(value) || !Array.isArray(value['courses'])) {
     return null;
   }
-  const rawCourses = Array.isArray(value['courses']) ? value['courses'] : [];
+  const rawCourses: unknown[] = value['courses'];
   const rawStudents = Array.isArray(value['students']) ? value['students'] : [];
   const rawQuestions = Array.isArray(value['questions']) ? value['questions'] : [];
   const rawModeration = Array.isArray(value['moderation']) ? value['moderation'] : [];
-  if (rawCourses.length === 0 && rawStudents.length === 0 && rawQuestions.length === 0) {
-    return null;
-  }
   const courses = rawCourses
     .map((entry) => normalizeInstructorCourse(entry, readString(value['currency']).trim()))
     .filter((entry): entry is InstructorCourse => entry !== null);
