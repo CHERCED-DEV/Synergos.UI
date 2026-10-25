@@ -1235,16 +1235,37 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
 const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, bookingPath: 'puerta' };
 
 /** Un viaje reservado antes por la ruta directa, como lo devuelve `GET /api/travel/trips`. */
+/**
+ * Un viaje de antes como lo contesta el CMS (`TravelController.TripDto`, medido en vivo en la piloto el 2026-10-25): lo de
+ * siempre —`orderRef`, el estado y el producto como su enum, sin fechas— más el `ref` y el `title` que lee esta pantalla.
+ */
 const VIAJE_DE_ANTES = {
-  ref: 'TRV-ANTES-1',
-  title: 'Medellín de puente',
-  destination: 'Medellín',
-  startDate: '2026-07-10',
-  endDate: '2026-07-13',
-  status: 'upcoming',
-  total: 1_250_000,
+  orderRef: 'trip_antes_1',
+  status: 'Confirmed',
+  confirmationCode: 'SYN-ANTES1',
+  guestName: 'Ana Viajera',
+  guestEmail: 'ana@ejemplo.co',
+  currentStage: 'confirmed',
+  total: 340_000,
+  totalFormatted: '$ 340.000',
   currency: 'COP',
-  items: [{ product: 'Flight', title: 'BOG → MDE', subtitle: '', reservationId: 'res_antes_1' }],
+  createdAt: '2026-10-25T23:30:32+00:00',
+  updatedAt: '2026-10-25T23:30:32+00:00',
+  items: [
+    {
+      product: 'Flight',
+      offerId: 'SYN2200-ECOBAS',
+      label: 'Bogotá → Cartagena · SYN2200',
+      reservationId: '',
+      status: 'Confirmed',
+      price: 340_000,
+      priceFormatted: '$ 340.000',
+      currency: 'COP',
+      title: 'Bogotá → Cartagena · SYN2200',
+    },
+  ],
+  ref: 'trip_antes_1',
+  title: 'Bogotá → Cartagena · SYN2200',
 };
 
 describe('El viaje por la puerta (línea 006)', () => {
@@ -1480,11 +1501,26 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(new URL(listar.url, 'http://x').searchParams.get('estado')).toBe('Completed');
     const [trip, deAntes] = component.trips();
     expect(component.trips()).toHaveLength(2);
-    // Lo de antes: el de la ruta directa, marcado y sin acciones.
-    expect(deAntes.ref).toBe('TRV-ANTES-1');
+    // Lo de antes: el de la ruta directa, en la forma del CMS, marcado y sin acciones.
+    expect(deAntes.ref).toBe('trip_antes_1');
+    expect(deAntes.title).toBe('Bogotá → Cartagena · SYN2200');
+    expect(deAntes.items.map((i) => [i.product, i.title])).toEqual([['flight', 'Bogotá → Cartagena · SYN2200']]);
     expect(deAntes.soloLectura).toBe(true);
     expect(component.canCancel(deAntes)).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('.travel__trip-readonly')?.textContent?.trim()).toBe('Reservado antes · sólo lectura');
+    // Sin fechas, su fila dice el total y no un « → » vacío; abierto, sin destino no hay un «·» colgando ni nada que cancelar.
+    const host = fixture.nativeElement as HTMLElement;
+    const fechas = Array.from(host.querySelectorAll('.travel__trip-dates')).map((n) => n.textContent?.trim());
+    expect(fechas[1]).not.toContain('→');
+    expect(fechas[1]).toContain('340.000');
+    (Array.from(host.querySelectorAll('.syn-account__list-item button')).find((b) => b.textContent?.includes('sólo lectura')) as HTMLElement).click();
+    fixture.detectChanges();
+    await asentar(5);
+    fixture.detectChanges();
+    const meta = host.querySelector('.travel__trip-detail .travel__trip-meta')?.textContent?.trim() ?? '';
+    expect(meta).toContain('340.000');
+    expect(meta.startsWith('·')).toBe(false);
+    expect(Array.from(host.querySelectorAll('.travel__trip-detail button')).map((b) => b.textContent?.trim())).not.toContain('Cancelar viaje');
     expect(trip.ref).toBe(NUMERO_DEL_VIAJE);
     expect(trip.title).toBe('Bogotá → Cartagena');
     expect([trip.startDate, trip.endDate]).toEqual(['2026-08-01', '2026-08-05']);

@@ -702,7 +702,8 @@ function normalizeTrips(value: unknown, fallbackCurrency: string): readonly Trav
             if (!isRecord(line)) {
               return null;
             }
-            const productRaw = readString(line['product']).trim();
+            // El CMS lo nombra como su enum (`Flight`): se compara sin mayúsculas, como el estado.
+            const productRaw = readString(line['product']).trim().toLowerCase();
             const product: TravelProduct =
               productRaw === 'flight' || productRaw === 'car' ? productRaw : 'hotel';
             return {
