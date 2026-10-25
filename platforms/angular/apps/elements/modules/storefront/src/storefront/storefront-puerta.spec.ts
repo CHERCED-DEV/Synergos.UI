@@ -349,6 +349,57 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     expect(component.avisoDePendiente()).toBe(false);
   });
 
+  // ── Tras confirmar (etapa 3) ──────────────────────────────────────────────────────────────
+
+  it('al confirmar por la puerta el carrito queda vacío, y el comprobante dice el número una vez', async () => {
+    registro(() => ({ status: 404, body: {} }));
+    await crear(PUERTA);
+    component.quickAdd(TAZA);
+    component.quickAdd(CAMISETA);
+    await asentado();
+    expect(TestBed.inject(SessionStore).items()).toHaveLength(2);
+
+    // Lo que emite el asistente cuando `cerrar` contestó: un vale por línea, todos con el número del pedido.
+    const vale = (titulo: string) => ({
+      itemId: titulo,
+      reference: 'COMPRA01',
+      status: 'Paid',
+      detail: { title: titulo, qty: 1, orderNumber: 'COMPRA01' },
+    });
+    component.onCheckoutCompleted({ reference: 'saga-1', vouchers: [vale('Taza'), vale('Camiseta')] });
+    await asentado();
+
+    expect(component.view()).toBe('confirmation');
+    expect(component.orderNumber()).toBe('COMPRA01');
+    expect(TestBed.inject(SessionStore).items()).toEqual([]);
+    expect(component.cartCount()).toBe(0);
+    const comprobante = fixture.nativeElement as HTMLElement;
+    expect(comprobante.querySelectorAll('.storefront__voucher')).toHaveLength(2);
+    expect(comprobante.querySelectorAll('.storefront__voucher-ref')).toHaveLength(0);
+  });
+
+  it('por la directa la referencia de cada vendedor SÍ se dice, porque no es la del pedido', async () => {
+    registro(() => ({ status: 404, body: {} }));
+    await crear(DIRECTA);
+    component.quickAdd(TAZA);
+    await asentado();
+
+    component.onCheckoutCompleted({
+      reference: 'ord_9',
+      vouchers: [
+        { itemId: 'a', reference: 'VEND-A-1', status: 'Paid', detail: { title: 'Taza', qty: 1, orderNumber: 'SYN-9' } },
+        { itemId: 'b', reference: 'VEND-B-7', status: 'Paid', detail: { title: 'Camiseta', qty: 1, orderNumber: 'SYN-9' } },
+      ],
+    });
+    await asentado();
+
+    expect(component.cartCount()).toBe(0);
+    const refs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.storefront__voucher-ref')).map((r) =>
+      r.textContent?.trim(),
+    );
+    expect(refs).toEqual(['VEND-A-1', 'VEND-B-7']);
+  });
+
   // ── El enlace del aviso (T030) ────────────────────────────────────────────────────────────
 
   it('el enlace del aviso se lee UNA vez de la consulta, sale de la URL y abre la compra; recargar no la vuelve a abrir', async () => {
@@ -363,6 +414,11 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     expect(component.orderNumber()).toBe('COMPRA01');
     expect(component.confirmedItems()).toEqual([{ title: 'Taza', qty: 2, reference: 'COMPRA01' }]);
     expect(window.location.search).toBe('?utm=correo');
+    // El comprobante no repite el número del pedido en cada línea: ya lo pone la pieza arriba (etapa 3).
+    fixture.detectChanges();
+    const comprobante = fixture.nativeElement as HTMLElement;
+    expect(comprobante.querySelector('.storefront__voucher-title')?.textContent).toContain('Taza × 2');
+    expect(comprobante.querySelectorAll('.storefront__voucher-ref')).toHaveLength(0);
 
     // F5: la página se crea otra vez, sin el parámetro.
     TestBed.resetTestingModule();

@@ -640,10 +640,14 @@
     <ng-template #vales>
       @if (confirmedItems().length > 0) {
         <ul class="storefront__vouchers">
-          @for (voucher of confirmedItems(); track voucher.reference) {
+          <!-- Una referencia igual al número del pedido no se repite en cada línea: ya la pone la pieza
+               arriba (la puerta da una sola; la directa, una por vendedor). -->
+          @for (voucher of confirmedItems(); track $index) {
             <li class="storefront__voucher">
               <span class="storefront__voucher-title">{{ voucher.title }} × {{ voucher.qty }}</span>
-              <span class="storefront__voucher-ref">{{ voucher.reference }}</span>
+              @if (voucher.reference && voucher.reference !== orderNumber()) {
+                <span class="storefront__voucher-ref">{{ voucher.reference }}</span>
+              }
             </li>
           }
         </ul>
@@ -671,6 +675,7 @@
       [sectionTemplate]="accountSectionTpl"
       (sectionchange)="onAccountSectionChange($event)"
       (itemselect)="onOrderSelect($event)"
+      (retry)="reintentarCompras()"
     />
 
     <ng-template #orderRow let-order>
@@ -678,7 +683,7 @@
         <span class="storefront__order-number">{{ order.orderNumber }}</span>
         <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
       </span>
-      <span class="storefront__order-date">{{ order.date }} · {{ orderTotalLabel(order) }}</span>
+      <span class="storefront__order-date">{{ orderDateLabel(order) }} · {{ orderTotalLabel(order) }}</span>
     </ng-template>
 
     <ng-template #orderDetail let-order>
@@ -709,7 +714,7 @@
                 </button>
               } @else if (returnBlockedReason(order, line); as motivo) {
                 <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
-                     (#32), o el pedido todavía no llegó (#33). Callarse deja a
+                     (#32), o el servidor nombra el motivo (#34). Callarse deja a
                      quien compró buscando un botón que no está. -->
                 <span class="storefront__order-item-note">{{ motivo }}</span>
               }
@@ -721,7 +726,7 @@
         <syn-tracking-timeline
           heading="Seguimiento del envío"
           [stages]="trackingStages(order.orderNumber)"
-          emptyMessage="Consultando el seguimiento…"
+          [emptyMessage]="mensajeDelSeguimiento(order)"
         />
 
         @if (returnDraft(); as draft) {

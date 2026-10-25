@@ -1,4 +1,5 @@
 import type { ServicioReservable } from '@synergos/contracts';
+import { fechaEnZona, instanteEnZona } from '@synergos/vitals-core';
 
 /**
  * El horario de un servicio reservable, en la ZONA DEL SITIO (011-booking-reserva).
@@ -6,7 +7,8 @@ import type { ServicioReservable } from '@synergos/contracts';
  * <p>La agenda valida el horario en la zona del recurso, que es la del sitio (la oferta se publica
  * con ella). Si la franja se armara con la hora del navegador, quien mira desde otro huso pediría
  * otra hora de la que eligió: por eso cada fecha y cada hora de la pantalla se leen y se escriben
- * en `zona`, y lo que viaja es el instante en UTC.</p>
+ * en `zona`, y lo que viaja es el instante en UTC. La aritmética de la zona es la de `vitals/core`
+ * (`formato/hora-del-sitio.ts`, núcleo T087): aquí sólo vive lo del horario de un servicio.</p>
  *
  * <p><b>Lo libre lo dice la agenda</b>, con la lectura de disponibilidad (NB-2/NB-3): estas funciones
  * sólo leen sus franjas en la zona del sitio. Sin esa lectura —la puerta no la tiene, o no contesta—
@@ -40,17 +42,6 @@ const DIAS_DE_LA_SEMANA: readonly string[] = Array.from({ length: 7 }, (_, i) =>
 const HORA = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const FECHA = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-/** Si `zona` es una zona IANA que el navegador conoce. Sin ella no se puede armar ninguna franja. */
-export function zonaValida(zona: string | null | undefined): zona is string {
-  if (!zona) return false;
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: zona });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** `HH:mm` → minutos desde la medianoche, o `null` si no es una hora. */
 export function minutosDe(hora: string): number | null {
   const m = HORA.exec(hora);
@@ -59,56 +50,6 @@ export function minutosDe(hora: string): number | null {
 
 function horaDe(minutos: number): string {
   return `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
-}
-
-interface Partes {
-  readonly y: number;
-  readonly m: number;
-  readonly d: number;
-  readonly h: number;
-  readonly mi: number;
-  readonly s: number;
-}
-
-function partesEnZona(instante: number, zona: string): Partes {
-  const formato = new Intl.DateTimeFormat('en-US', {
-    timeZone: zona,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-  const valor = (tipo: Intl.DateTimeFormatPartTypes): number =>
-    Number(formato.formatToParts(new Date(instante)).find((p) => p.type === tipo)?.value ?? 0);
-  return { y: valor('year'), m: valor('month'), d: valor('day'), h: valor('hour') % 24, mi: valor('minute'), s: valor('second') };
-}
-
-/** Cuánto adelanta la zona al UTC en ese instante (negativo al oeste de Greenwich). */
-function desfaseMs(instante: number, zona: string): number {
-  const p = partesEnZona(instante, zona);
-  return Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - Math.floor(instante / 1000) * 1000;
-}
-
-/** El instante UTC de una fecha y una hora DE RELOJ en `zona`. */
-export function instanteEnZona(fecha: string, hora: string, zona: string): number {
-  const f = FECHA.exec(fecha);
-  const minutos = minutosDe(hora);
-  if (!f || minutos === null) return Number.NaN;
-  const reloj = Date.UTC(Number(f[1]), Number(f[2]) - 1, Number(f[3]), Math.floor(minutos / 60), minutos % 60);
-  const primero = reloj - desfaseMs(reloj, zona);
-  // El desfase del instante de reloj puede no ser el del instante buscado si en medio hay un
-  // cambio de hora: se corrige con el del resultado.
-  const segundo = reloj - desfaseMs(primero, zona);
-  return segundo === primero ? primero : segundo;
-}
-
-/** La fecha de calendario (`YYYY-MM-DD`) que marca `zona` en ese instante. */
-export function fechaEnZona(instante: number, zona: string): string {
-  const p = partesEnZona(instante, zona);
-  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
 }
 
 function sumarDias(fecha: string, dias: number): string {
@@ -170,14 +111,6 @@ export function rangoDelDia(fecha: string, zona: string): Ventana | null {
   const desde = instanteEnZona(fecha, '00:00', zona);
   const hasta = instanteEnZona(sumarDias(fecha, 1), '00:00', zona);
   return Number.isFinite(desde) && Number.isFinite(hasta) ? { start: sinMilisegundos(desde), end: sinMilisegundos(hasta) } : null;
-}
-
-/** La hora de reloj (`HH:mm`) que marca `zona` en ese instante ISO, o `''` si no es un instante. */
-export function horaEnZona(instante: string, zona: string): string {
-  const ms = Date.parse(instante);
-  if (!Number.isFinite(ms)) return '';
-  const p = partesEnZona(ms, zona);
-  return horaDe(p.h * 60 + p.mi);
 }
 
 /** La franja de `fecha` a `hora` en `zona`, del largo del servicio: lo que viaja como `ventana`. */

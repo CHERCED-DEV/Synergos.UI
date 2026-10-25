@@ -1,9 +1,10 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import { rechazoLocal, transportePorDefecto, type ResultadoDelFlujo } from '@synergos/vitals-core';
 import {
   type CheckoutLine,
   type CompraPendienteDelServidor,
+  type LecturaDeCompras,
   type LineaDeLaOrdenDeLaPuerta,
   type OrdenDeLaPuerta,
   type CheckoutResult,
@@ -84,6 +85,26 @@ function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Respo
  * `degraded`**: ese cartel dice «estás viendo datos de ejemplo», y un pedido no es un
  * ejemplo.
  */
+/**
+ * Los pedidos y el seguimiento DE EJEMPLO, sólo para una demo que lo declare (004-tienda-compra, etapa 3).
+ *
+ * «Mis compras» caía a `mockOrders` y el seguimiento a `mockTracking` en cualquier fallo: con la sesión caída la
+ * persona veía dos pedidos que no hizo, y con el seguimiento caído una línea de tiempo con fechas falsas. El camino
+ * real ya no los pinta (la T2, «la UI no miente»); se conservan detrás de esta marca, que una demo provee a
+ * propósito (`{ provide: MUESTRAS_DE_LA_CUENTA, useValue: true }`) y que nadie hereda sin escribirla.
+ */
+export const MUESTRAS_DE_LA_CUENTA = new InjectionToken<boolean>('MUESTRAS_DE_LA_CUENTA', {
+  factory: () => false,
+});
+
+/** Una LECTURA que el servidor contestó con un estado que no es 2xx: el estado viaja, para saber si fue la sesión. */
+class LecturaRechazada extends Error {
+  constructor(readonly estado: number) {
+    super(`HTTP ${estado}`);
+    this.name = 'LecturaRechazada';
+  }
+}
+
 export class ShopWriteFailedError extends Error {
   constructor(
     readonly endpoint: string,
@@ -97,6 +118,7 @@ export class ShopWriteFailedError extends Error {
 @Injectable()
 export class ShopApiClient {
   readonly #logger = inject(LoggerService);
+  readonly #muestrasDeLaCuenta = inject(MUESTRAS_DE_LA_CUENTA);
 
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
@@ -425,19 +447,28 @@ export class ShopApiClient {
 
   // ─── Orders (history) ────────────────────────────────────────────────────────
 
-  async orders(apiBase: string, customer: string, currency: string): Promise<readonly ShopOrder[]> {
+  /**
+   * «Mis compras». **No inventa** (004-tienda-compra, etapa 3): un 401 es que no hay sesión —el servidor no lista
+   * pedidos de nadie sin ella— y cualquier otro fallo, o una forma que no se entiende, es la lectura caída. Los
+   * pedidos de ejemplo sólo salen con {@link MUESTRAS_DE_LA_CUENTA}, y entonces con su cartel.
+   */
+  async orders(apiBase: string, customer: string, currency: string): Promise<LecturaDeCompras> {
     const query = customer ? `?customer=${encodeURIComponent(customer)}` : '';
     const url = `${apiBase}/orders${query}`;
     try {
       const data = await this.getJson(apiBase, url);
       const orders = normalizeOrders(data, currency);
       if (orders) {
-        return orders;
+        return { estado: 'leidas', pedidos: orders };
       }
       throw new Error('orders-shape');
     } catch (error) {
-      this.markDegraded('GET /api/shop/orders', error);
-      return mockOrders(currency);
+      if (this.#muestrasDeLaCuenta) {
+        this.markDegraded('GET /api/shop/orders', error);
+        return { estado: 'leidas', pedidos: mockOrders(currency) };
+      }
+      this.readFailed('GET /api/shop/orders', error);
+      return error instanceof LecturaRechazada && error.estado === 401 ? { estado: 'sin-sesion' } : { estado: 'caida' };
     }
   }
 
@@ -485,7 +516,12 @@ export class ShopApiClient {
 
   // ─── Tracking (seguimiento de envío) ─────────────────────────────────────────
 
-  async tracking(apiBase: string, orderRef: string, status: string): Promise<OrderTracking> {
+  /**
+   * El seguimiento de un pedido, o `null` si no se pudo leer (004-tienda-compra, etapa 3): la pantalla dice
+   * «Seguimiento no disponible» en vez de pintar una línea de tiempo con fechas que nadie registró. La de ejemplo
+   * sólo sale con {@link MUESTRAS_DE_LA_CUENTA}.
+   */
+  async tracking(apiBase: string, orderRef: string, status: string): Promise<OrderTracking | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking`;
     try {
       const data = await this.getJson(apiBase, url);
@@ -495,8 +531,12 @@ export class ShopApiClient {
       }
       throw new Error('tracking-shape');
     } catch (error) {
-      this.markDegraded('GET /api/shop/order/{ref}/tracking', error);
-      return mockTracking(orderRef, status);
+      if (this.#muestrasDeLaCuenta) {
+        this.markDegraded('GET /api/shop/order/{ref}/tracking', error);
+        return mockTracking(orderRef, status);
+      }
+      this.readFailed('GET /api/shop/order/{ref}/tracking', error);
+      return null;
     }
   }
 
@@ -721,7 +761,7 @@ export class ShopApiClient {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
+      response.ok ? response.json() : Promise.reject(new LecturaRechazada(response.status)),
     );
   }
 
@@ -751,6 +791,11 @@ export class ShopApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Tienda API responds.
     this.#logger.warn(`Shop API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /** Una LECTURA que no llegó y que no tiene ejemplo que enseñar: no enciende `degraded`, porque no hay muestra. */
+  private readFailed(endpoint: string, error: unknown): void {
+    this.#logger.warn(`Shop API "${endpoint}" unavailable — nothing shown in its place.`, error);
   }
 
   /**

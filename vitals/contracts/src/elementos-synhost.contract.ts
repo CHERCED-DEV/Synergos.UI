@@ -712,6 +712,8 @@ export interface StorefrontProps {
   readonly purchasePath: string;
   /** negocio */
   readonly shippingCountry: string;
+  /** negocio */
+  readonly zonaHoraria: string;
 }
 
 /** <synergos-tabs> · pieza */
@@ -2524,8 +2526,8 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   tipo: "funcionalidad",
   record: "StorefrontProps",
   diccionario: ["Storefront.Purchase"],
-  claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
-  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry"],
+  claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
+  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry","zonaHoraria"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -2534,7 +2536,8 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
     "subheading": "Catálogo, carrito y checkout",
     "apiBase": "/api/shop",
     "purchasePath": "directa",
-    "shippingCountry": "CO"
+    "shippingCountry": "CO",
+    "zonaHoraria": "America/Bogota"
   },
 };
 
