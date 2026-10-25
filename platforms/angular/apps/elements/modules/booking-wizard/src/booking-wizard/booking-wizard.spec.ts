@@ -632,6 +632,8 @@ describe('La estadía por la puerta (línea 006)', () => {
         producto: 'SUITE/BB',
         etiqueta: 'Suite Vista al Mar',
         ventana: { start: '2026-10-01T00:00:00.000Z', end: '2026-10-04T00:00:00.000Z' },
+        // Una estadía se cotiza por noche (006-H2): el servidor multiplica su tarifa por noche por las tres noches.
+        porNoche: true,
       },
     ]);
     expect(abrir.llave).toMatch(/\S/);

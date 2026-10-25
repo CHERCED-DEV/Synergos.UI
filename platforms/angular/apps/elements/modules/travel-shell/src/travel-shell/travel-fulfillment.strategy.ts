@@ -345,6 +345,8 @@ export function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
       etiqueta: item.label,
       start: readString(selection['start']),
       end: readString(selection['end']),
+      // Sólo el hotel va por noche; el vuelo y el auto, por producto (006-H2).
+      porNoche: item.kind === 'hotel',
     };
   });
 }

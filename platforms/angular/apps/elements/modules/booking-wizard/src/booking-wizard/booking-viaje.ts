@@ -66,7 +66,8 @@ export async function abrirEstadia(
   ventana: { start: string; end: string },
   llave: string,
 ): Promise<ResultadoDelFlujo<EstadiaLeida>> {
-  return leida(await abrirViajesReserva(desde, { cuerpo: { items: [{ producto, etiqueta: etiqueta || null, ventana }] }, llave }));
+  // Una estadía es alojamiento: el servidor la cotiza por noche (lote 10, 006-H2).
+  return leida(await abrirViajesReserva(desde, { cuerpo: { items: [{ producto, etiqueta: etiqueta || null, ventana, porNoche: true }] }, llave }));
 }
 
 /** Captura el total y confirma la habitación. Idempotente sobre una estadía ya completada. */

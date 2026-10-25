@@ -5,7 +5,8 @@ import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
-import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
+import { TravelFulfillmentStrategy, itemsDelViaje } from './travel-fulfillment.strategy';
+import { entradaDelViaje } from './travel-viaje';
 import { TravelShellElementComponent } from './travel-shell';
 import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
 
@@ -1326,6 +1327,8 @@ describe('El viaje por la puerta (línea 006)', () => {
 
     const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
     const [item] = abrir.cuerpo!.items!;
+    // Un vuelo va por producto: sin la marca de alojamiento (006-H2).
+    expect(item).not.toHaveProperty('porNoche');
     expect(item.ventana).toEqual({ start: '2026-08-01T00:00:00.000Z', end: '2026-08-05T00:00:00.000Z' });
     expect(item.etiqueta).not.toBe('');
     expect(abrir.llave).toMatch(/\S/);
@@ -1506,5 +1509,19 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(fixture.debugElement.query(By.directive(CheckoutWizardComponent))).toBeNull();
     expect(alertas()).toContain('Las reservas en línea no están disponibles en este momento.');
     expect(puerta.alaPuerta()).toBe(0);
+  });
+});
+
+describe('el alojamiento va por noche (006-H2)', () => {
+  const linea = (kind: string, productRef: string) => ({
+    id: `${kind}:${productRef}`, kind, productRef, label: productRef, amount: 0, quantity: 1,
+    selection: { start: '2026-11-23T00:00:00.000Z', end: '2026-11-26T00:00:00.000Z' },
+  });
+
+  it('sólo el hotel lleva la marca: el vuelo y el auto van por producto', () => {
+    const sesion = { items: [linea('hotel', 'STD/STD-FLEX'), linea('flight', 'SYN2200-ECOBAS'), linea('car', 'ECON')] } as never;
+    const items = entradaDelViaje(itemsDelViaje(sesion)).items;
+
+    expect(items.map((i) => i.porNoche ?? null)).toEqual([true, null, null]);
   });
 });
