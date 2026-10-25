@@ -937,8 +937,10 @@
     gap: syn.$space-lg;
     align-items: start;
 
+    // `minmax(0, …)` y no `1fr` a secas, como la columna de escritorio: el mínimo de `1fr` es el del
+    // contenido, y en móvil la columna medía 391 px en 326 y el sitio recortaba la subsanación (T018).
     @media (max-width: #{syn.px-to-rem(820)}) {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
