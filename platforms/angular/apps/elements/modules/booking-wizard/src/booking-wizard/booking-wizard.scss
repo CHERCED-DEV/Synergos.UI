@@ -321,6 +321,17 @@
         filter: brightness(0.95);
       }
     }
+
+    &--secondary {
+      align-self: flex-start;
+      background: transparent;
+      border-color: var(--bw-border);
+      color: var(--bw-text);
+
+      &:hover:not(:disabled) {
+        background: var(--bw-surface-muted);
+      }
+    }
   }
 }
 

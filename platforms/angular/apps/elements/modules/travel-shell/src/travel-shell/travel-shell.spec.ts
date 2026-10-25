@@ -3,10 +3,25 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
+import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
-import type { TravelTrip } from './travel.model';
+import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
+
+/** Una línea del checkout con la forma de `CartItemDto` del CMS (defecto 1 de la línea 006). */
+function lineaDeEjemplo(product: TravelProduct, offerId: string): TravelCheckoutLine {
+  return {
+    product,
+    offerId,
+    label: 'Ítem de ejemplo',
+    price: 1_250_000,
+    currency: 'COP',
+    start: '2026-08-01T00:00:00.000Z',
+    end: '2026-08-05T00:00:00.000Z',
+    detail: {},
+  };
+}
 import { asentar } from '../../../../../../tools/asentar';
 import { TRAVEL_SHELL_SYNHOST } from '@synergos/contracts';
 
@@ -575,6 +590,61 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(window.location.hash).toContain('/confirmacion');
   });
 
+  // ── Defecto 1 de la línea 006: cada línea del carrito lleva su periodo ────────────
+  //
+  // El checkout mandaba `{product, offerId, detail}` y `TravelController` exige el periodo de cada
+  // ítem (un apartado ES una ventana): contestaba 400 SIEMPRE. Tampoco iban la etiqueta, el precio ni
+  // la moneda, y el precio llegaba en 0. Lo que se mira es el cuerpo que SALE.
+  it('el checkout manda cada línea con su periodo, su etiqueta, su precio y su moneda (defecto 1)', async () => {
+    installMemoryStorage();
+    const borde = bordeDeViajes();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    await searchFlights();
+    component.addFlightToCart();
+    await flushMicrotasks();
+    await searchCars();
+    const auto = component.carResults()[0];
+    component.addCarToCart(auto);
+    await flushMicrotasks();
+
+    component.guestName.set('Ada Lovelace');
+    component.guestEmail.set('ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    wizard.next();
+    fixture.detectChanges();
+    wizard.next();
+    fixture.detectChanges();
+    wizard.next();
+    await flushMicrotasks(30);
+
+    const checkout = borde.fetchDoble.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/checkout') && init?.method === 'POST',
+    );
+    const cuerpo = JSON.parse(String(checkout?.[1]?.body)) as {
+      items: { product: string; offerId: string; label: string; price: number; currency: string; start: string; end: string }[];
+    };
+    const [vuelo, carro] = cuerpo.items;
+    expect(vuelo.product).toBe('flight');
+    expect([vuelo.start, vuelo.end]).toEqual(['2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z']);
+    expect(vuelo.label).not.toBe('');
+    expect(vuelo.price).toBeGreaterThan(0);
+    // La moneda va tal cual la trae la oferta; vacía (las de muestra no la traen), el CMS la toma como COP.
+    expect(typeof vuelo.currency).toBe('string');
+    expect(carro).toMatchObject({
+      product: 'car',
+      offerId: auto.offerId,
+      label: auto.title,
+      price: auto.amount,
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+  });
+
   // ── account: mis viajes (SH-4) + timeline + cancelar + wallet ─────────────────
   /** Mis viajes (una LECTURA: degrada a los de ejemplo) y el próximo, cancelable. */
   async function abrirMisViajes(): Promise<TravelTrip> {
@@ -903,7 +973,7 @@ describe('TravelApiClient', () => {
     const client = createClient();
 
     await expect(
-      client.checkout('/api/travel', [{ product: 'hotel', offerId: 'X1', detail: {} }], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+      client.checkout('/api/travel', [lineaDeEjemplo('hotel', 'X1')], { name: 'Ada', email: 'a@b.co' }, 'COP'),
     ).rejects.toMatchObject({ name: 'TravelWriteFailedError', endpoint: 'POST /api/travel/checkout' });
     await expect(client.confirm('/api/travel', 'trv_77')).rejects.toMatchObject({ name: 'TravelWriteFailedError' });
     await expect(client.cancel('/api/travel', 'TRIP-2026-0481')).rejects.toMatchObject({
@@ -918,7 +988,7 @@ describe('TravelApiClient', () => {
 
     const checkout = await client.checkout(
       '/api/travel',
-      [{ product: 'flight', offerId: 'FL-1', detail: {} }],
+      [lineaDeEjemplo('flight', 'FL-1')],
       { name: 'Ada', email: 'a@b.co' },
       'COP',
     );
@@ -1037,4 +1107,404 @@ describe('TravelShellElementComponent — stay loading surface', () => {
     expect(host.textContent).not.toContain('Cargando alojamiento');
   });
 
+});
+
+describe('periodoDeLaBusqueda (defecto 1 de la línea 006)', () => {
+  it('va de medianoche a medianoche UTC; sin un «hasta» posterior ocupa su día; sin «desde» no inventa uno', () => {
+    expect(periodoDeLaBusqueda('2026-08-01', '2026-08-05')).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+    expect(periodoDeLaBusqueda('2026-08-01', '')).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-02T00:00:00.000Z',
+    });
+    expect(periodoDeLaBusqueda('2026-08-05', '2026-08-01').end).toBe('2026-08-06T00:00:00.000Z');
+    expect(periodoDeLaBusqueda('', '2026-08-05')).toEqual({ start: '', end: '' });
+  });
+});
+
+// ══ EL VIAJE POR LA PUERTA (línea 006, T021; ADR 0140) ═══════════════════════════════════════════════════
+//
+// El portal reserva por el `<synergos-flujo flujo="viajes.reserva">` que coloca la vista, con el envoltorio GENERADO
+// del flujo: abrir aparta cada ítem y autoriza el total, cerrar captura y confirma. Lo que se mira es lo que viajó a
+// la puerta —la llave, cada ítem con su producto, su etiqueta y su periodo— y lo que el SERVIDOR contestó.
+
+type OperacionDelViaje = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'listar';
+
+interface GuionDelViaje {
+  /** El total que dice el servidor, en unidades MAYORES. */
+  readonly total?: number;
+  readonly rechazos?: Partial<Record<OperacionDelViaje, { readonly code: string; readonly status?: number; readonly transient?: boolean }>>;
+  /** Lo que `consultar` dice del viaje después de un `cerrar` rechazado. */
+  readonly estadoTrasCerrar?: string;
+}
+
+interface PedidoAlViaje {
+  readonly operacion: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly cuerpo: {
+    readonly items?: readonly { producto: string; etiqueta: string | null; ventana: { start: string; end: string } }[];
+  } | null;
+}
+
+const ID_DEL_VIAJE = 'viaje-77';
+const NUMERO_DEL_VIAJE = 'VIA-0077';
+/** El itinerario que dice el servidor del viaje: lo que «Mis viajes» pinta. */
+const ITINERARIO_DEL_VIAJE = [
+  { producto: 'AV-8020', etiqueta: 'Bogotá → Cartagena', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z' },
+];
+
+/** La puerta del viaje sobre el borde de siempre: lo demás (búsquedas, checkout directo) lo sirve el de antes. */
+function puertaDelViaje(guion: GuionDelViaje = {}) {
+  const borde = bordeDeViajes();
+  const pedidos: PedidoAlViaje[] = [];
+  const rutas: string[] = [];
+  let estado = 'Running';
+  const total = { amount: guion.total ?? 1_900_000, currency: 'COP' };
+  const json = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  const viaje = () => ({
+    id: ID_DEL_VIAJE,
+    flujo: 'viajes.reserva',
+    numero: NUMERO_DEL_VIAJE,
+    estado,
+    datos: { itinerario: ITINERARIO_DEL_VIAJE, subtotal: total, descuento: null, impuesto: null, total, vence: '2026-08-01T10:15:00Z' },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+  });
+  const fetchDoble = vi.fn((url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const ruta = String(url);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    rutas.push(`${metodo} ${ruta}`);
+    const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
+    if (!m) {
+      return borde.fetchDoble(url, init);
+    }
+    const operacion = m[1] as OperacionDelViaje;
+    const cabeceras = new Headers(init?.headers);
+    const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoAlViaje['cuerpo']) : null;
+    pedidos.push({ operacion, url: ruta, llave: cabeceras.get('Idempotency-Key'), cuerpo });
+    const rechazo = guion.rechazos?.[operacion];
+    if (rechazo) {
+      if (operacion === 'cerrar' && guion.estadoTrasCerrar) estado = guion.estadoTrasCerrar;
+      return json(rechazo.status ?? 409, {
+        code: rechazo.code,
+        detail: 'guionado',
+        title: 'Conflict',
+        transient: rechazo.transient ?? false,
+      });
+    }
+    switch (operacion) {
+      case 'abrir':
+        estado = 'Running';
+        return json(201, viaje());
+      case 'cerrar':
+        estado = 'Completed';
+        return json(200, viaje());
+      case 'cancelar':
+        estado = estado === 'Running' ? 'Compensated' : estado;
+        return json(200, viaje());
+      case 'listar':
+        // Un viaje confirmado: lo que el orquestador devuelve con `estado=Completed`.
+        estado = 'Completed';
+        return json(200, { items: [viaje()], total: 1, offset: 0, hasMore: false });
+      default:
+        return json(200, viaje());
+    }
+  });
+  return {
+    fetchDoble,
+    pedidos,
+    rutas,
+    veces: (operacion: OperacionDelViaje) => pedidos.filter((p) => p.operacion === operacion).length,
+    directas: () => rutas.filter((r) => r.startsWith('POST') && /\/(checkout|confirm)$/.test(r)).length,
+    alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
+  };
+}
+
+/** Lo que el CMS manda cuando un sitio declara la puerta (`CaminoDeCompra.Decidir`, «directa» por defecto). */
+const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, bookingPath: 'puerta' };
+
+describe('El viaje por la puerta (línea 006)', () => {
+  let fixture: ComponentFixture<TravelShellElementComponent>;
+  let component: TravelShellElementComponent;
+
+  beforeAll(() => definirCoordinador());
+
+  async function montar(
+    puerta: ReturnType<typeof puertaDelViaje>,
+    config: object = POR_LA_PUERTA,
+    { conCoordinador = true }: { conCoordinador?: boolean } = {},
+  ): Promise<void> {
+    window.location.hash = '';
+    installMemoryStorage();
+    vi.stubGlobal('fetch', puerta.fetchDoble);
+    await TestBed.configureTestingModule({
+      imports: [TravelShellElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        TravelApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: TravelFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(TravelShellElementComponent);
+    component = fixture.componentInstance;
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que el viaje encuentra por ancestro.
+    if (conCoordinador) {
+      const flujo = document.createElement('synergos-flujo');
+      flujo.setAttribute('flujo', 'viajes.reserva');
+      document.body.appendChild(flujo);
+      flujo.appendChild(fixture.nativeElement as HTMLElement);
+    }
+    fixture.componentRef.setInput('config', config);
+    fixture.detectChanges();
+    await asentar(12);
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    window.location.hash = '';
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+  }
+
+  /** Un vuelo del 1 al 5 de agosto en el carrito. */
+  async function unVueloEnElCarrito(): Promise<void> {
+    component.selectProduct('flight');
+    component.flightOrigin.set('BOG');
+    component.flightDestination.set('CTG');
+    component.flightDepart.set('2026-08-01');
+    component.flightReturn.set('2026-08-05');
+    component.search();
+    await asentar(12);
+    component.addFlightToCart();
+    await asentar(12);
+  }
+
+  /** El vuelo en el carrito, quien viaja, y el asistente en su último paso. */
+  async function elegirYAvanzar(): Promise<void> {
+    await unVueloEnElCarrito();
+    component.guestName.set('Ada Lovelace');
+    component.guestEmail.set('ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+  }
+
+  async function confirmar(): Promise<void> {
+    asistente().next(); // submit → pay (abrir) → confirm (cerrar)
+    await asentar(30);
+    fixture.detectChanges();
+  }
+
+  function alertas(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"], [role="status"], syn-live-region, .travel__error'))
+      .map((nodo) => (nodo.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  it('«puerta»: abre con la llave de la intención y cada ítem con su producto, su etiqueta y su periodo; cierra por su id; ningún checkout directo', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+
+    await elegirYAvanzar();
+    await confirmar();
+
+    const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
+    const [item] = abrir.cuerpo!.items!;
+    expect(item.ventana).toEqual({ start: '2026-08-01T00:00:00.000Z', end: '2026-08-05T00:00:00.000Z' });
+    expect(item.etiqueta).not.toBe('');
+    expect(abrir.llave).toMatch(/\S/);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cerrar')!.url).toContain(`id=${ID_DEL_VIAJE}`);
+    expect(puerta.directas()).toBe(0);
+    expect(component.view()).toBe('confirmation');
+    expect(component.confirmedVouchers().map((v) => v.reservationId)).toEqual([NUMERO_DEL_VIAJE]);
+  });
+
+  it('el total y el plazo del apartado son los que dijo el SERVIDOR al abrir, no la suma del navegador', async () => {
+    const puerta = puertaDelViaje({ total: 2_345_000, rechazos: { cerrar: { code: 'gateway.timeout', status: 504, transient: true } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    expect(component.cartTotalMinor()).toBe(234_500_000);
+    expect(component.cartHoldExpiresAt()).toBe('2026-08-01T10:15:00Z');
+  });
+
+  it('reintentar abrir con la MISMA elección manda la MISMA llave: la puerta devuelve el viaje, no aparta otro', async () => {
+    const puerta = puertaDelViaje({ rechazos: { abrir: { code: 'booking.at_capacity' } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+
+    await confirmar();
+    await confirmar();
+
+    const llaves = puerta.pedidos.filter((p) => p.operacion === 'abrir').map((p) => p.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[0]).toBe(llaves[1]);
+    expect(alertas()).toContain('Una parte de tu viaje ya no está disponible. Revisa tu viaje y vuelve a intentarlo.');
+  });
+
+  it('un 503 de la puerta NO cae a la ruta directa: dice que las reservas no están disponibles', async () => {
+    const puerta = puertaDelViaje({ rechazos: { abrir: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    expect(puerta.directas()).toBe(0);
+    expect(component.view()).not.toBe('confirmation');
+    expect(alertas()).toContain('Las reservas en línea no están disponibles en este momento.');
+  });
+
+  it('cerrar rechazado y el viaje COMPLETADO al consultar: se confirma con lo que dice el servidor', async () => {
+    const puerta = puertaDelViaje({ rechazos: { cerrar: { code: 'cliente.respuesta_ilegible' } }, estadoTrasCerrar: 'Completed' });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+
+    expect(puerta.veces('consultar')).toBe(1);
+    expect(component.view()).toBe('confirmation');
+  });
+
+  it('un viaje que no se confirmó se puede CANCELAR desde el carrito: suelta y no cobra; después ya no se ofrece', async () => {
+    const puerta = puertaDelViaje({ rechazos: { cerrar: { code: 'viajes.not_continuable' } }, estadoTrasCerrar: 'Running' });
+    await montar(puerta);
+    await elegirYAvanzar();
+    await confirmar();
+    component.goToCart();
+    fixture.detectChanges();
+
+    expect(component.cartPageActions().map((a) => a.id)).toContain('cancel-pending');
+    component.onCartAction('cancel-pending');
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(puerta.veces('cancelar')).toBe(1);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cancelar')!.url).toContain(`id=${ID_DEL_VIAJE}`);
+    expect(alertas()).toContain('Cancelamos tu reserva sin confirmar. No se te cobró nada.');
+    expect(component.cartPageActions().map((a) => a.id)).not.toContain('cancel-pending');
+  });
+
+  it('«directa» (o sin declarar): ni una petición a /api/flujos; paga y confirma por /api/travel como siempre', async () => {
+    for (const config of [{ ...POR_LA_PUERTA, bookingPath: 'directa' }, NEGOCIO_DEL_CMS]) {
+      const puerta = puertaDelViaje();
+      await montar(puerta, config);
+      await elegirYAvanzar();
+      await confirmar();
+
+      expect(puerta.alaPuerta()).toBe(0);
+      expect(puerta.directas()).toBe(2);
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('el total del carrito es el que COTIZÓ el servidor, sin llave y sin apartar nada (T024)', async () => {
+    const puerta = puertaDelViaje({ total: 2_345_000 });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    const cotizaciones = puerta.pedidos.filter((p) => p.operacion === 'cotizar');
+    expect(cotizaciones.length).toBeGreaterThan(0);
+    expect(cotizaciones.every((p) => p.llave === null)).toBe(true);
+    expect(cotizaciones.at(-1)!.cuerpo!.items![0].ventana).toEqual({
+      start: '2026-08-01T00:00:00.000Z',
+      end: '2026-08-05T00:00:00.000Z',
+    });
+    expect(puerta.veces('abrir')).toBe(0);
+    expect(component.cartTotalLabel()).toBe(formatearImporte(2_345_000, 'COP'));
+  });
+
+  it('si cotizar no puede dar el total lo dice, y el carrito no inventa uno del servidor', async () => {
+    const puerta = puertaDelViaje({ rechazos: { cotizar: { code: 'pricing.price_not_found', status: 404 } } });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.totalCotizado()).toBeNull();
+    expect(alertas()).toContain('No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
+  });
+
+  // ── «Mis viajes» y el enlace del aviso (T028) ───────────────────────────────────────────────────────────
+
+  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar`, con lo que dice el servidor; ni /trips ni cancelar aquí', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+    component.goToAccount();
+    fixture.detectChanges();
+    await asentar(20);
+
+    const listar = puerta.pedidos.find((p) => p.operacion === 'listar')!;
+    expect(new URL(listar.url, 'http://x').searchParams.get('estado')).toBe('Completed');
+    expect(puerta.rutas.some((r) => r.includes('/trips'))).toBe(false);
+    const [trip] = component.trips();
+    expect(trip.ref).toBe(NUMERO_DEL_VIAJE);
+    expect(trip.title).toBe('Bogotá → Cartagena');
+    expect([trip.startDate, trip.endDate]).toEqual(['2026-08-01', '2026-08-05']);
+    expect(trip.total).toBe(1_900_000);
+    // Confirmado por la puerta, lo gestiona quien vende (006-P3).
+    expect(component.canCancel(trip)).toBe(false);
+  });
+
+  describe('el enlace del aviso', () => {
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('?viaje={id} abre «Mis viajes» y CONSULTA ese viaje; leído, el parámetro sale de la URL', async () => {
+      window.history.replaceState(null, '', `/viajes/?viaje=${ID_DEL_VIAJE}&utm=correo`);
+      const puerta = puertaDelViaje();
+      puerta.fetchDoble.mockClear();
+      await montar(puerta);
+      await asentar(20);
+      fixture.detectChanges();
+
+      expect(puerta.pedidos.find((p) => p.operacion === 'consultar')!.url).toContain(`id=${ID_DEL_VIAJE}`);
+      expect(component.view()).toBe('account');
+      expect(component.viajeDelAviso()?.ref).toBe(NUMERO_DEL_VIAJE);
+      expect(fixture.nativeElement.querySelector('.travel__trip-aviso')?.textContent).toContain('Bogotá → Cartagena');
+      expect(new URLSearchParams(window.location.search).has('viaje')).toBe(false);
+      expect(new URLSearchParams(window.location.search).get('utm')).toBe('correo');
+    });
+
+    it('sin sesión el parámetro SE QUEDA (el login vuelve aquí) y se pide entrar', async () => {
+      window.history.replaceState(null, '', `/viajes/?viaje=${ID_DEL_VIAJE}`);
+      const puerta = puertaDelViaje({ rechazos: { consultar: { code: 'puerta.sesion_requerida', status: 401 } } });
+      await montar(puerta);
+      await asentar(20);
+
+      expect(component.tripsAccess()).toBe('sin-sesion');
+      expect(new URLSearchParams(window.location.search).get('viaje')).toBe(ID_DEL_VIAJE);
+    });
+  });
+
+  it('«puerta» sin <synergos-flujo> arriba: «no disponible», sin asistente y sin tocar la red', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta, POR_LA_PUERTA, { conCoordinador: false });
+    await unVueloEnElCarrito();
+    component.goToCheckout();
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(CheckoutWizardComponent))).toBeNull();
+    expect(alertas()).toContain('Las reservas en línea no están disponibles en este momento.');
+    expect(puerta.alaPuerta()).toBe(0);
+  });
 });

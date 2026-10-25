@@ -722,6 +722,12 @@
   &__trip-dates { display: block; margin-top: syn.px-to-rem(2); font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
 
   &__trip-detail { display: flex; flex-direction: column; gap: syn.$space-3; }
+  &__trip-aviso {
+    margin-bottom: syn.$space-4;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-md;
+  }
   &__trip-meta { margin: 0; color: var(--ts-text-secondary); }
   &__trip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: syn.$space-3; }
   &__cancel-note { margin: 0; color: var(--ts-danger); font-size: syn.$font-size-sm; font-weight: 600; }

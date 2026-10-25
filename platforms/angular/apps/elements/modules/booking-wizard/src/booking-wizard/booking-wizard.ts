@@ -2,6 +2,7 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   inject,
   input,
@@ -27,6 +28,7 @@ import {
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
+  LiveRegionComponent,
   omitUndefinedProperties,
   resolveConfigValue,
   SynSkeletonComponent,
@@ -34,15 +36,66 @@ import {
 } from '@synergos/shared';
 import type { BookingWizardProps } from '@synergos/contracts';
 import { normalizeRooms } from './booking-api.client';
+import { estadiaPendiente, sinEstadiaPendiente } from './booking-fulfillment.strategy';
+import { cancelarEstadia } from './booking-viaje';
 import {
   BOOKING_FLOW,
   BOOKING_HOLD_FAILED,
+  caminoDeLaReserva,
   type BookingGuest,
   type BookingOffer,
   type BookingRoom,
   type BookingSelection,
   type BookingVoucher,
 } from './booking.model';
+import { FLUJO_VIAJES_RESERVA, elegirMensaje, hayCoordinador, t, type RechazoDelFlujo } from '@synergos/vitals-core';
+
+/**
+ * Lo que se dice de un rechazo de la estadía por la puerta, elegido por su `code` y nunca por su `title` (sección
+ * `Travel.Booking`, línea 006). Lo que es de la habitación tiene texto propio; lo demás es el del viaje, que es lo que
+ * la estadía es (un viaje de un ítem, 006-P4). Lo que no tiene texto propio cae al de su clase.
+ */
+export function mensajeDeLaEstadia(code: string): string {
+  const vencido = t('Travel.Booking.HoldExpired', 'Tu reserva venció antes de confirmar. Vuelve a intentarlo.');
+  const pago = t('Travel.Booking.PaymentFailed', 'No pudimos procesar el pago. No se te cobró nada.');
+  const revisar = t('Travel.Booking.RoomBadRequest', 'Revisa tu reserva: a la habitación le falta un dato o no es válido.');
+  const noSeReserva = t('Travel.Booking.RoomNotBookable', 'Esa habitación no se puede reservar en línea.');
+  const porCodigo: Readonly<Record<string, string>> = {
+    'booking.at_capacity': t('Travel.Booking.RoomTaken', 'Esa habitación ya no está disponible. Elige otra de las opciones.'),
+    'booking.resource_not_found': noSeReserva,
+    'cliente.sin_producto': noSeReserva,
+    'booking.hold_expired': vencido,
+    'booking.hold_released': vencido,
+    'payments.payment_declined': pago,
+    'payments.payment_failed': pago,
+    'payments.voided': pago,
+    'viajes.no_items': revisar,
+    'viajes.too_many_items': revisar,
+    'viajes.bad_product': revisar,
+    'viajes.bad_window': revisar,
+    'viajes.duplicate_item': revisar,
+    'viajes.entrada_invalida': revisar,
+    'cliente.sin_periodo': revisar,
+    'viajes.not_continuable': t('Travel.Booking.NotConfirmable', 'Este viaje ya no se puede confirmar.'),
+    'viajes.saga_not_found': t('Travel.Booking.NotFound', 'No encontramos ese viaje en tu cuenta.'),
+  };
+  if (code.startsWith('pricing.')) {
+    return t('Travel.Booking.PriceUnavailable', 'No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
+  }
+  // Sólo se sabe el `code` (el asistente pasa el motivo): lo transitorio y lo negado dicen lo mismo.
+  const rechazo: RechazoDelFlujo = { code, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} };
+  const generico = t('Travel.Booking.Generic', 'No pudimos reservar tu viaje. Intenta de nuevo.');
+  return elegirMensaje(rechazo, porCodigo, {
+    sesion: t('Travel.Booking.SignInRequired', 'Inicia sesión para reservar tu viaje.'),
+    no_disponible: t('Travel.Booking.Unavailable', 'Las reservas en línea no están disponibles en este momento.'),
+    reintentable: generico,
+    defecto: generico,
+    negado: generico,
+  });
+}
+
+/** La habitación ya no está: por la directa no se pudo apartar, por la puerta la agenda dijo que no hay cupo. */
+const HABITACION_PERDIDA: ReadonlySet<string> = new Set([BOOKING_HOLD_FAILED, 'booking.at_capacity']);
 
 /**
  * Runtime config for the CMS element <c>elementSynBookingWizard</c>.
@@ -99,6 +152,8 @@ export function sanitizeBookingWizardConfig(value: BookingWizardConfig): Booking
   return omitUndefinedProperties<BookingWizardProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
     destinationLabel: coerceTrimmedStringInput(value.destinationLabel),
+    // Por dónde reserva (ADR 0140; línea 006), como lo DECLARA el CMS: uno de los dos, o nada (la directa).
+    bookingPath: value.bookingPath === 'puerta' || value.bookingPath === 'directa' ? value.bookingPath : undefined,
   });
 }
 
@@ -112,6 +167,7 @@ let bookingWizardInstanceId = 0;
     ConfirmationShellComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
+    LiveRegionComponent,
   ],
   templateUrl: './booking-wizard.html',
   styleUrl: './booking-wizard.scss',
@@ -123,6 +179,7 @@ let bookingWizardInstanceId = 0;
 export class BookingWizardElementComponent implements OnInit {
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<BookingWizardConfig | undefined, unknown>(undefined, {
@@ -194,7 +251,31 @@ export class BookingWizardElementComponent implements OnInit {
       flow: BOOKING_FLOW,
       ttlMs: SESSION_TTL_MS,
     });
+    // Por la puerta sin `<synergos-flujo>` arriba no se reserva: se dice, sin tocar la red, y nunca se cae a la
+    // directa (una misma estadía por los dos caminos apartaría dos veces).
+    this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA));
   }
+
+  /**
+   * Por dónde reserva ESTE asistente: lo DECLARA el CMS en `bookingPath` —la puerta o la ruta directa, «directa» por
+   * defecto— y el elemento no lo adivina. Una estadía que ya salió se termina por el suyo (la estrategia lo mira).
+   */
+  readonly caminoDeLaReserva = computed(() => caminoDeLaReserva(this.config()?.bookingPath));
+  readonly porLaPuerta = computed(() => this.caminoDeLaReserva() === 'puerta');
+
+  /** Por la puerta sin `<synergos-flujo>` arriba no se reserva: se dice, sin tocar la red. */
+  readonly sinCoordinador = signal(false);
+  readonly textoNoDisponible = t('Travel.Booking.Unavailable', 'Las reservas en línea no están disponibles en este momento.');
+  readonly textoCancelarPendiente = t('Travel.Booking.CancelPending', 'Cancelar la reserva sin confirmar');
+
+  /** Lo que la puerta contestó a una acción sobre la estadía pendiente (cancelarla). */
+  readonly avisoDeLaEstadia = signal('');
+
+  /**
+   * La estadía abierta por la puerta y sin confirmar de esta sesión: la única que se ofrece cancelar (defecto 3). Lo
+   * confirmado lo gestiona quien vende (006-P3).
+   */
+  readonly estadiaPendienteId = computed(() => estadiaPendiente(this.#store.session()));
 
   // ─── Estado derivado ───────────────────────────────────────────────────────
   readonly selectedItem = computed(() => this.#store.items()[0] ?? null);
@@ -280,6 +361,14 @@ export class BookingWizardElementComponent implements OnInit {
     // cuando lo que había fallado era el pago.
     payFailedMessage: 'Esa habitación ya no está disponible. Elige otra de las opciones.',
     confirmFailedMessage: 'No pudimos completar el pago de tu reserva. Revisa tus datos e intenta de nuevo.',
+    // Por la puerta el aviso lo elige el `code`. Cerrar captura ANTES de confirmar: si lo que falló fue el apartado,
+    // el total ya se había cobrado y se devuelve.
+    mensajeDeFallo: (motivo, referenciaCapturada) =>
+      !this.porLaPuerta()
+        ? null
+        : motivo.startsWith('booking.hold_') && referenciaCapturada
+          ? t('Travel.Booking.RefundIssued', 'No pudimos confirmar tu viaje; te devolvimos el pago.')
+          : mensajeDeLaEstadia(motivo),
   }));
 
   /**
@@ -294,10 +383,13 @@ export class BookingWizardElementComponent implements OnInit {
     revisar: this.selectedOffer() !== null,
   }));
 
-  /** Lo que la estrategia necesita para apartar: quién es el huésped. */
+  /** Lo que la estrategia necesita para apartar: quién es el huésped, y por dónde y desde dónde reserva. */
   readonly wizardInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
     provider: 'booking',
     guest: { name: this.guestName().trim(), email: this.guestEmail().trim() } satisfies BookingGuest,
+    // Desde aquí la estrategia encuentra, por ancestro, el `<synergos-flujo>` de la página.
+    host: this.#host,
+    camino: this.caminoDeLaReserva(),
   }));
 
   // ─── SH-11: el desenlace ───────────────────────────────────────────────────
@@ -449,7 +541,8 @@ export class BookingWizardElementComponent implements OnInit {
    * queda acá es lo que el asistente no puede hacer: soltar la habitación que ya no está.
    */
   onFailed(reason: string): void {
-    if (reason !== BOOKING_HOLD_FAILED) {
+    // Con una estadía todavía abierta por la puerta, la habitación es suya: no se suelta la elección.
+    if (!HABITACION_PERDIDA.has(reason) || this.estadiaPendienteId()) {
       return;
     }
     // La selección muerta se quita: dejarla deja el botón de confirmar vivo
@@ -460,6 +553,26 @@ export class BookingWizardElementComponent implements OnInit {
     }
     this.offers.set([]);
     void this.refreshAvailability();
+  }
+
+  /**
+   * Cancela la estadía PENDIENTE: suelta el apartado y anula la autorización. Lo confirmado no se cancela aquí: lo
+   * gestiona quien vende (006-P3). Lo que queda lo dice el servidor.
+   */
+  async cancelarEstadiaPendiente(): Promise<void> {
+    const id = this.estadiaPendienteId();
+    if (!id) {
+      return;
+    }
+    const r = await cancelarEstadia(this.#host, id);
+    if (r.ok && r.valor.estado === 'Compensated') {
+      this.#store.setSession(sinEstadiaPendiente(this.#store.getValidSession()));
+      this.avisoDeLaEstadia.set(t('Travel.Booking.CancelledNoCharge', 'Cancelamos tu reserva sin confirmar. No se te cobró nada.'));
+    } else {
+      this.avisoDeLaEstadia.set(
+        r.ok ? t('Travel.Booking.StillPending', 'Tu reserva sigue pendiente. Intenta de nuevo en un momento.') : mensajeDeLaEstadia(r.rechazo.code),
+      );
+    }
   }
 
   /** Vuelve al carrito/búsqueda desde el primer paso. */

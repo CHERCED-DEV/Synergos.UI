@@ -83,6 +83,7 @@ export function normalizeOffer(value: unknown, fallbackCurrency: string): Bookin
 
   return {
     offerId,
+    productRef: readString(value['productRef']).trim(),
     roomTypeName,
     board: readString(value['board']).trim(),
     totalPrice,

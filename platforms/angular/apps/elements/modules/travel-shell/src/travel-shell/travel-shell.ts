@@ -4,11 +4,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
+  type OnInit,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import {
@@ -65,6 +69,7 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  LiveRegionComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
   coerceTrimmedStringInput,
@@ -78,6 +83,8 @@ import { TravelApiClient, isTravelSinSesion, mockSeatMap } from './travel-api.cl
 import {
   TRAVEL_FLOW,
   TRAVEL_PRODUCTS,
+  caminoDeLaReserva,
+  periodoDeLaBusqueda,
   type CancelReceipt,
   type CarCriteria,
   type FareFamily,
@@ -94,7 +101,89 @@ import {
   type TravelTrip,
   type TravelView,
 } from './travel.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
+import {
+  FLUJO_VIAJES_RESERVA,
+  avisoDelFlujo,
+  baseDeRuta,
+  clasificarRechazo,
+  elegirMensaje,
+  hayCoordinador,
+  mismaRuta,
+  segmentosDeRuta,
+  formatearImporte,
+  t,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
+import { caminoDelViajePendiente, itemsDelViaje, sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
+import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe } from './travel-viaje';
+
+/**
+ * Lo que se dice de un rechazo del viaje por la puerta, elegido por su `code` y nunca por su `title` (sección
+ * `Travel.Booking`, línea 006). Lo que no tiene texto propio cae al de su clase.
+ */
+export function mensajeDelViaje(code: string): string {
+  const ocupado = t('Travel.Booking.ItemTaken', 'Una parte de tu viaje ya no está disponible. Revisa tu viaje y vuelve a intentarlo.');
+  const vencido = t('Travel.Booking.HoldExpired', 'Tu reserva venció antes de confirmar. Vuelve a intentarlo.');
+  const pago = t('Travel.Booking.PaymentFailed', 'No pudimos procesar el pago. No se te cobró nada.');
+  const revisar = t('Travel.Booking.BadRequest', 'Revisa tu viaje: a una parte le falta un dato o no es válido.');
+  const porCodigo: Readonly<Record<string, string>> = {
+    'booking.at_capacity': ocupado,
+    'booking.resource_not_found': t('Travel.Booking.NotBookable', 'Una parte de tu viaje no se puede reservar en línea.'),
+    'booking.hold_expired': vencido,
+    'booking.hold_released': vencido,
+    'payments.payment_declined': pago,
+    'payments.payment_failed': pago,
+    'payments.voided': pago,
+    'viajes.no_items': revisar,
+    'viajes.too_many_items': revisar,
+    'viajes.bad_product': revisar,
+    'viajes.bad_window': revisar,
+    'viajes.duplicate_item': revisar,
+    'viajes.entrada_invalida': revisar,
+    'cliente.sin_periodo': t('Travel.Booking.NoDates', 'A una parte de tu viaje le faltan las fechas. Búscala otra vez.'),
+    'viajes.not_continuable': t('Travel.Booking.NotConfirmable', 'Este viaje ya no se puede confirmar.'),
+    'viajes.saga_not_found': t('Travel.Booking.NotFound', 'No encontramos ese viaje en tu cuenta.'),
+  };
+  if (code.startsWith('pricing.')) {
+    return t('Travel.Booking.PriceUnavailable', 'No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
+  }
+  // Sólo se sabe el `code` (el asistente pasa el motivo): lo transitorio y lo negado dicen lo mismo.
+  const rechazo: RechazoDelFlujo = { code, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} };
+  const generico = t('Travel.Booking.Generic', 'No pudimos reservar tu viaje. Intenta de nuevo.');
+  return elegirMensaje(rechazo, porCodigo, {
+    sesion: t('Travel.Booking.SignInRequired', 'Inicia sesión para reservar tu viaje.'),
+    no_disponible: t('Travel.Booking.Unavailable', 'Las reservas en línea no están disponibles en este momento.'),
+    reintentable: generico,
+    defecto: generico,
+    negado: generico,
+  });
+}
+
+/**
+ * Con qué parámetro llega a la página el enlace del correo del viaje: el de la tabla GENERADA de las rutas del CMS
+ * (`Synergos:Puerta:Flujos:viajes.reserva:Aviso:Ruta`, núcleo N3), no un literal de aquí. Vacío si nadie avisa.
+ */
+function parametroDelAviso(): string {
+  return avisoDelFlujo(FLUJO_VIAJES_RESERVA)?.parametro ?? '';
+}
+
+/** El viaje del enlace del aviso (`?viaje={id}`), o vacío. */
+function viajeDelEnlace(): string {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return '';
+  return new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+}
+
+/** Quita el parámetro del aviso de la URL: se usa una vez, y lo que quede lo reabriría en cada recarga. */
+function consumirViajeDelEnlace(): void {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return;
+  const consulta = new URLSearchParams(window.location.search);
+  if (!consulta.has(parametro)) return;
+  consulta.delete(parametro);
+  const texto = consulta.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`);
+}
 
 /**
  * Runtime config for the CMS element <c>elementSynTravelShell</c>.
@@ -155,6 +244,7 @@ export function sanitizeTravelShellConfig(value: TravelShellConfig): TravelShell
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    bookingPath: value.bookingPath === 'puerta' || value.bookingPath === 'directa' ? value.bookingPath : undefined,
   });
 }
 
@@ -208,6 +298,7 @@ let travelShellInstanceId = 0;
     CredentialWalletComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
+    LiveRegionComponent,
   ],
   templateUrl: './travel-shell.html',
   styleUrl: './travel-shell.scss',
@@ -216,7 +307,7 @@ let travelShellInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-travel-shell' },
 })
-export class TravelShellElementComponent {
+export class TravelShellElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -224,6 +315,7 @@ export class TravelShellElementComponent {
   readonly #bus = inject<TransactionEventBusService<TravelBus>>(TransactionEventBusService);
   readonly #api = inject(TravelApiClient);
   readonly #identity = inject(HostIdentityService);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<TravelShellConfig | undefined, unknown>(undefined, {
@@ -685,21 +777,52 @@ export class TravelShellElementComponent {
   readonly guestEmailValid = computed(() => /.+@.+\..+/.test(this.guestEmail().trim()));
   readonly guestValid = computed(() => this.guestNameValid() && this.guestEmailValid());
 
-  readonly checkoutConfig: CheckoutWizardConfig = {
-    steps: [
-      { id: 'viajeros', label: 'Viajeros' },
-      { id: 'pago', label: 'Pago' },
-      { id: 'revisar', label: 'Revisar' },
-    ],
-    summaryHeading: 'Tu viaje',
-    submitLabel: 'Pagar y reservar',
-    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `pay` abre el cobro, así que el
-    // aviso de después nombra su referencia.
-    ...AVISOS_DE_UN_COBRO,
-    processingLabel: 'Procesando…',
-    nextLabel: 'Continuar',
-    backLabel: 'Atrás',
-  };
+  /**
+   * Por dónde reserva ESTA página: lo DECLARA el CMS en `bookingPath` —la puerta o la ruta directa, «directa» por
+   * defecto— y el elemento no lo adivina. Un viaje que ya salió se termina por el suyo (la estrategia lo mira).
+   */
+  readonly caminoDeLaReserva = computed(() => caminoDeLaReserva(this.config()?.bookingPath));
+  readonly porLaPuerta = computed(() => this.caminoDeLaReserva() === 'puerta');
+
+  /** Por la puerta sin `<synergos-flujo>` arriba no se reserva: se dice, sin tocar la red. */
+  readonly sinCoordinador = signal(false);
+  readonly textoNoDisponible = t('Travel.Booking.Unavailable', 'Las reservas en línea no están disponibles en este momento.');
+
+  /** Lo que la puerta contestó a una acción sobre el viaje pendiente (cancelarlo). */
+  readonly avisoDelViaje = signal('');
+
+  readonly checkoutConfig = computed<CheckoutWizardConfig>(() => {
+    const porLaPuerta = this.porLaPuerta();
+    return {
+      steps: [
+        { id: 'viajeros', label: 'Viajeros' },
+        { id: 'pago', label: 'Pago' },
+        { id: 'revisar', label: 'Revisar' },
+      ],
+      summaryHeading: 'Tu viaje',
+      submitLabel: 'Pagar y reservar',
+      // El fallo lo dice el ASISTENTE, una vez (UI#91): el `pay` abre el cobro, así que el
+      // aviso de después nombra su referencia.
+      ...AVISOS_DE_UN_COBRO,
+      processingLabel: 'Procesando…',
+      nextLabel: 'Continuar',
+      backLabel: 'Atrás',
+      // Por la puerta el aviso lo elige el `code`. Cerrar captura ANTES de confirmar: si lo que falló fue un
+      // apartado, el total ya se había cobrado y se devuelve.
+      mensajeDeFallo: (motivo) =>
+        !porLaPuerta
+          ? null
+          : motivo.startsWith('booking.hold_') && this.#cobroCapturado()
+            ? t('Travel.Booking.RefundIssued', 'No pudimos confirmar tu viaje; te devolvimos el pago.')
+            : mensajeDelViaje(motivo),
+    };
+  });
+
+  /** Si el viaje de la sesión ya pasó por `pay` (abrió y autorizó): un fallo al cerrar se devuelve. */
+  #cobroCapturado(): boolean {
+    const pagos = this.#store.getValidSession().payments;
+    return pagos.length > 0 && pagos[pagos.length - 1]?.status !== 'failed';
+  }
 
   readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
     viajeros: this.guestValid(),
@@ -711,6 +834,9 @@ export class TravelShellElementComponent {
     apiBase: this.apiBase(),
     guest: { name: this.guestName().trim(), email: this.guestEmail().trim() } satisfies TravelGuest,
     provider: this.paymentMethod() === 'pse' ? 'travel-pse' : 'travel-card',
+    // Desde aquí la estrategia encuentra, por ancestro, el `<synergos-flujo>` de la página.
+    host: this.#host,
+    camino: this.caminoDeLaReserva(),
   }));
 
   // ─── Confirmation (SH-10 wallet) ────────────────────────────────────────────
@@ -740,9 +866,7 @@ export class TravelShellElementComponent {
   readonly walletCredentials = computed<readonly WalletCredential[]>(() => {
     const credentials: WalletCredential[] = [];
     for (const trip of this.trips()) {
-      for (const item of trip.items) {
-        credentials.push(this.tripItemToCredential(trip, item));
-      }
+      trip.items.forEach((item, indice) => credentials.push(this.tripItemToCredential(trip, item, indice)));
     }
     return credentials;
   });
@@ -765,9 +889,21 @@ export class TravelShellElementComponent {
   readonly cartCount = this.#store.itemCount;
   readonly hasCart = this.#store.hasItems;
   readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
-  readonly cartTotalLabel = computed(() =>
-    this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency()),
-  );
+
+  /**
+   * Por la puerta, el total que el SERVIDOR cotizó para el carrito antes de apartar nada (`cotizar`, T024 de la
+   * línea 006): es el que abrir autoriza después. `null` mientras no hay cotización, o si el viaje ya salió (desde
+   * ahí el total de la sesión es el del servidor).
+   */
+  readonly totalCotizado = signal<Importe | null>(null);
+  #cotizacion = 0;
+
+  readonly cartTotalLabel = computed(() => {
+    const cotizado = this.totalCotizado();
+    return cotizado
+      ? this.formatPrice(cotizado.amount, cotizado.currency)
+      : this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency());
+  });
   readonly liveConflict = this.#store.liveSessionConflict;
   readonly degraded = computed(() => {
     // Recompute on each navigation/data load; the flag is set by the API client.
@@ -857,6 +993,43 @@ export class TravelShellElementComponent {
 
     // Honour a deep link on boot.
     this.applyHash();
+
+    // Por la puerta, cada carrito distinto se cotiza: el total que se enseña es el del servidor, no la suma del
+    // navegador.
+    effect(() => {
+      void this.cartItems();
+      if (this.porLaPuerta()) {
+        untracked(() => void this.cotizarElCarrito());
+      }
+    });
+  }
+
+  /**
+   * Cotiza el carrito por la puerta, sin llave y sin apartar nada. Sólo un viaje que todavía no salió: el que salió
+   * ya tiene el total del servidor en la sesión. Una respuesta vieja no pisa a una nueva. Sin sesión no se cotiza
+   * (lo dirá el asistente al reservar); cualquier otro rechazo se dice.
+   */
+  async cotizarElCarrito(): Promise<void> {
+    const turno = ++this.#cotizacion;
+    const sesion = this.#store.getValidSession();
+    const items = itemsDelViaje(sesion);
+    if (
+      items.length === 0 ||
+      items.some((item) => !item.start || !item.end) ||
+      caminoDelViajePendiente(sesion) !== null ||
+      !hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)
+    ) {
+      this.totalCotizado.set(null);
+      return;
+    }
+    const r = await cotizarViaje(this.#host, items);
+    if (turno !== this.#cotizacion) {
+      return;
+    }
+    this.totalCotizado.set(r.ok ? r.valor : null);
+    if (!r.ok && clasificarRechazo(r.rechazo) !== 'sesion') {
+      this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+    }
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────
@@ -918,7 +1091,35 @@ export class TravelShellElementComponent {
       return;
     }
     this.cartOpen.set(false);
+    // Por la puerta sin `<synergos-flujo>` arriba no se reserva: se dice, sin tocar la red, y nunca se cae a la
+    // directa (un mismo viaje por los dos caminos apartaría dos veces).
+    this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA));
     this.navigate('checkout');
+  }
+
+  /** El viaje abierto por la puerta y sin confirmar de esta sesión: el único que se ofrece cancelar. */
+  readonly viajePendienteId = computed(() => {
+    void this.cartItems();
+    return viajePendiente(this.#store.getValidSession());
+  });
+
+  /**
+   * Cancela el viaje PENDIENTE: suelta cada apartado y anula la autorización. Lo confirmado no se cancela aquí:
+   * lo gestiona quien vende (006-P3). Lo que queda lo dice el servidor.
+   */
+  async cancelarViajePendiente(): Promise<void> {
+    const id = this.viajePendienteId();
+    if (!id) {
+      return;
+    }
+    const r = await cancelarViaje(this.#host, id);
+    if (r.ok && r.valor.estado === 'Compensated') {
+      this.#store.setSession(sinViajePendiente(this.#store.getValidSession()));
+      this.avisoDelViaje.set(t('Travel.Booking.CancelledNoCharge', 'Cancelamos tu reserva sin confirmar. No se te cobró nada.'));
+    } else {
+      this.avisoDelViaje.set(r.ok ? t('Travel.Booking.StillPending', 'Tu reserva sigue pendiente. Intenta de nuevo en un momento.') : mensajeDelViaje(r.rechazo.code));
+    }
+    this.emitCartUpdate();
   }
 
   goToAccount(section: TravelAccountSection = 'viajes'): void {
@@ -1157,6 +1358,7 @@ export class TravelShellElementComponent {
       fareId: fare.id,
       fareLabel: fare.label,
       seat: seats.join(','),
+      ...this.periodoDe('flight'),
     };
     this.commitToCart({
       productRef: flight.offerId,
@@ -1180,6 +1382,7 @@ export class TravelShellElementComponent {
         apiBase: this.apiBase(),
         currency: offer.currency || this.currency(),
         subtitle: offer.subtitle,
+        ...this.periodoDe('car'),
       },
       meta: { subtitle: offer.subtitle, badges: offer.badges },
     });
@@ -1220,6 +1423,7 @@ export class TravelShellElementComponent {
         rateLabel: rate.rateLabel,
         roomLabel: rate.roomLabel,
         refundable: rate.refundable,
+        ...this.periodoDe('hotel'),
       },
       meta: { subtitle, badges: rate.perks },
     });
@@ -1322,6 +1526,9 @@ export class TravelShellElementComponent {
   readonly cartPageActions = computed<readonly CartAction[]>(() => [
     { id: 'search', label: 'Empezar a buscar', visibility: 'empty' },
     { id: 'search-more', label: 'Seguir buscando', visibility: 'filled' },
+    ...(this.viajePendienteId()
+      ? [{ id: 'cancel-pending', label: t('Travel.Booking.CancelPending', 'Cancelar la reserva sin confirmar'), visibility: 'filled' } as const]
+      : []),
     { id: 'checkout', label: 'Ir a pagar', kind: 'primary', visibility: 'filled' },
   ]);
 
@@ -1344,6 +1551,9 @@ export class TravelShellElementComponent {
         break;
       case 'cross-sell':
         this.addCrossSell();
+        break;
+      case 'cancel-pending':
+        void this.cancelarViajePendiente();
         break;
       default:
         break;
@@ -1580,6 +1790,11 @@ export class TravelShellElementComponent {
       return;
     }
     this.tripsLoading.set(true);
+    if (this.porLaPuerta()) {
+      await this.cargarViajesDeLaPuerta();
+      this.tripsLoading.set(false);
+      return;
+    }
     try {
       const trips = await this.#api.trips(this.apiBase(), this.currency());
       this.trips.set(trips);
@@ -1591,9 +1806,73 @@ export class TravelShellElementComponent {
         this.tripsAccess.set('sin-sesion');
         return;
       }
-      this.errorMessage.set('No pudimos cargar tus viajes.');
+      this.errorMessage.set(this.textoViajesNoCargados);
     } finally {
       this.tripsLoading.set(false);
+    }
+  }
+
+  readonly textoViajesNoCargados = 'No pudimos cargar tus viajes.';
+
+  /**
+   * «Mis viajes» por la puerta (`listar`, T028 de la línea 006): los viajes CONFIRMADOS de quien tiene la sesión, con
+   * lo que dice el servidor. Sin coordinador no se reserva ni se lista: se dice.
+   */
+  private async cargarViajesDeLaPuerta(): Promise<void> {
+    if (!hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)) {
+      this.errorMessage.set(this.textoNoDisponible);
+      return;
+    }
+    const r = await listarViajes(this.#host);
+    if (r.ok) {
+      const ahora = Date.now();
+      this.trips.set(r.valor.map((viaje) => viajeComoTrip(viaje, ahora)).filter((trip): trip is TravelTrip => trip !== null));
+      this.tripsLoaded.set(true);
+      this.tripsAccess.set('ok');
+      return;
+    }
+    if (clasificarRechazo(r.rechazo) === 'sesion') {
+      this.trips.set([]);
+      this.tripsAccess.set('sin-sesion');
+      return;
+    }
+    this.errorMessage.set(this.textoViajesNoCargados);
+  }
+
+  /** El viaje que abrió el enlace del aviso, con lo que dijo `consultar`: se enseña encima de «Mis viajes». */
+  readonly viajeDelAviso = signal<TravelTrip | null>(null);
+
+  /**
+   * El enlace del correo del viaje (`?viaje={id}`, T028): abre «Mis viajes» y CONSULTA ese viaje por la puerta. Sin
+   * sesión el parámetro se QUEDA en la URL: el login vuelve a esta misma página y lo vuelve a abrir. Leído (o si no
+   * existe), sale de la URL.
+   */
+  async abrirDelAviso(id: string): Promise<void> {
+    this.navigate('account', 'viajes');
+    if (!hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA)) {
+      return;
+    }
+    const r = await consultarViaje(this.#host, id);
+    if (!r.ok && clasificarRechazo(r.rechazo) === 'sesion') {
+      this.tripsAccess.set('sin-sesion');
+      return;
+    }
+    consumirViajeDelEnlace();
+    if (!r.ok) {
+      this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+      return;
+    }
+    this.viajeDelAviso.set(viajeComoTrip(r.valor, Date.now()));
+  }
+
+  /**
+   * Lo que se hace al montar, con las entradas del CMS ya puestas: en un custom element llegan después del
+   * constructor y antes de `ngOnInit`.
+   */
+  ngOnInit(): void {
+    const delAviso = viajeDelEnlace();
+    if (delAviso) {
+      void this.abrirDelAviso(delAviso);
     }
   }
 
@@ -1641,11 +1920,12 @@ export class TravelShellElementComponent {
   }
 
   tripCredentials(trip: TravelTrip): readonly WalletCredential[] {
-    return trip.items.map((item) => this.tripItemToCredential(trip, item));
+    return trip.items.map((item, indice) => this.tripItemToCredential(trip, item, indice));
   }
 
   canCancel(trip: TravelTrip): boolean {
-    return trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
+    // Un viaje confirmado por la puerta lo gestiona quien vende (006-P3): aquí no se cancela.
+    return !trip.porLaPuerta && trip.status === 'upcoming' && !this.cancelByRef()[trip.ref];
   }
 
   cancelReceipt(ref: string): CancelReceipt | null {
@@ -1710,6 +1990,21 @@ export class TravelShellElementComponent {
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
+  /**
+   * El periodo de lo que se añade al carrito: las fechas de la búsqueda de SU producto (defecto 1 de la
+   * línea 006). Se anota al añadir, no al pagar: buscar otra cosa después no cambia lo que ya está elegido.
+   */
+  private periodoDe(product: TravelProduct): { start: string; end: string } {
+    switch (product) {
+      case 'hotel':
+        return periodoDeLaBusqueda(this.hotelCheckIn(), this.hotelCheckOut());
+      case 'flight':
+        return periodoDeLaBusqueda(this.flightDepart(), this.flightReturn());
+      case 'car':
+        return periodoDeLaBusqueda(this.carPickUp(), this.carDropOff());
+    }
+  }
+
   private criteriaFor(product: TravelProduct): Readonly<Record<string, unknown>> {
     switch (product) {
       case 'hotel':
@@ -1764,11 +2059,12 @@ export class TravelShellElementComponent {
     };
   }
 
-  private tripItemToCredential(trip: TravelTrip, item: TravelTrip['items'][number]): WalletCredential {
+  private tripItemToCredential(trip: TravelTrip, item: TravelTrip['items'][number], indice: number): WalletCredential {
     const cancelled = this.cancelByRef()[trip.ref] || trip.status === 'cancelled';
     return {
-      id: item.reservationId,
-      kind: this.productLabel(item.product),
+      // Por la puerta todos los ítems comparten el localizador (el número del viaje): el id los distingue.
+      id: trip.porLaPuerta ? `${item.reservationId}-${indice + 1}` : item.reservationId,
+      kind: item.product ? this.productLabel(item.product) : undefined,
       title: item.title,
       subtitle: item.subtitle || undefined,
       reference: item.reservationId,

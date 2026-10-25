@@ -141,9 +141,22 @@ export const EXCEPCIONES = {
   // 42 KB de los 459—, que es la decisión de `charset` que ya anotó eventos, no un recorte de este
   // vertical.
   storefront: { techo: 480 * KB, razon: 'tienda entera: catálogo, carrito, checkout, compra por la puerta, compra pendiente, cupón y devoluciones. 459 KB medidos el 2026-10-22, 254 de shells (55 %)' },
-  'travel-shell': { techo: 440 * KB, razon: 'vertical completa: búsqueda, pax, itinerario. 408 KB medidos, 263 de shells (65 %)' },
+  // Resubido el 2026-10-24 (ADR 0140, línea 006): 436,3 KB medidos (446 773 B), reempaquetando la entrada AOT con las
+  // opciones de build.mjs y metafile: 264,9 de shells (61 %), 148,4 del propio componente, 8,9 de la puerta común
+  // (vitals/core/flujos, que el portal carga por primera vez), 8,5 del motor de transacción y 4,0 de contratos. Lo que
+  // entró desde los 408 es la reserva por la PUERTA (abrir, cerrar, consultar, cancelar lo no confirmado, el total
+  // cotizado, «Mis viajes» por listar y el enlace del aviso) y las líneas del carrito con su periodo; el camino directo
+  // sigue vivo al lado. No saltaba (99 % del techo); se sube con ~8 % de aire para que el siguiente cambio no lo haga por
+  // nada. Lo evitable no es del vertical: 6 559 escapes `ɵ` (38 KB), la decisión de `charset` que anotó eventos.
+  'travel-shell': { techo: 470 * KB, razon: 'vertical completa: búsqueda, pax, itinerario y reserva por la puerta con «Mis viajes». 436 KB medidos el 2026-10-24, 265 de shells (61 %)' },
   seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
-  'booking-wizard': { techo: 100 * KB, razon: 'asistente de reserva: pasos, cobro y acuse. 89 KB medidos, 41 de shells (46 %) — el tier «module» son 72 KB y ninguna vertical cabe ahí' },
+  // Resubido el 2026-10-24 (ADR 0140, línea 006): 111,5 KB medidos (114 179 B) desde los 89,4 de antes de la puerta,
+  // reempaquetando la entrada AOT con metafile: 42,4 de shells (37 %), 50,5 del propio componente, 8,3 de la puerta común
+  // (vitals/core/flujos, que el asistente carga por primera vez), 5,2 del motor de transacción y 4,0 de contratos. Lo que
+  // entró es la estadía por la PUERTA (abrir y cerrar sobre el envoltorio generado, consultar ante lo ilegible, cancelar
+  // lo no confirmado, los avisos por `code`); el camino directo sigue vivo al lado. Ninguna lib de feature nueva y los
+  // externals universales siguen ahí. Lo evitable no es del vertical: 1 279 escapes `ɵ` (7,5 KB).
+  'booking-wizard': { techo: 120 * KB, razon: 'asistente de reserva: pasos, cobro, acuse y estadía por la puerta. 111,5 KB medidos el 2026-10-24, 42 de shells (37 %) y 8,3 de la puerta' },
   // Entró el 2026-10-22 (línea 005, ADR 0140): 87,0 KB medidos (89 129 B) desde los 49,6 de antes de la puerta. Medido
   // qué entró, reempaquetando la entrada AOT con metafile: 0 de shells; 68 KB del propio componente con su plantilla
   // —el catálogo, la renta por la puerta (cotizar, apartar, retomar, confirmar), «mis alquileres» con sus estados y la

@@ -11,7 +11,19 @@
       [actions]="confirmationActions()"
       (action)="onConfirmationAction($event)"
     />
+  } @else if (sinCoordinador()) {
+    <!-- Por la puerta sin coordinador no se reserva, y nunca se cae a la directa: se dice, sin tocar la red. -->
+    <p class="booking-wizard__error">{{ textoNoDisponible }}</p>
   } @else {
+    @if (avisoDeLaEstadia()) {
+      <syn-live-region class="booking-wizard__notice" [message]="avisoDeLaEstadia()" [visuallyHidden]="false" announceInitial />
+    }
+    <!-- La estadía abierta por la puerta y sin confirmar (defecto 3): soltarla es de quien reserva. -->
+    @if (estadiaPendienteId()) {
+      <button type="button" class="booking-wizard__btn booking-wizard__btn--secondary" (click)="cancelarEstadiaPendiente()">
+        {{ textoCancelarPendiente }}
+      </button>
+    }
     @if (errorMessage()) {
       <p class="booking-wizard__error" role="alert">{{ errorMessage() }}</p>
     }

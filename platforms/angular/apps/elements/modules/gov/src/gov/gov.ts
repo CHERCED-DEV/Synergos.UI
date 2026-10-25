@@ -59,15 +59,17 @@ import {
   type ApplicationSummary,
   type GovActNotification,
   type GovCase,
+  type CaseAction,
   type DecisionOutcome,
   type GovForm,
   type GovRole,
   type GovService,
   type GovServiceDetail,
   type GovView,
+  type NotificationConsentState,
   type QueueCase,
 } from './gov.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
@@ -139,6 +141,56 @@ const SLA_FILTERS: ReadonlySet<string> = new Set(['overdue', 'due-soon']);
 
 /** Views that belong to the officer face (used to align role on deep-link). */
 const OFFICER_VIEWS: readonly GovView[] = ['queue', 'case'];
+
+/** Las acciones servidas que son una decisión del funcionario (las otras: tomar y subsanar). */
+const DECISIONES: readonly CaseAction[] = ['approve', 'reject', 'request-info'];
+
+function esDecision(accion: CaseAction): accion is DecisionOutcome {
+  return DECISIONES.includes(accion);
+}
+
+/**
+ * Los textos nuevos del trámite, de la sección `Gov.Tramite` que declara `GovProps` (ADR 0136; 009).
+ * El respaldo es el es-CO de uSync: es lo que se ve standalone, o si la página no publicó la sección.
+ */
+function textosDelTramite() {
+  return {
+    tomar: t('Gov.Tramite.Action.Take', 'Tomar el expediente'),
+    aprobar: t('Gov.Tramite.Action.Approve', 'Aprobar'),
+    rechazar: t('Gov.Tramite.Action.Reject', 'Rechazar'),
+    pedirInformacion: t('Gov.Tramite.Action.RequestInfo', 'Pedir información'),
+    tomarAyuda: t('Gov.Tramite.Take.Hint', 'Tómelo para revisarlo: queda a su nombre y el ciudadano ve que está en revisión.'),
+    tomado: t('Gov.Tramite.Take.Done', 'Expediente tomado: está en revisión a su nombre.'),
+    tomarFallo: t('Gov.Tramite.Take.Failed', 'No pudimos tomar el expediente. Intente de nuevo.'),
+    accionesAyuda: t('Gov.Tramite.Actions.Hint', 'Solo se muestran las acciones que el trámite permite ahora. Cada una queda registrada.'),
+    esperandoCiudadano: t(
+      'Gov.Tramite.Actions.Waiting',
+      'Esperando la respuesta del ciudadano: el expediente vuelve a revisión cuando envíe la información.',
+    ),
+    sinEstado: t(
+      'Gov.Tramite.Actions.Stale',
+      'No pudimos consultar el estado del trámite. Las acciones no están disponibles ahora; inténtelo más tarde.',
+    ),
+    subsanar: t('Gov.Tramite.Action.Resubmit', 'Enviar la subsanación'),
+    subsanarTitulo: t('Gov.Tramite.Resubmit.Title', 'La entidad le pidió información'),
+    subsanarNota: t('Gov.Tramite.Resubmit.Note', 'Mensaje para la entidad (opcional)'),
+    sinAdjuntos: t('Gov.Tramite.Resubmit.NoDocuments', 'No ha adjuntado documentos desde que se le pidió información.'),
+    subsanado: t('Gov.Tramite.Resubmit.Done', 'Subsanación enviada: su solicitud vuelve a revisión.'),
+    subsanarFallo: t('Gov.Tramite.Resubmit.Failed', 'No pudimos enviar la subsanación. Intente de nuevo.'),
+    aceptacion: t(
+      'Gov.Tramite.Consent.Text',
+      'Acepto que la entidad me notifique electrónicamente las decisiones de este trámite en mi carpeta ciudadana.',
+    ),
+    versionDeLaAceptacion: t('Gov.Tramite.Consent.Version', '2026-10-v1'),
+    aceptada: t('Gov.Tramite.Consent.Accepted', 'Aceptó la notificación electrónica.'),
+    noAceptada: t('Gov.Tramite.Consent.Declined', 'No aceptó la notificación electrónica: se notifica por otro medio.'),
+    noConsta: t(
+      'Gov.Tramite.Consent.Unknown',
+      'No consta la aceptación de la notificación electrónica: se notifica por otro medio.',
+    ),
+    notificarSinAceptacion: t('Gov.Tramite.Notify.NeedsConsent', 'Sin la aceptación del ciudadano no se notifica por aquí.'),
+  };
+}
 
 function coerceRole(value: unknown): GovRole | undefined {
   const raw = coerceTrimmedStringInput(value)?.toLowerCase();
@@ -433,7 +485,8 @@ export class GovElementComponent implements OnInit {
    * reintenta sin firmar mientras la bitácora sí.
    */
   async onNotifyAct(kase: GovCase): Promise<void> {
-    if (!this.canNotify() || this.notifying()) {
+    // Sin la aceptación no se notifica por aquí (009, S-7): el servidor lo rechazaría igual.
+    if (!this.canNotify() || this.notifying() || kase.notificationConsent !== 'accepted') {
       return;
     }
     this.notifyError.set('');
@@ -577,6 +630,9 @@ export class GovElementComponent implements OnInit {
   readonly activeCase = signal<GovCase | null>(null);
   readonly decisionNote = signal('');
 
+  /** Los textos de la sección `Gov.Tramite` del diccionario (ADR 0136). */
+  readonly txt = textosDelTramite();
+
   // ─── Derived ────────────────────────────────────────────────────────────────
   readonly degraded = computed(() => {
     void this.servicesLoaded();
@@ -615,6 +671,53 @@ export class GovElementComponent implements OnInit {
       { id: 'all', label: 'Todas', kind: 'inbox', badge: this.applications().length || undefined },
     ],
   }));
+
+  /** El mensaje opcional que acompaña la subsanación. */
+  readonly resubmitNote = signal('');
+
+  /** El paso del formulario que está en pantalla (lo avisa el shell): la casilla va en «Revise sus respuestas». */
+  readonly formStep = signal('');
+
+  /**
+   * Si acepta la notificación electrónica (009, S-7). Empieza SIN marcar: la aceptación tiene que
+   * ser expresa, y no marcarla también es una respuesta, que viaja.
+   */
+  readonly aceptaNotificacion = signal(false);
+
+  /** La casilla de la aceptación, que vive tras el `@if` de «Revise sus respuestas». */
+  readonly casillaDeAceptacion = viewChild<ElementRef<HTMLInputElement>>('casillaDeAceptacion');
+  /**
+   * "El ciudadano acaba de entrar a «Revise sus respuestas»; en cuanto la casilla exista, llévale la
+   * vista y el foco." De UNA vez y sólo por su navegación (el aviso del shell), como el del panel de
+   * acceso: que la casilla aparezca por otra vía no le mueve el foco.
+   */
+  readonly #casillaPendiente = signal(false);
+
+  /**
+   * Si el proceso le permite al dueño subsanar ahora (009, D-2): de las acciones servidas, que
+   * sólo la traen en «información solicitada». El elemento no lo deduce del estado.
+   */
+  readonly canResubmit = computed(() => this.activeApplication()?.actions.includes('resubmit') ?? false);
+
+  /**
+   * Si no adjuntó ningún documento desde que se le pidió información: los adjuntos con fecha
+   * posterior al hito de la petición. Es un aviso, no un bloqueo —puede que lo pedido no fuera un
+   * documento—, y sin el hito no se afirma nada.
+   */
+  readonly sinAdjuntosDesdeLaPeticion = computed(() => {
+    const app = this.activeApplication();
+    if (!app || !app.actions.includes('resubmit')) {
+      return false;
+    }
+    const hito = Date.parse(app.timeline.find((entry) => entry.id === 'subsanacion')?.date ?? '');
+    if (Number.isNaN(hito)) {
+      return false;
+    }
+    return !app.documents.some((doc) => {
+      const subido = Date.parse(doc.uploadedAt);
+      return !Number.isNaN(subido) && subido > hito;
+    });
+  });
 
   /** Tracking-timeline stages for the active application (SH-4 detail). */
   readonly applicationStages = computed<readonly TrackingStage[]>(() =>
@@ -703,14 +806,17 @@ export class GovElementComponent implements OnInit {
 
   readonly consoleFilters = computed(() => QUEUE_FILTERS.map((f) => ({ key: f.key, label: f.label })));
 
-  /** Legal officer decisions for the open case (closed cases → none). */
-  readonly caseOutcomes = computed<readonly DecisionOutcome[]>(() => {
-    const kase = this.activeCase();
-    if (!kase || isClosedStatus(kase.application.status)) {
-      return [];
-    }
-    return ['approve', 'request-info', 'reject'];
-  });
+  /**
+   * Las decisiones que el proceso permite AHORA al funcionario: las acciones que sirvió el CMS
+   * (009, D-3). Antes era una lista fija para todo expediente abierto, y con la capacidad
+   * conectada tres de esas ofertas acababan en un rechazo y una en nada (SC-002).
+   */
+  readonly caseOutcomes = computed<readonly DecisionOutcome[]>(() =>
+    (this.activeCase()?.actions ?? []).filter(esDecision),
+  );
+
+  /** Si el proceso permite tomar el expediente ahora (D-1): de las acciones servidas, no del estado. */
+  readonly canTake = computed(() => this.activeCase()?.actions.includes('take') ?? false);
 
   /** Officer case timeline as SH-4 tracking stages (reused in the case view). */
   readonly caseStages = computed<readonly TrackingStage[]>(() =>
@@ -764,6 +870,23 @@ export class GovElementComponent implements OnInit {
       // markup lleva `tabindex="-1"` (enfocable por código) y no `0` (que además lo metería
       // en el orden de tabulación, donde un contenedor no pinta nada).
       panel.nativeElement.focus();
+    });
+
+    // La casilla de la aceptación va ANTES del shell del formulario, y el shell no mueve la vista al
+    // cambiar de paso: en móvil quedaba 891 px por encima de «Radicar solicitud» (medido en vivo, T018)
+    // y, en el orden del documento, detrás del lector de pantalla. Al entrar a la revisión se la trae
+    // al centro (no bajo la cabecera fija) y recibe el foco: lo primero que lee es la pregunta.
+    // Instantáneo, no con el `scroll-behavior: smooth` del sitio: es un cambio de paso, y el suave
+    // —que avanza con los cuadros que pinta el navegador— quedaba en la posición del botón cuando
+    // la página no pintaba (medido en vivo: ni un evento de scroll, la casilla a -252 px).
+    effect(() => {
+      const casilla = this.casillaDeAceptacion();
+      if (!this.#casillaPendiente() || !casilla) {
+        return;
+      }
+      this.#casillaPendiente.set(false);
+      casilla.nativeElement.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+      casilla.nativeElement.focus({ preventScroll: true });
     });
   }
 
@@ -1081,6 +1204,8 @@ export class GovElementComponent implements OnInit {
   private async beginApplication(serviceId: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
+    this.formStep.set('');
+    this.aceptaNotificacion.set(false);
     try {
       await this.ensureForm(serviceId);
       this.navigate('apply', serviceId);
@@ -1109,6 +1234,7 @@ export class GovElementComponent implements OnInit {
       const summary = await this.#api.createApplication(this.apiBase(), {
         serviceId: service.id,
         answers,
+        notificationConsent: { accepted: this.aceptaNotificacion(), textVersion: this.txt.versionDeLaAceptacion },
       });
       this.confirmedApplication.set(summary);
       this.applicationsLoaded.set(false); // folder must refetch to include the new one
@@ -1273,6 +1399,58 @@ export class GovElementComponent implements OnInit {
         return;
       }
       this.errorMessage.set('No pudimos abrir su solicitud. Intente de nuevo.');
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /** El paso que avisa el shell; entrar a «Revise sus respuestas» pide llevar la vista a la casilla. */
+  onFormStep(step: string): void {
+    this.formStep.set(step);
+    this.#casillaPendiente.set(step === 'review');
+  }
+
+  /** La casilla de la notificación electrónica. */
+  onNotificationConsentChange(event: Event): void {
+    this.aceptaNotificacion.set((event.target as HTMLInputElement | null)?.checked === true);
+  }
+
+  /** Cómo le cuenta la consola al funcionario lo que el ciudadano contestó al radicar. */
+  consentLabel(state: NotificationConsentState): string {
+    switch (state) {
+      case 'accepted':
+        return this.txt.aceptada;
+      case 'declined':
+        return this.txt.noAceptada;
+      default:
+        return this.txt.noConsta;
+    }
+  }
+
+  // ─── Subsanar (009, D-2) ─────────────────────────────────────────────────────
+  resubmit(): void {
+    const app = this.activeApplication();
+    if (!app || !app.actions.includes('resubmit') || this.loading()) {
+      return;
+    }
+    void this.#resubmit(app.id);
+  }
+
+  async #resubmit(applicationId: string): Promise<void> {
+    this.loading.set(true);
+    this.errorMessage.set('');
+    try {
+      const detail = await this.#api.resubmit(this.apiBase(), applicationId, this.resubmitNote().trim());
+      this.activeApplication.set(detail);
+      this.resubmitNote.set('');
+      this.applicationsLoaded.set(false); // la carpeta refleja el nuevo estado
+      this.announce(this.txt.subsanado);
+    } catch (error) {
+      if (this.handleCitizenDenied(error, { scope: 'record' })) {
+        return;
+      }
+      this.errorMessage.set(this.txt.subsanarFallo);
       void error;
     } finally {
       this.loading.set(false);
@@ -1500,10 +1678,39 @@ export class GovElementComponent implements OnInit {
     this.navigate('queue');
   }
 
+  // ─── Tomar el expediente (009, D-1) ─────────────────────────────────────────
+  take(): void {
+    const kase = this.activeCase();
+    if (!kase || !kase.actions.includes('take') || this.loading()) {
+      return;
+    }
+    void this.#take(kase.application.id);
+  }
+
+  async #take(caseId: string): Promise<void> {
+    this.loading.set(true);
+    this.errorMessage.set('');
+    try {
+      const kase = await this.#api.take(this.apiBase(), caseId);
+      this.activeCase.set(kase);
+      this.queueLoaded.set(false); // la cola refleja el nuevo estado
+      this.announce(this.txt.tomado);
+    } catch (error) {
+      if (this.handleOfficerDenied(error)) {
+        return;
+      }
+      this.errorMessage.set(this.txt.tomarFallo);
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
   // ─── Decisión (aprobar/rechazar/pedir info + nota) ──────────────────────────
   decide(outcome: DecisionOutcome): void {
     const kase = this.activeCase();
-    if (!kase || isClosedStatus(kase.application.status) || this.loading()) {
+    // Sólo lo servido: una decisión que el proceso no permite desde aquí no sale (009, D-3).
+    if (!kase || !kase.actions.includes(outcome) || this.loading()) {
       return;
     }
     void this.#decide(kase.application.id, outcome);
@@ -1546,6 +1753,18 @@ export class GovElementComponent implements OnInit {
 
   outcomeLabel(outcome: DecisionOutcome): string {
     return OUTCOME_LABELS[outcome];
+  }
+
+  /** El rótulo del botón de una decisión servida, de la sección `Gov.Tramite`. */
+  actionLabel(outcome: DecisionOutcome): string {
+    switch (outcome) {
+      case 'approve':
+        return this.txt.aprobar;
+      case 'reject':
+        return this.txt.rechazar;
+      default:
+        return this.txt.pedirInformacion;
+    }
   }
 
   isClosed(status: ApplicationStatus): boolean {

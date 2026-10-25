@@ -6,6 +6,7 @@ import { BookingApiClient } from './booking-api.client';
 import { BookingFulfillmentStrategy } from './booking-fulfillment.strategy';
 import type { BookingOffer } from './booking.model';
 import { BOOKING_WIZARD_SYNHOST } from '@synergos/contracts';
+import { definirCoordinador } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: BOOKING_WIZARD_SYNHOST.ejemplo.apiBase };
@@ -78,6 +79,8 @@ async function settle(fixture: ComponentFixture<unknown>, times = 8): Promise<vo
 
 const SAMPLE_OFFER: BookingOffer = {
   offerId: 'OFR-1',
+  // El producto de la estadía lo dice el servidor con SU regla; no se parece al `offerId` a propósito.
+  productRef: 'SUITE/BB',
   roomTypeName: 'Suite Vista al Mar',
   board: 'Desayuno incluido',
   totalPrice: 1_200_000,
@@ -91,6 +94,7 @@ const SAMPLE_OFFER: BookingOffer = {
 const OTRA_OFERTA: BookingOffer = {
   ...SAMPLE_OFFER,
   offerId: 'OFR-2',
+  productRef: 'STD/RO',
   roomTypeName: 'Habitación Estándar',
   totalPrice: 600_000,
   totalPriceFormatted: '$ 600.000',
@@ -437,5 +441,306 @@ describe('BookingWizardElementComponent', () => {
     expect(component.currentStep()).toBe('fechas');
     expect(TestBed.inject(SessionStore).items()).toHaveLength(0);
     expect(component.guestName()).toBe('');
+  });
+});
+
+// ══ LA ESTADÍA POR LA PUERTA (línea 006, T022; ADR 0140) ═════════════════════════════════════════════════
+//
+// El asistente reserva por el `<synergos-flujo flujo="viajes.reserva">` que coloca la vista: una estadía es un viaje
+// de UN ítem (006-P4). Lo que se mira es lo que viajó a la puerta —la llave, el producto de la oferta, su etiqueta y
+// su ventana— y lo que el SERVIDOR contestó. Nunca cae a /hold ni a /pay.
+
+type OperacionDeLaEstadia = 'abrir' | 'cerrar' | 'cancelar' | 'consultar';
+
+interface GuionDeLaEstadia {
+  /** El total que dice el servidor, en unidades MAYORES. */
+  readonly total?: number;
+  readonly rechazos?: Partial<Record<OperacionDeLaEstadia, { readonly code: string; readonly status?: number; readonly transient?: boolean }>>;
+  /** Lo que `consultar` dice de la estadía después de un `cerrar` rechazado. */
+  readonly estadoTrasCerrar?: string;
+  /** Las ofertas que contesta la búsqueda. */
+  readonly ofertas?: readonly BookingOffer[];
+}
+
+interface PedidoALaEstadia {
+  readonly operacion: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly cuerpo: {
+    readonly items?: readonly { producto: string; etiqueta: string | null; ventana: { start: string; end: string } }[];
+  } | null;
+}
+
+const ID_DE_LA_ESTADIA = 'viaje-15';
+const NUMERO_DE_LA_ESTADIA = 'VIA-0015';
+
+/** La puerta de la estadía; la búsqueda la sigue sirviendo el CMS. `/hold` y `/pay` se sirven y se cuentan. */
+function puertaDeLaEstadia(guion: GuionDeLaEstadia = {}) {
+  const pedidos: PedidoALaEstadia[] = [];
+  const rutas: string[] = [];
+  let estado = 'Running';
+  const total = { amount: guion.total ?? 1_150_000, currency: 'COP' };
+  const json = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  const estadia = () => ({
+    id: ID_DE_LA_ESTADIA,
+    flujo: 'viajes.reserva',
+    numero: NUMERO_DE_LA_ESTADIA,
+    estado,
+    datos: { itinerario: [], subtotal: total, descuento: null, impuesto: null, total, vence: '2026-10-01T10:15:00Z' },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+  });
+  const fetchDoble = vi.fn((url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const ruta = String(url);
+    rutas.push(`${(init?.method ?? 'GET').toUpperCase()} ${ruta}`);
+    if (ruta.endsWith('/search')) {
+      return json(200, { offers: guion.ofertas ?? [SAMPLE_OFFER, OTRA_OFERTA] });
+    }
+    if (ruta.endsWith('/hold')) {
+      return json(200, { reservationId: 'RES-9001' });
+    }
+    if (ruta.endsWith('/pay')) {
+      return json(200, VOUCHER_OK);
+    }
+    const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
+    if (!m) {
+      return json(500, {});
+    }
+    const operacion = m[1] as OperacionDeLaEstadia;
+    const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoALaEstadia['cuerpo']) : null;
+    pedidos.push({ operacion, url: ruta, llave: new Headers(init?.headers).get('Idempotency-Key'), cuerpo });
+    const rechazo = guion.rechazos?.[operacion];
+    if (rechazo) {
+      if (operacion === 'cerrar' && guion.estadoTrasCerrar) estado = guion.estadoTrasCerrar;
+      return json(rechazo.status ?? 409, { code: rechazo.code, detail: 'guionado', title: 'Conflict', transient: rechazo.transient ?? false });
+    }
+    switch (operacion) {
+      case 'abrir':
+        estado = 'Running';
+        return json(201, estadia());
+      case 'cerrar':
+        estado = 'Completed';
+        return json(200, estadia());
+      case 'cancelar':
+        estado = estado === 'Running' ? 'Compensated' : estado;
+        return json(200, estadia());
+      default:
+        return json(200, estadia());
+    }
+  });
+  return {
+    fetchDoble,
+    pedidos,
+    veces: (operacion: OperacionDeLaEstadia) => pedidos.filter((p) => p.operacion === operacion).length,
+    busquedas: () => rutas.filter((r) => r.endsWith('/search')).length,
+    directas: () => rutas.filter((r) => /\/(hold|pay)$/.test(r)).length,
+    alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
+    fueraDeLaBusqueda: () => rutas.filter((r) => !r.endsWith('/search')).length,
+  };
+}
+
+/** Lo que el CMS manda cuando un sitio declara la puerta (`CaminoDeCompra.Decidir`, «directa» por defecto). */
+const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, bookingPath: 'puerta' };
+
+describe('La estadía por la puerta (línea 006)', () => {
+  let fixture: ComponentFixture<BookingWizardElementComponent>;
+  let component: BookingWizardElementComponent;
+
+  beforeAll(() => definirCoordinador());
+
+  function montar(
+    puerta: ReturnType<typeof puertaDeLaEstadia>,
+    config: object = POR_LA_PUERTA,
+    { conCoordinador = true }: { conCoordinador?: boolean } = {},
+  ): void {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', puerta.fetchDoble);
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        BookingApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: BookingFulfillmentStrategy, multi: true },
+      ],
+    });
+    fixture = TestBed.createComponent(BookingWizardElementComponent);
+    component = fixture.componentInstance;
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la estadía encuentra por ancestro.
+    if (conCoordinador) {
+      const flujo = document.createElement('synergos-flujo');
+      flujo.setAttribute('flujo', 'viajes.reserva');
+      document.body.appendChild(flujo);
+      flujo.appendChild(fixture.nativeElement as HTMLElement);
+    }
+    fixture.componentRef.setInput('config', config);
+    fixture.detectChanges();
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    vi.unstubAllGlobals();
+    TestBed.resetTestingModule();
+  });
+
+  const primario = (): HTMLButtonElement =>
+    fixture.nativeElement.querySelector('.syn-wizard__btn--primary') as HTMLButtonElement;
+
+  async function avanzar(veces = 12): Promise<void> {
+    primario().click();
+    await settle(fixture, veces);
+  }
+
+  /** Fechas, la primera oferta, el huésped, y el asistente en «revisar». */
+  async function hastaRevisar(): Promise<void> {
+    component.checkIn.set('2026-10-01');
+    component.checkOut.set('2026-10-04');
+    fixture.detectChanges();
+    await avanzar();
+    fixture.nativeElement.querySelectorAll('.booking-wizard__offer button')[0].click();
+    await settle(fixture);
+    await avanzar();
+    component.guestName.set('Camila Restrepo');
+    component.guestEmail.set('camila@example.com');
+    fixture.detectChanges();
+    await avanzar();
+  }
+
+  /** Confirmar recorre abrir, cerrar y, si cerrar falla, consultar: cada vuelta a la red son varias microtareas. */
+  async function confirmar(): Promise<void> {
+    await avanzar(100);
+  }
+
+  function avisos(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"], syn-live-region, .booking-wizard__error'))
+      .map((nodo) => (nodo.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  const cancelarPendiente = (): HTMLButtonElement | null =>
+    fixture.nativeElement.querySelector('.booking-wizard__btn--secondary') as HTMLButtonElement | null;
+
+  it('«puerta»: abre UN ítem con el productRef de la oferta, su nombre y la ventana de la estadía; cierra por su id; ni /hold ni /pay', async () => {
+    const puerta = puertaDeLaEstadia();
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
+    expect(abrir.cuerpo!.items).toEqual([
+      {
+        producto: 'SUITE/BB',
+        etiqueta: 'Suite Vista al Mar',
+        ventana: { start: '2026-10-01T00:00:00.000Z', end: '2026-10-04T00:00:00.000Z' },
+      },
+    ]);
+    expect(abrir.llave).toMatch(/\S/);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cerrar')!.url).toContain(`id=${ID_DE_LA_ESTADIA}`);
+    expect(puerta.directas()).toBe(0);
+    // El comprobante enseña el número del viaje y el total que dijo el SERVIDOR.
+    expect(component.voucher()?.reservationId).toBe(NUMERO_DE_LA_ESTADIA);
+    expect(component.voucher()?.totalPrice).toBe(1_150_000);
+  });
+
+  it('el total y el plazo del apartado son los que dijo el SERVIDOR al abrir, no el precio de la oferta', async () => {
+    const puerta = puertaDeLaEstadia({ total: 1_345_000, rechazos: { cerrar: { code: 'gateway.timeout', status: 504, transient: true } } });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    const store = TestBed.inject(SessionStore);
+    expect(store.pricing().totalAmount).toBe(134_500_000);
+    expect(store.items()[0].expiresAt).toBe('2026-10-01T10:15:00Z');
+    // Transitorio: la estadía sigue abierta, así que no se consulta ni se suelta.
+    expect(puerta.veces('consultar')).toBe(0);
+  });
+
+  it('una oferta sin productRef NO se reserva por la puerta, ni cae a la directa: lo dice', async () => {
+    const puerta = puertaDeLaEstadia({ ofertas: [{ ...SAMPLE_OFFER, productRef: '' }] });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    expect(puerta.fueraDeLaBusqueda()).toBe(0);
+    expect(avisos()).toContain('Esa habitación no se puede reservar en línea.');
+    expect(component.voucher()).toBeNull();
+  });
+
+  it('sin cupo al abrir: lo dice UNA vez, suelta la elección y vuelve a pedir la disponibilidad', async () => {
+    const puerta = puertaDeLaEstadia({ rechazos: { abrir: { code: 'booking.at_capacity' } } });
+    montar(puerta);
+    await hastaRevisar();
+    const antes = puerta.busquedas();
+    await confirmar();
+
+    expect(avisos().filter((t) => t === 'Esa habitación ya no está disponible. Elige otra de las opciones.')).toHaveLength(1);
+    expect(TestBed.inject(SessionStore).items()).toHaveLength(0);
+    expect(puerta.busquedas()).toBe(antes + 1);
+    expect(puerta.directas()).toBe(0);
+  });
+
+  it('un 503 de la puerta NO cae a la ruta directa: dice que las reservas no están disponibles', async () => {
+    const puerta = puertaDeLaEstadia({ rechazos: { abrir: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    expect(puerta.directas()).toBe(0);
+    expect(component.voucher()).toBeNull();
+    expect(avisos()).toContain('Las reservas en línea no están disponibles en este momento.');
+  });
+
+  it('cerrar rechazado y la estadía COMPLETADA al consultar: se confirma con lo que dice el servidor (defecto 3)', async () => {
+    const puerta = puertaDeLaEstadia({ rechazos: { cerrar: { code: 'cliente.respuesta_ilegible' } }, estadoTrasCerrar: 'Completed' });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    expect(puerta.veces('consultar')).toBe(1);
+    expect(component.voucher()?.reservationId).toBe(NUMERO_DE_LA_ESTADIA);
+  });
+
+  it('una estadía que no se confirmó se puede CANCELAR: suelta y no cobra; después ya no se ofrece', async () => {
+    const puerta = puertaDeLaEstadia({ rechazos: { cerrar: { code: 'viajes.not_continuable' } }, estadoTrasCerrar: 'Running' });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+
+    expect(puerta.veces('consultar')).toBe(1);
+    expect(component.voucher()).toBeNull();
+    expect(cancelarPendiente()?.textContent?.trim()).toBe('Cancelar la reserva sin confirmar');
+    cancelarPendiente()!.click();
+    await settle(fixture, 20);
+
+    expect(puerta.veces('cancelar')).toBe(1);
+    expect(puerta.pedidos.find((p) => p.operacion === 'cancelar')!.url).toContain(`id=${ID_DE_LA_ESTADIA}`);
+    expect(avisos()).toContain('Cancelamos tu reserva sin confirmar. No se te cobró nada.');
+    expect(cancelarPendiente()).toBeNull();
+  });
+
+  it('«directa» (o sin declarar): ni una petición a /api/flujos; aparta y cobra por /hold y /pay como siempre', async () => {
+    for (const config of [{ ...POR_LA_PUERTA, bookingPath: 'directa' }, NEGOCIO_DEL_CMS]) {
+      const puerta = puertaDeLaEstadia();
+      montar(puerta, config);
+      await hastaRevisar();
+      await confirmar();
+
+      expect(puerta.alaPuerta()).toBe(0);
+      expect(puerta.directas()).toBe(2);
+      expect(component.voucher()?.reservationId).toBe('RES-9001');
+      document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('«puerta» sin <synergos-flujo> arriba: «no disponible», sin asistente y sin tocar la red', async () => {
+    const puerta = puertaDeLaEstadia();
+    montar(puerta, POR_LA_PUERTA, { conCoordinador: false });
+    await settle(fixture);
+
+    expect(fixture.nativeElement.querySelector('syn-checkout-wizard')).toBeNull();
+    expect(avisos()).toContain('Las reservas en línea no están disponibles en este momento.');
+    expect(puerta.fetchDoble).not.toHaveBeenCalled();
   });
 });

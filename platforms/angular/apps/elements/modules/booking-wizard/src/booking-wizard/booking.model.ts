@@ -33,9 +33,27 @@ export interface BookingRoom {
   readonly childAges: readonly number[];
 }
 
+/**
+ * Por dónde reserva el asistente, como lo DECLARA el CMS (`BookingWizardProps.bookingPath`, ADR 0140; línea 006): la
+ * puerta (`viajes.reserva`, una estadía es un viaje de un ítem) o la ruta directa (`/api/booking`). «Directa» por
+ * defecto.
+ */
+export type CaminoDeLaReserva = 'puerta' | 'directa';
+
+/** `puerta` sólo si el CMS lo declaró así; cualquier otra cosa —o nada— es la directa de siempre. */
+export function caminoDeLaReserva(camino: unknown): CaminoDeLaReserva {
+  return camino === 'puerta' ? 'puerta' : 'directa';
+}
+
 /** Una oferta reservable, tal como la devuelve `/search`. */
 export interface BookingOffer {
   readonly offerId: string;
+  /**
+   * El producto de la estadía con el que la reserva por la puerta la aparta (`POST /api/booking/search`, T018 de la
+   * línea 006). Lo dice el SERVIDOR con la misma regla que su reserva por el orquestador; NUNCA se deriva del
+   * `offerId`, que es otra cosa con otro separador. Vacío si el servidor no lo manda: por la puerta no se reserva.
+   */
+  readonly productRef: string;
   readonly roomTypeName: string;
   readonly board: string;
   readonly totalPrice: number;

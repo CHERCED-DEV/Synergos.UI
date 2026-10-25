@@ -9,6 +9,7 @@ export * as BffPropiedades from './bff-propiedades.contract';
 export * as BffReservas from './bff-reservas.contract';
 export * as BffSalud from './bff-salud.contract';
 export * as BffTienda from './bff-tienda.contract';
+export * as BffViajes from './bff-viajes.contract';
 
 import * as $BffAlquiler from './bff-alquiler.contract';
 import * as $BffEducacion from './bff-educacion.contract';
@@ -17,12 +18,13 @@ import * as $BffPropiedades from './bff-propiedades.contract';
 import * as $BffReservas from './bff-reservas.contract';
 import * as $BffSalud from './bff-salud.contract';
 import * as $BffTienda from './bff-tienda.contract';
+import * as $BffViajes from './bff-viajes.contract';
 
 /**
  * Lo que la puerta expone de TODOS los orquestadores, por flujo y por su nombre en la puerta: la
  * unión de sus mapas. Un flujo vive en un solo orquestador, así que las claves no se pisan.
  */
-export type OperacionesDeLaPuerta = $BffAlquiler.OperacionesDeLaPuerta & $BffEducacion.OperacionesDeLaPuerta & $BffEventos.OperacionesDeLaPuerta & $BffPropiedades.OperacionesDeLaPuerta & $BffReservas.OperacionesDeLaPuerta & $BffSalud.OperacionesDeLaPuerta & $BffTienda.OperacionesDeLaPuerta;
+export type OperacionesDeLaPuerta = $BffAlquiler.OperacionesDeLaPuerta & $BffEducacion.OperacionesDeLaPuerta & $BffEventos.OperacionesDeLaPuerta & $BffPropiedades.OperacionesDeLaPuerta & $BffReservas.OperacionesDeLaPuerta & $BffSalud.OperacionesDeLaPuerta & $BffTienda.OperacionesDeLaPuerta & $BffViajes.OperacionesDeLaPuerta;
 
 /** La forma en ejecución de cada operación de un mapa (la misma en todos los documentos). */
 export type TablaDeLaPuerta<TOperaciones> = $BffAlquiler.TablaDeLaPuerta<TOperaciones>;
@@ -36,4 +38,5 @@ export const OPERACIONES_DE_LA_PUERTA = {
   ...$BffReservas.OPERACIONES_DE_LA_PUERTA,
   ...$BffSalud.OPERACIONES_DE_LA_PUERTA,
   ...$BffTienda.OPERACIONES_DE_LA_PUERTA,
+  ...$BffViajes.OPERACIONES_DE_LA_PUERTA,
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

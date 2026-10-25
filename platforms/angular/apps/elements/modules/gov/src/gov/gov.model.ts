@@ -126,6 +126,24 @@ export type TimelineState = 'done' | 'current' | 'pending';
 export type DecisionOutcome = 'approve' | 'reject' | 'request-info';
 
 /**
+ * Una acción del proceso del expediente, con su nombre de cable (009, D-3): lo que el CMS sirve en
+ * `actions` según el estado y la cara de quien mira. **El elemento no las deduce**: antes ofrecía
+ * la misma lista fija a todo expediente abierto, y con la capacidad conectada tres de esas ofertas
+ * acababan en un rechazo y una en nada.
+ */
+export type CaseAction = 'take' | 'approve' | 'reject' | 'request-info' | 'resubmit';
+
+/** Las acciones que el cable puede traer, en el orden del proceso. */
+export const CASE_ACTIONS: readonly CaseAction[] = ['take', 'approve', 'reject', 'request-info', 'resubmit'];
+
+/**
+ * Si el ciudadano aceptó al radicar la notificación electrónica de los actos (009, S-7).
+ * `unknown` es «no consta» —los expedientes anteriores, o radicar sin la casilla—, nunca una
+ * aceptación: sin `accepted` no se le notifica por aquí.
+ */
+export type NotificationConsentState = 'accepted' | 'declined' | 'unknown';
+
+/**
  * Estado del cobro de la TASA del trámite, tal como lo emite el borde
  * (`pending · requires-action · authorized · captured · failed · cancelled · refunded ·
  * unavailable`). Es `string` y no una unión cerrada por lo mismo que `priority`: el motor
@@ -207,6 +225,10 @@ export interface ApplicationDetail {
   readonly feeMinor: number;
   /** Estado del cobro de la tasa, o `null` cuando **no consta** — ver `FeeStatus`. */
   readonly feeStatus: FeeStatus | null;
+  /** Lo que el proceso le permite al ciudadano desde el estado (subsanar), tal como lo sirve el CMS. */
+  readonly actions: readonly CaseAction[];
+  /** `true` si el proceso no contestó: no hay acciones ahora, y no porque no haya nada que hacer. */
+  readonly stale: boolean;
 }
 
 /** One row of the officer queue — `GET /api/gov/queue` item. */
@@ -262,6 +284,12 @@ export interface GovCase {
   readonly documents: readonly GovDocument[];
   readonly timeline: readonly TimelineEntry[];
   readonly decision?: CaseDecision;
+  /** Si el ciudadano aceptó la notificación electrónica al radicar — ver `NotificationConsentState`. */
+  readonly notificationConsent: NotificationConsentState;
+  /** Lo que el proceso le permite al funcionario desde el estado (tomar, decidir), tal como lo sirve el CMS. */
+  readonly actions: readonly CaseAction[];
+  /** `true` si el proceso no contestó: no hay acciones ahora, y no porque no haya nada que hacer. */
+  readonly stale: boolean;
 }
 
 // ─── Request bodies ─────────────────────────────────────────────────────────────
@@ -270,6 +298,11 @@ export interface GovCase {
 export interface CreateApplicationRequest {
   readonly serviceId: string;
   readonly answers: Readonly<Record<string, string>>;
+  /**
+   * Lo que contestó en «Revise sus respuestas» sobre la notificación electrónica, con la versión del
+   * texto que leyó (009, S-7). Marcar o no la casilla es una respuesta: no aceptarla no impide radicar.
+   */
+  readonly notificationConsent?: { readonly accepted: boolean; readonly textVersion: string };
 }
 
 /**

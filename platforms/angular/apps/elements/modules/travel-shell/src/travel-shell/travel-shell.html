@@ -623,6 +623,9 @@
     </span>
   </ng-template>
   @if (view() === 'cart') {
+    @if (avisoDelViaje()) {
+      <syn-live-region class="travel__notice" [message]="avisoDelViaje()" [visuallyHidden]="false" announceInitial />
+    }
     <syn-cart-shell
       [config]="cartPageConfig()"
       [lines]="cartLines()"
@@ -638,9 +641,11 @@
   }
 
   <!-- ═══ CHECKOUT: SH-3 checkout-wizard (viajeros → pago → revisar) ═══════ -->
-  @if (view() === 'checkout') {
+  @if (view() === 'checkout' && sinCoordinador()) {
+    <p class="travel__error">{{ textoNoDisponible }}</p>
+  } @else if (view() === 'checkout') {
     <syn-checkout-wizard
-      [config]="checkoutConfig"
+      [config]="checkoutConfig()"
       [stepTemplate]="checkoutStep"
       [validity]="checkoutValidity()"
       [instrument]="checkoutInstrument()"
@@ -735,6 +740,15 @@
         [actionHref]="loginUrl()"
       />
     } @else {
+      @if (avisoDelViaje()) {
+        <syn-live-region class="travel__notice" [message]="avisoDelViaje()" [visuallyHidden]="false" announceInitial />
+      }
+      <!-- El viaje del enlace del aviso (?viaje={id}): lo que dijo consultar, encima de la lista. -->
+      @if (viajeDelAviso(); as trip) {
+        <section class="travel__trip-aviso">
+          <ng-container [ngTemplateOutlet]="tripDetail" [ngTemplateOutletContext]="{ $implicit: trip }"></ng-container>
+        </section>
+      }
       <syn-account-shell
         [config]="accountConfig()"
         [items]="trips()"

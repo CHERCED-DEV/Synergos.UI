@@ -937,8 +937,10 @@
     gap: syn.$space-lg;
     align-items: start;
 
+    // `minmax(0, …)` y no `1fr` a secas, como la columna de escritorio: el mínimo de `1fr` es el del
+    // contenido, y en móvil la columna medía 391 px en 326 y el sitio recortaba la subsanación (T018).
     @media (max-width: #{syn.px-to-rem(820)}) {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 
@@ -1062,6 +1064,57 @@
 
   &__decided-note { display: block; color: var(--gv-text-secondary); font-style: italic; }
   &__closed { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
+
+  // Sin estado del trámite (009, FR-012): no hay acciones ahora, y se dice — con el mismo aviso que
+  // la tasa que pide atención, no con el gris de «cerrado», que se leería como «no hay nada que hacer».
+  &__stale {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-warn-soft);
+    color: var(--gv-warn);
+    font-size: syn.$font-size-sm;
+  }
+}
+
+// ─── La aceptación de la notificación electrónica (009, S-7) ─────────────────
+.consentimiento {
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-2;
+  margin: 0 0 syn.$space-md;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-md;
+  background: var(--gv-surface-muted);
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  &__casilla { margin-top: syn.px-to-rem(2); flex-shrink: 0; }
+}
+
+.case__consent { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
+// ─── Subsanar (009, D-2) ──────────────────────────────────────────────────────
+.subsanar {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin-top: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface-muted);
+
+  // Un aviso, no un error: deja enviar igual.
+  &__aviso {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-warn-soft);
+    color: var(--gv-warn);
+    font-size: syn.$font-size-sm;
+  }
 }
 
 // ─── Focus + motion ───────────────────────────────────────────────────────────

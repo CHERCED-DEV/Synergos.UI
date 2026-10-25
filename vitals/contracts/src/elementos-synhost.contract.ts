@@ -330,12 +330,14 @@ export interface BlogsProps {
   readonly apiBase: string;
 }
 
-/** <synergos-booking-wizard> · funcionalidad */
+/** <synergos-booking-wizard> · funcionalidad · diccionario: Travel.Booking */
 export interface BookingWizardProps {
   /** contenido */
   readonly destinationLabel?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly bookingPath: string;
 }
 
 /** <synergos-breadcrumb> · pieza · diccionario: Nav.Breadcrumb */
@@ -488,7 +490,7 @@ export interface FormStepperProps {
   readonly honeypotField: string;
 }
 
-/** <synergos-gov> · funcionalidad */
+/** <synergos-gov> · funcionalidad · diccionario: Gov.Tramite */
 export interface GovProps {
   /** contenido */
   readonly heading?: string;
@@ -756,7 +758,7 @@ export interface TourGuideProps {
   readonly autoStart?: boolean;
 }
 
-/** <synergos-travel-shell> · funcionalidad */
+/** <synergos-travel-shell> · funcionalidad · diccionario: Travel.Booking */
 export interface TravelShellProps {
   /** contenido */
   readonly heading?: string;
@@ -764,6 +766,8 @@ export interface TravelShellProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly bookingPath: string;
 }
 
 /** <synergos-tree-view> · pieza · diccionario: TreeView */
@@ -1026,15 +1030,16 @@ export const BOOKING_WIZARD_SYNHOST: ElementoSynHost<BookingWizardProps> = {
   nombre: "booking-wizard",
   tipo: "funcionalidad",
   record: "BookingWizardProps",
-  diccionario: [],
-  claves: [],
-  campos: ["destinationLabel","apiBase"],
+  diccionario: ["Travel.Booking"],
+  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.RoomBadRequest","Travel.Booking.RoomNotBookable","Travel.Booking.RoomTaken","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
+  campos: ["destinationLabel","apiBase","bookingPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "destinationLabel": "Hoteles SynergosLabs",
-    "apiBase": "/api/booking"
+    "apiBase": "/api/booking",
+    "bookingPath": "directa"
   },
 };
 
@@ -1714,8 +1719,8 @@ export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
   nombre: "gov",
   tipo: "funcionalidad",
   record: "GovProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Gov.Tramite"],
+  claves: ["Gov.Tramite.Action.Approve","Gov.Tramite.Action.Reject","Gov.Tramite.Action.RequestInfo","Gov.Tramite.Action.Resubmit","Gov.Tramite.Action.Take","Gov.Tramite.Actions.Hint","Gov.Tramite.Actions.Stale","Gov.Tramite.Actions.Waiting","Gov.Tramite.Consent.Accepted","Gov.Tramite.Consent.Declined","Gov.Tramite.Consent.Text","Gov.Tramite.Consent.Unknown","Gov.Tramite.Consent.Version","Gov.Tramite.Error.ActNotPrepared","Gov.Tramite.Error.Changed","Gov.Tramite.Error.Closed","Gov.Tramite.Error.NoOffer","Gov.Tramite.Error.NotAvailable","Gov.Tramite.Error.NotFound","Gov.Tramite.Error.Payment","Gov.Tramite.Notify.NeedsConsent","Gov.Tramite.Resubmit.Done","Gov.Tramite.Resubmit.Failed","Gov.Tramite.Resubmit.NoDocuments","Gov.Tramite.Resubmit.Note","Gov.Tramite.Resubmit.Title","Gov.Tramite.SignIn","Gov.Tramite.Take.Done","Gov.Tramite.Take.Failed","Gov.Tramite.Take.Hint","Gov.Tramite.Unavailable"],
   campos: ["heading","subheading","apiBase"],
   listas: {},
   selectores: [],
@@ -2711,16 +2716,17 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
   nombre: "travel-shell",
   tipo: "funcionalidad",
   record: "TravelShellProps",
-  diccionario: [],
-  claves: [],
-  campos: ["heading","subheading","apiBase"],
+  diccionario: ["Travel.Booking"],
+  claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.RefundIssued","Travel.Booking.RoomBadRequest","Travel.Booking.RoomNotBookable","Travel.Booking.RoomTaken","Travel.Booking.SignInRequired","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
+  campos: ["heading","subheading","apiBase","bookingPath"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Reserva tu próximo viaje",
     "subheading": "Vuelos, hoteles y paquetes",
-    "apiBase": "/api/travel"
+    "apiBase": "/api/travel",
+    "bookingPath": "directa"
   },
 };
 
