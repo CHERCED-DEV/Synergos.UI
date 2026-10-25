@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
+  CASE_ACTIONS,
   type AnswerPair,
   type ApplicationDetail,
   type ApplicationStatus,
   type ApplicationSummary,
+  type CaseAction,
   type CaseDecision,
   type CreateApplicationRequest,
   type DecisionOutcome,
@@ -16,6 +18,7 @@ import {
   type GovMessage,
   type GovService,
   type GovServiceDetail,
+  type NotificationConsentState,
   type QueueCase,
   type TimelineEntry,
   type UploadDocumentRequest,
@@ -41,9 +44,11 @@ import {
  *  - `POST /api/gov/notification/{id}/open`     → `{ notification }`  🔒 sesión
  *  - `POST /api/gov/notification`               → `{ notification }`  🔒 funcionario
  *  - `GET  /api/gov/application/{id}`           → `{ application }`   🔒 sesión
+ *  - `POST /api/gov/application/{id}/resubmit`  → `{ application }`   🔒 sesión + dueño
  *  - `POST /api/gov/document`                   → `{ document }`      🔒 sesión
  *  - `GET  /api/gov/queue?agency=&status=`      → `{ cases }`
  *  - `GET  /api/gov/case/{id}`                  → `{ case }`
+ *  - `POST /api/gov/case/{id}/take`             → `{ case }`         🔒 funcionario
  *  - `POST /api/gov/decision`                   → `{ case }`
  *
  * **Graceful degradation — sólo de LECTURAS:** any 404 / network error / bad shape on a
@@ -411,6 +416,52 @@ export class GovApiClient {
     }
   }
 
+  /**
+   * Envía la subsanación (009, D-2): el expediente vuelve de «información solicitada» a «en
+   * revisión». **No se degrada** (UI#92): una subsanación «enviada» con el borde caído dejaría al
+   * ciudadano creyendo que respondió, y el término se le vencería esperando.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si el expediente no es suyo.
+   * @throws {GovWriteFailedError} si el borde no la registró.
+   */
+  async resubmit(apiBase: string, applicationId: string, note: string): Promise<ApplicationDetail> {
+    const url = `${apiBase}/application/${encodeURIComponent(applicationId)}/resubmit`;
+    try {
+      const data = await this.postJson(apiBase, url, { note });
+      const detail = normalizeDetail(isRecord(data) ? data['application'] : data);
+      if (detail) {
+        return detail;
+      }
+      throw new Error('resubmit-shape');
+    } catch (error) {
+      this.rethrowIfAuthError(error);
+      this.writeFailed('POST /api/gov/application/{id}/resubmit', error);
+    }
+  }
+
+  /**
+   * Toma el expediente (009, D-1): pasa de «radicado» a «en revisión» a nombre de quien está en
+   * sesión, que es quien lo decide el servidor. **No se degrada** (UI#92), como decidir: tomarlo en
+   * el almacén de ejemplo anunciaría un expediente tomado que nadie tomó.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario.
+   * @throws {GovWriteFailedError} si el borde no lo registró.
+   */
+  async take(apiBase: string, caseId: string): Promise<GovCase> {
+    const url = `${apiBase}/case/${encodeURIComponent(caseId)}/take`;
+    try {
+      const data = await this.postJson(apiBase, url, {});
+      const kase = normalizeCase(isRecord(data) ? data['case'] : data);
+      if (kase) {
+        return kase;
+      }
+      throw new Error('take-shape');
+    } catch (error) {
+      this.rethrowIfAuthError(error);
+      this.writeFailed('POST /api/gov/case/{id}/take', error);
+    }
+  }
+
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
   // ─── Actos administrativos notificados (HU CMS#62 · #20) ────────────────────
@@ -601,6 +652,10 @@ function toDetail(app: SeedApplication): ApplicationDetail {
     // que es la verdad sobre un expediente de demostración exento.
     feeMinor: app.feeMinor ?? 0,
     feeStatus: app.feeStatus ?? null,
+    // El almacén de ejemplo NO ofrece acciones (009, D-3): las sirve el CMS según el proceso del
+    // expediente, y escribir no se degrada (UI#92) — un botón aquí sólo podría fallar.
+    actions: [],
+    stale: false,
   };
 }
 
@@ -638,6 +693,10 @@ function toCase(app: SeedApplication): GovCase {
     documents: app.documents,
     timeline: app.timeline,
     decision: app.decision,
+    // Ver `toDetail`: lo de ejemplo se lee, no se actúa sobre ello.
+    actions: [],
+    stale: false,
+    notificationConsent: 'unknown',
   };
 }
 
@@ -971,6 +1030,8 @@ function normalizeDetail(value: unknown): ApplicationDetail | null {
     // pinta como nada, afirmaría un cobro que nadie hizo.
     feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
     feeStatus: readString(value['feeStatus']).trim() || null,
+    actions: normalizeActions(value['actions']),
+    stale: value['stale'] === true,
   };
 }
 
@@ -1070,7 +1131,35 @@ function normalizeCase(value: unknown): GovCase | null {
     documents: normalizeDocuments(value['documents']),
     timeline: normalizeTimeline(value['timeline']),
     decision: normalizeDecision(value['decision']),
+    actions: normalizeActions(value['actions']),
+    stale: value['stale'] === true,
+    notificationConsent: readNotificationConsent(value['notificationConsent']),
   };
+}
+
+/** La aceptación de la notificación electrónica (009, S-7): lo que no es `accepted` ni `declined` es «no consta». */
+function readNotificationConsent(value: unknown): NotificationConsentState {
+  const raw = readString(value).trim().toLowerCase();
+  return raw === 'accepted' || raw === 'declined' ? raw : 'unknown';
+}
+
+/**
+ * Las acciones que sirve el CMS (009, D-3), leídas ESTRICTO: sólo los nombres de cable que el
+ * proceso conoce, una vez y en el orden en que vienen. Sin la clave, ninguna — **nunca** una lista
+ * fija de reemplazo: un botón que el proceso no permite es justo lo que esto vino a quitar.
+ */
+function normalizeActions(value: unknown): readonly CaseAction[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const vistas: CaseAction[] = [];
+  for (const entrada of value) {
+    const accion = readString(entrada).trim().toLowerCase();
+    if ((CASE_ACTIONS as readonly string[]).includes(accion) && !vistas.includes(accion as CaseAction)) {
+      vistas.push(accion as CaseAction);
+    }
+  }
+  return vistas;
 }
 
 // ─── Mock catálogo/form helpers (delegate to the seeded catalogue) ──────────────
