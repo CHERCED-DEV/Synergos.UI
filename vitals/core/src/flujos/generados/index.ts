@@ -12,3 +12,6 @@ export * from './reservas.servicio';
 export * from './salud.cita';
 export * from './tienda.compra';
 export * from './tienda.devolucion';
+export * from './viajes.cancelacion';
+export * from './viajes.devolucion';
+export * from './viajes.reserva';

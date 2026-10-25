@@ -27,6 +27,21 @@ export const TRAVEL_FLOW = 'travel';
 /** All products, in tab order. */
 export const TRAVEL_PRODUCTS: readonly TravelProduct[] = ['hotel', 'flight', 'car'];
 
+/**
+ * Por dónde reserva el portal, como lo DECLARA el CMS (`TravelShellProps.bookingPath`, ADR 0140; línea 006):
+ * la puerta (`viajes.reserva`) o la ruta directa (`/api/travel`). El CMS declara siempre uno de los dos,
+ * «directa» por defecto.
+ */
+export type CaminoDeLaReserva = 'puerta' | 'directa';
+
+/**
+ * El camino que declara el CMS: `puerta` sólo si lo declaró así; cualquier otra cosa —o nada: el tag crudo, una
+ * página de antes— es la directa, lo de siempre en este elemento.
+ */
+export function caminoDeLaReserva(camino: unknown): CaminoDeLaReserva {
+  return camino === 'puerta' ? 'puerta' : 'directa';
+}
+
 /** A `SessionItem.kind` is just the product id for travel lines. */
 export function productToKind(product: TravelProduct): SessionItemKind {
   return product;
@@ -316,11 +331,55 @@ export interface TravelGuest {
   readonly email: string;
 }
 
-/** One line in the checkout request body. */
+/**
+ * One line in the checkout request body — la forma de `CartItemDto` de `TravelController` del CMS.
+ *
+ * **El periodo (`start`/`end`) es obligatorio allá**, porque un apartado de `Api.Booking` ES una ventana
+ * sobre un recurso, y no se deriva del `offerId`. Antes la línea iba sin él (y sin etiqueta, precio ni
+ * moneda) y el checkout contestaba 400 SIEMPRE (defecto 1 de la línea 006, research R1).
+ */
 export interface TravelCheckoutLine {
   readonly product: TravelProduct;
   readonly offerId: string;
+  readonly label: string;
+  /** El precio de la oferta en unidades MAYORES de `currency`, como lo mostró la tarjeta. */
+  readonly price: number;
+  readonly currency: string;
+  /** Desde, ISO-8601 en UTC. */
+  readonly start: string;
+  /** Hasta, ISO-8601 en UTC; posterior a `start`. */
+  readonly end: string;
   readonly detail: Readonly<Record<string, unknown>>;
+}
+
+/** El periodo de un ítem del viaje, ISO-8601 en UTC. */
+export interface TravelPeriod {
+  readonly start: string;
+  readonly end: string;
+}
+
+/**
+ * El periodo de una línea, desde las fechas de la búsqueda de su producto: de medianoche a medianoche UTC, como
+ * la noche de hotel del CMS (`HttpHotelBookingService`). Sin un «hasta» posterior (un vuelo sólo de ida), ocupa
+ * su día. Sin un «desde» que se lea, no hay periodo: el checkout lo rechaza nombrando el ítem, en vez de
+ * inventarlo.
+ */
+export function periodoDeLaBusqueda(desde: string, hasta: string): TravelPeriod {
+  const start = instanteUtc(desde);
+  if (!start) {
+    return { start: '', end: '' };
+  }
+  const end = instanteUtc(hasta);
+  return { start, end: end && end > start ? end : new Date(Date.parse(start) + 86_400_000).toISOString() };
+}
+
+function instanteUtc(fecha: string): string {
+  const texto = fecha.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    return `${texto}T00:00:00.000Z`;
+  }
+  const ms = Date.parse(texto);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
 }
 
 /** `POST /api/travel/checkout` response — opens a single PSP session for the cart. */
@@ -368,11 +427,17 @@ export interface TravelTrip {
   readonly currency: string;
   /** The booked items (hotel + flight + car) with their reservation ids. */
   readonly items: readonly TravelTripItem[];
+  /**
+   * Reservado por la puerta (`viajes.reserva`, línea 006). Confirmado, lo gestiona quien vende (006-P3): esta
+   * pantalla no lo cancela.
+   */
+  readonly porLaPuerta?: true;
 }
 
 /** One booked item inside a trip (feeds the SH-10 wallet + timeline). */
 export interface TravelTripItem {
-  readonly product: TravelProduct;
+  /** `null` cuando el servidor no lo dice: el itinerario de la puerta trae el producto y su nombre, no su clase. */
+  readonly product: TravelProduct | null;
   readonly title: string;
   readonly subtitle: string;
   readonly reservationId: string;

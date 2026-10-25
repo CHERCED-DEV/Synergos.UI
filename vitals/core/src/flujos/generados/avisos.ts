@@ -13,4 +13,5 @@ export const AVISOS_GENERADOS = {
   "reservas.servicio": { parametro: "reserva", marcador: "id" },
   "salud.cita": { parametro: "cita", marcador: "id" },
   "tienda.compra": { parametro: "compra", marcador: "id" },
+  "viajes.reserva": { parametro: "viaje", marcador: "id" },
 } as const satisfies Readonly<Partial<Record<Flujo, AvisoDelFlujo>>>;
