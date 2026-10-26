@@ -5,6 +5,7 @@ import {
   cerrarSaludCita,
   consultarSaludCita,
   cotizarSaludCita,
+  listarSaludCita,
   instanteEnZona,
   zonaValida,
   type RechazoDelFlujo,
@@ -96,6 +97,12 @@ export async function cancelarCita(desde: Element, id: string): Promise<Resultad
 
 export async function consultarCita(desde: Element, id: string): Promise<ResultadoDelFlujo<CitaLeida>> {
   return leida(await consultarSaludCita(desde, { consulta: { id } }));
+}
+
+/** Las citas del paciente de la sesión, tal como las da `listar` (T034): «Mis citas» por la puerta. */
+export async function listarCitas(desde: Element): Promise<ResultadoDelFlujo<readonly CitaLeida[]>> {
+  const r = await listarSaludCita(desde, { consulta: { limit: 50 } });
+  return r.ok ? { ...r, valor: r.valor.items.map(leerCita) } : r;
 }
 
 const esDeSesion = (r: RechazoDelFlujo): boolean => r.code === 'puerta.sesion_requerida' || r.code === 'cliente.redirigido';
