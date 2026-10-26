@@ -1,9 +1,9 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { type Provider, provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
-import { AcademyApiClient } from './academy-api.client';
+import { AcademyApiClient, MUESTRAS_DE_LA_CONSOLA } from './academy-api.client';
 import { AcademyFulfillmentStrategy, RAZON_ACTIVANDO } from './academy-fulfillment.strategy';
 import { AcademyElementComponent, mensajeDeLaMatricula, sanitizeAcademyConfig } from './academy';
 import { entradaDeLaMatricula, leerMatricula, llaveDeLaMatricula } from './academy-matricula';
@@ -13,6 +13,9 @@ import { definirCoordinador } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: ACADEMY_SYNHOST.ejemplo.apiBase };
+
+/** La demo que DECLARA la consola de ejemplo (010): sin esta marca, la consola no inventa cursos. */
+const CON_MUESTRAS_DE_LA_CONSOLA: Provider[] = [{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }];
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -210,13 +213,14 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<AcademyElementComponent>;
   let component: AcademyElementComponent;
 
-  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [AcademyElementComponent],
       providers: [
         provideZonelessChangeDetection(),
         AcademyApiClient,
         { provide: FULFILLMENT_STRATEGIES, useClass: AcademyFulfillmentStrategy, multi: true },
+        ...extra,
       ],
     }).compileComponents();
 
@@ -879,7 +883,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   it('la celda «Alumno» no pinta la sub-línea vacía del correo (#107)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
     component.setRole('instructor');
     await flushMicrotasks();
@@ -899,7 +903,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   it('loads the SH-5 instructor console with cursos, alumnos and Q&A', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
     component.setRole('instructor');
     await flushMicrotasks();
@@ -911,6 +915,96 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     component.onInstructorSectionChange('students');
     expect(component.instructorView()).toBe('students');
     expect(component.consoleColumns()).toBe(component.studentColumns);
+  });
+
+  // ── La consola no inventa (010, decisión del director sobre su hallazgo 1) ──────────────────────
+  it('la consola que el servidor contesta sin cursos lo dice, sin cursos de ejemplo, sin cartel y sin tendencia inventada', async () => {
+    installMemoryStorage();
+    const responde = (cuerpo: unknown) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(cuerpo) } as Response);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        const ruta = String(url);
+        if (ruta.includes('/instructor/courses')) return responde({ courses: [], students: [], totalStudents: 0, totalRevenue: 0 });
+        if (ruta.includes('/courses')) return responde({ courses: [], total: 0 });
+        return Promise.reject(new Error('offline'));
+      }),
+    );
+    await createComponent();
+
+    component.setRole('instructor');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.desk()?.courses).toEqual([]);
+    expect(component.consoleRows()).toEqual([]);
+    expect(component.consoleConfig().emptyMessage).toBe('Todavía no tienes cursos asignados.');
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain('Todavía no tienes cursos asignados.');
+    expect(texto).not.toContain('Mostrando datos de ejemplo');
+    expect(component.consoleKpis().find((k) => k.id === 'students')).not.toHaveProperty('delta');
+  });
+
+  it('la consola que no se pudo leer lo dice y no inventa cursos', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.setRole('instructor');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.desk()).toBeNull();
+    expect(component.consoleRows()).toEqual([]);
+    expect(component.errorMessage()).toContain('No pudimos cargar la consola del instructor');
+  });
+
+  // ── «Tus datos» se salta si la sesión los trae (SC-001, decisión del director), por los dos caminos ──
+  describe('el asistente y los datos de la sesión', () => {
+    afterEach(() => {
+      delete (window as unknown as { synergos?: unknown }).synergos;
+    });
+
+    async function abrirElAsistente(): Promise<CheckoutWizardComponent> {
+      component.openCourse(component.courses().find((c) => c.amount > 0)!);
+      await flushMicrotasks();
+      component.startEnrollment();
+      await flushMicrotasks();
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+    }
+
+    it('sin sesión pide «Tus datos», y el método de pago se elige ahí', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      await abrirElAsistente();
+
+      expect(component.datosDeLaSesion()).toBe(false);
+      expect(component.enrollSteps().steps.map((paso) => paso.id)).toEqual(['plan', 'student', 'review']);
+    });
+
+    it('con la sesión salta «Tus datos»: del plan se pasa a confirmar, con el método de pago ahí y los datos de la cuenta', async () => {
+      (window as unknown as { synergos?: unknown }).synergos = {
+        member: { key: 'm-1', displayName: 'Ana Rincón', email: 'ana@example.com', roles: [] },
+      };
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      const asistente = await abrirElAsistente();
+      expect(component.enrollSteps().steps.map((paso) => paso.id)).toEqual(['plan', 'review']);
+      asistente.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+
+      expect(asistente.isLastStep()).toBe(true);
+      const revision = (fixture.nativeElement as HTMLElement).querySelector('.academy__review')!;
+      expect(revision.textContent).toContain('Ana Rincón');
+      expect(revision.textContent).toContain('ana@example.com');
+      expect(revision.querySelector('syn-segmented')).not.toBeNull();
+    });
   });
 
   // ── create (SH-6): authoring wizard publishes a course ───────────────────────
@@ -1189,7 +1283,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     it('EL caso: las REPORTADAS van primero, y entre ellas la más reportada', async () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
       component.setRole('instructor');
       await flushMicrotasks();
 
@@ -1210,7 +1304,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     it('la cola es una sección de la consola con su badge', async () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
       component.setRole('instructor');
       await flushMicrotasks();
       fixture.detectChanges();
@@ -1225,7 +1319,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     it('EL caso: la fila NO sale de la cola si el servidor no lo confirmó', async () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
       component.setRole('instructor');
       await flushMicrotasks();
 
@@ -1250,7 +1344,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     it('aprobar la saca de la cola y lo dice', async () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
       component.setRole('instructor');
       await flushMicrotasks();
 
@@ -1273,7 +1367,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     it('«ya decidida» la saca igual: pulsar sobre algo resuelto no sirve', async () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
       component.setRole('instructor');
       await flushMicrotasks();
 
@@ -1329,8 +1423,8 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
 });
 
 describe('AcademyApiClient', () => {
-  function createClient(): AcademyApiClient {
-    TestBed.configureTestingModule({ providers: [AcademyApiClient] });
+  function createClient(extra: Provider[] = []): AcademyApiClient {
+    TestBed.configureTestingModule({ providers: [AcademyApiClient, ...extra] });
     return TestBed.inject(AcademyApiClient);
   }
 
@@ -1625,7 +1719,7 @@ describe('AcademyApiClient', () => {
 
   it('a failed publish invents NOTHING — no id, and no course seeded in the console', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    const client = createClient();
+    const client = createClient(CON_MUESTRAS_DE_LA_CONSOLA);
 
     const result = await client.createCourse(
       '/api/academy',
@@ -1641,6 +1735,53 @@ describe('AcademyApiClient', () => {
     expect(client.degraded).toBe(true);
     expect(desk.courses.some((course) => course.title === 'Nuevo')).toBe(false);
     expect(desk.questions.length).toBeGreaterThan(0);
+  });
+
+  // ── La consola no inventa (010, decisión del director sobre su hallazgo 1) ──────────────────────
+
+  it('la consola que el servidor contesta sin cursos es una consola vacía, sin ejemplos ni cartel', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ instructor: 'admin@x.co', courses: [], students: [], totalStudents: 0, totalRevenue: 0 }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const desk = await client.instructorDesk('/api/academy', 'instructor');
+
+    expect(desk.courses).toEqual([]);
+    expect(desk.students).toEqual([]);
+    expect(desk.questions).toEqual([]);
+    expect(client.degraded).toBe(false);
+  });
+
+  it('una consola que no se pudo leer LANZA y no pinta ejemplos; con la marca de la demo, sí y con su cartel', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+
+    const real = createClient();
+    await expect(real.instructorDesk('/api/academy', 'instructor')).rejects.toThrow();
+    expect(real.degraded).toBe(false);
+
+    TestBed.resetTestingModule();
+    const demo = createClient(CON_MUESTRAS_DE_LA_CONSOLA);
+    const desk = await demo.instructorDesk('/api/academy', 'instructor');
+    expect(desk.courses.length).toBeGreaterThan(0);
+    expect(demo.degraded).toBe(true);
+  });
+
+  it('una respuesta sin la lista de cursos no es una consola vacía: es una lectura caída', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ error: 'x' }) } as Response)),
+    );
+    const client = createClient();
+
+    await expect(client.instructorDesk('/api/academy', 'instructor')).rejects.toThrow('instructor-desk-shape');
   });
 });
 
@@ -1857,6 +1998,34 @@ describe('La matrícula por la puerta (010-educacion-matricula)', () => {
     expect(component.view()).toBe('enrolled');
     // El id es el que anotó el CMS en el libro del aula, no uno del navegador.
     expect(component.enrollmentId()).toBe('ENR-PUERTA-1');
+  });
+
+  it('con la sesión, de la ficha a «Matrícula activa» son tres acciones: «Tus datos» se salta (SC-001)', async () => {
+    (window as unknown as { synergos?: unknown }).synergos = {
+      member: { key: 'm-1', displayName: 'Ana Rincón', email: 'ana@example.com', roles: [] },
+    };
+    try {
+      const puerta = puertaDeLaMatricula();
+      await montar(puerta);
+      component.openCourse(component.courses().find((c) => c.amount > 0)!);
+      await flushMicrotasks();
+
+      component.startEnrollment(); // 1. Inscribirme
+      await flushMicrotasks();
+      fixture.detectChanges();
+      asistente().next(); // 2. Continuar con el plan
+      fixture.detectChanges();
+      await flushMicrotasks();
+      expect(asistente().isLastStep()).toBe(true);
+      await pagar(); // 3. Pagar e inscribirme
+
+      expect(puerta.veces('abrir')).toBe(1);
+      expect(puerta.veces('cerrar')).toBe(1);
+      expect(puerta.directas()).toBe(0);
+      expect(component.view()).toBe('enrolled');
+    } finally {
+      delete (window as unknown as { synergos?: unknown }).synergos;
+    }
   });
 
   it('un curso gratis por la puerta abre, cierra y se anota sin pasar por el asistente', async () => {

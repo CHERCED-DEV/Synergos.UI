@@ -348,6 +348,8 @@ export class AcademyElementComponent implements OnInit {
   readonly textoConfirmarDevolucion = t('Academy.Enrollment.RefundConfirm', 'Confirmar devolución');
   readonly textoDevuelta = t('Academy.Enrollment.Refunded', 'Matrícula devuelta. Reembolso:');
   readonly textoDevolucionFallida = t('Academy.Enrollment.RefundFailed', 'No se pudo devolver la matrícula. Intenta de nuevo.');
+  /** La consola que el servidor contestó sin cursos: se dice, en vez de pintar cursos de ejemplo (decisión del director). */
+  readonly textoConsolaSinCursos = t('Academy.Enrollment.ConsoleEmpty', 'Todavía no tienes cursos asignados.');
   /** La matrícula cuyo «Devolver» ya se pulsó una vez y espera la confirmación: mueve plata, no va de un clic. */
   readonly porDevolver = signal('');
   /** La matrícula que se está devolviendo: su botón no admite otro clic mientras tanto. */
@@ -687,13 +689,22 @@ export class AcademyElementComponent implements OnInit {
   readonly studentEmailValid = computed(() => /.+@.+\..+/.test(this.studentEmail().trim()));
   readonly studentValid = computed(() => this.studentNameValid() && this.studentEmailValid());
 
+  /**
+   * La sesión ya trae el nombre y el correo de quien se matricula: el paso «Tus datos» sobra y se salta, por los dos
+   * caminos (SC-001, decisión del director). El método de pago pasa entonces al paso de confirmar. La identidad del host
+   * no cambia mientras la página vive, así que los pasos no se rehacen a mitad del asistente.
+   */
+  readonly datosDeLaSesion = computed(
+    () => this.#identity.displayName().trim().length >= 2 && /.+@.+\..+/.test(this.#identity.email().trim()),
+  );
+
   // ─── Enrolment checkout (SH-3 wizard) ─────────────────────────────────────────
   readonly enrollSteps = computed<CheckoutWizardConfig>(() => ({
     steps: [
       { id: 'plan', label: 'Plan' },
       { id: 'student', label: 'Tus datos' },
       { id: 'review', label: 'Confirmar' },
-    ],
+    ].filter((paso) => paso.id !== 'student' || !this.datosDeLaSesion()),
     stepsLabel: 'Pasos para inscribirte',
     summaryHeading: 'Tu inscripción',
     submitLabel: 'Pagar e inscribirme',
@@ -821,7 +832,10 @@ export class AcademyElementComponent implements OnInit {
     kpisLabel: 'Indicadores del portafolio',
     filtersLabel: 'Filtros',
     actionsLabel: 'Acciones',
-    emptyMessage: 'No hay filas en esta sección.',
+    emptyMessage:
+      this.instructorView() === 'courses' && this.desk()?.courses.length === 0
+        ? this.textoConsolaSinCursos
+        : 'No hay filas en esta sección.',
     loadingMessage: 'Cargando…',
     sections: [
       { id: 'courses', label: 'Mis cursos', kind: 'table', badge: this.desk()?.courses.length || undefined },
@@ -845,7 +859,8 @@ export class AcademyElementComponent implements OnInit {
     const published = desk.courses.filter((course) => course.status === 'published').length;
     return [
       { id: 'courses', label: 'Cursos publicados', value: this.formatCount(published), hint: `${desk.courses.length} en total` },
-      { id: 'students', label: 'Alumnos', value: this.formatCount(desk.totalStudents), trend: 'up', delta: '+8%' },
+      // Sin tendencia: el borde no la da, y un «+8 %» fijo la inventaba sobre cualquier cifra, también sobre cero.
+      { id: 'students', label: 'Alumnos', value: this.formatCount(desk.totalStudents) },
       { id: 'revenue', label: 'Ingresos', value: this.formatPrice(desk.totalRevenue, this.currency()) },
       { id: 'rating', label: 'Valoración media', value: desk.averageRating > 0 ? desk.averageRating.toFixed(2) : '—' },
     ];

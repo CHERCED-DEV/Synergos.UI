@@ -793,7 +793,7 @@ export const ACADEMY_SYNHOST: ElementoSynHost<AcademyProps> = {
   tipo: "funcionalidad",
   record: "AcademyProps",
   diccionario: ["Academy.Enrollment"],
-  claves: ["Academy.Enrollment.Activating","Academy.Enrollment.Active","Academy.Enrollment.AlreadyEnrolled","Academy.Enrollment.BadRequest","Academy.Enrollment.ChangePlan","Academy.Enrollment.Enroll","Academy.Enrollment.Free","Academy.Enrollment.Generic","Academy.Enrollment.GoToClassroom","Academy.Enrollment.Heading","Academy.Enrollment.Loading","Academy.Enrollment.NotFound","Academy.Enrollment.Pay","Academy.Enrollment.PaymentFailed","Academy.Enrollment.Refund","Academy.Enrollment.RefundConfirm","Academy.Enrollment.RefundFailed","Academy.Enrollment.Refunded","Academy.Enrollment.SignInRequired","Academy.Enrollment.Total","Academy.Enrollment.Transient","Academy.Enrollment.Unavailable"],
+  claves: ["Academy.Enrollment.Activating","Academy.Enrollment.Active","Academy.Enrollment.AlreadyEnrolled","Academy.Enrollment.BadRequest","Academy.Enrollment.ChangePlan","Academy.Enrollment.ConsoleEmpty","Academy.Enrollment.Enroll","Academy.Enrollment.Free","Academy.Enrollment.Generic","Academy.Enrollment.GoToClassroom","Academy.Enrollment.Heading","Academy.Enrollment.Loading","Academy.Enrollment.NotFound","Academy.Enrollment.Pay","Academy.Enrollment.PaymentFailed","Academy.Enrollment.Refund","Academy.Enrollment.RefundConfirm","Academy.Enrollment.RefundFailed","Academy.Enrollment.Refunded","Academy.Enrollment.SignInRequired","Academy.Enrollment.Total","Academy.Enrollment.Transient","Academy.Enrollment.Unavailable"],
   campos: ["heading","subheading","apiBase","enrollmentPath"],
   listas: {},
   selectores: [],
