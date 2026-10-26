@@ -1088,12 +1088,24 @@ interface RechazoGuionado {
   readonly detail?: string;
 }
 
-type OperacionDeLaCita = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar';
+type OperacionDeLaCita = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'listar';
+
+/** Una cita de las que da `listar`, en pocas palabras. */
+interface CitaListada {
+  readonly id: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly profesional: string;
+  readonly start: string;
+  readonly end: string;
+}
 
 interface GuionDeLaPuerta {
   /** El copago que dice el servidor, en unidades MAYORES. */
   readonly total?: number;
   readonly rechazos?: Partial<Record<OperacionDeLaCita, RechazoGuionado>>;
+  /** Lo que contesta `listar`: las citas del paciente de la sesión. */
+  readonly listado?: readonly CitaListada[];
   /** Lo que `consultar` dice de la cita después de un `cerrar` rechazado. */
   readonly estadoTrasCerrar?: string;
   /** El estado de la cita que lee el enlace del aviso. */
@@ -1161,6 +1173,24 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
       case 'cancelar':
         estado = estado === 'Running' ? 'Compensated' : estado;
         return json(200, cita());
+      case 'listar': {
+        const items = (guion.listado ?? []).map((c) => ({
+          id: c.id,
+          flujo: 'salud.cita',
+          numero: c.numero,
+          estado: c.estado,
+          datos: {
+            profesional: { kind: 'salud.profesional', id: c.profesional },
+            ventana: { start: c.start, end: c.end },
+            total,
+            reservaId: c.estado === 'Completed' ? `res-${c.id}` : null,
+          },
+          compensacionesPendientes: 0,
+          error: null,
+          deshaciendo: false,
+        }));
+        return json(200, { items, total: items.length, offset: 0, hasMore: false });
+      }
       default:
         return json(200, cita());
     }
@@ -1474,6 +1504,84 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(texto).toContain('Tu cita SAL-0077');
     expect(texto).toContain('Confirmada');
+  });
+
+  // ── T034 (en vivo): «Mis citas» sale de LISTAR, el enlace nombra al profesional, un rechazo no se cachea ──
+
+  it('por la puerta, «Mis citas» lista las CONFIRMADAS que da listar, con su médico y la hora del sitio (ni pendientes ni deshechas)', async () => {
+    const puerta = puertaDeLaCita({
+      listado: [
+        { id: 'cita-1', numero: 'SAL-0001', estado: 'Completed', profesional: 'doc-rojas', start: '2026-08-03T15:00:00Z', end: '2026-08-03T15:30:00Z' },
+        { id: 'cita-2', numero: 'SAL-0002', estado: 'Running', profesional: 'doc-mendez', start: '2026-08-04T15:00:00Z', end: '2026-08-04T15:30:00Z' },
+        { id: 'cita-3', numero: 'SAL-0003', estado: 'Compensated', profesional: 'doc-mendez', start: '2026-08-05T15:00:00Z', end: '2026-08-05T15:30:00Z' },
+      ],
+    });
+    await montar(puerta);
+    component.navigate('visits');
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(puerta.veces('listar')).toBe(1);
+    expect(component.myAppointments().filter((a) => a.id.startsWith('cita-'))).toEqual([
+      expect.objectContaining({
+        id: 'cita-1',
+        doctorId: 'doc-rojas',
+        doctorName: 'Dra. Camila Rojas',
+        date: '2026-08-03',
+        time: '10:00',
+        durationMin: 30,
+        reason: 'Tu cita SAL-0001',
+        status: 'booked',
+      }),
+    ]);
+  });
+
+  it('si listar no contesta, «Mis citas» dice que no pudo leerlas, no que no hay ninguna', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { listar: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    await montar(puerta);
+    component.navigate('visits');
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(component.readFailed('appointments')).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('No pudimos leer tus citas');
+  });
+
+  it('el enlace del aviso nombra al profesional de la cita (US1/AC4: estado, fecha, profesional y total)', async () => {
+    window.history.replaceState({}, '', `/healthcare/?cita=${ID_DE_LA_CITA}`);
+    await montar(puertaDeLaCita({ estadoInicial: 'Completed' }));
+    await asentar(12);
+    fixture.detectChanges();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.ehr__panel')?.textContent ?? '';
+    expect(panel).toContain('Tu cita SAL-0077');
+    expect(panel).toContain('Confirmada');
+    expect(panel).toContain('Dra. Laura Méndez');
+  });
+
+  it('concedido el permiso tras un rechazo de cotizar, volver a agendar la cotiza otra vez (el 403 no se queda)', async () => {
+    const guion: { rechazos?: GuionDeLaPuerta['rechazos'] } = { rechazos: { cotizar: { code: 'consent.not_granted', status: 403 } } };
+    const puerta = puertaDeLaCita(guion);
+    await montar(puerta);
+    const elegir = async (): Promise<void> => {
+      component.navigate('schedule');
+      await asentar(12);
+      component.setScheduleDoctor('doc-mendez');
+      component.scheduleReason.set('Control');
+      component.selectSlot({ date: '2026-08-01', time: '10:00' });
+      fixture.detectChanges();
+      await asentar(12);
+    };
+    await elegir();
+    expect(component.textoDelCopago()).toBe('Para agendar necesitamos tu autorización de tratamiento de datos de salud.');
+
+    guion.rechazos = undefined;
+    component.navigate('visits');
+    await asentar(12);
+    await elegir();
+
+    expect(puerta.veces('cotizar')).toBe(2);
+    expect(component.copay()).toEqual({ amountMinor: 5_000_000, currency: 'COP' });
   });
 });
 
