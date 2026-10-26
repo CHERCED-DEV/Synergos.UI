@@ -1277,9 +1277,9 @@ describe('El viaje por la puerta (línea 006)', () => {
   async function montar(
     puerta: ReturnType<typeof puertaDelViaje>,
     config: object = POR_LA_PUERTA,
-    { conCoordinador = true }: { conCoordinador?: boolean } = {},
+    { conCoordinador = true, hash = '' }: { conCoordinador?: boolean; hash?: string } = {},
   ): Promise<void> {
-    window.location.hash = '';
+    window.location.hash = hash;
     installMemoryStorage();
     vi.stubGlobal('fetch', puerta.fetchDoble);
     await TestBed.configureTestingModule({
@@ -1527,6 +1527,19 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(trip.total).toBe(1_900_000);
     // Confirmado por la puerta, lo gestiona quien vende (006-P3).
     expect(component.canCancel(trip)).toBe(false);
+  });
+
+  it('entrar directo por #/travel/cuenta/viajes carga «Mis viajes» con lo que puso el CMS, nunca con viajes de muestra (006-H1)', async () => {
+    const puerta = puertaDelViaje({ viajesDeAntes: [VIAJE_DE_ANTES] });
+    await montar(puerta, POR_LA_PUERTA, { hash: '#/travel/cuenta/viajes' });
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('account');
+    expect(puerta.pedidos.some((p) => p.operacion === 'listar')).toBe(true);
+    expect(component.trips().map((t) => t.ref)).toEqual([NUMERO_DEL_VIAJE, 'trip_antes_1']);
+    expect(component.degraded()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Mostrando datos de ejemplo');
   });
 
   it('si lo de antes no contesta se enseña lo de la puerta y se dice; nunca viajes de muestra', async () => {

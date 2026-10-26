@@ -991,8 +991,7 @@ export class TravelShellElementComponent implements OnInit {
       }
     });
 
-    // Honour a deep link on boot.
-    this.applyHash();
+    // El enlace profundo del arranque se honra en `ngOnInit`, con las entradas del CMS ya puestas.
 
     // Por la puerta, cada carrito distinto se cotiza: el total que se enseña es el del servidor, no la suma del
     // navegador.
@@ -1887,6 +1886,10 @@ export class TravelShellElementComponent implements OnInit {
    * constructor y antes de `ngOnInit`.
    */
   ngOnInit(): void {
+    // El enlace profundo (`#/<scope>/cuenta/viajes`, …) va aquí y no en el constructor: allí todavía no estaban ni el
+    // `scope`, ni `apiBase`, ni el camino, y «Mis viajes» se cargaba sin red y caía a los viajes de MUESTRA, con su cartel
+    // (medido en vivo en la copia piloto, lote 10).
+    this.applyHash();
     const delAviso = viajeDelEnlace();
     if (delAviso) {
       void this.abrirDelAviso(delAviso);
