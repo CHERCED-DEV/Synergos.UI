@@ -498,6 +498,8 @@ export interface GovProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly camino: string;
 }
 
 /** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
@@ -1721,14 +1723,15 @@ export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
   record: "GovProps",
   diccionario: ["Gov.Tramite"],
   claves: ["Gov.Tramite.Action.Approve","Gov.Tramite.Action.Reject","Gov.Tramite.Action.RequestInfo","Gov.Tramite.Action.Resubmit","Gov.Tramite.Action.Take","Gov.Tramite.Actions.Hint","Gov.Tramite.Actions.Stale","Gov.Tramite.Actions.Waiting","Gov.Tramite.Consent.Accepted","Gov.Tramite.Consent.Declined","Gov.Tramite.Consent.Text","Gov.Tramite.Consent.Unknown","Gov.Tramite.Consent.Version","Gov.Tramite.Error.ActNotPrepared","Gov.Tramite.Error.Changed","Gov.Tramite.Error.Closed","Gov.Tramite.Error.NoOffer","Gov.Tramite.Error.NotAvailable","Gov.Tramite.Error.NotFound","Gov.Tramite.Error.Payment","Gov.Tramite.Notify.NeedsConsent","Gov.Tramite.Resubmit.Done","Gov.Tramite.Resubmit.Failed","Gov.Tramite.Resubmit.NoDocuments","Gov.Tramite.Resubmit.Note","Gov.Tramite.Resubmit.Title","Gov.Tramite.SignIn","Gov.Tramite.Take.Done","Gov.Tramite.Take.Failed","Gov.Tramite.Take.Hint","Gov.Tramite.Unavailable"],
-  campos: ["heading","subheading","apiBase"],
+  campos: ["heading","subheading","apiBase","camino"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Tus trámites, sin filas",
     "subheading": "Radica, paga la tasa y sigue tu expediente",
-    "apiBase": "/api/gov"
+    "apiBase": "/api/gov",
+    "camino": "directa"
   },
 };
 

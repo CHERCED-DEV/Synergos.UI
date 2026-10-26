@@ -65,6 +65,11 @@ export interface GovServiceDetail {
   readonly required: readonly string[];
   readonly feeMinor: number;
   readonly currency: string;
+  /**
+   * La clave con que el trámite se radica por la puerta (009, T031): la del nodo con el catálogo en el contenido —la
+   * misma con que el CMS publicó su tasa—; en la siembra, su id.
+   */
+  readonly key: string;
 }
 
 // ─── Formulario dinámico (GET /form/{serviceId}) ────────────────────────────────

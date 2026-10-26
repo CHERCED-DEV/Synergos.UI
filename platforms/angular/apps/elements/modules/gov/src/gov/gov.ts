@@ -48,7 +48,14 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { GovProps } from '@synergos/contracts';
-import { GovApiClient, isGovForbidden, isGovUnauthorized } from './gov-api.client';
+import { GovApiClient, isGovForbidden, isGovRechazoDeLaRadicacion, isGovUnauthorized } from './gov-api.client';
+import {
+  abrirRadicacion,
+  caminoDeLaRadicacion,
+  cerrarRadicacion,
+  nuevaLlaveDeLaRadicacion,
+  type Importe,
+} from './gov-radicacion';
 import {
   OUTCOME_LABELS,
   STATUS_HINTS,
@@ -69,7 +76,16 @@ import {
   type NotificationConsentState,
   type QueueCase,
 } from './gov.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
+import {
+  baseDeRuta,
+  mismaRuta,
+  segmentosDeRuta,
+  formatearImporte,
+  desdeMenores,
+  aMenores,
+  t,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
@@ -189,8 +205,22 @@ function textosDelTramite() {
       'No consta la aceptación de la notificación electrónica: se notifica por otro medio.',
     ),
     notificarSinAceptacion: t('Gov.Tramite.Notify.NeedsConsent', 'Sin la aceptación del ciudadano no se notifica por aquí.'),
+    // La radicación por la puerta (009, T031): un texto por cada «no», por su código.
+    inicieSesion: t('Gov.Tramite.SignIn', 'Inicie sesión para radicar.'),
+    radicacionNoDisponible: t('Gov.Tramite.Unavailable', 'La radicación en línea no está disponible ahora.'),
+    sinOferta: t('Gov.Tramite.Error.NoOffer', 'Este trámite no se puede radicar en línea ahora.'),
+    tasaNoCobrada: t('Gov.Tramite.Error.Payment', 'No se pudo cobrar la tasa; no se radicó nada.'),
+    solicitudNoExiste: t('Gov.Tramite.Error.NotFound', 'La solicitud no existe.'),
   };
 }
+
+/** Un «no» de la ruta del CMS (las respuestas de la radicación) con la forma de los de la puerta, para decirlo igual. */
+function delCms(code: string, status: number, transient: boolean): RechazoDelFlujo {
+  return { code, status, transient, detail: '', origen: 'servidor', extra: {} };
+}
+
+/** Lo que se dice cuando no se pudo radicar y no hay un código que diga por qué: el mismo en los dos caminos. */
+const NO_SE_PUDO_RADICAR = 'No pudimos radicar la solicitud. Intente de nuevo.';
 
 function coerceRole(value: unknown): GovRole | undefined {
   const raw = coerceTrimmedStringInput(value)?.toLowerCase();
@@ -206,6 +236,7 @@ export function sanitizeGovConfig(value: GovConfig): GovConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    camino: coerceTrimmedStringInput(value.camino),
   });
 }
 
@@ -242,6 +273,9 @@ export class GovElementComponent implements OnInit {
    * al lector a repetir. No se duplica aquí: es el único mecanismo (ver `announce`).
    */
   readonly #announcer = inject(LiveAnnouncerService);
+
+  /** El `<synergos-gov>` de esta página: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<GovConfig | undefined, unknown>(undefined, {
@@ -291,6 +325,13 @@ export class GovElementComponent implements OnInit {
       DEFAULT_SUBHEADING,
     ),
   );
+
+  /**
+   * Por dónde radica ESTA página, como lo DECLARA el CMS (`camino`, 009 T030/T033): la puerta, la ruta directa o «no
+   * disponible» (el sitio declaró la puerta y no hay orquestador). Sin declaración, la directa de siempre. **Nunca se
+   * cae de un camino al otro** —ni ante un 503 de la puerta—: dos caminos para la misma intención cobrarían dos veces.
+   */
+  readonly camino = computed(() => caminoDeLaRadicacion(this.config()?.camino));
 
   readonly instanceId = (govInstanceId += 1);
   readonly fieldId = `syn-gov-${this.instanceId}`;
@@ -380,6 +421,10 @@ export class GovElementComponent implements OnInit {
   readonly form = signal<GovForm | null>(null);
   readonly submitting = signal(false);
   readonly confirmedApplication = signal<ApplicationSummary | null>(null);
+  /** La tasa que cobró el SERVIDOR en una radicación por la puerta: la que dice el comprobante, nunca la de la ficha. */
+  readonly tasaCobrada = signal<Importe | null>(null);
+  /** La llave de la intención de radicar en curso: una por formulario empezado (SC-006). */
+  #llaveDeLaRadicacion: string | null = null;
 
   // ─── Actos notificados (HU CMS#62 · #20) ────────────────────────────────────
   readonly notifications = signal<readonly GovActNotification[]>([]);
@@ -435,10 +480,14 @@ export class GovElementComponent implements OnInit {
     if (!app) {
       return [];
     }
+    const tasa = this.tasaCobrada();
     return [
       { id: 'tramite', label: 'Trámite', value: app.serviceName },
       { id: 'estado', label: 'Estado', value: this.statusLabel(app.status) },
       { id: 'etapa', label: 'Etapa actual', value: app.currentStage },
+      ...(tasa && tasa.amount > 0
+        ? [{ id: 'tasa', label: this.feeStatusLabel('captured', aMenores(tasa.amount, tasa.currency)), value: this.formatMoney(tasa.amount, tasa.currency) }]
+        : []),
     ];
   });
 
@@ -1206,6 +1255,7 @@ export class GovElementComponent implements OnInit {
     this.errorMessage.set('');
     this.formStep.set('');
     this.aceptaNotificacion.set(false);
+    this.#llaveDeLaRadicacion = null;
     try {
       await this.ensureForm(serviceId);
       this.navigate('apply', serviceId);
@@ -1224,9 +1274,114 @@ export class GovElementComponent implements OnInit {
     if (!service || this.submitting()) {
       return;
     }
+    if (this.camino() === 'no-disponible') {
+      // El sitio declaró la puerta y no hay orquestador: se dice, y no se cae a la directa.
+      this.errorMessage.set(this.txt.radicacionNoDisponible);
+      this.announce(this.txt.radicacionNoDisponible);
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set('');
-    void this.#radicar(service, event.answers);
+    void (this.camino() === 'puerta' ? this.#radicarPorLaPuerta(service, event.answers) : this.#radicar(service, event.answers));
+  }
+
+  /**
+   * La radicación por la puerta (009, T031): abrir —autoriza la tasa que cotiza el SERVIDOR— → guardar las respuestas
+   * en el CMS, que acuña el radicado → cerrar —captura, hace nacer el expediente y avisa—. La aceptación viaja al abrir.
+   * El comprobante dice el radicado del CMS y la tasa que contestó el servidor al cerrar.
+   */
+  async #radicarPorLaPuerta(service: GovServiceDetail, answers: Readonly<Record<string, string>>): Promise<void> {
+    const llave = (this.#llaveDeLaRadicacion ??= nuevaLlaveDeLaRadicacion(service.key));
+    try {
+      const abierta = await abrirRadicacion(
+        this.#host, service.key, this.aceptaNotificacion(), this.txt.versionDeLaAceptacion, llave);
+      if (!abierta.ok) {
+        this.#rechazoDeLaPuerta(abierta.rechazo);
+        return;
+      }
+
+      let guardado;
+      try {
+        guardado = await this.#api.respuestasDeLaRadicacion(this.apiBase(), abierta.valor.id, answers);
+      } catch (error) {
+        if (isGovUnauthorized(error)) {
+          this.#rechazoDeLaPuerta(delCms('puerta.sesion_requerida', 401, false));
+          return;
+        }
+        if (isGovRechazoDeLaRadicacion(error)) {
+          this.#rechazoDeLaPuerta(delCms(error.code, error.status, error.transient));
+          return;
+        }
+        throw error;
+      }
+
+      const cerrada = await cerrarRadicacion(this.#host, abierta.valor.id);
+      if (!cerrada.ok) {
+        this.#rechazoDeLaPuerta(cerrada.rechazo);
+        return;
+      }
+
+      const total = cerrada.valor.total;
+      this.tasaCobrada.set(total);
+      this.#llaveDeLaRadicacion = null;
+      const summary: ApplicationSummary = {
+        id: guardado.caseId,
+        reference: guardado.radicado,
+        serviceId: service.id,
+        serviceName: service.name,
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        currentStage: this.statusLabel('submitted'),
+        feeMinor: total ? aMenores(total.amount, total.currency) : 0,
+        feeStatus: total && total.amount > 0 ? 'captured' : null,
+      };
+      this.#radicada(summary);
+    } catch (error) {
+      this.errorMessage.set(NO_SE_PUDO_RADICAR);
+      void error;
+    } finally {
+      this.submitting.set(false);
+    }
+  }
+
+  /**
+   * Un «no» de la puerta, del orquestador o del CMS, dicho con el texto de su código (la sección `Gov.Tramite`). Se
+   * queda en el formulario con sus respuestas: nada quedó radicado.
+   */
+  #rechazoDeLaPuerta(rechazo: RechazoDelFlujo): void {
+    const codigo = rechazo.code;
+    if (codigo === 'puerta.sesion_requerida' || rechazo.status === 401) {
+      this.errorMessage.set(this.txt.inicieSesion);
+      this.announce(this.txt.inicieSesion);
+      return;
+    }
+    let mensaje = NO_SE_PUDO_RADICAR;
+    if (codigo === 'pricing.price_not_found' || codigo === 'pricing.price_not_in_effect') {
+      mensaje = this.txt.sinOferta;
+    } else if (codigo.startsWith('payments.')) {
+      mensaje = this.txt.tasaNoCobrada;
+    } else if (codigo === 'gobierno.saga_not_found') {
+      mensaje = this.txt.solicitudNoExiste;
+      this.#llaveDeLaRadicacion = null;
+    } else if (
+      codigo === 'puerta.flujo_no_disponible' || codigo === 'gov.radicacion_no_disponible' || rechazo.transient || rechazo.origen === 'red'
+    ) {
+      mensaje = this.txt.radicacionNoDisponible;
+    } else if (codigo === 'gov.radicacion_cerrada') {
+      // La radicación de esta intención ya terminó (otra pestaña la cerró o se deshizo): la próxima es otra.
+      this.#llaveDeLaRadicacion = null;
+    }
+    this.errorMessage.set(mensaje);
+    this.announce(mensaje);
+  }
+
+  /** Radicada, por el camino que sea: el comprobante, la carpeta por releer, el aviso y el evento. */
+  #radicada(summary: ApplicationSummary): void {
+    this.confirmedApplication.set(summary);
+    this.applicationsLoaded.set(false); // folder must refetch to include the new one
+    this.navigate('receipt');
+    this.announce(`Su solicitud quedó radicada con el número ${summary.reference}.`);
+    this.applicationsubmitted.emit({ id: summary.id, reference: summary.reference });
   }
 
   async #radicar(service: GovServiceDetail, answers: Readonly<Record<string, string>>): Promise<void> {
@@ -1236,11 +1391,8 @@ export class GovElementComponent implements OnInit {
         answers,
         notificationConsent: { accepted: this.aceptaNotificacion(), textVersion: this.txt.versionDeLaAceptacion },
       });
-      this.confirmedApplication.set(summary);
-      this.applicationsLoaded.set(false); // folder must refetch to include the new one
-      this.navigate('receipt');
-      this.announce(`Su solicitud quedó radicada con el número ${summary.reference}.`);
-      this.applicationsubmitted.emit({ id: summary.id, reference: summary.reference });
+      this.tasaCobrada.set(null);
+      this.#radicada(summary);
     } catch (error) {
       // Radicar ya no degrada: fabricar un radicado local le daría al ciudadano un número
       // que no existe en ninguna agencia. Un 403 es "hay sesión pero no puede radicar":
@@ -1261,7 +1413,7 @@ export class GovElementComponent implements OnInit {
       ) {
         return;
       }
-      this.errorMessage.set('No pudimos radicar la solicitud. Intente de nuevo.');
+      this.errorMessage.set(NO_SE_PUDO_RADICAR);
       void error;
     } finally {
       this.submitting.set(false);
