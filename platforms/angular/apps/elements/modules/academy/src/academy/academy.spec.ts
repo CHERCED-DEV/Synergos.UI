@@ -2384,6 +2384,7 @@ describe('mensajeDeLaMatricula y el camino (010-educacion-matricula)', () => {
     ['pricing.price_not_in_effect', 'Este curso no admite matrícula en línea ahora.'],
     ['puerta.flujo_no_disponible', 'Este curso no admite matrícula en línea ahora.'],
     ['educacion.entrada_invalida', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.'],
+    ['flow.linea_invalida', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.'],
     ['educacion.saga_not_found', 'No encontramos esa matrícula.'],
     ['payments.payment_declined', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.'],
     ['payments.cualquier_otro', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.'],
