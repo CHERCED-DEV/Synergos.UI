@@ -37,7 +37,7 @@ import {
 import type { BookingWizardProps } from '@synergos/contracts';
 import { normalizeRooms } from './booking-api.client';
 import { estadiaPendiente, sinEstadiaPendiente } from './booking-fulfillment.strategy';
-import { cancelarEstadia } from './booking-viaje';
+import { cancelarEstadia, consultarEstadia, type EstadiaLeida } from './booking-viaje';
 import {
   BOOKING_FLOW,
   BOOKING_HOLD_FAILED,
@@ -48,7 +48,16 @@ import {
   type BookingSelection,
   type BookingVoucher,
 } from './booking.model';
-import { FLUJO_VIAJES_RESERVA, elegirMensaje, hayCoordinador, t, type RechazoDelFlujo } from '@synergos/vitals-core';
+import {
+  FLUJO_VIAJES_RESERVA,
+  avisoDelFlujo,
+  clasificarRechazo,
+  elegirMensaje,
+  formatearImporte,
+  hayCoordinador,
+  t,
+  type RechazoDelFlujo,
+} from '@synergos/vitals-core';
 
 /**
  * Lo que se dice de un rechazo de la estadía por la puerta, elegido por su `code` y nunca por su `title` (sección
@@ -96,6 +105,43 @@ export function mensajeDeLaEstadia(code: string): string {
 
 /** La habitación ya no está: por la directa no se pudo apartar, por la puerta la agenda dijo que no hay cupo. */
 const HABITACION_PERDIDA: ReadonlySet<string> = new Set([BOOKING_HOLD_FAILED, 'booking.at_capacity']);
+
+const LOGIN_PATH = '/account/login';
+
+/** Lo que dice el comprobante de una estadía: el de esta página y el de la que abre el enlace del aviso. */
+const DATOS_DE_LA_ESTADIA = {
+  entrada: 'Entrada',
+  salida: 'Salida',
+  habitacion: 'Habitación',
+  pagado: 'Monto pagado',
+} as const;
+
+/**
+ * Con qué parámetro llega a la página el enlace del correo de la estadía: el de la tabla GENERADA de las rutas del CMS
+ * (`viajes.reserva`; una estadía es un viaje de un ítem, núcleo N3), no un literal de aquí. La ruta del aviso por sitio
+ * (D-006-AVISO, `/hoteles/?viaje={id}`) lleva el mismo. Vacío si nadie avisa.
+ */
+function parametroDelAviso(): string {
+  return avisoDelFlujo(FLUJO_VIAJES_RESERVA)?.parametro ?? '';
+}
+
+/** La estadía del enlace del aviso (`?viaje={id}`), o vacío. */
+function estadiaDelEnlace(): string {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return '';
+  return new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+}
+
+/** Quita el parámetro del aviso de la URL: se usa una vez, y lo que quede la reabriría en cada recarga. */
+function consumirEstadiaDelEnlace(): void {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return;
+  const consulta = new URLSearchParams(window.location.search);
+  if (!consulta.has(parametro)) return;
+  consulta.delete(parametro);
+  const texto = consulta.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`);
+}
 
 /**
  * Runtime config for the CMS element <c>elementSynBookingWizard</c>.
@@ -254,7 +300,70 @@ export class BookingWizardElementComponent implements OnInit {
     // Por la puerta sin `<synergos-flujo>` arriba no se reserva: se dice, sin tocar la red, y nunca se cae a la
     // directa (una misma estadía por los dos caminos apartaría dos veces).
     this.sinCoordinador.set(this.porLaPuerta() && !hayCoordinador(this.#host, FLUJO_VIAJES_RESERVA));
+    const delAviso = estadiaDelEnlace();
+    if (delAviso && this.porLaPuerta() && !this.sinCoordinador()) {
+      void this.abrirDelAviso(delAviso);
+    }
   }
+
+  /**
+   * La estadía del enlace del correo (lote 10, 006-H5): la que el servidor dice de ese id, para quien tiene la sesión de
+   * su dueño. Confirmada, su comprobante; si no, lo que dice su estado, encima del asistente. Sin sesión se ofrece entrar
+   * y la vuelta conserva el enlace; una estadía ajena es el mismo «no encontramos» que una que no existe.
+   */
+  async abrirDelAviso(id: string): Promise<void> {
+    const r = await consultarEstadia(this.#host, id);
+    if (!r.ok && clasificarRechazo(r.rechazo) === 'sesion') {
+      this.estadiaDelEnlaceSinSesion.set(true);
+      return;
+    }
+    consumirEstadiaDelEnlace();
+    if (!r.ok) {
+      this.avisoDeLaEstadia.set(mensajeDeLaEstadia(r.rechazo.code));
+      return;
+    }
+    if (r.valor.estado === 'Completed') {
+      this.estadiaDelAviso.set(r.valor);
+      return;
+    }
+    this.avisoDeLaEstadia.set(
+      r.valor.estado === 'Compensated'
+        ? t('Travel.Booking.CancelledNoCharge', 'Cancelamos tu reserva sin confirmar. No se te cobró nada.')
+        : r.valor.estado === 'Running'
+          ? t('Travel.Booking.StillPending', 'Tu reserva sigue pendiente. Intenta de nuevo en un momento.')
+          : t('Travel.Booking.NotConfirmable', 'Este viaje ya no se puede confirmar.'),
+    );
+  }
+
+  /** La estadía CONFIRMADA del enlace del aviso: su comprobante, con lo que dijo el servidor. */
+  readonly estadiaDelAviso = signal<EstadiaLeida | null>(null);
+
+  /** El enlace del aviso llegó sin sesión: se ofrece entrar, y la vuelta lo trae de nuevo. */
+  readonly estadiaDelEnlaceSinSesion = signal(false);
+  readonly textoEntrarParaVerLaEstadia = t('Travel.Booking.StaySignIn', 'Inicia sesión para ver tu estadía.');
+  readonly textoIniciarSesion = t('Travel.Booking.SignIn', 'Iniciar sesión');
+
+  /** El login del sitio con la vuelta a ESTA página, enlace del aviso incluido. */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
+  }
+
+  readonly factsDelAviso = computed<readonly ConfirmationFact[]>(() => {
+    const e = this.estadiaDelAviso();
+    if (!e) {
+      return [];
+    }
+    return [
+      { id: 'entrada', label: DATOS_DE_LA_ESTADIA.entrada, value: e.entrada || '—' },
+      { id: 'salida', label: DATOS_DE_LA_ESTADIA.salida, value: e.salida || '—' },
+      { id: 'habitacion', label: DATOS_DE_LA_ESTADIA.habitacion, value: e.habitacion || '—' },
+      { id: 'total', label: DATOS_DE_LA_ESTADIA.pagado, value: e.total ? formatearImporte(e.total.amount, e.total.currency) : '—' },
+    ];
+  });
 
   /**
    * Por dónde reserva ESTE asistente: lo DECLARA el CMS en `bookingPath` —la puerta o la ruta directa, «directa» por
@@ -406,10 +515,10 @@ export class BookingWizardElementComponent implements OnInit {
       return [];
     }
     return [
-      { id: 'entrada', label: 'Entrada', value: v.checkIn },
-      { id: 'salida', label: 'Salida', value: v.checkOut },
-      { id: 'habitacion', label: 'Habitación', value: this.selectedOffer()?.roomTypeName ?? '—' },
-      { id: 'total', label: 'Monto pagado', value: v.totalPriceFormatted },
+      { id: 'entrada', label: DATOS_DE_LA_ESTADIA.entrada, value: v.checkIn },
+      { id: 'salida', label: DATOS_DE_LA_ESTADIA.salida, value: v.checkOut },
+      { id: 'habitacion', label: DATOS_DE_LA_ESTADIA.habitacion, value: this.selectedOffer()?.roomTypeName ?? '—' },
+      { id: 'total', label: DATOS_DE_LA_ESTADIA.pagado, value: v.totalPriceFormatted },
     ];
   });
 
@@ -585,6 +694,7 @@ export class BookingWizardElementComponent implements OnInit {
     this.#store.reset();
     this.offers.set([]);
     this.voucher.set(null);
+    this.estadiaDelAviso.set(null);
     this.errorMessage.set('');
     this.guestName.set('');
     this.guestEmail.set('');

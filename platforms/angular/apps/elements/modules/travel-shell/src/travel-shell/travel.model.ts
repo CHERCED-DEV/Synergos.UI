@@ -432,6 +432,11 @@ export interface TravelTrip {
    * pantalla no lo cancela.
    */
   readonly porLaPuerta?: true;
+  /**
+   * Reservado por la ruta directa y enseñado junto a los de la puerta (lote 10, 006-H1): de sólo lectura y marcado como
+   * tal. Lo que no aparece no es que no exista, pero sus acciones ya no son de esta pantalla.
+   */
+  readonly soloLectura?: true;
 }
 
 /** One booked item inside a trip (feeds the SH-10 wallet + timeline). */

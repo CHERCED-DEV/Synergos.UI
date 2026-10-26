@@ -11,10 +11,28 @@
       [actions]="confirmationActions()"
       (action)="onConfirmationAction($event)"
     />
+  } @else if (estadiaDelAviso(); as e) {
+    <!-- La estadía confirmada del enlace del correo (?viaje={id}): su comprobante, con lo que dijo el servidor. -->
+    <syn-confirmation-shell
+      [config]="confirmationConfig()"
+      [reference]="e.numero"
+      [facts]="factsDelAviso()"
+      [actions]="confirmationActions()"
+      (action)="onConfirmationAction($event)"
+    />
   } @else if (sinCoordinador()) {
     <!-- Por la puerta sin coordinador no se reserva, y nunca se cae a la directa: se dice, sin tocar la red. -->
     <p class="booking-wizard__error">{{ textoNoDisponible }}</p>
   } @else {
+    @if (estadiaDelEnlaceSinSesion()) {
+      <!-- El enlace del correo sin sesión: entrar, y la vuelta trae el enlace. -->
+      <syn-empty-state
+        kind="no-access"
+        [title]="textoEntrarParaVerLaEstadia"
+        [actionLabel]="textoIniciarSesion"
+        [actionHref]="loginUrl()"
+      />
+    }
     @if (avisoDeLaEstadia()) {
       <syn-live-region class="booking-wizard__notice" [message]="avisoDeLaEstadia()" [visuallyHidden]="false" announceInitial />
     }

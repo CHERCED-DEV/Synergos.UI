@@ -59,6 +59,11 @@ export interface ItemDelViaje {
   readonly etiqueta: string;
   readonly start: string;
   readonly end: string;
+  /**
+   * Un alojamiento: el servidor lo cotiza con su tarifa POR NOCHE y las noches de su periodo (lote 10, 006-H2). La marca
+   * no pone el precio: si no casa con la tarifa del producto, el servidor no lo cotiza.
+   */
+  readonly porNoche?: boolean;
 }
 
 export function leerViaje(r: BffViajes.ViajesReservaRespuesta): ViajeLeido {
@@ -84,6 +89,7 @@ export function entradaDelViaje(items: readonly ItemDelViaje[]): BffViajes.Viaje
       producto: item.producto,
       etiqueta: item.etiqueta || null,
       ventana: { start: item.start, end: item.end },
+      ...(item.porNoche ? { porNoche: true } : {}),
     })),
   };
 }
