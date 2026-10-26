@@ -1143,6 +1143,8 @@ interface GuionDelViaje {
   readonly viajesDeAntes?: readonly unknown[];
   /** El itinerario que dice el servidor; sin esto, el de un ítem. */
   readonly itinerario?: readonly unknown[];
+  /** Lo que contestan `/api/travel/search/hotel` y `/api/travel/stay/{id}`; sin esto, el borde de siempre. */
+  readonly hoteles?: { readonly busqueda: unknown; readonly estadia: unknown };
 }
 
 interface PedidoAlViaje {
@@ -1201,6 +1203,12 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     rutas.push(`${metodo} ${ruta}`);
     if (guion.viajesDeAntes && /\/api\/travel\/trips$/.test(new URL(ruta, 'http://x').pathname)) {
       return json(200, { trips: guion.viajesDeAntes });
+    }
+    if (guion.hoteles && /\/api\/travel\/search\/hotel$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, guion.hoteles.busqueda);
+    }
+    if (guion.hoteles && /\/api\/travel\/stay\/[^/]+$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, guion.hoteles.estadia);
     }
     const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
     if (!m) {
@@ -1459,6 +1467,41 @@ describe('El viaje por la puerta (línea 006)', () => {
     const detalle = host.querySelector('.travel__trip-detail .travel__trip-parcial')?.textContent?.trim() ?? '';
     expect(detalle).toContain('Confirmado (parcial). No se pudo confirmar: Auto económico. Te devolvimos su parte:');
     expect(detalle).toContain('200.000');
+  });
+
+  it('la estadía del portal se agrega con la tarifa de la búsqueda y se reserva con su productRef, no con el id de la estadía (T036)', async () => {
+    // Como lo contesta el CMS (medido en vivo en /viajes/ el 2026-10-26): las ofertas traen el productRef y el precio por
+    // las fechas; el contenido de la estadía, sólo el código de la habitación.
+    const oferta = (plan: string, precio: number, regimen: string, reembolsable: boolean) => ({
+      offerId: `STD/${plan}`, product: 'Hotel', roomTypeCode: 'STD', roomTypeName: 'Habitación Estándar', ratePlanCode: plan,
+      boardBasis: regimen, refundable: reembolsable, roomsLeft: 6, price: precio, priceFormatted: '', currency: 'COP',
+      title: 'Casa Getsemaní Boutique', subtitle: `Habitación Estándar · ${regimen}`, stayId: 'ctg-getsemani',
+      stayName: 'Casa Getsemaní Boutique', city: 'Cartagena', geo: { lat: 10.42, lng: -75.54 }, rating: 9.2,
+    });
+    const puerta = puertaDelViaje({
+      hoteles: {
+        busqueda: { offers: [oferta('STD-FLEX', 440_000, 'BB', true), oferta('STD-NREF', 396_000, 'RO', false)] },
+        estadia: { stay: { stayId: 'ctg-getsemani', name: 'Casa Getsemaní Boutique', city: 'Cartagena', rates: [{ roomTypeCode: 'STD' }], images: [], amenities: [], specs: [] } },
+      },
+    });
+    await montar(puerta);
+    component.selectProduct('hotel');
+    component.hotelDestination.set('Cartagena');
+    component.hotelCheckIn.set('2026-12-20');
+    component.hotelCheckOut.set('2026-12-22');
+    component.search();
+    await asentar(12);
+    component.openStay(component.stayOffers()[0]);
+    await asentar(12);
+
+    expect(component.stay()?.rates.map((r) => [r.id, r.amount, r.rateLabel, r.refundable])).toEqual([
+      ['STD/STD-FLEX', 440_000, 'BB', true],
+      ['STD/STD-NREF', 396_000, 'RO', false],
+    ]);
+    component.addStayToCart();
+    await asentar(12);
+    // El carrito lleva el importe en unidades MENORES.
+    expect(component.cartItems().map((i) => [i.kind, i.productRef, i.amount])).toEqual([['hotel', 'STD/STD-FLEX', 44_000_000]]);
   });
 
   it('ningún ítem confirmable (flow.nada_cumplido) lo dice por su code, con la plata devuelta', () => {
