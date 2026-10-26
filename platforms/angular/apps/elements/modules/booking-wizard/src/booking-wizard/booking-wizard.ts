@@ -87,6 +87,9 @@ export function mensajeDeLaEstadia(code: string): string {
     'cliente.sin_periodo': revisar,
     'viajes.not_continuable': t('Travel.Booking.NotConfirmable', 'Este viaje ya no se puede confirmar.'),
     'viajes.saga_not_found': t('Travel.Booking.NotFound', 'No encontramos ese viaje en tu cuenta.'),
+    // Con la política «parcial», la estadía (un ítem) que no se confirma es un viaje en el que no se cumplió nada: se
+    // deshace entero y se devuelve lo cobrado (historia 3).
+    'flow.nada_cumplido': t('Travel.Booking.RefundIssued', 'No pudimos confirmar tu viaje; te devolvimos el pago.'),
   };
   if (code.startsWith('pricing.')) {
     return t('Travel.Booking.PriceUnavailable', 'No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');

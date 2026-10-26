@@ -36,6 +36,12 @@ export interface ParadaLeida {
   readonly etiqueta: string;
   readonly inicio: string;
   readonly fin: string;
+  /** Lo que cotizó el servidor por este ítem (historia 3). */
+  readonly precio?: Importe | null;
+  /** No se pudo confirmar tras cobrar, con la política «parcial» del sitio (historia 3). */
+  readonly noCumplido?: boolean | null;
+  /** La parte de lo cobrado que se le devolvió, si no se cumplió. */
+  readonly devuelto?: Importe | null;
 }
 
 /** Lo que la pantalla necesita de un viaje: lo que contestó el servidor, sin adornos. */
@@ -159,8 +165,11 @@ export function viajeComoTrip(viaje: ViajeLeido, ahora: number): TravelTrip | nu
       title: p.etiqueta || p.producto,
       subtitle: `${dia(p.inicio)} → ${dia(p.fin)}`,
       reservationId: viaje.numero,
+      ...(p.noCumplido ? { noCumplido: true as const } : {}),
+      ...(p.devuelto ? { devuelto: p.devuelto.amount } : {}),
     })),
     porLaPuerta: true,
+    ...(viaje.itinerario.some((p) => p.noCumplido) ? { parcial: true as const } : {}),
   };
 }
 
