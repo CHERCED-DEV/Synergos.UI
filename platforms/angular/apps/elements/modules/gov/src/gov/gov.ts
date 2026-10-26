@@ -53,7 +53,9 @@ import {
   abrirRadicacion,
   caminoDeLaRadicacion,
   cerrarRadicacion,
+  consumirRadicacionDelEnlace,
   nuevaLlaveDeLaRadicacion,
+  radicacionDelEnlace,
   type Importe,
 } from './gov-radicacion';
 import {
@@ -419,6 +421,8 @@ export class GovElementComponent implements OnInit {
 
   // ─── Iniciar solicitud (SH-9 dynamic form) ──────────────────────────────────
   readonly form = signal<GovForm | null>(null);
+  /** De qué trámite es el formulario cargado: el `id` del formulario es suyo (`form-mercantil`), no el del trámite. */
+  #formularioDe = '';
   readonly submitting = signal(false);
   readonly confirmedApplication = signal<ApplicationSummary | null>(null);
   /** La tasa que cobró el SERVIDOR en una radicación por la puerta: la que dice el comprobante, nunca la de la ficha. */
@@ -953,6 +957,12 @@ export class GovElementComponent implements OnInit {
     const initialRole = this.initialRole();
     this.role.set(initialRole);
     this.view.set(initialRole === 'officer' ? 'queue' : 'catalog');
+    // El enlace del aviso de la radicación (FR-019) remite a «Mis solicitudes», que es además donde el CMS confirma
+    // el expediente con lo que dice el orquestador. Sin sesión, el parámetro se queda: el login vuelve aquí.
+    if (initialRole === 'citizen' && radicacionDelEnlace()) {
+      this.navigate('applications');
+      return;
+    }
     this.applyHash();
   }
 
@@ -1243,11 +1253,12 @@ export class GovElementComponent implements OnInit {
   }
 
   private async ensureForm(serviceId: string): Promise<void> {
-    if (this.form()?.id && this.service()?.id === serviceId && this.form()) {
+    if (this.form() && this.#formularioDe === serviceId) {
       return;
     }
     const form = await this.#api.form(this.apiBase(), serviceId);
     this.form.set(form);
+    this.#formularioDe = serviceId;
   }
 
   private async beginApplication(serviceId: string): Promise<void> {
@@ -1433,6 +1444,9 @@ export class GovElementComponent implements OnInit {
       this.applications.set(apps);
       this.applicationsLoaded.set(true);
       this.citizenAccess.set('ok');
+      if (!this.#api.degraded) {
+        consumirRadicacionDelEnlace();
+      }
     } catch (error) {
       if (this.handleCitizenDenied(error, { scope: 'folder' })) {
         return;

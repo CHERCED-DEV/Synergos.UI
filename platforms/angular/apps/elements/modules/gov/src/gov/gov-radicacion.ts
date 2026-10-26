@@ -1,8 +1,10 @@
 import type { BffGobierno } from '@synergos/contracts';
 import {
   abrirGobiernoRadicacion,
+  avisoDelFlujo,
   cancelarGobiernoRadicacion,
   cerrarGobiernoRadicacion,
+  FLUJO_GOBIERNO_RADICACION,
   idAleatorio,
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
@@ -105,4 +107,30 @@ export async function cerrarRadicacion(desde: Element, id: string): Promise<Resu
 /** Deshace una radicación abierta: anula la autorización. */
 export async function cancelarRadicacion(desde: Element, id: string): Promise<ResultadoDelFlujo<RadicacionLeida>> {
   return leida(await cancelarGobiernoRadicacion(desde, { consulta: { id } }));
+}
+
+/**
+ * Con qué parámetro llega a la página el enlace del correo de la radicación: el de la tabla GENERADA de las rutas del
+ * CMS (`Synergos:Puerta:Flujos:gobierno.radicacion:Aviso:Ruta`, núcleo N3), no un literal de aquí. Vacío si nadie avisa.
+ */
+function parametroDelAviso(): string {
+  return avisoDelFlujo(FLUJO_GOBIERNO_RADICACION)?.parametro ?? '';
+}
+
+/** La radicación del enlace del aviso (`?radicacion={id}`), o vacío. */
+export function radicacionDelEnlace(): string {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return '';
+  return new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
+}
+
+/** Quita el parámetro del aviso de la URL: se usa una vez, y lo que quede lo reabriría en cada recarga. */
+export function consumirRadicacionDelEnlace(): void {
+  const parametro = parametroDelAviso();
+  if (typeof window === 'undefined' || !parametro) return;
+  const consulta = new URLSearchParams(window.location.search);
+  if (!consulta.has(parametro)) return;
+  consulta.delete(parametro);
+  const texto = consulta.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${texto ? `?${texto}` : ''}${window.location.hash}`);
 }

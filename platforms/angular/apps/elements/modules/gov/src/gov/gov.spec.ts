@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
 import { OUTCOME_TO_STATUS, isClosedStatus, type ApplicationSummary } from './gov.model';
+import { MOCK_FORMS } from './gov.mock';
 import { asentar } from '../../../../../../tools/asentar';
 import { GOV_SYNHOST } from '@synergos/contracts';
 import { definirCoordinador } from '@synergos/vitals-core';
@@ -2082,6 +2083,8 @@ interface GuionDeLaRadicacion {
   readonly rechazos?: Partial<Record<OperacionDeLaRadicacion, { readonly code: string; readonly status?: number }>>;
   /** Lo que contesta el CMS a cada guardado de respuestas, en orden; sin guion, el radicado. */
   readonly respuestas?: readonly RespuestaDelCms[];
+  /** Lo que contesta el CMS a «Mis solicitudes»: la carpeta del miembro, o 401 sin sesión; sin guion, cae (muestra). */
+  readonly misSolicitudes?: 'sin-sesion' | readonly object[];
 }
 
 interface PedidoALaRadicacion {
@@ -2130,6 +2133,11 @@ function puertaDeLaRadicacion(guion: GuionDeLaRadicacion = {}) {
       return r && r.status >= 300
         ? json(r.status, { code: r.code ?? '', transient: r.transient ?? false, title: 'guionado', detail: 'guionado' })
         : json(200, { radicado: 'SG-2026-009001', caseId: 'case_rad_1' });
+    }
+    if (metodo === 'GET' && ruta.endsWith('/api/gov/applications') && guion.misSolicitudes) {
+      return guion.misSolicitudes === 'sin-sesion'
+        ? json(401, { code: 'gov.sesion_requerida' })
+        : json(200, { applications: guion.misSolicitudes });
     }
     if (metodo === 'POST' && ruta.endsWith('/api/gov/application')) {
       return json(200, {
@@ -2343,5 +2351,67 @@ describe('La radicación por la puerta (009-gobierno-tramite T031 y T033)', () =
     expect(puerta.alaPuerta()).toBe(0);
     expect(puerta.directas()).toBe(1);
     expect(component.confirmedApplication()?.reference).toBe('RAD-2026-000777');
+  });
+
+  it('radicar otro trámite en la misma visita pide SU formulario, no reutiliza el del anterior', async () => {
+    await montar(puertaDeLaRadicacion());
+    await hastaElFormulario();
+    expect(component.form()?.id).toBe(MOCK_FORMS['svc-antecedentes']!.id);
+
+    component.backToCatalog();
+    await flushMicrotasks();
+    component.openService(component.services().find((s) => s.id === 'svc-pasaporte')!);
+    await flushMicrotasks();
+    component.startApplication();
+    await flushMicrotasks();
+
+    expect(component.view()).toBe('apply');
+    expect(component.service()?.id).toBe('svc-pasaporte');
+    expect(component.form()?.id).toBe(MOCK_FORMS['svc-pasaporte']!.id);
+  });
+
+  const SOLICITUD_RADICADA = {
+    id: 'case_rad_1',
+    reference: 'SG-2026-009001',
+    serviceId: 'svc-antecedentes',
+    serviceName: 'Certificado de antecedentes',
+    status: 'submitted',
+    submittedAt: '2026-10-25T10:00:00+00:00',
+    currentStage: 'Radicada',
+    feeMinor: 70_000,
+    feeStatus: 'captured',
+  };
+
+  it('el enlace del correo (?radicacion=) abre «Mis solicitudes», donde el CMS confirma el expediente, y quita el parámetro (FR-019)', async () => {
+    window.history.replaceState(null, '', '/gobierno/?radicacion=pta-1&utm=correo');
+    try {
+      const puerta = puertaDeLaRadicacion({ misSolicitudes: [SOLICITUD_RADICADA] });
+      await montar(puerta);
+      await flushMicrotasks(20);
+
+      expect(component.view()).toBe('applications');
+      expect(window.location.hash).toContain('mis-solicitudes');
+      expect(component.applications().map((a) => a.reference)).toEqual(['SG-2026-009001']);
+      expect(puerta.alaPuerta()).toBe(0);
+      // Leído, el parámetro sale de la URL (lo demás de la consulta se queda): si no, cada recarga lo reabriría.
+      expect(window.location.search).toBe('?utm=correo');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it('sin sesión el enlace del correo pide entrar y CONSERVA el parámetro para volver', async () => {
+    window.history.replaceState(null, '', '/gobierno/?radicacion=pta-1');
+    try {
+      await montar(puertaDeLaRadicacion({ misSolicitudes: 'sin-sesion' }));
+      await flushMicrotasks(20);
+
+      expect(component.view()).toBe('applications');
+      expect(component.citizenAccess()).toBe('anon');
+      expect(window.location.search).toBe('?radicacion=pta-1');
+      expect(component.loginUrl()).toContain(encodeURIComponent('?radicacion=pta-1'));
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
   });
 });
