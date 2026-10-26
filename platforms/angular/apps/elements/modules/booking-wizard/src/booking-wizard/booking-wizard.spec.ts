@@ -6,7 +6,7 @@ import { BookingApiClient } from './booking-api.client';
 import { BookingFulfillmentStrategy } from './booking-fulfillment.strategy';
 import type { BookingOffer } from './booking.model';
 import { BOOKING_WIZARD_SYNHOST } from '@synergos/contracts';
-import { definirCoordinador } from '@synergos/vitals-core';
+import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: BOOKING_WIZARD_SYNHOST.ejemplo.apiBase };
@@ -460,6 +460,10 @@ interface GuionDeLaEstadia {
   readonly estadoTrasCerrar?: string;
   /** Las ofertas que contesta la búsqueda. */
   readonly ofertas?: readonly BookingOffer[];
+  /** En qué estado está la estadía antes de tocar nada: la del enlace del aviso ya existe. */
+  readonly estadoInicial?: string;
+  /** El itinerario que guarda el servidor. */
+  readonly itinerario?: readonly { producto: string; etiqueta: string; inicio: string; fin: string }[];
 }
 
 interface PedidoALaEstadia {
@@ -478,7 +482,7 @@ const NUMERO_DE_LA_ESTADIA = 'VIA-0015';
 function puertaDeLaEstadia(guion: GuionDeLaEstadia = {}) {
   const pedidos: PedidoALaEstadia[] = [];
   const rutas: string[] = [];
-  let estado = 'Running';
+  let estado = guion.estadoInicial ?? 'Running';
   const total = { amount: guion.total ?? 1_150_000, currency: 'COP' };
   const json = (status: number, body: unknown): Promise<Response> =>
     Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
@@ -487,7 +491,7 @@ function puertaDeLaEstadia(guion: GuionDeLaEstadia = {}) {
     flujo: 'viajes.reserva',
     numero: NUMERO_DE_LA_ESTADIA,
     estado,
-    datos: { itinerario: [], subtotal: total, descuento: null, impuesto: null, total, vence: '2026-10-01T10:15:00Z' },
+    datos: { itinerario: guion.itinerario ?? [], subtotal: total, descuento: null, impuesto: null, total, vence: '2026-10-01T10:15:00Z' },
     compensacionesPendientes: 0,
     error: null,
     deshaciendo: false,
@@ -632,6 +636,8 @@ describe('La estadía por la puerta (línea 006)', () => {
         producto: 'SUITE/BB',
         etiqueta: 'Suite Vista al Mar',
         ventana: { start: '2026-10-01T00:00:00.000Z', end: '2026-10-04T00:00:00.000Z' },
+        // Una estadía se cotiza por noche (006-H2): el servidor multiplica su tarifa por noche por las tres noches.
+        porNoche: true,
       },
     ]);
     expect(abrir.llave).toMatch(/\S/);
@@ -742,5 +748,85 @@ describe('La estadía por la puerta (línea 006)', () => {
     expect(fixture.nativeElement.querySelector('syn-checkout-wizard')).toBeNull();
     expect(avisos()).toContain('Las reservas en línea no están disponibles en este momento.');
     expect(puerta.fetchDoble).not.toHaveBeenCalled();
+  });
+
+  // ── El enlace del aviso (lote 10, 006-H5): `/hoteles/?viaje={id}` abre la estadía ──────────────────────────
+
+  describe('el enlace del correo (?viaje={id})', () => {
+    const ESTANDAR = { producto: 'STD/STD-FLEX', etiqueta: 'Habitación Estándar', inicio: '2026-11-10T00:00:00Z', fin: '2026-11-13T00:00:00Z' };
+
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('CONSULTA esa estadía y, confirmada, enseña su comprobante con lo que dijo el servidor; el parámetro sale de la URL', async () => {
+      window.history.replaceState(null, '', `/hoteles/?viaje=${ID_DE_LA_ESTADIA}&utm=correo`);
+      const puerta = puertaDeLaEstadia({ estadoInicial: 'Completed', itinerario: [ESTANDAR], total: 660_000 });
+      montar(puerta);
+      await settle(fixture, 20);
+
+      expect(puerta.veces('consultar')).toBe(1);
+      expect(puerta.pedidos[0].url).toContain(`id=${ID_DE_LA_ESTADIA}`);
+      const comprobante = fixture.nativeElement.querySelector('syn-confirmation-shell') as HTMLElement;
+      expect(comprobante.textContent).toContain(NUMERO_DE_LA_ESTADIA);
+      expect(comprobante.textContent).toContain('Habitación Estándar');
+      expect(comprobante.textContent).toContain('2026-11-10');
+      expect(comprobante.textContent).toContain('2026-11-13');
+      expect(comprobante.textContent).toContain(formatearImporte(660_000, 'COP'));
+      expect(fixture.nativeElement.querySelector('syn-checkout-wizard')).toBeNull();
+      expect(window.location.search).toBe('?utm=correo');
+      expect(puerta.veces('abrir') + puerta.veces('cerrar') + puerta.directas()).toBe(0);
+    });
+
+    it('sin sesión ofrece entrar, la vuelta conserva el enlace, y el asistente sigue', async () => {
+      window.history.replaceState(null, '', `/hoteles/?viaje=${ID_DE_LA_ESTADIA}`);
+      const puerta = puertaDeLaEstadia({ rechazos: { consultar: { code: 'puerta.sesion_requerida', status: 401 } } });
+      montar(puerta);
+      await settle(fixture, 20);
+
+      const entrar = fixture.nativeElement.querySelector('syn-empty-state a') as HTMLAnchorElement;
+      expect(fixture.nativeElement.querySelector('syn-empty-state')?.textContent).toContain('Inicia sesión para ver tu estadía.');
+      expect(entrar.textContent?.trim()).toBe('Iniciar sesión');
+      expect(decodeURIComponent(entrar.getAttribute('href') ?? '')).toBe(`/account/login?returnUrl=/hoteles/?viaje=${ID_DE_LA_ESTADIA}`);
+      expect(window.location.search).toBe(`?viaje=${ID_DE_LA_ESTADIA}`);
+      expect(fixture.nativeElement.querySelector('syn-checkout-wizard')).not.toBeNull();
+    });
+
+    it('una estadía que no está en tu cuenta lo dice por su code, sin comprobante', async () => {
+      window.history.replaceState(null, '', `/hoteles/?viaje=${ID_DE_LA_ESTADIA}`);
+      const puerta = puertaDeLaEstadia({ rechazos: { consultar: { code: 'viajes.saga_not_found', status: 404 } } });
+      montar(puerta);
+      await settle(fixture, 20);
+
+      expect(avisos()).toContain('No encontramos ese viaje en tu cuenta.');
+      expect(fixture.nativeElement.querySelector('syn-confirmation-shell')).toBeNull();
+      expect(window.location.search).toBe('');
+    });
+
+    it('una estadía sin confirmar NO es un comprobante: dice en qué quedó', async () => {
+      for (const [estado, texto] of [
+        ['Running', 'Tu reserva sigue pendiente. Intenta de nuevo en un momento.'],
+        ['Compensated', 'Cancelamos tu reserva sin confirmar. No se te cobró nada.'],
+      ] as const) {
+        window.history.replaceState(null, '', `/hoteles/?viaje=${ID_DE_LA_ESTADIA}`);
+        const puerta = puertaDeLaEstadia({ estadoInicial: estado, itinerario: [ESTANDAR] });
+        montar(puerta);
+        await settle(fixture, 20);
+
+        expect(avisos()).toContain(texto);
+        expect(fixture.nativeElement.querySelector('syn-confirmation-shell')).toBeNull();
+        document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+        vi.unstubAllGlobals();
+        TestBed.resetTestingModule();
+      }
+    });
+
+    it('«directa»: el enlace no se lee y nada va a la puerta', async () => {
+      window.history.replaceState(null, '', `/hoteles/?viaje=${ID_DE_LA_ESTADIA}`);
+      const puerta = puertaDeLaEstadia({ estadoInicial: 'Completed' });
+      montar(puerta, NEGOCIO_DEL_CMS);
+      await settle(fixture, 20);
+
+      expect(puerta.alaPuerta()).toBe(0);
+      expect(window.location.search).toBe(`?viaje=${ID_DE_LA_ESTADIA}`);
+    });
   });
 });

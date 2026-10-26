@@ -283,7 +283,7 @@ export class TravelApiClient {
    * el correo de otro se leían sus viajes, y el servidor ya lo ignora. Su 401 sale como
    * {@link TravelSinSesionError}, nunca como los viajes de muestra.
    */
-  async trips(apiBase: string, currency: string): Promise<readonly TravelTrip[]> {
+  async trips(apiBase: string, currency: string, opciones: { readonly muestras?: boolean } = {}): Promise<readonly TravelTrip[]> {
     const url = `${apiBase}/trips`;
     try {
       const data = await this.getJson(apiBase, url);
@@ -295,6 +295,11 @@ export class TravelApiClient {
     } catch (error) {
       if (error instanceof TravelHttpError && error.status === 401) {
         throw new TravelSinSesionError('GET /api/travel/trips');
+      }
+      // Junto a los de la puerta (lote 10, 006-H1) no hay cartel de «datos de ejemplo» que valga: unos viajes de muestra
+      // se leerían como de la persona. Sin muestras, el fallo se dice.
+      if (opciones.muestras === false) {
+        throw error;
       }
       this.markDegraded('GET /api/travel/trips', error);
       return mockTrips(currency);
@@ -697,7 +702,8 @@ function normalizeTrips(value: unknown, fallbackCurrency: string): readonly Trav
             if (!isRecord(line)) {
               return null;
             }
-            const productRaw = readString(line['product']).trim();
+            // El CMS lo nombra como su enum (`Flight`): se compara sin mayúsculas, como el estado.
+            const productRaw = readString(line['product']).trim().toLowerCase();
             const product: TravelProduct =
               productRaw === 'flight' || productRaw === 'car' ? productRaw : 'hotel';
             return {

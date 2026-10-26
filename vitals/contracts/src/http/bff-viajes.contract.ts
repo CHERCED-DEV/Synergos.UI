@@ -75,7 +75,7 @@ export interface ViajesReservaCotizacion {
 }
 
 export interface ViajesReservaEntrada {
-  readonly items: readonly ({ readonly producto: string; readonly etiqueta?: string | null; readonly ventana: { readonly start: string; readonly end: string; }; })[];
+  readonly items: readonly ({ readonly producto: string; readonly etiqueta?: string | null; readonly ventana: { readonly start: string; readonly end: string; }; readonly porNoche?: boolean | null; })[];
 }
 
 export interface ViajesReservaPagina {

@@ -5,7 +5,8 @@ import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
-import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
+import { TravelFulfillmentStrategy, itemsDelViaje } from './travel-fulfillment.strategy';
+import { entradaDelViaje } from './travel-viaje';
 import { TravelShellElementComponent } from './travel-shell';
 import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
 
@@ -1138,6 +1139,8 @@ interface GuionDelViaje {
   readonly rechazos?: Partial<Record<OperacionDelViaje, { readonly code: string; readonly status?: number; readonly transient?: boolean }>>;
   /** Lo que `consultar` dice del viaje después de un `cerrar` rechazado. */
   readonly estadoTrasCerrar?: string;
+  /** Los viajes reservados antes por la ruta directa (`GET /api/travel/trips`); sin esto, esa ruta no contesta. */
+  readonly viajesDeAntes?: readonly unknown[];
 }
 
 interface PedidoAlViaje {
@@ -1179,6 +1182,9 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     const ruta = String(url);
     const metodo = (init?.method ?? 'GET').toUpperCase();
     rutas.push(`${metodo} ${ruta}`);
+    if (guion.viajesDeAntes && /\/api\/travel\/trips$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, { trips: guion.viajesDeAntes });
+    }
     const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
     if (!m) {
       return borde.fetchDoble(url, init);
@@ -1228,6 +1234,40 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
 /** Lo que el CMS manda cuando un sitio declara la puerta (`CaminoDeCompra.Decidir`, «directa» por defecto). */
 const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, bookingPath: 'puerta' };
 
+/** Un viaje reservado antes por la ruta directa, como lo devuelve `GET /api/travel/trips`. */
+/**
+ * Un viaje de antes como lo contesta el CMS (`TravelController.TripDto`, medido en vivo en la piloto el 2026-10-25): lo de
+ * siempre —`orderRef`, el estado y el producto como su enum, sin fechas— más el `ref` y el `title` que lee esta pantalla.
+ */
+const VIAJE_DE_ANTES = {
+  orderRef: 'trip_antes_1',
+  status: 'Confirmed',
+  confirmationCode: 'SYN-ANTES1',
+  guestName: 'Ana Viajera',
+  guestEmail: 'ana@ejemplo.co',
+  currentStage: 'confirmed',
+  total: 340_000,
+  totalFormatted: '$ 340.000',
+  currency: 'COP',
+  createdAt: '2026-10-25T23:30:32+00:00',
+  updatedAt: '2026-10-25T23:30:32+00:00',
+  items: [
+    {
+      product: 'Flight',
+      offerId: 'SYN2200-ECOBAS',
+      label: 'Bogotá → Cartagena · SYN2200',
+      reservationId: '',
+      status: 'Confirmed',
+      price: 340_000,
+      priceFormatted: '$ 340.000',
+      currency: 'COP',
+      title: 'Bogotá → Cartagena · SYN2200',
+    },
+  ],
+  ref: 'trip_antes_1',
+  title: 'Bogotá → Cartagena · SYN2200',
+};
+
 describe('El viaje por la puerta (línea 006)', () => {
   let fixture: ComponentFixture<TravelShellElementComponent>;
   let component: TravelShellElementComponent;
@@ -1237,9 +1277,9 @@ describe('El viaje por la puerta (línea 006)', () => {
   async function montar(
     puerta: ReturnType<typeof puertaDelViaje>,
     config: object = POR_LA_PUERTA,
-    { conCoordinador = true }: { conCoordinador?: boolean } = {},
+    { conCoordinador = true, hash = '' }: { conCoordinador?: boolean; hash?: string } = {},
   ): Promise<void> {
-    window.location.hash = '';
+    window.location.hash = hash;
     installMemoryStorage();
     vi.stubGlobal('fetch', puerta.fetchDoble);
     await TestBed.configureTestingModule({
@@ -1326,6 +1366,8 @@ describe('El viaje por la puerta (línea 006)', () => {
 
     const abrir = puerta.pedidos.find((p) => p.operacion === 'abrir')!;
     const [item] = abrir.cuerpo!.items!;
+    // Un vuelo va por producto: sin la marca de alojamiento (006-H2).
+    expect(item).not.toHaveProperty('porNoche');
     expect(item.ventana).toEqual({ start: '2026-08-01T00:00:00.000Z', end: '2026-08-05T00:00:00.000Z' });
     expect(item.etiqueta).not.toBe('');
     expect(abrir.llave).toMatch(/\S/);
@@ -1447,23 +1489,69 @@ describe('El viaje por la puerta (línea 006)', () => {
 
   // ── «Mis viajes» y el enlace del aviso (T028) ───────────────────────────────────────────────────────────
 
-  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar`, con lo que dice el servidor; ni /trips ni cancelar aquí', async () => {
-    const puerta = puertaDelViaje();
+  it('«Mis viajes» por la puerta son los CONFIRMADOS de `listar` y, junto a ellos, los de antes por /trips, de sólo lectura (006-H1)', async () => {
+    const puerta = puertaDelViaje({ viajesDeAntes: [VIAJE_DE_ANTES] });
     await montar(puerta);
     component.goToAccount();
     fixture.detectChanges();
     await asentar(20);
+    fixture.detectChanges();
 
     const listar = puerta.pedidos.find((p) => p.operacion === 'listar')!;
     expect(new URL(listar.url, 'http://x').searchParams.get('estado')).toBe('Completed');
-    expect(puerta.rutas.some((r) => r.includes('/trips'))).toBe(false);
-    const [trip] = component.trips();
+    const [trip, deAntes] = component.trips();
+    expect(component.trips()).toHaveLength(2);
+    // Lo de antes: el de la ruta directa, en la forma del CMS, marcado y sin acciones.
+    expect(deAntes.ref).toBe('trip_antes_1');
+    expect(deAntes.title).toBe('Bogotá → Cartagena · SYN2200');
+    expect(deAntes.items.map((i) => [i.product, i.title])).toEqual([['flight', 'Bogotá → Cartagena · SYN2200']]);
+    expect(deAntes.soloLectura).toBe(true);
+    expect(component.canCancel(deAntes)).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.travel__trip-readonly')?.textContent?.trim()).toBe('Reservado antes · sólo lectura');
+    // Sin fechas, su fila dice el total y no un « → » vacío; abierto, sin destino no hay un «·» colgando ni nada que cancelar.
+    const host = fixture.nativeElement as HTMLElement;
+    const fechas = Array.from(host.querySelectorAll('.travel__trip-dates')).map((n) => n.textContent?.trim());
+    expect(fechas[1]).not.toContain('→');
+    expect(fechas[1]).toContain('340.000');
+    (Array.from(host.querySelectorAll('.syn-account__list-item button')).find((b) => b.textContent?.includes('sólo lectura')) as HTMLElement).click();
+    fixture.detectChanges();
+    await asentar(5);
+    fixture.detectChanges();
+    const meta = host.querySelector('.travel__trip-detail .travel__trip-meta')?.textContent?.trim() ?? '';
+    expect(meta).toContain('340.000');
+    expect(meta.startsWith('·')).toBe(false);
+    expect(Array.from(host.querySelectorAll('.travel__trip-detail button')).map((b) => b.textContent?.trim())).not.toContain('Cancelar viaje');
     expect(trip.ref).toBe(NUMERO_DEL_VIAJE);
     expect(trip.title).toBe('Bogotá → Cartagena');
     expect([trip.startDate, trip.endDate]).toEqual(['2026-08-01', '2026-08-05']);
     expect(trip.total).toBe(1_900_000);
     // Confirmado por la puerta, lo gestiona quien vende (006-P3).
     expect(component.canCancel(trip)).toBe(false);
+  });
+
+  it('entrar directo por #/travel/cuenta/viajes carga «Mis viajes» con lo que puso el CMS, nunca con viajes de muestra (006-H1)', async () => {
+    const puerta = puertaDelViaje({ viajesDeAntes: [VIAJE_DE_ANTES] });
+    await montar(puerta, POR_LA_PUERTA, { hash: '#/travel/cuenta/viajes' });
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('account');
+    expect(puerta.pedidos.some((p) => p.operacion === 'listar')).toBe(true);
+    expect(component.trips().map((t) => t.ref)).toEqual([NUMERO_DEL_VIAJE, 'trip_antes_1']);
+    expect(component.degraded()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Mostrando datos de ejemplo');
+  });
+
+  it('si lo de antes no contesta se enseña lo de la puerta y se dice; nunca viajes de muestra', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+    component.goToAccount();
+    fixture.detectChanges();
+    await asentar(20);
+    fixture.detectChanges();
+
+    expect(component.trips().map((t) => t.ref)).toEqual([NUMERO_DEL_VIAJE]);
+    expect(alertas()).toContain('No pudimos cargar tus viajes de antes.');
   });
 
   describe('el enlace del aviso', () => {
@@ -1506,5 +1594,19 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(fixture.debugElement.query(By.directive(CheckoutWizardComponent))).toBeNull();
     expect(alertas()).toContain('Las reservas en línea no están disponibles en este momento.');
     expect(puerta.alaPuerta()).toBe(0);
+  });
+});
+
+describe('el alojamiento va por noche (006-H2)', () => {
+  const linea = (kind: string, productRef: string) => ({
+    id: `${kind}:${productRef}`, kind, productRef, label: productRef, amount: 0, quantity: 1,
+    selection: { start: '2026-11-23T00:00:00.000Z', end: '2026-11-26T00:00:00.000Z' },
+  });
+
+  it('sólo el hotel lleva la marca: el vuelo y el auto van por producto', () => {
+    const sesion = { items: [linea('hotel', 'STD/STD-FLEX'), linea('flight', 'SYN2200-ECOBAS'), linea('car', 'ECON')] } as never;
+    const items = entradaDelViaje(itemsDelViaje(sesion)).items;
+
+    expect(items.map((i) => i.porNoche ?? null)).toEqual([true, null, null]);
   });
 });
