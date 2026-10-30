@@ -8,6 +8,7 @@ export * from './alquiler.renta';
 export * from './educacion.devolucion';
 export * from './educacion.matricula';
 export * from './eventos.compra';
+export * from './gobierno.radicacion';
 export * from './propiedades.visita';
 export * from './propiedades.visita-cancelacion';
 export * from './reservas.servicio';

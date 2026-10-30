@@ -127,7 +127,14 @@ export const EXCEPCIONES = {
   // 'utf8'` quitaría a TODOS los elementos—; eso es otra decisión, no un recorte de este vertical.
   eventos: { techo: 440 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map, compra por la puerta, cupón y compra pendiente. 423 KB medidos el 2026-10-14, 233 de shells (55 %)' },
   blogs: { techo: 356 * KB, razon: 'vertical completa: índice, artículo, comentarios. 329 KB medidos, 142 de shells (43 %)' },
-  gov: { techo: 344 * KB, razon: 'vertical completa: trámites, formularios, expediente. 319 KB medidos, 181 de shells (57 %)' },
+  // Resubido el 2026-10-26 (ADR 0140, línea 009): 347,8 KB medidos (356 167 B), reempaquetando la entrada AOT con las
+  // opciones de build.mjs y metafile: 181,2 de shells (52 %), 152,0 del propio componente (gov.js 123,4 con su
+  // plantilla), 8,0 de la puerta común (vitals/core/flujos 7,4 y el envoltorio generado de gobierno.radicacion 0,6) y 5,0
+  // de contratos. Lo que entró desde los 319 es la v2 del trámite (las acciones que sirve el proceso, la aceptación de la
+  // notificación, la subsanación) y la radicación por la PUERTA (abrir con la tasa del servidor, las respuestas en el CMS,
+  // cerrar, el comprobante, los rechazos por código y el enlace del aviso); el camino directo sigue vivo al lado.
+  // Saltaba por 1 %. Lo evitable no es del vertical: 5 523 escapes `ɵ` (32,4 KB), la decisión de `charset` que anotó eventos.
+  gov: { techo: 376 * KB, razon: 'vertical completa: trámites, formularios, expediente y la radicación por la puerta con «Mis solicitudes». 348 KB medidos el 2026-10-26, 181 de shells (52 %) y 8 de la puerta' },
   // Resubido el 2026-10-30 (director, al integrar T034 de 003): 328,3 KB medidos sobre la mezcla con master, que daba
   // 327,0 (UI `1270bfb`) con el techo al 99,7 %. Lo que entró en T034 (+1,3 KB) es «Mis citas» por `listar` de la
   // puerta, el profesional en el enlace del correo y el rechazo de cotizar que ya no se queda en caché: funcionalidad,

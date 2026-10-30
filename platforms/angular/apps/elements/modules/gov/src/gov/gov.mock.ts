@@ -22,7 +22,8 @@ import type {
 } from './gov.model';
 
 /** Service detail plus the `estimatedDays` used to build the summary card. */
-export type MockServiceDetail = GovServiceDetail & { readonly estimatedDays: number };
+/** Un trámite de la muestra: sin clave del nodo (no es contenido), así que se radica por su id. */
+export type MockServiceDetail = Omit<GovServiceDetail, 'key'> & { readonly estimatedDays: number };
 
 /** A mutable seeded application; the mock store advances it in place. */
 export interface SeedApplication {
