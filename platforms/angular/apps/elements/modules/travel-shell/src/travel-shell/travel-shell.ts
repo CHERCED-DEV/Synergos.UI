@@ -143,6 +143,8 @@ export function mensajeDelViaje(code: string): string {
     'cliente.sin_periodo': t('Travel.Booking.NoDates', 'A una parte de tu viaje le faltan las fechas. Búscala otra vez.'),
     'viajes.not_continuable': t('Travel.Booking.NotConfirmable', 'Este viaje ya no se puede confirmar.'),
     'viajes.saga_not_found': t('Travel.Booking.NotFound', 'No encontramos ese viaje en tu cuenta.'),
+    // Con la política «parcial», ningún ítem se pudo confirmar: el viaje se deshizo y se devolvió lo cobrado (historia 3).
+    'flow.nada_cumplido': t('Travel.Booking.NothingFulfilled', 'Ningún ítem de tu viaje se pudo confirmar. Te devolvimos el pago.'),
   };
   if (code.startsWith('pricing.')) {
     return t('Travel.Booking.PriceUnavailable', 'No pudimos calcular el total de tu viaje. Intenta de nuevo en un momento.');
@@ -213,6 +215,12 @@ interface ConfirmedVoucher {
   readonly subtitle: string;
   readonly reference: string;
   readonly reservationId: string;
+}
+
+/** Un ítem que no se pudo confirmar tras cobrar (historia 3), con lo que se le devolvió, como lo dijo el servidor. */
+interface ItemNoCumplido {
+  readonly title: string;
+  readonly devuelto: number;
 }
 
 const DEFAULT_SCOPE = 'travel';
@@ -847,6 +855,35 @@ export class TravelShellElementComponent implements OnInit {
   readonly confirmationCredentials = computed<readonly WalletCredential[]>(() =>
     this.confirmedVouchers().map((voucher) => this.toCredential(voucher, this.orderRef())),
   );
+
+  /** Lo que no se pudo confirmar del viaje recién pagado (historia 3): no tiene credencial y se dice. */
+  readonly noCumplidosDeLaConfirmacion = signal<readonly ItemNoCumplido[]>([]);
+  /** La moneda del viaje recién pagado, para decir lo devuelto. */
+  readonly #monedaDeLaConfirmacion = signal('');
+  readonly notaDeLaConfirmacion = computed(() => {
+    const caidos = this.noCumplidosDeLaConfirmacion();
+    return caidos.length === 0 ? '' : `${this.textoParcial}. ${this.notaParcial(caidos, this.#monedaDeLaConfirmacion())}`;
+  });
+
+  readonly textoParcial = t('Travel.Booking.PartiallyConfirmed', 'Confirmado (parcial)');
+  readonly textoNoCumplido = t('Travel.Booking.ItemNotFulfilled', 'No se pudo confirmar:');
+  readonly textoParteDevuelta = t('Travel.Booking.PartRefunded', 'Te devolvimos su parte:');
+
+  /** La nota de un viaje parcial: qué no se confirmó y cuánto se devolvió; vacía si todo salió. */
+  notaParcial(caidos: readonly ItemNoCumplido[], currency: string): string {
+    if (caidos.length === 0) {
+      return '';
+    }
+    const nombres = caidos.map((c) => c.title).join(', ');
+    const devuelto = caidos.reduce((suma, c) => suma + c.devuelto, 0);
+    const nota = `${this.textoNoCumplido} ${nombres}.`;
+    return devuelto > 0 ? `${nota} ${this.textoParteDevuelta} ${this.formatPrice(devuelto, currency)}.` : nota;
+  }
+
+  /** Lo que no se cumplió de un viaje de «Mis viajes», para su nota. */
+  noCumplidosDe(trip: TravelTrip): readonly ItemNoCumplido[] {
+    return trip.items.filter((i) => i.noCumplido).map((i) => ({ title: i.title, devuelto: i.devuelto ?? 0 }));
+  }
 
   readonly walletConfig: CredentialWalletConfig = {
     heading: 'Tus credenciales de viaje',
@@ -1745,8 +1782,19 @@ export class TravelShellElementComponent implements OnInit {
     this.orderRef.set(result.reference);
     const code = this.voucherConfirmationCode(result.vouchers) || result.reference;
     this.confirmationCode.set(code);
+    // Lo que el servidor no pudo confirmar (historia 3) no es una credencial: se dice aparte, con lo devuelto.
+    const cumplidos = result.vouchers.filter((voucher) => voucher.detail?.['noCumplido'] !== true);
+    this.#monedaDeLaConfirmacion.set(this.#store.pricing().currency || this.currency());
+    this.noCumplidosDeLaConfirmacion.set(
+      result.vouchers
+        .filter((voucher) => voucher.detail?.['noCumplido'] === true)
+        .map((voucher) => ({
+          title: this.voucherString(voucher.detail, 'title'),
+          devuelto: typeof voucher.detail?.['devuelto'] === 'number' ? (voucher.detail['devuelto'] as number) : 0,
+        })),
+    );
     this.confirmedVouchers.set(
-      result.vouchers.map((voucher) => ({
+      cumplidos.map((voucher) => ({
         product: this.voucherProduct(voucher.detail),
         title: this.voucherString(voucher.detail, 'title') || 'Reserva',
         subtitle: this.voucherString(voucher.detail, 'subtitle'),
@@ -1940,7 +1988,10 @@ export class TravelShellElementComponent implements OnInit {
   }
 
   tripCredentials(trip: TravelTrip): readonly WalletCredential[] {
-    return trip.items.map((item, indice) => this.tripItemToCredential(trip, item, indice));
+    // Lo que no se pudo confirmar (historia 3) no tiene QR que enseñar: no está reservado.
+    return trip.items
+      .map((item, indice) => (item.noCumplido ? null : this.tripItemToCredential(trip, item, indice)))
+      .filter((credencial): credencial is WalletCredential => credencial !== null);
   }
 
   canCancel(trip: TravelTrip): boolean {
@@ -2004,6 +2055,7 @@ export class TravelShellElementComponent implements OnInit {
     this.orderRef.set('');
     this.confirmationCode.set('');
     this.confirmedVouchers.set([]);
+    this.noCumplidosDeLaConfirmacion.set([]);
     this.stay.set(null);
     this.errorMessage.set('');
     this.navigate('home');
