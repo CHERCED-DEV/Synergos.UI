@@ -48,13 +48,14 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { GovProps } from '@synergos/contracts';
-import { GovApiClient, isGovForbidden, isGovRechazoDeLaRadicacion, isGovUnauthorized } from './gov-api.client';
+import { GovApiClient, isGovForbidden, isGovRechazoDeLaRadicacion, isGovRechazoDelActo, isGovUnauthorized } from './gov-api.client';
 import {
   abrirRadicacion,
   caminoDeLaRadicacion,
   cerrarRadicacion,
   consumirRadicacionDelEnlace,
   nuevaLlaveDeLaRadicacion,
+  nuevaLlaveDelActo,
   radicacionDelEnlace,
   type Importe,
 } from './gov-radicacion';
@@ -213,6 +214,14 @@ function textosDelTramite() {
     sinOferta: t('Gov.Tramite.Error.NoOffer', 'Este trámite no se puede radicar en línea ahora.'),
     tasaNoCobrada: t('Gov.Tramite.Error.Payment', 'No se pudo cobrar la tasa; no se radicó nada.'),
     solicitudNoExiste: t('Gov.Tramite.Error.NotFound', 'La solicitud no existe.'),
+    // Cerrar no terminó por una caída (001-P10): la radicación queda en duda y repetirla la termina con el mismo cobro.
+    radicacionSinTerminar: t(
+      'Gov.Tramite.Error.Unfinished',
+      'No pudimos terminar la radicación. Vuelva a intentarlo: no se le cobra dos veces y, si no se completa, se le devuelve lo que se le haya cobrado.',
+    ),
+    // Los «no» de un acto sobre el expediente, por su código (009, T039).
+    expedienteCambio: t('Gov.Tramite.Error.Changed', 'El expediente ya cambió.'),
+    expedienteCerrado: t('Gov.Tramite.Error.Closed', 'El expediente está cerrado.'),
   };
 }
 
@@ -429,6 +438,19 @@ export class GovElementComponent implements OnInit {
   readonly tasaCobrada = signal<Importe | null>(null);
   /** La llave de la intención de radicar en curso: una por formulario empezado (SC-006). */
   #llaveDeLaRadicacion: string | null = null;
+  /**
+   * La llave de la intención del acto en curso sobre el expediente abierto (009, T039), con el acto al que pertenece: la
+   * misma en el reintento tras un corte, nueva para otro acto —rechazar después de un «aprobar» que no salió es otra
+   * intención—, al abrir otro expediente o cuando el acto terminó (bien, o porque el expediente ya cambió).
+   */
+  #llaveDelActo: { readonly acto: string; readonly llave: string } | null = null;
+
+  #llavePara(acto: string): string {
+    if (this.#llaveDelActo?.acto !== acto) {
+      this.#llaveDelActo = { acto, llave: nuevaLlaveDelActo(acto) };
+    }
+    return this.#llaveDelActo.llave;
+  }
 
   // ─── Actos notificados (HU CMS#62 · #20) ────────────────────────────────────
   readonly notifications = signal<readonly GovActNotification[]>([]);
@@ -1328,6 +1350,13 @@ export class GovElementComponent implements OnInit {
 
       const cerrada = await cerrarRadicacion(this.#host, abierta.valor.id);
       if (!cerrada.ok) {
+        // Cerrar no terminó por una caída: la radicación queda en duda (001-P10), la tasa pudo cobrarse, y repetir con la
+        // misma llave la termina con el mismo cobro. Decir sólo «no disponible» callaría lo que pudo pasar con la plata.
+        if (cerrada.rechazo.transient || cerrada.rechazo.origen === 'red') {
+          this.errorMessage.set(this.txt.radicacionSinTerminar);
+          this.announce(this.txt.radicacionSinTerminar);
+          return;
+        }
         this.#rechazoDeLaPuerta(cerrada.rechazo);
         return;
       }
@@ -1554,6 +1583,7 @@ export class GovElementComponent implements OnInit {
     try {
       const detail = await this.#api.application(this.apiBase(), id);
       this.activeApplication.set(detail);
+      this.#llaveDelActo = null;
       this.activeThreadId.set(null);
       this.citizenAccess.set('ok');
       this.accessNotice.set('');
@@ -1607,8 +1637,9 @@ export class GovElementComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const detail = await this.#api.resubmit(this.apiBase(), applicationId, this.resubmitNote().trim());
+      const detail = await this.#api.resubmit(this.apiBase(), applicationId, this.resubmitNote().trim(), this.#llavePara('subsanacion'));
       this.activeApplication.set(detail);
+      this.#llaveDelActo = null;
       this.resubmitNote.set('');
       this.applicationsLoaded.set(false); // la carpeta refleja el nuevo estado
       this.announce(this.txt.subsanado);
@@ -1616,11 +1647,33 @@ export class GovElementComponent implements OnInit {
       if (this.handleCitizenDenied(error, { scope: 'record' })) {
         return;
       }
-      this.errorMessage.set(this.txt.subsanarFallo);
-      void error;
+      this.#rechazoDelActo(error, this.txt.subsanarFallo, () => this.loadApplication(applicationId));
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Un «no» de un acto sobre el expediente, dicho por su código (009, T039): el expediente ya cambió —otro funcionario,
+   * otra pestaña— o está cerrado, y entonces se relee para mostrar dónde quedó y el acto siguiente es otra intención; la
+   * radicación no existe; o, sin código, el fallo de ese acto, y reintentar es la misma intención.
+   */
+  #rechazoDelActo(error: unknown, fallo: string, releer: () => Promise<void>): void {
+    const code = isGovRechazoDelActo(error) ? error.code : '';
+    const terminado =
+      code === 'workflow.transition_not_allowed' ? this.txt.expedienteCambio
+      : code === 'workflow.instance_closed' ? this.txt.expedienteCerrado
+      : code === 'flow.original_no_encontrada' ? this.txt.solicitudNoExiste
+      : null;
+    if (terminado === null) {
+      this.errorMessage.set(fallo);
+      return;
+    }
+    this.#llaveDelActo = null;
+    void releer().then(() => {
+      this.errorMessage.set(terminado);
+      this.announce(terminado);
+    });
   }
 
   // ─── Subir documento ────────────────────────────────────────────────────────
@@ -1825,6 +1878,7 @@ export class GovElementComponent implements OnInit {
     try {
       const kase = await this.#api.case(this.apiBase(), caseId);
       this.activeCase.set(kase);
+      this.#llaveDelActo = null;
       this.decisionNote.set('');
       this.officerAccess.set('ok');
       // View was already set by `applyRoute` before dispatch — do not re-route.
@@ -1857,16 +1911,16 @@ export class GovElementComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const kase = await this.#api.take(this.apiBase(), caseId);
+      const kase = await this.#api.take(this.apiBase(), caseId, this.#llavePara('toma'));
       this.activeCase.set(kase);
+      this.#llaveDelActo = null;
       this.queueLoaded.set(false); // la cola refleja el nuevo estado
       this.announce(this.txt.tomado);
     } catch (error) {
       if (this.handleOfficerDenied(error)) {
         return;
       }
-      this.errorMessage.set(this.txt.tomarFallo);
-      void error;
+      this.#rechazoDelActo(error, this.txt.tomarFallo, () => this.loadCase(caseId));
     } finally {
       this.loading.set(false);
     }
@@ -1890,8 +1944,9 @@ export class GovElementComponent implements OnInit {
         caseId,
         outcome,
         note: this.decisionNote().trim(),
-      });
+      }, this.#llavePara(`decision-${outcome}`));
       this.activeCase.set(kase);
+      this.#llaveDelActo = null;
       this.decisionNote.set('');
       this.queueLoaded.set(false); // queue must refetch to reflect the new status
       this.announce(`El caso pasó a: ${STATUS_LABELS[kase.application.status]}.`);
@@ -1901,8 +1956,7 @@ export class GovElementComponent implements OnInit {
       if (this.handleOfficerDenied(error)) {
         return;
       }
-      this.errorMessage.set('No pudimos registrar la decisión. Intente de nuevo.');
-      void error;
+      this.#rechazoDelActo(error, 'No pudimos registrar la decisión. Intente de nuevo.', () => this.loadCase(caseId));
     } finally {
       this.loading.set(false);
     }

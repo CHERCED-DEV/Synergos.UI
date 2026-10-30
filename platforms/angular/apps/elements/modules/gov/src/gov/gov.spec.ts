@@ -60,12 +60,18 @@ function bordeDeGobierno(
       readonly timeline?: readonly Record<string, unknown>[];
       readonly documents?: readonly Record<string, unknown>[];
     };
+    /** Los «no» con código de un acto (`POST /case/{id}/take`…), uno por llamada y en orden (009, T039). */
+    readonly rechazos?: Readonly<Record<string, readonly { readonly code: string; readonly status: number }[]>>;
   } = {},
 ): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
   readonly llamadas: (clave: string) => number;
+  /** La llave de la intención con que salió cada acto, `«MÉTODO ruta» llave`, en orden. */
+  readonly llaves: () => readonly string[];
 } {
   const caidas = new Set(opciones.caidas ?? []);
+  const rechazos = new Map(Object.entries(opciones.rechazos ?? {}).map(([clave, lista]) => [clave, [...lista]]));
+  const llaves: string[] = [];
   const casoServido = opciones.caso ?? { status: 'submitted', actions: ['take'] };
   /**
    * Un `CaseResponse` como el de `GovController`, con lo que el proceso le permite al funcionario
@@ -133,8 +139,16 @@ function bordeDeGobierno(
     const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/gov/, '');
     const clave = `${metodo} ${ruta}`;
     vistas.push(clave);
+    const llave = new Headers(init?.headers).get('Idempotency-Key');
+    if (metodo === 'POST' && llave) {
+      llaves.push(`${clave} ${llave}`);
+    }
     if (caidas.has(clave)) {
       return Promise.reject(new Error('offline'));
+    }
+    const rechazo = rechazos.get(clave)?.shift();
+    if (rechazo) {
+      return responder(rechazo.status, { code: rechazo.code, transient: rechazo.status >= 500, detail: 'guionado' });
     }
     const cuerpo =
       init?.body && typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {};
@@ -220,7 +234,7 @@ function bordeDeGobierno(
     }
   });
 
-  return { fetchDoble, llamadas: (clave) => vistas.filter((vista) => vista === clave).length };
+  return { fetchDoble, llamadas: (clave) => vistas.filter((vista) => vista === clave).length, llaves: () => [...llaves] };
 }
 
 describe('GovElementComponent (v2 dual face)', () => {
@@ -603,6 +617,71 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.errorMessage()).toBe('No pudimos tomar el expediente. Intente de nuevo.');
   });
 
+  // ── 009, T039: cada acto lleva la llave de su INTENCIÓN —el CMS la lleva a la puerta en un expediente de la puerta—, y
+  //    un «no» se dice por su código ───────────────────────────────────────────────────────────────────────────────────
+  async function abrirCaso(id: string): Promise<void> {
+    component.setRole('officer');
+    await flushMicrotasks();
+    component.openCase(id);
+    await flushMicrotasks();
+  }
+
+  it('tomar manda la llave de su intención: el reintento tras un corte es la misma y el acto siguiente, otra', async () => {
+    const id = 'app-seed-4';
+    const borde = bordeDeGobierno({ rechazos: { [`POST /case/${id}/take`]: [{ code: 'workflow.no_disponible', status: 503 }] } });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirCaso(id);
+
+    component.take();
+    await flushMicrotasks();
+    expect(component.errorMessage()).toBe('No pudimos tomar el expediente. Intente de nuevo.');
+    component.take();
+    await flushMicrotasks();
+    component.decisionNote.set('Cumple.');
+    component.decide('approve');
+    await flushMicrotasks();
+
+    const [primera, reintento, decision] = borde.llaves();
+    expect(primera).toMatch(new RegExp(`^POST /case/${id}/take toma-[0-9a-f]{32}$`));
+    expect(reintento).toBe(primera);
+    expect(decision).toMatch(/^POST \/decision decision-approve-[0-9a-f]{32}$/);
+  });
+
+  it('«el expediente ya cambió», por su código: lo dice, relee el expediente y el acto siguiente es otra intención', async () => {
+    const id = 'app-seed-4';
+    const borde = bordeDeGobierno({
+      rechazos: { [`POST /case/${id}/take`]: [{ code: 'workflow.transition_not_allowed', status: 409 }] },
+    });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirCaso(id);
+    const lecturas = borde.llamadas(`GET /case/${id}`);
+
+    component.take();
+    await flushMicrotasks();
+
+    expect(component.errorMessage()).toBe('El expediente ya cambió.');
+    expect(borde.llamadas(`GET /case/${id}`)).toBe(lecturas + 1);
+    component.take();
+    await flushMicrotasks();
+    const [primera, segunda] = borde.llaves();
+    expect(segunda).not.toBe(primera);
+  });
+
+  it('decidir sobre un expediente que ya se cerró lo dice por su código', async () => {
+    const borde = bordeDeGobierno({
+      caso: { status: 'in-review', actions: ['approve', 'reject', 'request-info'] },
+      rechazos: { 'POST /decision': [{ code: 'workflow.instance_closed', status: 409 }] },
+    });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirCaso('app-seed-3');
+
+    component.decisionNote.set('No cumple.');
+    component.decide('reject');
+    await flushMicrotasks();
+
+    expect(component.errorMessage()).toBe('El expediente está cerrado.');
+  });
+
   it('en «información solicitada» al funcionario no se le ofrece nada: se espera al ciudadano', async () => {
     await createComponent(
       NEGOCIO_DEL_CMS,
@@ -773,6 +852,17 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.canResubmit()).toBe(true);
     expect(component.resubmitNote()).toBe('Lo pedido va en el mensaje.');
     expect(component.errorMessage()).toBe('No pudimos enviar la subsanación. Intente de nuevo.');
+  });
+
+  it('subsanar manda la llave de su intención (009, T039)', async () => {
+    const borde = bordeDeGobierno({ solicitud: { status: 'info-requested', actions: ['resubmit'], timeline: [HITO_DE_LA_PETICION] } });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    await abrirSolicitud('app_77');
+
+    component.resubmit();
+    await flushMicrotasks();
+
+    expect(borde.llaves()).toEqual([expect.stringMatching(/^POST \/application\/app_77\/resubmit subsanacion-[0-9a-f]{32}$/)]);
   });
 
   // ── 009, S-7: la notificación electrónica se acepta EXPRESAMENTE al radicar ─────
@@ -2282,6 +2372,23 @@ describe('La radicación por la puerta (009-gobierno-tramite T031 y T033)', () =
     expect(llaves).toHaveLength(2);
     expect(llaves[1]).toBe(llaves[0]);
     expect(component.view()).toBe('receipt');
+  });
+
+  it('cerrar que no termina por una caída dice que repetir no cobra dos veces, y repetir es la misma intención (001-P10)', async () => {
+    const puerta = puertaDeLaRadicacion({ rechazos: { cerrar: { code: 'workflow.no_disponible', status: 503 } } });
+    await montar(puerta);
+    await hastaElFormulario();
+
+    await radicar();
+    expect(component.errorMessage()).toBe(
+      'No pudimos terminar la radicación. Vuelva a intentarlo: no se le cobra dos veces y, si no se completa, se le devuelve lo que se le haya cobrado.',
+    );
+    expect(component.view()).toBe('apply');
+    await radicar();
+
+    const llaves = puerta.pedidos.filter((p) => p.operacion === 'abrir').map((p) => p.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[1]).toBe(llaves[0]);
   });
 
   it('sin sesión dice «Inicie sesión para radicar» y no guarda ni cierra nada', async () => {
