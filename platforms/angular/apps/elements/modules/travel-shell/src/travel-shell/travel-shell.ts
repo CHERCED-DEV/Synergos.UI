@@ -84,6 +84,7 @@ import {
   TRAVEL_FLOW,
   TRAVEL_PRODUCTS,
   caminoDeLaReserva,
+  pasajerosDelVuelo,
   periodoDeLaBusqueda,
   type CancelReceipt,
   type CarCriteria,
@@ -1442,6 +1443,7 @@ export class TravelShellElementComponent implements OnInit {
     }
     const seats = this.selectedSeats();
     const seatLabel = seats.length > 0 ? ` · Asiento ${seats.join(', ')}` : '';
+    const { adultos, ninos } = pasajerosDelVuelo(this.flightRooms());
     const selection: Record<string, unknown> = {
       ...flight.detail,
       apiBase: this.apiBase(),
@@ -1451,6 +1453,10 @@ export class TravelShellElementComponent implements OnInit {
       fareLabel: fare.label,
       seat: seats.join(','),
       ...this.periodoDe('flight'),
+      // Cómo lo cobra la puerta (lote 13): por trayecto, ida o ida y vuelta, por adulto y por niño.
+      tramos: this.flightReturn().trim() ? 2 : 1,
+      adultos,
+      ninos,
     };
     this.commitToCart({
       productRef: flight.offerId,
@@ -2149,7 +2155,9 @@ export class TravelShellElementComponent implements OnInit {
           rooms: this.hotelRooms(),
           pax: paxCount(this.hotelRooms()),
         } satisfies HotelCriteria & { pax: number };
-      case 'flight':
+      case 'flight': {
+        // Los pasajeros con la regla del catálogo (lote 13): la oferta dice el precio de ESOS pasajeros, el que cobra la puerta.
+        const { adultos, ninos, infantes } = pasajerosDelVuelo(this.flightRooms());
         return {
           origin: this.flightOrigin().trim(),
           destination: this.flightDestination().trim(),
@@ -2157,7 +2165,11 @@ export class TravelShellElementComponent implements OnInit {
           returnDate: this.flightReturn(),
           rooms: this.flightRooms(),
           pax: paxCount(this.flightRooms()),
-        } satisfies FlightCriteria & { pax: number };
+          adults: adultos,
+          children: ninos,
+          infants: infantes,
+        } satisfies FlightCriteria & { pax: number; adults: number; children: number; infants: number };
+      }
       case 'car':
         return {
           location: this.carLocation().trim(),
