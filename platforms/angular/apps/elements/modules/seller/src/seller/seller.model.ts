@@ -131,6 +131,30 @@ export interface PedidoDeLaTienda {
   readonly motivoSinActos: string | null;
 }
 
+/** Un acto del personal sobre un pedido (013-seller-operaciones, R4): lo que el servidor pone en `actos`. */
+export type ActoDelDespacho = 'preparar' | 'enviar' | 'entregar';
+
+export const ACTOS_DEL_DESPACHO: readonly ActoDelDespacho[] = ['preparar', 'enviar', 'entregar'];
+
+/** La guía más larga que acepta el acto de enviar, en una línea (la misma del servidor). */
+export const GUIA_MAXIMA = 80;
+
+/**
+ * Lo que dejó un acto (T021): el pedido como lo dejó el servidor —nulo si contestó que sí con una forma que no se
+ * entiende—, o que no se hizo (#77) y por qué: la sesión, el permiso, un rechazo con su código y la etapa en que sigue,
+ * o que no se pudo ahora (la red, un 5xx o un transitorio), sin que nada cambiara.
+ */
+export type ResultadoDelActo =
+  | { readonly hecho: true; readonly pedido: PedidoDeLaTienda | null }
+  | {
+      readonly hecho: false;
+      readonly por: 'sin-sesion' | 'sin-permiso' | 'rechazo' | 'caida';
+      /** El código del servidor (`fulfillment.transition_not_allowed`, `tienda.acto_fuera_de_orden`…), si lo mandó. */
+      readonly codigo: string | null;
+      /** La etapa en que sigue el pedido, si el servidor la dijo. */
+      readonly etapa: EtapaDelDespacho | null;
+    };
+
 /** Una página de la bandeja, con las cuentas por etapa de la tienda entera (no de la página ni del filtro). */
 export interface BandejaDeLaTienda {
   readonly pedidos: readonly PedidoDeLaTienda[];

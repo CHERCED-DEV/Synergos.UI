@@ -205,9 +205,44 @@
           @if (d.motivoSinEnvio) {
             <p class="seller__hint">{{ textoSinEnvioDe(d.motivoSinEnvio) }}</p>
           }
+          @if (textoSinActosDe(d.motivoSinActos); as sinActos) {
+            <p class="seller__hint">{{ sinActos }}</p>
+          }
         } @else {
           <p class="seller__hint">{{ textoCargando }}</p>
         }
+      </section>
+    }
+
+    <!-- Marcar enviado pide antes la guía, que es opcional (013-seller-operaciones, T021). -->
+    @if (activeSection() === 'ventas' && envioAbierto(); as aEnviar) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelEnvio(aEnviar.orderNumber)">
+        <header class="seller__detalle-head">
+          <h2 class="seller__detalle-title">{{ textoDelEnvio(aEnviar.orderNumber) }}</h2>
+        </header>
+        <label class="seller__field">
+          <span class="seller__field-label">{{ textoGuia }}</span>
+          <input
+            class="seller__input seller__guia"
+            type="text"
+            autocomplete="off"
+            [attr.maxlength]="guiaMaxima"
+            [value]="guia()"
+            (input)="escribirGuia($event)"
+          />
+          <span class="seller__hint">{{ textoAyudaDeLaGuia }}</span>
+        </label>
+        <div class="seller__envio-acciones">
+          <button
+            type="button"
+            class="seller__btn seller__btn--primary seller__enviar"
+            [disabled]="actoEnVuelo() !== null"
+            (click)="actuar(aEnviar, 'enviar', guia())"
+          >
+            {{ actoEnVuelo() === aEnviar.orderRef ? accionEnVuelo.label : accionDelActo.enviar.label }}
+          </button>
+          <button type="button" class="seller__btn" (click)="cerrarEnvio()">{{ textoCancelar }}</button>
+        </div>
       </section>
     }
   }

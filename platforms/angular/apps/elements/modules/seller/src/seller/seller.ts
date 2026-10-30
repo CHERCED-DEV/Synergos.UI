@@ -38,12 +38,16 @@ import { HostIdentityService } from '@synergos/core';
 import { SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
 import { momentoDeLaConsola } from './fechas-de-la-consola';
 import {
+  ACTOS_DEL_DESPACHO,
   ETAPAS_DEL_DESPACHO,
+  GUIA_MAXIMA,
+  type ActoDelDespacho,
   type BandejaDeLaTienda,
   type DestinoDelEnvio,
   type DetalleDelPedido,
   type EtapaDelDespacho,
   type PedidoDeLaTienda,
+  type ResultadoDelActo,
   type SellerKpiMetric,
   type SellerListing,
   type SellerMessage,
@@ -162,11 +166,8 @@ const RETURN_FILTERS: readonly ConsoleFilter[] = [
   { key: 'resueltas', label: 'Resueltas' },
 ];
 
-const ADVANCE_ACTION: ConsoleRowAction = {
-  id: 'advance',
-  label: 'Avanzar envío',
-  kind: 'primary',
-};
+/** El prefijo del id de la acción de fila de un acto del despacho: `acto:preparar`, `acto:enviar`, `acto:entregar`. */
+const PREFIJO_DEL_ACTO = 'acto:';
 const APPROVE_ACTION: ConsoleRowAction = { id: 'approve', label: 'Aprobar', kind: 'primary' };
 const REJECT_ACTION: ConsoleRowAction = { id: 'reject', label: 'Rechazar', kind: 'danger' };
 
@@ -354,6 +355,30 @@ export class SellerElementComponent implements OnInit {
   /** Ver el detalle de un pedido: su envío, a dónde va y con quién. */
   readonly accionDetalle: ConsoleRowAction = { id: 'detalle', label: this.textoVerDetalle };
 
+  // ─── Los actos del despacho (013-seller-operaciones, T021) ─────────────────
+  /** El botón de cada acto: sale sólo si el servidor lo pone en `actos`. */
+  readonly accionDelActo: Readonly<Record<ActoDelDespacho, ConsoleRowAction>> = {
+    preparar: { id: `${PREFIJO_DEL_ACTO}preparar`, label: t('Seller.Operaciones.ActPrepare', 'Preparar'), kind: 'primary' },
+    enviar: { id: `${PREFIJO_DEL_ACTO}enviar`, label: t('Seller.Operaciones.ActShip', 'Marcar enviado'), kind: 'primary' },
+    entregar: { id: `${PREFIJO_DEL_ACTO}entregar`, label: t('Seller.Operaciones.ActDeliver', 'Marcar entregado'), kind: 'primary' },
+  };
+  /** Lo que ocupa el lugar del acto mientras vuela: no hace nada, y el acto no se puede pedir dos veces. */
+  readonly accionEnVuelo: ConsoleRowAction = { id: 'acto-en-vuelo', label: t('Seller.Operaciones.ActInFlight', 'Guardando…') };
+  /** El pedido cuyo acto está en vuelo. */
+  readonly actoEnVuelo = signal<string | null>(null);
+  /** El pedido que se va a marcar enviado, con su guía a medio escribir. */
+  readonly envioAbierto = signal<PedidoDeLaTienda | null>(null);
+  readonly guia = signal('');
+  readonly guiaMaxima = GUIA_MAXIMA;
+  readonly textoGuia = t('Seller.Operaciones.TrackingNumber', 'Guía (opcional)');
+  readonly textoAyudaDeLaGuia = t('Seller.Operaciones.TrackingHint', 'Hasta 80 caracteres, en una línea.');
+  readonly textoCancelar = t('Seller.Operaciones.Cancel', 'Cancelar');
+  readonly textoGuiaInvalida = t('Seller.Operaciones.TrackingInvalid', 'La guía: hasta 80 caracteres, en una línea.');
+  readonly textoDespachoNoDisponible = t(
+    'Seller.Operaciones.DispatchUnavailable',
+    'Los pedidos de la puerta no se despachan desde este sitio.',
+  );
+
   /** El aviso de las compras que el servidor no alcanzó a confirmar en esta lectura. */
   readonly avisoSinConciliar = computed(() => {
     const n = this.bandeja()?.sinConciliar ?? 0;
@@ -503,12 +528,16 @@ export class SellerElementComponent implements OnInit {
   });
 
   /**
-   * Per-row actions: only status-appropriate verbs surface. Un pedido avanza sólo si el servidor dice que tiene actos
-   * (los botones de cada acto llegan con T021); su detalle se ve siempre.
+   * Per-row actions: only status-appropriate verbs surface. Un pedido ofrece los actos que el servidor pone en `actos`, y
+   * ninguno más (T021); mientras uno vuela, en su lugar dice que se está guardando. Su detalle se ve siempre.
    */
   readonly rowActionsFor = (row: SellerRowVm): readonly ConsoleRowAction[] => {
     if (row.kind === 'order' && row.pedido) {
-      return row.pedido.actos.length > 0 ? [ADVANCE_ACTION, this.accionDetalle] : [this.accionDetalle];
+      if (this.actoEnVuelo() === row.pedido.orderRef) {
+        return [this.accionEnVuelo, this.accionDetalle];
+      }
+      const actos = row.pedido.actos.filter((a): a is ActoDelDespacho => ACTOS_DEL_DESPACHO.includes(a as ActoDelDespacho));
+      return [...actos.map((acto) => this.accionDelActo[acto]), this.accionDetalle];
     }
     if (
       row.kind === 'return' &&
@@ -659,8 +688,13 @@ export class SellerElementComponent implements OnInit {
 
   onRowAction(event: ConsoleRowActionEvent<SellerRowVm>): void {
     const row = event.row;
-    if (event.actionId === 'advance' && row.pedido) {
-      void this.advanceOrder(row.pedido);
+    if (event.actionId.startsWith(PREFIJO_DEL_ACTO) && row.pedido) {
+      const acto = event.actionId.slice(PREFIJO_DEL_ACTO.length) as ActoDelDespacho;
+      if (acto === 'enviar') {
+        this.abrirEnvio(row.pedido);
+      } else {
+        void this.actuar(row.pedido, acto);
+      }
       return;
     }
     if (event.actionId === 'detalle' && row.pedido) {
@@ -672,19 +706,106 @@ export class SellerElementComponent implements OnInit {
     }
   }
 
-  private async advanceOrder(pedido: PedidoDeLaTienda): Promise<void> {
-    const status = await this.#api.advanceShipment(this.apiBase(), pedido.orderRef);
-    if (!status) {
-      // El servidor no lo movió, así que la fila NO se mueve (#77). Pintarle el estado
-      // siguiente al vendedor le decía que el pedido iba en camino cuando no había salido.
-      this.actionError.set(
-        `No pudimos avanzar el pedido ${pedido.orderNumber}. Sigue en «${this.textoEtapas[pedido.etapa]}»; volvé a intentarlo.`,
-      );
+  /** Marcar enviado pide antes la guía, que es opcional: abre su formulario. */
+  abrirEnvio(pedido: PedidoDeLaTienda): void {
+    this.guia.set('');
+    this.envioAbierto.set(pedido);
+  }
+
+  cerrarEnvio(): void {
+    this.envioAbierto.set(null);
+    this.guia.set('');
+  }
+
+  escribirGuia(evento: Event): void {
+    this.guia.set((evento.target as HTMLInputElement).value);
+  }
+
+  textoDelEnvio(numero: string): string {
+    return t('Seller.Operaciones.ShipOrder', 'Enviar el pedido {numero}', { numero });
+  }
+
+  /**
+   * Da un acto sobre un pedido (T021). Uno a la vez: mientras vuela, el acto de esa fila no se puede pedir otra vez, y un
+   * segundo clic no sale. La fila se mueve sólo con la respuesta del servidor; si no se hizo (#77), sigue donde estaba y
+   * el aviso dice por qué y en qué etapa sigue.
+   */
+  async actuar(pedido: PedidoDeLaTienda, acto: ActoDelDespacho, guia?: string): Promise<void> {
+    if (this.actoEnVuelo() !== null) {
       return;
     }
+    const escrita = guia?.trim() ?? '';
+    if (escrita.length > GUIA_MAXIMA || /[\r\n]/.test(escrita)) {
+      this.actionError.set(this.textoGuiaInvalida);
+      return;
+    }
+    this.actoEnVuelo.set(pedido.orderRef);
     this.actionError.set(null);
-    // La fila se mueve con lo que diga el servidor: se vuelve a leer la bandeja, con su etapa y sus actos nuevos.
-    await this.loadOrders();
+    try {
+      const resultado = await this.#api.avanzar(this.apiBase(), pedido.orderRef, acto, escrita || undefined);
+      if (!resultado.hecho) {
+        if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
+          this.marcar('ventas', resultado.por);
+          return;
+        }
+        this.actionError.set(this.textoDelActoQueNoSalio(pedido, resultado));
+        return;
+      }
+      this.cerrarEnvio();
+      // La fila se mueve con lo que diga el servidor: se vuelve a leer la bandeja, con su etapa y sus actos nuevos.
+      await this.loadOrders();
+    } finally {
+      this.actoEnVuelo.set(null);
+    }
+  }
+
+  /** Por qué un acto no salió, con la etapa en que sigue el pedido. */
+  private textoDelActoQueNoSalio(
+    pedido: PedidoDeLaTienda,
+    resultado: Extract<ResultadoDelActo, { readonly hecho: false }>,
+  ): string {
+    const sigueEn = t('Seller.Operaciones.StillIn', 'El pedido sigue en «{etapa}».', {
+      etapa: this.textoEtapas[resultado.etapa ?? pedido.etapa],
+    });
+    return `${this.motivoDelActo(pedido, resultado)} ${sigueEn}`;
+  }
+
+  /** El motivo, por el código del servidor (los de `contracts/puerta-vendedor.md` de 013). */
+  private motivoDelActo(pedido: PedidoDeLaTienda, resultado: Extract<ResultadoDelActo, { readonly hecho: false }>): string {
+    if (resultado.por === 'caida') {
+      return t('Seller.Operaciones.TryAgain', 'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo.');
+    }
+    switch (resultado.codigo) {
+      case 'flow.original_no_encontrada':
+      case 'flow.original_no_completada':
+      case 'flow.original_sin_dato':
+      case 'fulfillment.shipment_not_found':
+        return t('Seller.Operaciones.CantDispatch', 'Este pedido no se puede despachar desde la consola.');
+      case 'fulfillment.transition_not_allowed':
+        return t('Seller.Operaciones.ShipFirst', 'Primero márcalo enviado.');
+      case 'fulfillment.shipment_closed':
+        return t('Seller.Operaciones.ShipmentClosed', 'El envío ya terminó.');
+      case 'tienda.despacho_no_disponible':
+        return this.textoDespachoNoDisponible;
+      case 'tienda.acto_fuera_de_orden':
+        return t('Seller.Operaciones.OutOfOrder', 'Ese paso ya no le toca a este pedido.');
+      case 'tienda.guia_invalida':
+        return this.textoGuiaInvalida;
+      default:
+        return t('Seller.Operaciones.ActFailed', 'No pudimos mover el pedido {numero}.', { numero: pedido.orderNumber });
+    }
+  }
+
+  /** Por qué un pedido no tiene actos, dicho para quien despacha; vacío si no hay motivo que decir. */
+  textoSinActosDe(motivo: string | null): string {
+    switch (motivo) {
+      case 'entregado':
+        return t('Seller.Operaciones.Delivered', 'Este pedido ya se entregó.');
+      case 'despacho_no_disponible':
+        return this.textoDespachoNoDisponible;
+      default:
+        return '';
+    }
   }
 
   // ─── El detalle de un pedido (013-seller-operaciones, T012) ────────────────

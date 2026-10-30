@@ -538,6 +538,13 @@
     }
   }
 
+  // ─── Marcar enviado: la guía (013-seller-operaciones, T021) ──────────────────
+  &__envio-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
   &__receipt {
     display: flex;
     flex-direction: column;

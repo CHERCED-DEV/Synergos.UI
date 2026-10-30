@@ -227,4 +227,61 @@ describe('SellerApiClient — las lecturas de la consola no inventan (013-seller
 
     expect(await crearCliente().threads(API)).toEqual({ tipo: 'caida' });
   });
+
+  // ── Los actos del personal (T021) ─────────────────────────────────────────────────────────────────────────────────
+
+  it('un acto va a la ruta del personal con { acto, guia } y trae el pedido como lo dejó el servidor', async () => {
+    const red = contestar(200, { ...PEDIDO_DE_LA_BANDEJA, etapa: 'shipped', actos: ['entregar'] });
+
+    const resultado = await crearCliente().avanzar(API, 'saga 7f3a', 'enviar', 'GUIA-123');
+
+    const [url, init] = red.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${API}/seller/orders/saga%207f3a/advance`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({ acto: 'enviar', guia: 'GUIA-123' });
+    expect(resultado).toMatchObject({ hecho: true, pedido: { etapa: 'shipped', actos: ['entregar'] } });
+  });
+
+  it('un rechazo trae su código y la etapa en que sigue; un transitorio o un 5xx, que no se pudo ahora', async () => {
+    contestar(409, { code: 'tienda.acto_fuera_de_orden', error: 'No le toca.', etapa: 'shipped' });
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toEqual({
+      hecho: false, por: 'rechazo', codigo: 'tienda.acto_fuera_de_orden', etapa: 'shipped',
+    });
+
+    TestBed.resetTestingModule();
+    contestar(409, { code: 'fulfillment.transition_not_allowed', error: 'No.', transient: false });
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'entregar')).toEqual({
+      hecho: false, por: 'rechazo', codigo: 'fulfillment.transition_not_allowed', etapa: null,
+    });
+
+    TestBed.resetTestingModule();
+    contestar(503, { code: 'fulfillment.unreachable', error: 'No respondió.', transient: true });
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'enviar')).toEqual({
+      hecho: false, por: 'caida', codigo: 'fulfillment.unreachable', etapa: null,
+    });
+  });
+
+  it('401 y 403 son la sesión y el permiso; la red o sin base, que no se pudo, y sin base no sale nada', async () => {
+    contestar(401, { error: 'Se requiere iniciar sesión.' });
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toMatchObject({ hecho: false, por: 'sin-sesion' });
+
+    TestBed.resetTestingModule();
+    contestar(403, {});
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toMatchObject({ hecho: false, por: 'sin-permiso' });
+
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toMatchObject({ hecho: false, por: 'caida' });
+
+    TestBed.resetTestingModule();
+    const red = contestar(200, PEDIDO_DE_LA_BANDEJA);
+    expect(await crearCliente().avanzar('', 'saga-7f3a', 'preparar')).toMatchObject({ hecho: false, por: 'caida' });
+    expect(red).not.toHaveBeenCalled();
+  });
+
+  it('un sí que no se entiende se hizo igual: el servidor dijo que sí, y la consola vuelve a leer', async () => {
+    contestar(200, { raro: true });
+
+    expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toEqual({ hecho: true, pedido: null });
+  });
 });

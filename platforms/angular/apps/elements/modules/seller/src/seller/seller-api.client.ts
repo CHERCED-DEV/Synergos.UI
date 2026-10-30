@@ -3,6 +3,7 @@ import { LoggerService } from '@synergos/core';
 import { formatearImporte } from '@synergos/vitals-core';
 import {
   ETAPAS_DEL_DESPACHO,
+  type ActoDelDespacho,
   type BandejaDeLaTienda,
   type DestinoDelEnvio,
   type DetalleDelPedido,
@@ -10,6 +11,7 @@ import {
   type EventoDelEnvio,
   type MotivoSinEnvio,
   type PedidoDeLaTienda,
+  type ResultadoDelActo,
   type SellerKpiMetric,
   type SellerKpiUnit,
   type SellerListing,
@@ -164,8 +166,12 @@ export class SellerApiClient {
    * llamador y el servidor es decoración.** La firma era
    * `advanceShipment(apiBase, orderRef, current)` devolviendo algo derivado de `current`.
    * Por eso `current` ya no se recibe: sin él, el respaldo no se puede escribir.
+   *
+   * Desde 013-seller-operaciones T021 la consola da los actos por la ruta del personal ({@link avanzar}). Queda aquí sin
+   * llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es un superset)— hasta que el arquitecto
+   * decida su retiro: está anotado en la bitácora de 013, con {@link orders}.
    */
-  async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
+  private async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking/advance`;
     try {
       const data = await this.postJson(apiBase, url, { orderRef });
@@ -178,6 +184,53 @@ export class SellerApiClient {
       this.avisar('POST /api/shop/order/{ref}/tracking/advance', error);
       return null;
     }
+  }
+
+  /**
+   * El acto del personal sobre un pedido (013-seller-operaciones, T021): `POST seller/orders/{ref}/advance` con
+   * `{ acto, guia }`. Devuelve el pedido como lo dejó el servidor, o que no se hizo (#77) con su código y la etapa en que
+   * sigue: la fila no se mueve por su cuenta.
+   *
+   * 401 y 403 son la sesión y el permiso; un 5xx, la red o un `transient` son «no se pudo ahora»; lo demás es un rechazo
+   * con su código. Un 200 que no se entiende se hizo igual: el servidor dijo que sí, y la consola vuelve a leer.
+   */
+  async avanzar(apiBase: string, orderRef: string, acto: ActoDelDespacho, guia?: string): Promise<ResultadoDelActo> {
+    const endpoint = 'POST /api/shop/seller/orders/{orderRef}/advance';
+    if (typeof fetch !== 'function' || !apiBase) {
+      this.avisar(endpoint, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
+      return { hecho: false, por: 'caida', codigo: null, etapa: null };
+    }
+    const url = `${apiBase}/seller/orders/${encodeURIComponent(orderRef)}/advance`;
+    let respuesta: Response;
+    try {
+      respuesta = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acto, guia: guia ?? null }),
+      });
+    } catch (error) {
+      this.avisar(endpoint, error);
+      return { hecho: false, por: 'caida', codigo: null, etapa: null };
+    }
+    let cuerpo: unknown = null;
+    try {
+      cuerpo = await respuesta.json();
+    } catch {
+      cuerpo = null;
+    }
+    if (respuesta.ok) {
+      return { hecho: true, pedido: normalizePedido(cuerpo) };
+    }
+    if (respuesta.status === 401 || respuesta.status === 403) {
+      return { hecho: false, por: respuesta.status === 401 ? 'sin-sesion' : 'sin-permiso', codigo: null, etapa: null };
+    }
+    const codigo = isRecord(cuerpo) ? textoONulo(cuerpo['code']) : null;
+    const etapa = isRecord(cuerpo) && esEtapa(cuerpo['etapa']) ? cuerpo['etapa'] : null;
+    const transitorio = respuesta.status >= 500 || (isRecord(cuerpo) && cuerpo['transient'] === true);
+    if (transitorio) {
+      this.avisar(endpoint, new Error(`HTTP ${respuesta.status}`));
+    }
+    return { hecho: false, por: transitorio ? 'caida' : 'rechazo', codigo, etapa };
   }
 
   // ─── Publicaciones ───────────────────────────────────────────────────────────
