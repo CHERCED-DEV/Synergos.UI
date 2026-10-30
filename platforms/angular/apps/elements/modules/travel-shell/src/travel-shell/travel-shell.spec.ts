@@ -1606,6 +1606,42 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(component.cartTotalLabel()).toBe(formatearImporte(2_345_000, 'COP'));
   });
 
+  it('cada línea vale lo que el servidor cotizó por ese ítem, y el resumen del asistente dice ese mismo total (T036)', async () => {
+    // Medido en vivo: la búsqueda traía el vuelo a 680.000 (ida y vuelta) y la puerta lo cotizaba a 340.000; el paso
+    // «Revisar» decía el total del servidor y el resumen de al lado la suma de la búsqueda.
+    const puerta = puertaDelViaje({
+      total: 340_000,
+      itinerario: [
+        { producto: 'FMOCK-1', etiqueta: 'BOG → CTG · Basic', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z', precio: { amount: 340_000, currency: 'COP' } },
+      ],
+    });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.cartItems().map((item) => [item.productRef, item.amount])).toEqual([['FMOCK-1', 34_000_000]]);
+    expect(component.cartTotalMinor()).toBe(34_000_000);
+    component.goToCheckout();
+    fixture.detectChanges();
+    await asentar(12);
+    expect(asistente().pricing().totalAmount).toBe(34_000_000);
+  });
+
+  it('un ítem que el servidor no cotizó, o que no casa con su línea, se queda como estaba', async () => {
+    const puerta = puertaDelViaje({
+      itinerario: [{ producto: 'OTRO', etiqueta: 'Otro', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z', precio: { amount: 1, currency: 'COP' } }],
+    });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.cartItems().map((item) => item.amount)).toEqual([41_200_000]);
+  });
+
   it('si cotizar no puede dar el total lo dice, y el carrito no inventa uno del servidor', async () => {
     const puerta = puertaDelViaje({ rechazos: { cotizar: { code: 'pricing.price_not_found', status: 404 } } });
     await montar(puerta);

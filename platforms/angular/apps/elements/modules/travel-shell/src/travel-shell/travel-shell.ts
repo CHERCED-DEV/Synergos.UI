@@ -115,7 +115,7 @@ import {
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 import { caminoDelViajePendiente, itemsDelViaje, sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
-import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe } from './travel-viaje';
+import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe, type ParadaLeida } from './travel-viaje';
 
 /**
  * Las tarifas de una estadía para las fechas buscadas, una por oferta de esa estadía en la búsqueda (T036, medido en vivo
@@ -1089,9 +1089,38 @@ export class TravelShellElementComponent implements OnInit {
     if (turno !== this.#cotizacion) {
       return;
     }
-    this.totalCotizado.set(r.ok ? r.valor : null);
-    if (!r.ok && clasificarRechazo(r.rechazo) !== 'sesion') {
+    this.totalCotizado.set(r.ok ? r.valor.total : null);
+    if (r.ok) {
+      this.alPrecioDelServidor(r.valor.itinerario);
+    } else if (clasificarRechazo(r.rechazo) !== 'sesion') {
       this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+    }
+  }
+
+  /**
+   * Por la puerta, cada línea vale lo que el servidor cotizó por ese ítem, no lo que trajo la búsqueda: así las
+   * líneas, el total del carrito y el resumen del asistente dicen lo mismo, que es lo que se cobra (T036 de la línea
+   * 006). El itinerario viene en el orden de los ítems; uno que no casa, o sin precio del servidor, se queda como está.
+   */
+  private alPrecioDelServidor(itinerario: readonly ParadaLeida[]): void {
+    const items = this.#store.items();
+    if (itinerario.length !== items.length) {
+      return;
+    }
+    let cambio = false;
+    items.forEach((item, indice) => {
+      const parada = itinerario[indice];
+      if (!parada.precio || parada.producto !== item.productRef) {
+        return;
+      }
+      const amount = Math.round((parada.precio.amount * 100) / Math.max(1, item.quantity));
+      if (amount !== item.amount) {
+        this.#store.addItem({ ...item, amount });
+        cambio = true;
+      }
+    });
+    if (cambio) {
+      this.reprice();
     }
   }
 

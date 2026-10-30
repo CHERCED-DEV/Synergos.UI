@@ -100,10 +100,16 @@ export function entradaDelViaje(items: readonly ItemDelViaje[]): BffViajes.Viaje
   };
 }
 
+/** Lo que cotizó el servidor: el total y el itinerario, en el orden de los ítems, con lo que cotizó por cada uno. */
+export interface CotizacionDelViaje {
+  readonly total: Importe | null;
+  readonly itinerario: readonly ParadaLeida[];
+}
+
 /** El total SIN apartar nada: el orquestador corre la fase que abre hasta antes de la agenda. Sin llave. */
-export async function cotizarViaje(desde: Element, items: readonly ItemDelViaje[]): Promise<ResultadoDelFlujo<Importe | null>> {
+export async function cotizarViaje(desde: Element, items: readonly ItemDelViaje[]): Promise<ResultadoDelFlujo<CotizacionDelViaje>> {
   const r = await cotizarViajesReserva(desde, { cuerpo: entradaDelViaje(items) });
-  return r.ok ? { ...r, valor: r.valor.datos.total } : r;
+  return r.ok ? { ...r, valor: { total: r.valor.datos.total, itinerario: r.valor.datos.itinerario ?? [] } } : r;
 }
 
 /** Aparta cada ítem y autoriza el total, sin mover plata. La llave es la de la intención. */
