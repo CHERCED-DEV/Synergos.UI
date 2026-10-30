@@ -13,37 +13,37 @@ const NEGOCIO_DEL_CMS = { apiBase: SELLER_SYNHOST.ejemplo.apiBase };
 /** La demo que DECLARA los ejemplos de la consola (T006): sin esta marca, la consola no los pinta. */
 const CON_MUESTRAS_DE_LA_CONSOLA: Provider[] = [{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }];
 
-/** Un pedido como lo emite `OrderDto` del CMS en `GET orders`. */
+/**
+ * Un pedido como lo emite la bandeja del CMS (`VendedorDeLaTiendaController.PedidoDto`, T011). La consola ya no lee
+ * `GET orders`, que es «Mis compras» del comprador (T012).
+ */
 const PEDIDO_DEL_CMS = {
   orderRef: 'saga-7f3a',
   orderNumber: 'T-2026-0042',
-  status: 'Paid',
-  customerName: 'Lucía Gómez',
-  customerEmail: 'lucia@correo.co',
+  fecha: '2026-10-20T15:00:00+00:00',
+  comprador: 'Lucía Gómez',
+  camino: 'puerta',
+  etapa: 'paid',
   total: 259000,
   totalFormatted: '$ 259.000',
-  currency: 'COP',
-  date: '2026-10-20T15:00:00+00:00',
-  createdAt: '2026-10-20T15:00:00+00:00',
-  items: [
-    {
-      productId: 'P-9',
-      variantId: null,
-      title: 'Teclado mecánico compacto 65%',
-      qty: 1,
-      amount: 259000,
-      productName: 'Teclado mecánico compacto 65%',
-      quantity: 1,
-      unitPrice: 259000,
-      unitPriceFormatted: '$ 259.000',
-      lineTotal: 259000,
-      lineTotalFormatted: '$ 259.000',
-      currency: 'COP',
-      canReturn: false,
-      returnBlock: null,
-    },
-  ],
+  moneda: 'COP',
+  lineas: [{ title: 'Teclado mecánico compacto 65%', qty: 1, amount: 259000, amountFormatted: '$ 259.000' }],
+  actos: ['preparar'],
+  motivoSinActos: null,
 };
+
+/** La bandeja como la emite el CMS (`BandejaDto`): una página, las cuentas de la tienda entera y lo no conciliado. */
+function bandejaDelCms(pedidos: readonly object[] = [PEDIDO_DEL_CMS], cambios: object = {}): object {
+  return {
+    pedidos,
+    pagina: 1,
+    porPagina: 50,
+    total: pedidos.length,
+    cuentas: { paid: pedidos.length, preparing: 0, shipped: 0, delivered: 0 },
+    sinConciliar: 0,
+    ...cambios,
+  };
+}
 
 /** Un hilo como lo emite hoy `ThreadSummaryDto` del CMS en `GET messages`: `threadId` y no `id`, sin asunto (T030). */
 const HILO_DEL_CMS = {
@@ -217,7 +217,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     expect(red).not.toHaveBeenCalled();
     // Afirmaba `orders().length > 0` y `degraded()`: los pedidos de ejemplo como el camino normal (T006).
-    expect(component.orders()).toEqual([]);
+    expect(component.pedidos()).toEqual([]);
     expect(component.lecturas().ventas).toBe('caida');
     expect(component.muestras()).toBe(false);
     const host = fixture.nativeElement as HTMLElement;
@@ -237,8 +237,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       'Estás viendo datos de ejemplo, no los de la tienda.',
     );
 
-    // KPIs from the sample summary, pre-formatted for SH-5.
-    expect(component.consoleKpis().map((kpi) => kpi.id)).toContain('ventas');
+    // En Ventas, la banda de indicadores son las cuentas de la bandeja (T012).
+    expect(component.consoleKpis().map((kpi) => kpi.id)).toEqual(['paid', 'preparing', 'shipped', 'delivered']);
 
     // The console shell mounts with the four secciones.
     const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
@@ -251,22 +251,24 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     ]);
 
     // Ventas queue from the samples, with row actions.
-    const paidRow = component.consoleRows().find((row) => row.order?.status === 'paid');
+    // Los pedidos de ejemplo no traen actos: sólo su detalle.
+    const paidRow = component.consoleRows().find((row) => row.pedido?.etapa === 'paid');
     expect(paidRow).toBeDefined();
-    expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['advance']);
+    expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['detalle']);
   });
 
   it('sin la marca, con el CMS de hoy, nada se inventa: la cola es la del servidor, sin indicadores ni cartel', async () => {
     installMemoryStorage();
-    installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+    installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
     expect(component.muestras()).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')).toBeNull();
     // `GET seller/summary` no existe en el CMS de hoy (404): sin indicadores, en vez de los de ejemplo.
     expect(component.lecturas().resumen).toBe('caida');
-    expect(component.consoleKpis()).toEqual([]);
-    expect(component.consoleRows().map((row) => row.id)).toEqual(['T-2026-0042']);
+    // En Ventas, los indicadores son las cuentas de la bandeja: las del servidor, no las de ejemplo.
+    expect(component.consoleKpis().map((kpi) => kpi.value)).toEqual(['1', '0', '0', '0']);
+    expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
   });
 
   // ── secciones: cola de devoluciones + aprobar RMA con el POST caído ──────────
@@ -344,13 +346,15 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   it('leaves the order untouched and says so when the advance endpoint is missing', async () => {
     installMemoryStorage();
     // El pedido lo contesta el servidor; `POST order/{ref}/tracking/advance` no existe en el CMS (404).
-    installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+    installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
-    const paid = component.orders().find((order) => order.status === 'paid');
+    const paid = component.pedidos().find((pedido) => pedido.etapa === 'paid');
     expect(paid).toBeDefined();
 
-    const row = component.consoleRows().find((entry) => entry.order?.orderNumber === paid!.orderNumber);
+    const row = component.consoleRows().find((entry) => entry.pedido?.orderRef === paid!.orderRef);
+    // El servidor dice que tiene actos: se ofrece avanzar (los botones de cada acto llegan con T021).
+    expect(component.rowActionsFor(row!).map((a) => a.id)).toEqual(['advance', 'detalle']);
     component.onRowAction({ actionId: 'advance', row: row!, sectionId: 'ventas' });
     await flushMicrotasks();
 
@@ -358,8 +362,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     // missing» y afirmaba `'preparing'` — el título decía el defecto. `POST
     // order/{ref}/tracking/advance` NO EXISTE en el CMS, así que eso pasaba el 100 % de las
     // veces y el pedido se pintaba en camino sin haber salido.
-    const advanced = component.orders().find((order) => order.orderNumber === paid!.orderNumber);
-    expect(advanced?.status).toBe('paid');
+    const advanced = component.pedidos().find((pedido) => pedido.orderRef === paid!.orderRef);
+    expect(advanced?.etapa).toBe('paid');
+    expect(component.actionError()).toContain('Por preparar');
     expect(component.actionError()).toContain(paid!.orderNumber);
     // Una escritura caída no es «datos de ejemplo»: ese cartel es de las lecturas, y sólo con la marca.
     expect(component.muestras()).toBe(false);
@@ -602,7 +607,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
         expect(host().querySelector('syn-console-shell')).toBeNull();
         expect(host().querySelector('.seller__notice--warn')).toBeNull();
-        expect(component.orders()).toEqual([]);
+        expect(component.pedidos()).toEqual([]);
       } finally {
         window.history.replaceState(null, '', antes);
       }
@@ -632,18 +637,18 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       expect(caida?.textContent).toContain('No pudimos cargar esta sección.');
       expect(host().querySelector('syn-console-shell syn-empty-state')).toBeNull();
 
-      installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
       caida!.querySelector<HTMLButtonElement>('button')!.click();
       await flushMicrotasks();
       fixture.detectChanges();
 
       expect(component.lecturas().ventas).toBe('leidas');
       expect(host().querySelector('syn-console-shell syn-error-state')).toBeNull();
-      expect(component.consoleRows().map((row) => row.id)).toEqual(['T-2026-0042']);
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
     });
 
     it('Reputación sin resumen dice que no se pudo —no un esqueleto para siempre— y su «Reintentar» vuelve a pedirlo', async () => {
-      installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
       await createComponent();
       const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
       (shell.componentInstance as { selectSection(id: string): void }).selectSection('reputacion');
@@ -678,14 +683,180 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     });
 
     it('la cola que el servidor contesta sin pedidos dice que no hay, sin ejemplos aunque la página tenga la marca', async () => {
-      installFakeServer({ 'GET /api/shop/orders': { orders: [] } });
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms([]) });
       await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
       expect(component.lecturas().ventas).toBe('vacia');
-      expect(component.orders()).toEqual([]);
+      expect(component.pedidos()).toEqual([]);
       expect(host().querySelector('syn-console-shell syn-empty-state')?.textContent).toContain(
-        'No hay registros en esta cola.',
+        'No hay pedidos pagados en esta etapa.',
       );
+    });
+  });
+
+  // ══ La bandeja del personal (013-seller-operaciones, T012) ═════════════════════════════════════════════════════
+  //
+  // Ventas lee la bandeja de la tienda entera (`GET seller/orders`), filtrada y paginada en el SERVIDOR, con las
+  // cuentas de la tienda en la banda de indicadores; el detalle de un pedido dice a dónde va y con quién; las fechas van
+  // en la hora del sitio. Los dobles tienen la forma de `VendedorDeLaTiendaController` (T011).
+  describe('la bandeja (T012)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const json = (status: number, cuerpo: unknown): Response =>
+      new Response(JSON.stringify(cuerpo), { status, headers: { 'content-type': 'application/json' } });
+    const pedido = (orderRef: string, etapa: string, cambios: object = {}): object => ({
+      ...PEDIDO_DEL_CMS,
+      orderRef,
+      orderNumber: `N-${orderRef}`,
+      etapa,
+      ...cambios,
+    });
+    const CUENTAS = { paid: 5, preparing: 2, shipped: 1, delivered: 9 };
+
+    /** Un borde que contesta la bandeja según la etapa y la página que se le piden, y el detalle de cada pedido. */
+    function servidor(
+      bandeja: (etapa: string | null, pagina: number) => object,
+      detalles: Record<string, object> = {},
+    ): string[] {
+      const pedidas: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = new URL(String(input), 'http://cms.local');
+          if (url.pathname === '/api/shop/seller/orders') {
+            pedidas.push(url.search);
+            return Promise.resolve(json(200, bandeja(url.searchParams.get('etapa'), Number(url.searchParams.get('pagina')))));
+          }
+          const ref = /^\/api\/shop\/seller\/orders\/(.+)$/.exec(url.pathname)?.[1];
+          const detalle = ref ? detalles[decodeURIComponent(ref)] : undefined;
+          return Promise.resolve(detalle ? json(200, detalle) : json(404, { error: 'not found' }));
+        }),
+      );
+      return pedidas;
+    }
+
+    const chips = (): HTMLButtonElement[] => Array.from(host().querySelectorAll<HTMLButtonElement>('.syn-console__filter'));
+    const indicadores = (): string[] =>
+      Array.from(host().querySelectorAll('.syn-console__kpi-value')).map((k) => k.textContent?.trim() ?? '');
+
+    async function asentarYPintar(): Promise<void> {
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    it('el filtro pide su etapa al servidor; las cuentas son las de la tienda entera y el chip no vuelve a «Todos»', async () => {
+      const pedidas = servidor((etapa) =>
+        etapa === 'shipped'
+          ? bandejaDelCms([pedido('pta-enviado', 'shipped')], { cuentas: CUENTAS })
+          : bandejaDelCms([pedido('pta-pagado', 'paid')], { cuentas: CUENTAS }),
+      );
+      await createComponent();
+
+      expect(pedidas).toEqual(['?pagina=1']);
+      // Las cuentas del servidor (5/2/1/9), no las de la página (un pagado): la página trae uno solo.
+      expect(indicadores()).toEqual(['5', '2', '1', '9']);
+
+      chips().find((c) => c.textContent?.trim() === 'En camino')!.click();
+      await asentarYPintar();
+
+      expect(pedidas).toEqual(['?pagina=1', '?etapa=shipped&pagina=1']);
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
+      expect(indicadores()).toEqual(['5', '2', '1', '9']);
+      expect(chips().find((c) => c.getAttribute('aria-pressed') === 'true')?.textContent?.trim()).toBe('En camino');
+    });
+
+    it('la página siguiente se pide al servidor', async () => {
+      const pedidas = servidor((_, pagina) =>
+        bandejaDelCms([pedido(`pta-${pagina}`, 'paid')], { total: 51, cuentas: { ...CUENTAS, paid: 51 } }),
+      );
+      await createComponent();
+
+      const siguiente = Array.from(host().querySelectorAll<HTMLButtonElement>('.syn-console__page-btn')).at(-1)!;
+      expect(host().querySelector('.syn-console__page-status')?.textContent).toContain('Página 1 de 2');
+      siguiente.click();
+      await asentarYPintar();
+
+      expect(pedidas).toEqual(['?pagina=1', '?pagina=2']);
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-2']);
+    });
+
+    it('el detalle dice a dónde va y con quién; sin dirección, lo dice; y se cierra', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid'), pedido('dir-1', 'paid', { camino: 'directa' })]), {
+        'pta-1': {
+          ...pedido('pta-1', 'paid'),
+          envio: {
+            destino: { line1: 'Calle 1 # 2-3', line2: null, city: 'Bogotá', region: null, postalCode: null, country: 'CO', contact: 'Lucía' },
+            transportadora: 'servientrega',
+            estado: 'Ready',
+            eventos: [],
+          },
+          motivoSinEnvio: null,
+        },
+        'dir-1': { ...pedido('dir-1', 'paid', { camino: 'directa' }), envio: { destino: null, transportadora: null, estado: null, eventos: [] }, motivoSinEnvio: 'sin_direccion' },
+      });
+      await createComponent();
+      const verDetalle = (fila: number): void =>
+        Array.from(host().querySelectorAll('.syn-console__tr')[fila].querySelectorAll<HTMLButtonElement>('.syn-console__action'))
+          .find((b) => b.textContent?.trim() === 'Ver detalle')!
+          .click();
+
+      verDetalle(0);
+      await asentarYPintar();
+      const detalle = host().querySelector('.seller__detalle')!;
+      expect(detalle.querySelector('.seller__detalle-title')?.textContent?.trim()).toBe('Pedido N-pta-1');
+      expect(detalle.textContent).toContain('Calle 1 # 2-3, Bogotá, CO (Lucía)');
+      expect(detalle.textContent).toContain('servientrega');
+
+      verDetalle(1);
+      await asentarYPintar();
+      expect(host().querySelector('.seller__detalle')?.textContent).toContain('Este pedido no tiene una dirección registrada.');
+
+      Array.from(host().querySelectorAll<HTMLButtonElement>('.seller__detalle button')).find((b) => b.textContent?.trim() === 'Cerrar')!.click();
+      fixture.detectChanges();
+      expect(host().querySelector('.seller__detalle')).toBeNull();
+    });
+
+    it('las fechas van en la hora del sitio: Madrid a propósito, porque esta máquina está en Bogotá', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
+      await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'Europe/Madrid' });
+      // En Madrid ya es el 21 a la 01:30 (CEST); en Bogotá serían las 18:30 del 20.
+      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^21 .*2026, 01:30$/);
+
+      TestBed.resetTestingModule();
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
+      await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'America/Bogota' });
+      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^20 .*2026, 18:30$/);
+    });
+
+    it('las compras que el servidor no alcanzó a confirmar se dicen', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid')], { sinConciliar: 3 }));
+      await createComponent();
+
+      expect(host().querySelector('.seller__notice--warn')?.textContent?.trim()).toBe(
+        '3 compras recientes todavía no se confirman aquí: vuelve a cargar en un momento.',
+      );
+    });
+
+    it('una bandeja que llega tarde no se pinta: con dos filtros seguidos gana el último', async () => {
+      const pendientes = new Map<string, (r: Response) => void>();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = new URL(String(input), 'http://cms.local');
+          const etapa = url.searchParams.get('etapa') ?? 'todas';
+          if (etapa === 'todas') return Promise.resolve(json(200, bandejaDelCms([pedido('pta-pagado', 'paid')])));
+          return new Promise<Response>((resolver) => pendientes.set(etapa, resolver));
+        }),
+      );
+      await createComponent();
+
+      component.onFilterChange('preparing');
+      component.onFilterChange('shipped');
+      pendientes.get('shipped')!(json(200, bandejaDelCms([pedido('pta-enviado', 'shipped')])));
+      await asentarYPintar();
+      pendientes.get('preparing')!(json(200, bandejaDelCms([pedido('pta-preparando', 'preparing')])));
+      await asentarYPintar();
+
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
     });
   });
 });

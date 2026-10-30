@@ -487,6 +487,57 @@
     font-size: syn.$font-size-sm;
   }
 
+  // ─── El detalle de un pedido de la bandeja (013-seller-operaciones, T012) ─────
+  &__detalle {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--sl-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--sl-surface-muted);
+  }
+
+  &__detalle-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__detalle-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__detalle-resumen {
+    margin: 0;
+    color: var(--sl-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__detalle-envio {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(200), 1fr));
+    gap: syn.$space-2;
+    margin: 0;
+  }
+
+  &__detalle-dato {
+    dt {
+      color: var(--sl-muted);
+      font-size: syn.$font-size-xs;
+    }
+
+    dd {
+      margin: 0;
+      font-size: syn.$font-size-sm;
+      overflow-wrap: anywhere;
+    }
+  }
+
   &__receipt {
     display: flex;
     flex-direction: column;

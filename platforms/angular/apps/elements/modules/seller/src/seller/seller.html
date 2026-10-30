@@ -79,11 +79,23 @@
 
   <!-- ═══ PANEL: SH-5 console (KPIs + Ventas/Publicaciones/Devoluciones/Reputación) ═══ -->
   @if (view() === 'panel' && !acceso()) {
+    <!-- Las compras que el servidor no alcanzó a confirmar en esta lectura (FR-004): se leen y se anuncian. -->
+    @if (activeSection() === 'ventas' && avisoSinConciliar(); as aviso) {
+      <p class="seller__notice seller__notice--warn">{{ aviso }}</p>
+      <syn-live-region [message]="aviso" announceInitial />
+    }
+
     <!-- `[section]`: la sección la lleva la consola. Sin atarla, el shell vuelve a la primera
-         cada vez que cambia su `config` (un badge que carga, una cola que se cae). -->
+         cada vez que cambia su `config` (un badge que carga, una cola que se cae). La bandeja
+         pagina en el servidor: `page` y `total` son los suyos. -->
     <syn-console-shell
       [config]="consoleConfig()"
       [section]="activeSection()"
+      [pageSize]="activeSection() === 'ventas' ? (bandeja()?.porPagina ?? 0) : 0"
+      [page]="paginaDeVentas()"
+      pageMode="server"
+      [total]="totalDeLaBandeja()"
+      (pagechange)="onPageChange($event)"
       [kpis]="consoleKpis()"
       [rows]="consoleRows()"
       [columns]="consoleColumns()"
@@ -160,6 +172,44 @@
         <p class="seller__sr" role="status">Cargando reputación…</p>
       }
     </ng-template>
+
+    <!-- El detalle de un pedido de la bandeja: a dónde va y con quién (013-seller-operaciones, T012). -->
+    @if (activeSection() === 'ventas' && detalle(); as abierto) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelDetalle(abierto.pedido.orderNumber)">
+        <header class="seller__detalle-head">
+          <h2 class="seller__detalle-title">{{ textoDelDetalle(abierto.pedido.orderNumber) }}</h2>
+          <button type="button" class="seller__btn" (click)="cerrarDetalle()">{{ textoCerrar }}</button>
+        </header>
+        @if (abierto.estado === 'caida') {
+          <syn-error-state
+            [message]="textoCaida"
+            [retryLabel]="textoReintentar"
+            (retry)="abrirDetalle(abierto.pedido)"
+          />
+        } @else if (abierto.datos; as d) {
+          <p class="seller__detalle-resumen">{{ resumenDelPedido(d) }}</p>
+          <dl class="seller__detalle-envio">
+            @if (d.envio?.destino; as destino) {
+              <div class="seller__detalle-dato">
+                <dt>{{ textoDestino }}</dt>
+                <dd>{{ destinoEnUnaLinea(destino) }}</dd>
+              </div>
+            }
+            @if (d.envio?.transportadora; as transportadora) {
+              <div class="seller__detalle-dato">
+                <dt>{{ textoTransportadora }}</dt>
+                <dd>{{ transportadora }}</dd>
+              </div>
+            }
+          </dl>
+          @if (d.motivoSinEnvio) {
+            <p class="seller__hint">{{ textoSinEnvioDe(d.motivoSinEnvio) }}</p>
+          }
+        } @else {
+          <p class="seller__hint">{{ textoCargando }}</p>
+        }
+      </section>
+    }
   }
 
   <!-- ═══ PUBLICAR: SH-6 authoring wizard (borrador persistente) ═══════════ -->

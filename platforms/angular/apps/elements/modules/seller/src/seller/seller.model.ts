@@ -93,6 +93,91 @@ export const ORDER_STATUS_LADDER: readonly SellerOrderStatus[] = [
   'delivered',
 ];
 
+// ─── La bandeja del personal (013-seller-operaciones, T012) ──────────────────
+
+/** Las etapas del despacho: las del seguimiento que lee el comprador. */
+export type EtapaDelDespacho = 'paid' | 'preparing' | 'shipped' | 'delivered';
+
+/** Las etapas, en orden. */
+export const ETAPAS_DEL_DESPACHO: readonly EtapaDelDespacho[] = ['paid', 'preparing', 'shipped', 'delivered'];
+
+/** Una línea del pedido, con su monto formateado por el servidor. */
+export interface LineaDelPedido {
+  readonly title: string;
+  readonly qty: number;
+  readonly amount: number;
+  readonly amountFormatted: string;
+}
+
+/** Un pedido pagado de la tienda, como lo lee el personal (`GET seller/orders`). */
+export interface PedidoDeLaTienda {
+  /** En la puerta, el id de la saga de la compra; es lo que abre los actos. */
+  readonly orderRef: string;
+  /** El que ve el comprador y el que dice el aviso. */
+  readonly orderNumber: string;
+  /** El instante del pedido, ISO-8601: se pinta en la zona del sitio. */
+  readonly fecha: string;
+  /** El nombre de quien compró: el correo no llega a la bandeja. */
+  readonly comprador: string;
+  /** Lo dice el servidor. */
+  readonly camino: 'puerta' | 'directa';
+  readonly etapa: EtapaDelDespacho;
+  readonly total: number;
+  readonly totalFormatted: string;
+  readonly moneda: string;
+  readonly lineas: readonly LineaDelPedido[];
+  /** Lo que se puede pedir ahora: la consola no lo deduce. */
+  readonly actos: readonly string[];
+  readonly motivoSinActos: string | null;
+}
+
+/** Una página de la bandeja, con las cuentas por etapa de la tienda entera (no de la página ni del filtro). */
+export interface BandejaDeLaTienda {
+  readonly pedidos: readonly PedidoDeLaTienda[];
+  readonly pagina: number;
+  readonly porPagina: number;
+  /** Cuántos hay con el filtro, en todas las páginas. */
+  readonly total: number;
+  readonly cuentas: Readonly<Record<EtapaDelDespacho, number>>;
+  /** Las compras de la puerta que el servidor no alcanzó a confirmar en esta lectura. */
+  readonly sinConciliar: number;
+}
+
+/** A dónde va un envío. */
+export interface DestinoDelEnvio {
+  readonly line1: string | null;
+  readonly line2: string | null;
+  readonly city: string | null;
+  readonly region: string | null;
+  readonly postalCode: string | null;
+  readonly country: string | null;
+  readonly contact: string | null;
+}
+
+/** Un paso del envío: su estado, su nota (la guía) y cuándo pasó. */
+export interface EventoDelEnvio {
+  readonly estado: string;
+  readonly nota: string | null;
+  readonly fecha: string;
+}
+
+/** El envío de un pedido; en la directa, sólo su destino. */
+export interface EnvioDelPedido {
+  readonly destino: DestinoDelEnvio | null;
+  readonly transportadora: string | null;
+  readonly estado: string | null;
+  readonly eventos: readonly EventoDelEnvio[];
+}
+
+/** Por qué un pedido no trae su envío entero. */
+export type MotivoSinEnvio = 'sin_direccion' | 'sin_envio' | 'envio_no_disponible';
+
+/** El detalle de un pedido (`GET seller/orders/{orderRef}`): el pedido como en la bandeja, más su envío. */
+export interface DetalleDelPedido extends PedidoDeLaTienda {
+  readonly envio: EnvioDelPedido | null;
+  readonly motivoSinEnvio: MotivoSinEnvio | null;
+}
+
 // ─── Publicaciones (catalogue as the seller sees it) ─────────────────────────
 
 /** Lifecycle of a listing. */

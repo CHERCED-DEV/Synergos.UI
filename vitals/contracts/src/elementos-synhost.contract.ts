@@ -2385,7 +2385,7 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   tipo: "funcionalidad",
   record: "SellerProps",
   diccionario: ["Seller.Operaciones"],
-  claves: ["Seller.Operaciones.LoadFailed","Seller.Operaciones.Retry","Seller.Operaciones.Samples","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly"],
+  claves: ["Seller.Operaciones.Carrier","Seller.Operaciones.Close","Seller.Operaciones.Destination","Seller.Operaciones.LoadFailed","Seller.Operaciones.Loading","Seller.Operaciones.NoAddress","Seller.Operaciones.NoShipment","Seller.Operaciones.OrderDetail","Seller.Operaciones.OrdersEmpty","Seller.Operaciones.Retry","Seller.Operaciones.Samples","Seller.Operaciones.ShipmentUnavailable","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly","Seller.Operaciones.StageAll","Seller.Operaciones.StageDelivered","Seller.Operaciones.StagePaid","Seller.Operaciones.StagePreparing","Seller.Operaciones.StageShipped","Seller.Operaciones.Tracking","Seller.Operaciones.Unreconciled","Seller.Operaciones.ViewDetail"],
   campos: ["heading","subheading","apiBase","zonaHoraria"],
   listas: {},
   selectores: [],

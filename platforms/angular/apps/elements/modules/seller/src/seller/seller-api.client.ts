@@ -1,6 +1,15 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { formatearImporte } from '@synergos/vitals-core';
 import {
+  ETAPAS_DEL_DESPACHO,
+  type BandejaDeLaTienda,
+  type DestinoDelEnvio,
+  type DetalleDelPedido,
+  type EtapaDelDespacho,
+  type EventoDelEnvio,
+  type MotivoSinEnvio,
+  type PedidoDeLaTienda,
   type SellerKpiMetric,
   type SellerKpiUnit,
   type SellerListing,
@@ -89,9 +98,47 @@ export class SellerApiClient {
     return this.leer(apiBase, `${apiBase}/seller/summary`, 'GET /api/shop/seller/summary', normalizeSummary, mockSummary);
   }
 
+  // ─── La bandeja del personal (013-seller-operaciones, T012) ────────────────────
+
+  /**
+   * Una página de la bandeja: los pedidos pagados de la tienda entera en `etapa` (o todos), con las cuentas por etapa de
+   * la tienda y las compras que el servidor no alcanzó a confirmar. Es la ruta del personal: la de «Mis compras»
+   * (`orders`) es la del comprador, y la consola ya no la lee.
+   */
+  pedidos(apiBase: string, etapa: EtapaDelDespacho | null, pagina: number): Promise<LecturaDeLaConsola<BandejaDeLaTienda>> {
+    const consulta = new URLSearchParams();
+    if (etapa) consulta.set('etapa', etapa);
+    consulta.set('pagina', String(Math.max(1, Math.trunc(pagina) || 1)));
+    return this.leer(
+      apiBase,
+      `${apiBase}/seller/orders?${consulta.toString()}`,
+      'GET /api/shop/seller/orders',
+      normalizeBandeja,
+      () => mockBandeja(etapa),
+      (bandeja) => bandeja.pedidos.length === 0,
+    );
+  }
+
+  /** El detalle de un pedido pagado, con su envío. */
+  pedido(apiBase: string, orderRef: string): Promise<LecturaDeLaConsola<DetalleDelPedido>> {
+    return this.leer(
+      apiBase,
+      `${apiBase}/seller/orders/${encodeURIComponent(orderRef)}`,
+      'GET /api/shop/seller/orders/{orderRef}',
+      normalizeDetalle,
+      () => mockDetalle(orderRef),
+    );
+  }
+
   // ─── Ventas ──────────────────────────────────────────────────────────────────
 
-  orders(apiBase: string, currency: string): Promise<LecturaDeLaConsola<readonly SellerOrder[]>> {
+  /**
+   * «Mis compras» del comprador (`GET orders`): la consola la leía como sus ventas, y el personal veía sus propias
+   * compras. Desde 013-seller-operaciones T012 la consola lee la bandeja del personal ({@link pedidos}). Queda aquí sin
+   * llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es un superset)— hasta que el arquitecto
+   * decida su retiro: está anotado en la bitácora de 013.
+   */
+  private orders(apiBase: string, currency: string): Promise<LecturaDeLaConsola<readonly SellerOrder[]>> {
     return this.leer(
       apiBase,
       `${apiBase}/orders`,
@@ -265,6 +312,7 @@ export class SellerApiClient {
     endpoint: string,
     normalizar: (value: unknown) => T | null,
     muestra: () => T,
+    esVacia: (datos: T) => boolean = (datos) => Array.isArray(datos) && datos.length === 0,
   ): Promise<LecturaDeLaConsola<T>> {
     if (typeof fetch !== 'function' || !apiBase) {
       return this.noSePudo(endpoint, muestra, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
@@ -293,7 +341,7 @@ export class SellerApiClient {
     if (datos === null) {
       return this.noSePudo(endpoint, muestra, new Error('forma'));
     }
-    return Array.isArray(datos) && datos.length === 0 ? { tipo: 'vacia', datos } : { tipo: 'leidas', datos };
+    return esVacia(datos) ? { tipo: 'vacia', datos } : { tipo: 'leidas', datos };
   }
 
   /** Una lectura que no se pudo: la muestra sólo con la marca; si no, caída. */
@@ -485,6 +533,121 @@ function normalizeOrders(value: unknown, currency: string): readonly SellerOrder
     })
     .filter((order): order is SellerOrder => order !== null);
   return legibles(list, orders);
+}
+
+// ─── La bandeja del personal: la forma de `VendedorDeLaTiendaController` (T011) ───
+
+function textoONulo(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function esEtapa(value: unknown): value is EtapaDelDespacho {
+  return typeof value === 'string' && (ETAPAS_DEL_DESPACHO as readonly string[]).includes(value);
+}
+
+/** Un pedido de la bandeja, o `null` si no se entiende: sin su referencia, su etapa o su camino no hay qué pintar. */
+function normalizePedido(value: unknown): PedidoDeLaTienda | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const orderRef = readString(value['orderRef']).trim();
+  const orderNumber = readString(value['orderNumber']).trim();
+  const camino = value['camino'];
+  if (!orderRef || !orderNumber || !esEtapa(value['etapa']) || (camino !== 'puerta' && camino !== 'directa')) {
+    return null;
+  }
+  const lineas = Array.isArray(value['lineas']) ? value['lineas'] : [];
+  return {
+    orderRef,
+    orderNumber,
+    fecha: readString(value['fecha']).trim(),
+    comprador: readString(value['comprador']).trim(),
+    camino,
+    etapa: value['etapa'],
+    total: readNumber(value['total']),
+    totalFormatted: readString(value['totalFormatted']).trim(),
+    moneda: readString(value['moneda']).trim(),
+    lineas: lineas.filter(isRecord).map((l) => ({
+      title: readString(l['title']).trim(),
+      qty: Math.max(1, Math.trunc(readNumber(l['qty']))),
+      amount: readNumber(l['amount']),
+      amountFormatted: readString(l['amountFormatted']).trim(),
+    })),
+    actos: Array.isArray(value['actos']) ? value['actos'].filter((a): a is string => typeof a === 'string') : [],
+    motivoSinActos: textoONulo(value['motivoSinActos']),
+  };
+}
+
+/**
+ * La bandeja, o `null` si su forma no se entiende. Las cuentas son de la tienda entera y van las cuatro: una que falta
+ * no es un cero, es una respuesta que no se entiende (un `?? 0` afirmaría «no hay»).
+ */
+function normalizeBandeja(value: unknown): BandejaDeLaTienda | null {
+  if (!isRecord(value) || !Array.isArray(value['pedidos']) || !isRecord(value['cuentas'])) {
+    return null;
+  }
+  const cuentasCrudas = value['cuentas'];
+  if (!ETAPAS_DEL_DESPACHO.every((e) => typeof cuentasCrudas[e] === 'number')) {
+    return null;
+  }
+  const pedidos = legibles(value['pedidos'], value['pedidos'].map(normalizePedido).filter((p): p is PedidoDeLaTienda => p !== null));
+  if (!pedidos) {
+    return null;
+  }
+  return {
+    pedidos,
+    pagina: Math.max(1, Math.trunc(readNumber(value['pagina']))),
+    porPagina: Math.max(1, Math.trunc(readNumber(value['porPagina']))),
+    total: Math.max(0, Math.trunc(readNumber(value['total']))),
+    cuentas: {
+      paid: cuentasCrudas['paid'] as number,
+      preparing: cuentasCrudas['preparing'] as number,
+      shipped: cuentasCrudas['shipped'] as number,
+      delivered: cuentasCrudas['delivered'] as number,
+    },
+    sinConciliar: Math.max(0, Math.trunc(readNumber(value['sinConciliar']))),
+  };
+}
+
+function normalizeDestino(value: unknown): DestinoDelEnvio | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  return {
+    line1: textoONulo(value['line1']),
+    line2: textoONulo(value['line2']),
+    city: textoONulo(value['city']),
+    region: textoONulo(value['region']),
+    postalCode: textoONulo(value['postalCode']),
+    country: textoONulo(value['country']),
+    contact: textoONulo(value['contact']),
+  };
+}
+
+const MOTIVOS_SIN_ENVIO: readonly MotivoSinEnvio[] = ['sin_direccion', 'sin_envio', 'envio_no_disponible'];
+
+/** El detalle: el pedido, más su envío tal como lo dijo el servidor (o por qué no lo trae). */
+function normalizeDetalle(value: unknown): DetalleDelPedido | null {
+  const pedido = normalizePedido(value);
+  if (!pedido || !isRecord(value)) {
+    return null;
+  }
+  const envio = value['envio'];
+  const motivo = value['motivoSinEnvio'];
+  return {
+    ...pedido,
+    envio: isRecord(envio)
+      ? {
+          destino: normalizeDestino(envio['destino']),
+          transportadora: textoONulo(envio['transportadora']),
+          estado: textoONulo(envio['estado']),
+          eventos: (Array.isArray(envio['eventos']) ? envio['eventos'] : []).filter(isRecord).map(
+            (e): EventoDelEnvio => ({ estado: readString(e['estado']).trim(), nota: textoONulo(e['nota']), fecha: readString(e['fecha']).trim() }),
+          ),
+        }
+      : null,
+    motivoSinEnvio: (MOTIVOS_SIN_ENVIO as readonly unknown[]).includes(motivo) ? (motivo as MotivoSinEnvio) : null,
+  };
 }
 
 const LISTING_STATUSES: readonly SellerListingStatus[] = ['activa', 'pausada', 'agotada'];
@@ -751,6 +914,57 @@ function mockOrders(currency: string): readonly SellerOrder[] {
       items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000 }],
     },
   ];
+}
+
+/** Los pedidos de ejemplo como los pinta la bandeja: los de {@link mockOrders}, en pesos. */
+function mockPedidos(): readonly PedidoDeLaTienda[] {
+  return mockOrders('COP').map((o, i): PedidoDeLaTienda => ({
+    orderRef: `muestra-${o.orderNumber}`,
+    orderNumber: o.orderNumber,
+    fecha: `${o.date}T15:00:00Z`,
+    comprador: o.buyer,
+    camino: i % 2 === 0 ? 'puerta' : 'directa',
+    etapa: o.status === 'preparing' || o.status === 'shipped' || o.status === 'delivered' ? o.status : 'paid',
+    total: o.total,
+    totalFormatted: formatearImporte(o.total, o.currency),
+    moneda: o.currency,
+    lineas: o.items.map((l) => ({
+      title: l.title,
+      qty: l.qty,
+      amount: l.amount * l.qty,
+      amountFormatted: formatearImporte(l.amount * l.qty, o.currency),
+    })),
+    actos: [],
+    motivoSinActos: null,
+  }));
+}
+
+function mockBandeja(etapa: EtapaDelDespacho | null): BandejaDeLaTienda {
+  const todos = mockPedidos();
+  const pedidos = etapa ? todos.filter((p) => p.etapa === etapa) : todos;
+  const cuenta = (e: EtapaDelDespacho): number => todos.filter((p) => p.etapa === e).length;
+  return {
+    pedidos,
+    pagina: 1,
+    porPagina: 50,
+    total: pedidos.length,
+    cuentas: { paid: cuenta('paid'), preparing: cuenta('preparing'), shipped: cuenta('shipped'), delivered: cuenta('delivered') },
+    sinConciliar: 0,
+  };
+}
+
+function mockDetalle(orderRef: string): DetalleDelPedido {
+  const pedido = mockPedidos().find((p) => p.orderRef === orderRef) ?? mockPedidos()[0];
+  return {
+    ...pedido,
+    envio: {
+      destino: { line1: 'Calle 93 # 11-26', line2: null, city: 'Bogotá', region: 'Cundinamarca', postalCode: null, country: 'CO', contact: pedido.comprador },
+      transportadora: 'servientrega',
+      estado: 'Ready',
+      eventos: [{ estado: 'Ready', nota: null, fecha: pedido.fecha }],
+    },
+    motivoSinEnvio: null,
+  };
 }
 
 function mockListings(currency: string): readonly SellerListing[] {

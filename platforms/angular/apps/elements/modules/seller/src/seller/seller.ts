@@ -36,11 +36,17 @@ import {
 import type { SellerProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
 import { SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
+import { momentoDeLaConsola } from './fechas-de-la-consola';
 import {
+  ETAPAS_DEL_DESPACHO,
+  type BandejaDeLaTienda,
+  type DestinoDelEnvio,
+  type DetalleDelPedido,
+  type EtapaDelDespacho,
+  type PedidoDeLaTienda,
   type SellerKpiMetric,
   type SellerListing,
   type SellerMessage,
-  type SellerOrder,
   type SellerPublishRequest,
   type SellerPublishReceipt,
   type SellerReputation,
@@ -81,9 +87,16 @@ interface SellerRowVm {
   readonly cells: Readonly<Record<string, string>>;
   /** Visual tone of the `estado` chip. */
   readonly tone: 'ok' | 'warn' | 'info' | 'muted';
-  readonly order?: SellerOrder;
+  readonly pedido?: PedidoDeLaTienda;
   readonly listing?: SellerListing;
   readonly rma?: SellerReturn;
+}
+
+/** El detalle abierto: el pedido de la fila, cómo va su lectura y lo que trajo. */
+interface DetalleAbierto {
+  readonly pedido: PedidoDeLaTienda;
+  readonly estado: EstadoDeLectura;
+  readonly datos: DetalleDelPedido | null;
 }
 
 /** Las lecturas de la consola, cada una con su estado (013-seller-operaciones, T006). */
@@ -134,13 +147,6 @@ const RETURN_COLUMNS: readonly ConsoleColumn[] = [
   { key: 'motivo', label: 'Motivo' },
   { key: 'fecha', label: 'Fecha' },
   { key: 'estado', label: 'Estado' },
-];
-
-const ORDER_FILTERS: readonly ConsoleFilter[] = [
-  { key: 'todas', label: 'Todas' },
-  { key: 'por-enviar', label: 'Por enviar' },
-  { key: 'enviadas', label: 'Enviadas' },
-  { key: 'entregadas', label: 'Entregadas' },
 ];
 
 const LISTING_FILTERS: readonly ConsoleFilter[] = [
@@ -251,7 +257,10 @@ export class SellerElementComponent implements OnInit {
    * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
    * número solo).
    */
-  readonly currency = computed(() => this.orders()[0]?.currency || this.listings()[0]?.currency || '');
+  readonly currency = computed(() => this.pedidos()[0]?.moneda || this.listings()[0]?.currency || '');
+
+  /** La zona en que se dicen las fechas: la del sitio (la de los listados), que manda el CMS. */
+  readonly zonaHoraria = computed(() => this.config()?.zonaHoraria ?? '');
 
   readonly instanceId = (sellerInstanceId += 1);
   readonly fieldId = `syn-seller-${this.instanceId}`;
@@ -274,7 +283,22 @@ export class SellerElementComponent implements OnInit {
    * answered) — the mould is a fixed shape, not a guess.
    */
   readonly repSkeletonCards = [0, 1, 2];
-  readonly orders = signal<readonly SellerOrder[]>([]);
+
+  /**
+   * La bandeja del personal (013-seller-operaciones, T012): una página de los pedidos pagados de la tienda entera,
+   * filtrada y paginada en el servidor, con las cuentas de la tienda. Antes «Ventas» leía `GET orders`, que es «Mis
+   * compras» del comprador: el personal veía sus propias compras como ventas.
+   */
+  readonly bandeja = signal<BandejaDeLaTienda | null>(null);
+  readonly pedidos = computed(() => this.bandeja()?.pedidos ?? []);
+  /** Cuántos pedidos hay con el filtro, en todas las páginas; sin bandeja, el shell cuenta sus filas. */
+  readonly totalDeLaBandeja = computed(() => this.bandeja()?.total ?? null);
+  readonly paginaDeVentas = signal(1);
+  /** El pedido cuyo detalle está abierto, y cómo va su lectura. */
+  readonly detalle = signal<DetalleAbierto | null>(null);
+  /** Cuántas veces se pidió la bandeja: una respuesta que llega tarde (otro filtro u otra página) no se pinta. */
+  private bandejaPedida = 0;
+
   readonly listings = signal<readonly SellerListing[]>([]);
   readonly returns = signal<readonly SellerReturn[]>([]);
   readonly threads = signal<readonly SellerThread[]>([]);
@@ -300,6 +324,43 @@ export class SellerElementComponent implements OnInit {
   readonly textoCaida = t('Seller.Operaciones.LoadFailed', 'No pudimos cargar esta sección.');
   readonly textoReintentar = t('Seller.Operaciones.Retry', 'Reintentar');
   readonly textoDeMuestras = t('Seller.Operaciones.Samples', 'Estás viendo datos de ejemplo, no los de la tienda.');
+  readonly textoBandejaVacia = t('Seller.Operaciones.OrdersEmpty', 'No hay pedidos pagados en esta etapa.');
+  readonly textoVerDetalle = t('Seller.Operaciones.ViewDetail', 'Ver detalle');
+  readonly textoDestino = t('Seller.Operaciones.Destination', 'Destino');
+  readonly textoTransportadora = t('Seller.Operaciones.Carrier', 'Transportadora');
+  readonly textoCerrar = t('Seller.Operaciones.Close', 'Cerrar');
+  readonly textoCargando = t('Seller.Operaciones.Loading', 'Cargando…');
+  readonly textoSinDireccion = t('Seller.Operaciones.NoAddress', 'Este pedido no tiene una dirección registrada.');
+  readonly textoSinEnvio = t('Seller.Operaciones.NoShipment', 'Este pedido todavía no tiene envío.');
+  readonly textoEnvioNoDisponible = t('Seller.Operaciones.ShipmentUnavailable', 'No pudimos leer el envío ahora.');
+  /** Cómo se llama cada etapa del despacho: en la columna, en los filtros y en las cuentas. */
+  readonly textoEtapas: Readonly<Record<EtapaDelDespacho, string>> = {
+    paid: t('Seller.Operaciones.StagePaid', 'Por preparar'),
+    preparing: t('Seller.Operaciones.StagePreparing', 'En preparación'),
+    shipped: t('Seller.Operaciones.StageShipped', 'En camino'),
+    delivered: t('Seller.Operaciones.StageDelivered', 'Entregado'),
+  };
+
+  /**
+   * Los filtros de la bandeja: todos, o una etapa. Las etiquetas no llevan las cuentas, y es a propósito: el shell lleva
+   * el filtro activo atado a la lista de filtros, y una lista que cambia con cada lectura lo devolvería a «Todos» con
+   * la bandeja filtrada. Las cuentas de la tienda van en la banda de indicadores de Ventas.
+   */
+  readonly filtrosDeVentas: readonly ConsoleFilter[] = [
+    { key: 'todas', label: t('Seller.Operaciones.StageAll', 'Todos') },
+    ...ETAPAS_DEL_DESPACHO.map((etapa) => ({ key: etapa, label: this.textoEtapas[etapa] })),
+  ];
+
+  /** Ver el detalle de un pedido: su envío, a dónde va y con quién. */
+  readonly accionDetalle: ConsoleRowAction = { id: 'detalle', label: this.textoVerDetalle };
+
+  /** El aviso de las compras que el servidor no alcanzó a confirmar en esta lectura. */
+  readonly avisoSinConciliar = computed(() => {
+    const n = this.bandeja()?.sinConciliar ?? 0;
+    return n > 0
+      ? t('Seller.Operaciones.Unreconciled', '{n} compras recientes todavía no se confirman aquí: vuelve a cargar en un momento.', { n })
+      : '';
+  });
 
   /**
    * Lo que una ESCRITURA no consiguió, dicho donde el vendedor lo ve (#77).
@@ -340,13 +401,13 @@ export class SellerElementComponent implements OnInit {
     navLabel: 'Secciones del panel de vendedor',
     kpisLabel: 'Indicadores del negocio',
     actionsLabel: 'Acciones',
-    emptyMessage: 'No hay registros en esta cola.',
+    emptyMessage: this.activeSection() === 'ventas' ? this.textoBandejaVacia : 'No hay registros en esta cola.',
     loadingMessage: 'Cargando…',
     // La cola que no se pudo leer lo dice, con su «Reintentar» (`retry`): una cola vacía sería
     // otra respuesta, la que el servidor no dio.
     errorMessage: this.lecturas()[this.lecturaActiva()] === 'caida' ? this.textoCaida : undefined,
     sections: [
-      { id: 'ventas', label: 'Ventas', badge: this.orders().length || undefined },
+      { id: 'ventas', label: 'Ventas', badge: this.bandeja()?.cuentas.paid || undefined },
       {
         id: 'publicaciones',
         label: 'Publicaciones',
@@ -367,7 +428,24 @@ export class SellerElementComponent implements OnInit {
         .length,
   );
 
-  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() =>
+  /**
+   * En Ventas, las cuentas de la bandeja: cuántos pedidos hay en cada etapa en la tienda ENTERA, que no dependen del
+   * filtro ni de la página. En las demás secciones, los indicadores del resumen.
+   */
+  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() => {
+    const cuentas = this.bandeja()?.cuentas;
+    if (this.activeSection() === 'ventas' && cuentas) {
+      return ETAPAS_DEL_DESPACHO.map((etapa) => ({
+        id: etapa,
+        label: this.textoEtapas[etapa],
+        value: this.formatNumber(cuentas[etapa]),
+        trend: 'flat' as const,
+      }));
+    }
+    return this.indicadoresDelResumen();
+  });
+
+  private readonly indicadoresDelResumen = computed<readonly ConsoleKpi[]>(() =>
     this.kpiMetrics().map((metric) => ({
       id: metric.id,
       label: metric.label,
@@ -401,7 +479,7 @@ export class SellerElementComponent implements OnInit {
       case 'reputacion':
         return [];
       default:
-        return ORDER_FILTERS;
+        return this.filtrosDeVentas;
     }
   });
 
@@ -419,14 +497,18 @@ export class SellerElementComponent implements OnInit {
       case 'reputacion':
         return [];
       default:
-        return this.filteredOrders().map((order) => this.orderRow(order));
+        // La bandeja viene filtrada y paginada del servidor: se pinta tal cual.
+        return this.pedidos().map((pedido) => this.pedidoRow(pedido));
     }
   });
 
-  /** Per-row actions: only status-appropriate verbs surface. */
+  /**
+   * Per-row actions: only status-appropriate verbs surface. Un pedido avanza sólo si el servidor dice que tiene actos
+   * (los botones de cada acto llegan con T021); su detalle se ve siempre.
+   */
   readonly rowActionsFor = (row: SellerRowVm): readonly ConsoleRowAction[] => {
-    if (row.kind === 'order' && row.order && this.canAdvance(row.order)) {
-      return [ADVANCE_ACTION];
+    if (row.kind === 'order' && row.pedido) {
+      return row.pedido.actos.length > 0 ? [ADVANCE_ACTION, this.accionDetalle] : [this.accionDetalle];
     }
     if (
       row.kind === 'return' &&
@@ -510,7 +592,12 @@ export class SellerElementComponent implements OnInit {
       : 'ventas';
     this.activeSection.set(section);
     this.sectionFilter.set('todas');
-    if (section === 'publicaciones') {
+    if (section === 'ventas') {
+      // El shell vuelve a «Todos» al cambiar de sección: la bandeja se vuelve a pedir así, para no pintar la del filtro
+      // de antes bajo el chip de «Todos».
+      this.paginaDeVentas.set(1);
+      void this.loadOrders();
+    } else if (section === 'publicaciones') {
       void this.loadListings();
     } else if (section === 'devoluciones') {
       void this.loadReturns();
@@ -519,6 +606,16 @@ export class SellerElementComponent implements OnInit {
 
   onFilterChange(filterKey: string): void {
     this.sectionFilter.set(filterKey);
+    if (this.activeSection() === 'ventas') {
+      this.paginaDeVentas.set(1);
+      void this.loadOrders();
+    }
+  }
+
+  /** La bandeja pagina en el servidor: otra página es otra lectura. */
+  onPageChange(pagina: number): void {
+    this.paginaDeVentas.set(pagina);
+    void this.loadOrders();
   }
 
   /** «Reintentar»: vuelve a pedir una lectura que no se pudo leer. */
@@ -562,8 +659,12 @@ export class SellerElementComponent implements OnInit {
 
   onRowAction(event: ConsoleRowActionEvent<SellerRowVm>): void {
     const row = event.row;
-    if (event.actionId === 'advance' && row.order) {
-      void this.advanceOrder(row.order);
+    if (event.actionId === 'advance' && row.pedido) {
+      void this.advanceOrder(row.pedido);
+      return;
+    }
+    if (event.actionId === 'detalle' && row.pedido) {
+      void this.abrirDetalle(row.pedido);
       return;
     }
     if ((event.actionId === 'approve' || event.actionId === 'reject') && row.rma) {
@@ -571,26 +672,80 @@ export class SellerElementComponent implements OnInit {
     }
   }
 
-  private canAdvance(order: SellerOrder): boolean {
-    return order.status === 'paid' || order.status === 'preparing' || order.status === 'shipped';
-  }
-
-  private async advanceOrder(order: SellerOrder): Promise<void> {
-    const status = await this.#api.advanceShipment(this.apiBase(), order.orderNumber);
+  private async advanceOrder(pedido: PedidoDeLaTienda): Promise<void> {
+    const status = await this.#api.advanceShipment(this.apiBase(), pedido.orderRef);
     if (!status) {
       // El servidor no lo movió, así que la fila NO se mueve (#77). Pintarle el estado
       // siguiente al vendedor le decía que el pedido iba en camino cuando no había salido.
       this.actionError.set(
-        `No pudimos avanzar el pedido ${order.orderNumber}. Sigue en «${order.status}»; volvé a intentarlo.`,
+        `No pudimos avanzar el pedido ${pedido.orderNumber}. Sigue en «${this.textoEtapas[pedido.etapa]}»; volvé a intentarlo.`,
       );
       return;
     }
     this.actionError.set(null);
-    this.orders.update((list) =>
-      list.map((entry) =>
-        entry.orderNumber === order.orderNumber ? { ...entry, status } : entry,
-      ),
-    );
+    // La fila se mueve con lo que diga el servidor: se vuelve a leer la bandeja, con su etapa y sus actos nuevos.
+    await this.loadOrders();
+  }
+
+  // ─── El detalle de un pedido (013-seller-operaciones, T012) ────────────────
+  /** Abre el detalle de un pedido: su envío, a dónde va y con quién. Reabrirlo es «Reintentar». */
+  async abrirDetalle(pedido: PedidoDeLaTienda): Promise<void> {
+    this.detalle.set({ pedido, estado: 'cargando', datos: null });
+    let resultado: LecturaDeLaConsola<DetalleDelPedido>;
+    try {
+      resultado = await this.#api.pedido(this.apiBase(), pedido.orderRef);
+    } catch {
+      resultado = { tipo: 'caida' };
+    }
+    if (this.detalle()?.pedido.orderRef !== pedido.orderRef) {
+      return; // mientras volaba se abrió otro, o se cerró
+    }
+    if (resultado.tipo === 'sin-sesion' || resultado.tipo === 'sin-permiso') {
+      this.marcar('ventas', resultado.tipo);
+    }
+    this.detalle.set({
+      pedido,
+      estado: resultado.tipo,
+      datos: resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras' ? resultado.datos : null,
+    });
+  }
+
+  cerrarDetalle(): void {
+    this.detalle.set(null);
+  }
+
+  textoDelDetalle(numero: string): string {
+    return t('Seller.Operaciones.OrderDetail', 'Pedido {numero}', { numero });
+  }
+
+  /** El instante en es-CO y en la hora del sitio. */
+  momento(instante: string): string {
+    return momentoDeLaConsola(instante, this.zonaHoraria());
+  }
+
+  /** La fecha, el comprador y el total del pedido, en una línea. */
+  resumenDelPedido(pedido: PedidoDeLaTienda): string {
+    return [this.momento(pedido.fecha), pedido.comprador, pedido.totalFormatted].filter(Boolean).join(' · ');
+  }
+
+  /** A dónde va, en una línea; con su contacto entre paréntesis. */
+  destinoEnUnaLinea(destino: DestinoDelEnvio): string {
+    const lugar = [destino.line1, destino.line2, destino.city, destino.region, destino.country].filter(Boolean).join(', ');
+    return destino.contact ? `${lugar} (${destino.contact})` : lugar;
+  }
+
+  /** Por qué el pedido no trae su envío entero, dicho para quien despacha. */
+  textoSinEnvioDe(motivo: DetalleDelPedido['motivoSinEnvio']): string {
+    switch (motivo) {
+      case 'sin_direccion':
+        return this.textoSinDireccion;
+      case 'sin_envio':
+        return this.textoSinEnvio;
+      case 'envio_no_disponible':
+        return this.textoEnvioNoDisponible;
+      default:
+        return '';
+    }
   }
 
   private async resolveReturn(rma: SellerReturn, action: SellerReturnAction): Promise<void> {
@@ -607,22 +762,7 @@ export class SellerElementComponent implements OnInit {
     );
   }
 
-  // ─── Filters (client-side over the API data) ───────────────────────────────
-  private filteredOrders(): readonly SellerOrder[] {
-    const filter = this.sectionFilter();
-    const orders = this.orders();
-    switch (filter) {
-      case 'por-enviar':
-        return orders.filter((order) => order.status === 'paid' || order.status === 'preparing');
-      case 'enviadas':
-        return orders.filter((order) => order.status === 'shipped');
-      case 'entregadas':
-        return orders.filter((order) => order.status === 'delivered');
-      default:
-        return orders;
-    }
-  }
-
+  // ─── Filters (client-side over the API data; la bandeja filtra en el servidor) ─
   private filteredListings(): readonly SellerListing[] {
     const filter = this.sectionFilter();
     const listings = this.listings();
@@ -652,28 +792,22 @@ export class SellerElementComponent implements OnInit {
   }
 
   // ─── Row projections (domain → opaque cells for the shell) ─────────────────
-  private orderRow(order: SellerOrder): SellerRowVm {
+  /** Un pedido de la bandeja: la fecha en la hora del sitio, el total que formateó el servidor y la etapa con su nombre. */
+  private pedidoRow(pedido: PedidoDeLaTienda): SellerRowVm {
     return {
-      id: order.orderNumber,
+      id: pedido.orderRef,
       kind: 'order',
-      order,
-      tone:
-        order.status === 'delivered'
-          ? 'ok'
-          : order.status === 'cancelled'
-            ? 'muted'
-            : order.status === 'shipped'
-              ? 'info'
-              : 'warn',
+      pedido,
+      tone: pedido.etapa === 'delivered' ? 'ok' : pedido.etapa === 'shipped' ? 'info' : 'warn',
       cells: {
-        orden: order.orderNumber,
-        fecha: order.date,
-        comprador: order.buyer || '—',
-        productos: order.items
+        orden: pedido.orderNumber,
+        fecha: this.momento(pedido.fecha),
+        comprador: pedido.comprador || '—',
+        productos: pedido.lineas
           .map((line) => (line.qty > 1 ? `${line.title} ×${line.qty}` : line.title))
           .join(' · '),
-        total: this.formatPrice(order.total, order.currency || this.currency()),
-        estado: this.orderStatusLabel(order.status),
+        total: pedido.totalFormatted || this.formatPrice(pedido.total, pedido.moneda),
+        estado: this.textoEtapas[pedido.etapa],
       },
     };
   }
@@ -948,10 +1082,30 @@ export class SellerElementComponent implements OnInit {
     });
   }
 
-  private loadOrders(): Promise<void> {
-    return this.leer('ventas', () => this.#api.orders(this.apiBase(), this.currency()), (orders) =>
-      this.orders.set(orders),
-    );
+  /**
+   * La bandeja, con el filtro y la página de ahora. Siempre se vuelve a pedir —un filtro, una página, «Reintentar» o
+   * un acto son otra lectura—, y la que llega tarde no se pinta: con dos filtros seguidos, la respuesta del primero
+   * dejaría filas de una etapa bajo el chip de otra.
+   */
+  private async loadOrders(): Promise<void> {
+    const pedida = ++this.bandejaPedida;
+    const etapa = (ETAPAS_DEL_DESPACHO as readonly string[]).includes(this.sectionFilter())
+      ? (this.sectionFilter() as EtapaDelDespacho)
+      : null;
+    this.marcar('ventas', 'cargando');
+    let resultado: LecturaDeLaConsola<BandejaDeLaTienda>;
+    try {
+      resultado = await this.#api.pedidos(this.apiBase(), etapa, this.paginaDeVentas());
+    } catch {
+      resultado = { tipo: 'caida' };
+    }
+    if (pedida !== this.bandejaPedida) {
+      return;
+    }
+    if (resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras') {
+      this.bandeja.set(resultado.datos);
+    }
+    this.marcar('ventas', resultado.tipo);
   }
 
   private loadListings(): Promise<void> {
@@ -1005,22 +1159,6 @@ export class SellerElementComponent implements OnInit {
   }
 
   // ─── Labels + formatting (UI copy only — data comes from the API) ──────────
-  orderStatusLabel(status: SellerOrder['status']): string {
-    switch (status) {
-      case 'pending':
-        return 'Pendiente de pago';
-      case 'paid':
-        return 'Por preparar';
-      case 'preparing':
-        return 'Preparando';
-      case 'shipped':
-        return 'Enviada';
-      case 'delivered':
-        return 'Entregada';
-      case 'cancelled':
-        return 'Cancelada';
-    }
-  }
 
   listingStatusLabel(status: SellerListing['status']): string {
     switch (status) {

@@ -17,38 +17,6 @@ const API = '/api/shop';
 /** La demo que DECLARA los ejemplos: sin esta marca, la consola no los pinta. */
 const CON_MUESTRAS: Provider[] = [{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }];
 
-/** Un pedido como lo emite `OrderDto` del CMS. */
-const PEDIDO_DEL_CMS = {
-  orderRef: 'saga-7f3a',
-  orderNumber: 'T-2026-0042',
-  status: 'Paid',
-  customerName: 'Lucía Gómez',
-  customerEmail: 'lucia@correo.co',
-  total: 259000,
-  totalFormatted: '$ 259.000',
-  currency: 'COP',
-  date: '2026-10-20T15:00:00+00:00',
-  createdAt: '2026-10-20T15:00:00+00:00',
-  items: [
-    {
-      productId: 'P-9',
-      variantId: null,
-      title: 'Teclado mecánico compacto 65%',
-      qty: 1,
-      amount: 259000,
-      productName: 'Teclado mecánico compacto 65%',
-      quantity: 1,
-      unitPrice: 259000,
-      unitPriceFormatted: '$ 259.000',
-      lineTotal: 259000,
-      lineTotalFormatted: '$ 259.000',
-      currency: 'COP',
-      canReturn: false,
-      returnBlock: null,
-    },
-  ],
-};
-
 /** Un hilo como lo emite hoy `ThreadSummaryDto` del CMS: `threadId` y no `id`, y sin asunto (T030 las suma). */
 const HILO_DEL_CMS = {
   threadId: 'th_31',
@@ -61,14 +29,41 @@ const HILO_DEL_CMS = {
 
 type Lector = (cliente: SellerApiClient, apiBase: string) => Promise<LecturaDeLaConsola<unknown>>;
 
-/** Las cinco lecturas de la consola. */
+/** Las lecturas de la consola. */
 const LECTURAS: ReadonlyArray<readonly [string, Lector]> = [
   ['el resumen', (cliente, apiBase) => cliente.summary(apiBase)],
-  ['las ventas', (cliente, apiBase) => cliente.orders(apiBase, 'COP')],
+  ['la bandeja', (cliente, apiBase) => cliente.pedidos(apiBase, null, 1)],
+  ['el detalle', (cliente, apiBase) => cliente.pedido(apiBase, 'saga-7f3a')],
   ['las publicaciones', (cliente, apiBase) => cliente.listings(apiBase, 'COP')],
   ['las devoluciones', (cliente, apiBase) => cliente.returns(apiBase)],
   ['los mensajes', (cliente, apiBase) => cliente.threads(apiBase)],
 ];
+
+/** Un pedido como lo emite `VendedorDeLaTiendaController` (T011) en la bandeja. */
+const PEDIDO_DE_LA_BANDEJA = {
+  orderRef: 'saga-7f3a',
+  orderNumber: 'T-2026-0042',
+  fecha: '2026-10-20T15:00:00+00:00',
+  comprador: 'Lucía Gómez',
+  camino: 'puerta',
+  etapa: 'paid',
+  total: 259000,
+  totalFormatted: '$ 259.000',
+  moneda: 'COP',
+  lineas: [{ title: 'Teclado mecánico compacto 65%', qty: 1, amount: 259000, amountFormatted: '$ 259.000' }],
+  actos: ['preparar'],
+  motivoSinActos: null,
+};
+
+/** La bandeja como la emite el CMS: una página, las cuentas de la tienda entera y lo que no se concilió. */
+const BANDEJA_DEL_CMS = {
+  pedidos: [PEDIDO_DE_LA_BANDEJA],
+  pagina: 1,
+  porPagina: 50,
+  total: 1,
+  cuentas: { paid: 1, preparing: 3, shipped: 0, delivered: 7 },
+  sinConciliar: 0,
+};
 
 function contestar(status: number, cuerpo: unknown): ReturnType<typeof vi.fn> {
   const red = vi.fn(() =>
@@ -101,22 +96,23 @@ describe('SellerApiClient — las lecturas de la consola no inventan (013-seller
   });
 
   it('lo que el servidor contesta es leído, con lo que el servidor dijo', async () => {
-    contestar(200, { orders: [PEDIDO_DEL_CMS] });
+    contestar(200, BANDEJA_DEL_CMS);
 
-    const lectura = await crearCliente().orders(API, 'COP');
+    const lectura = await crearCliente().pedidos(API, null, 1);
 
     expect(lectura).toMatchObject({
       tipo: 'leidas',
-      datos: [{ orderNumber: 'T-2026-0042', status: 'paid', total: 259000, currency: 'COP' }],
+      datos: { pedidos: [{ orderNumber: 'T-2026-0042', etapa: 'paid', total: 259000, moneda: 'COP' }] },
     });
   });
 
   it('la lista que el servidor contesta sin nada es vacía, no caída; y con la marca tampoco se tapa con ejemplos', async () => {
-    contestar(200, { orders: [] });
-    expect(await crearCliente().orders(API, 'COP')).toEqual({ tipo: 'vacia', datos: [] });
+    // Una bandeja de mensajes sin hilos, como la contesta `InboxResponse`.
+    contestar(200, { threads: [] });
+    expect(await crearCliente().threads(API)).toEqual({ tipo: 'vacia', datos: [] });
 
     TestBed.resetTestingModule();
-    expect(await crearCliente(CON_MUESTRAS).orders(API, 'COP')).toEqual({ tipo: 'vacia', datos: [] });
+    expect(await crearCliente(CON_MUESTRAS).threads(API)).toEqual({ tipo: 'vacia', datos: [] });
   });
 
   it('401 es sin sesión y 403 sin permiso, en las cinco lecturas; y la marca no los tapa', async () => {
@@ -156,13 +152,71 @@ describe('SellerApiClient — las lecturas de la consola no inventan (013-seller
   });
 
   it('sin la base de la API no llama a nada y es una caída (ADR 0137)', async () => {
-    const red = contestar(200, { orders: [PEDIDO_DEL_CMS] });
+    const red = contestar(200, BANDEJA_DEL_CMS);
 
     for (const [nombre, leer] of LECTURAS) {
       expect(await leer(crearCliente(), ''), nombre).toEqual({ tipo: 'caida' });
       TestBed.resetTestingModule();
     }
     expect(red).not.toHaveBeenCalled();
+  });
+
+  // ── La bandeja del personal (T012) ────────────────────────────────────────────────────────────────────────────────
+
+  it('la bandeja se pide al servidor con su etapa y su página, y trae las cuentas de la tienda entera', async () => {
+    const red = contestar(200, BANDEJA_DEL_CMS);
+
+    const lectura = await crearCliente().pedidos(API, 'shipped', 2);
+
+    expect(String(red.mock.calls[0][0])).toBe(`${API}/seller/orders?etapa=shipped&pagina=2`);
+    expect(lectura).toMatchObject({
+      tipo: 'leidas',
+      datos: { pagina: 1, total: 1, cuentas: { paid: 1, preparing: 3, shipped: 0, delivered: 7 }, sinConciliar: 0 },
+    });
+    if (lectura.tipo !== 'leidas') return;
+    expect(lectura.datos.pedidos[0]).toMatchObject({ orderRef: 'saga-7f3a', etapa: 'paid', camino: 'puerta', actos: ['preparar'] });
+  });
+
+  it('una bandeja sin pedidos es vacía y conserva sus cuentas; una con una cuenta que falta no se entiende', async () => {
+    contestar(200, { ...BANDEJA_DEL_CMS, pedidos: [], total: 0 });
+    expect(await crearCliente().pedidos(API, null, 1)).toMatchObject({ tipo: 'vacia', datos: { cuentas: { delivered: 7 } } });
+
+    TestBed.resetTestingModule();
+    contestar(200, { ...BANDEJA_DEL_CMS, cuentas: { paid: 1, preparing: 3, shipped: 0 } });
+    expect(await crearCliente().pedidos(API, null, 1)).toEqual({ tipo: 'caida' });
+  });
+
+  it('un pedido sin etapa del despacho o sin camino no se entiende: no se pinta un supuesto', async () => {
+    contestar(200, { ...BANDEJA_DEL_CMS, pedidos: [{ ...PEDIDO_DE_LA_BANDEJA, etapa: 'pending' }] });
+    expect(await crearCliente().pedidos(API, null, 1)).toEqual({ tipo: 'caida' });
+
+    TestBed.resetTestingModule();
+    contestar(200, { ...BANDEJA_DEL_CMS, pedidos: [{ ...PEDIDO_DE_LA_BANDEJA, camino: undefined }] });
+    expect(await crearCliente().pedidos(API, null, 1)).toEqual({ tipo: 'caida' });
+  });
+
+  it('el detalle trae el envío como lo dijo el servidor, o su motivo', async () => {
+    contestar(200, {
+      ...PEDIDO_DE_LA_BANDEJA,
+      envio: {
+        destino: { line1: 'Calle 1 # 2-3', line2: null, city: 'Bogotá', region: null, postalCode: null, country: 'CO', contact: 'Lucía' },
+        transportadora: 'servientrega',
+        estado: 'Ready',
+        eventos: [{ estado: 'Ready', nota: null, fecha: '2026-10-25T14:02:11+00:00' }],
+      },
+      motivoSinEnvio: null,
+    });
+    const conEnvio = await crearCliente().pedido(API, 'saga-7f3a');
+
+    TestBed.resetTestingModule();
+    contestar(200, { ...PEDIDO_DE_LA_BANDEJA, envio: null, motivoSinEnvio: 'envio_no_disponible' });
+    const sinEnvio = await crearCliente().pedido(API, 'saga-7f3a');
+
+    expect(conEnvio).toMatchObject({
+      tipo: 'leidas',
+      datos: { envio: { destino: { city: 'Bogotá', contact: 'Lucía' }, transportadora: 'servientrega' }, motivoSinEnvio: null },
+    });
+    expect(sinEnvio).toMatchObject({ tipo: 'leidas', datos: { envio: null, motivoSinEnvio: 'envio_no_disponible' } });
   });
 
   // Hoy `GET messages` contesta `threadId` y no `id`, sin asunto: el normalizador descarta cada hilo. Sin esta regla
