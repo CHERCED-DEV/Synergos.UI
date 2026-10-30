@@ -71,7 +71,7 @@ export interface ViajesDevolucionRespuesta {
 
 export interface ViajesReservaCotizacion {
   readonly flujo: string;
-  readonly datos: { readonly itinerario: readonly { readonly producto: string; readonly etiqueta: string; readonly inicio: string; readonly fin: string; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
+  readonly datos: { readonly itinerario: readonly { readonly producto: string; readonly etiqueta: string; readonly inicio: string; readonly fin: string; readonly precio?: { readonly amount: number; readonly currency: string; }; readonly noCumplido?: boolean; readonly devuelto?: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
 }
 
 export interface ViajesReservaEntrada {
@@ -90,7 +90,7 @@ export interface ViajesReservaRespuesta {
   readonly flujo: string;
   readonly numero: string;
   readonly estado: string;
-  readonly datos: { readonly itinerario: readonly { readonly producto: string; readonly etiqueta: string; readonly inicio: string; readonly fin: string; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
+  readonly datos: { readonly itinerario: readonly { readonly producto: string; readonly etiqueta: string; readonly inicio: string; readonly fin: string; readonly precio?: { readonly amount: number; readonly currency: string; }; readonly noCumplido?: boolean; readonly devuelto?: { readonly amount: number; readonly currency: string; }; }[] | null; readonly subtotal: { readonly amount: number; readonly currency: string; } | null; readonly descuento: { readonly amount: number; readonly currency: string; } | null; readonly impuesto: { readonly amount: number; readonly currency: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly vence: string | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;

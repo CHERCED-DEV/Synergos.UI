@@ -359,8 +359,10 @@ export function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
 function aLaConfirmacion(session: SessionData, viaje: ViajeLeido): FulfillmentConfirmation {
   return {
     confirmed: true,
-    vouchers: session.items.map((item) => {
+    vouchers: session.items.map((item, indice) => {
       const selection = item.selection as Record<string, unknown>;
+      // El ítem del itinerario va en el orden de las líneas: el servidor dice si se cumplió (historia 3).
+      const parada = viaje.itinerario[indice];
       return {
         itemId: item.id,
         reference: viaje.numero,
@@ -371,6 +373,7 @@ function aLaConfirmacion(session: SessionData, viaje: ViajeLeido): FulfillmentCo
           product: item.kind,
           reservationId: viaje.numero,
           confirmationCode: viaje.numero,
+          ...(parada?.noCumplido ? { noCumplido: true, devuelto: parada.devuelto?.amount ?? 0 } : {}),
         },
       };
     }),

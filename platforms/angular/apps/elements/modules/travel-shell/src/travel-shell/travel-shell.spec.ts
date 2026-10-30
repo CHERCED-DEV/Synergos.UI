@@ -7,7 +7,7 @@ import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy, itemsDelViaje } from './travel-fulfillment.strategy';
 import { entradaDelViaje } from './travel-viaje';
-import { TravelShellElementComponent } from './travel-shell';
+import { TravelShellElementComponent, mensajeDelViaje } from './travel-shell';
 import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
 
 /** Una línea del checkout con la forma de `CartItemDto` del CMS (defecto 1 de la línea 006). */
@@ -1141,6 +1141,8 @@ interface GuionDelViaje {
   readonly estadoTrasCerrar?: string;
   /** Los viajes reservados antes por la ruta directa (`GET /api/travel/trips`); sin esto, esa ruta no contesta. */
   readonly viajesDeAntes?: readonly unknown[];
+  /** El itinerario que dice el servidor; sin esto, el de un ítem. */
+  readonly itinerario?: readonly unknown[];
 }
 
 interface PedidoAlViaje {
@@ -1159,6 +1161,21 @@ const ITINERARIO_DEL_VIAJE = [
   { producto: 'AV-8020', etiqueta: 'Bogotá → Cartagena', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z' },
 ];
 
+/**
+ * Un viaje confirmado EN PARTE (historia 3), como lo devuelve el servidor con la política «parcial» del sitio: el auto no
+ * se pudo confirmar tras cobrar y se devolvió su parte.
+ */
+const ITINERARIO_PARCIAL = [
+  {
+    producto: 'AV-8020', etiqueta: 'Bogotá → Cartagena', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z',
+    precio: { amount: 1_700_000, currency: 'COP' },
+  },
+  {
+    producto: 'CAR-ECO', etiqueta: 'Auto económico', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z',
+    precio: { amount: 200_000, currency: 'COP' }, noCumplido: true, devuelto: { amount: 200_000, currency: 'COP' },
+  },
+];
+
 /** La puerta del viaje sobre el borde de siempre: lo demás (búsquedas, checkout directo) lo sirve el de antes. */
 function puertaDelViaje(guion: GuionDelViaje = {}) {
   const borde = bordeDeViajes();
@@ -1173,7 +1190,7 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     flujo: 'viajes.reserva',
     numero: NUMERO_DEL_VIAJE,
     estado,
-    datos: { itinerario: ITINERARIO_DEL_VIAJE, subtotal: total, descuento: null, impuesto: null, total, vence: '2026-08-01T10:15:00Z' },
+    datos: { itinerario: guion.itinerario ?? ITINERARIO_DEL_VIAJE, subtotal: total, descuento: null, impuesto: null, total, vence: '2026-08-01T10:15:00Z' },
     compensacionesPendientes: 0,
     error: null,
     deshaciendo: false,
@@ -1375,6 +1392,77 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(puerta.directas()).toBe(0);
     expect(component.view()).toBe('confirmation');
     expect(component.confirmedVouchers().map((v) => v.reservationId)).toEqual([NUMERO_DEL_VIAJE]);
+  });
+
+  it('cerrado EN PARTE (historia 3): lo que no se confirmó no es una credencial; se dice, con lo devuelto, lo que dijo el servidor', async () => {
+    const puerta = puertaDelViaje({ itinerario: ITINERARIO_PARCIAL });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    // El auto, segundo ítem del carrito: el que el servidor no pudo confirmar.
+    component.selectProduct('car');
+    component.carLocation.set('Aeropuerto El Dorado');
+    component.carPickUp.set('2026-08-01');
+    component.carDropOff.set('2026-08-05');
+    component.search();
+    await asentar(12);
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('.travel__car-card .travel__btn--primary') as HTMLButtonElement).click();
+    await asentar(12);
+    expect(component.cartCount()).toBe(2);
+    component.guestName.set('Ada Lovelace');
+    component.guestEmail.set('ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+
+    await confirmar();
+
+    expect(component.view()).toBe('confirmation');
+    // El vuelo es la única credencial; el auto no está reservado.
+    expect(component.confirmedVouchers()).toHaveLength(1);
+    expect(component.confirmationCredentials()).toHaveLength(1);
+    const nota = component.notaDeLaConfirmacion();
+    expect(nota).toContain('Confirmado (parcial). No se pudo confirmar:');
+    expect(nota).toContain('Te devolvimos su parte:');
+    expect(nota).toContain('200.000');
+    expect(alertas().some((a) => a.includes('Confirmado (parcial)'))).toBe(true);
+  });
+
+  it('«Mis viajes» dice «Confirmado (parcial)», qué ítem no se cumplió y cuánto se devolvió; lo no cumplido no tiene credencial', async () => {
+    const puerta = puertaDelViaje({ itinerario: ITINERARIO_PARCIAL, viajesDeAntes: [] });
+    await montar(puerta);
+    component.goToAccount();
+    fixture.detectChanges();
+    await asentar(20);
+    fixture.detectChanges();
+
+    const [trip] = component.trips();
+    expect(trip.parcial).toBe(true);
+    expect(trip.items.map((i) => [i.title, i.noCumplido ?? false, i.devuelto ?? 0])).toEqual([
+      ['Bogotá → Cartagena', false, 0],
+      ['Auto económico', true, 200_000],
+    ]);
+    expect(component.tripCredentials(trip)).toHaveLength(1);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.travel__trip-parcial')?.textContent?.trim()).toBe('Confirmado (parcial)');
+
+    (host.querySelector('.syn-account__list-item button') as HTMLElement).click();
+    fixture.detectChanges();
+    await asentar(5);
+    fixture.detectChanges();
+    const detalle = host.querySelector('.travel__trip-detail .travel__trip-parcial')?.textContent?.trim() ?? '';
+    expect(detalle).toContain('Confirmado (parcial). No se pudo confirmar: Auto económico. Te devolvimos su parte:');
+    expect(detalle).toContain('200.000');
+  });
+
+  it('ningún ítem confirmable (flow.nada_cumplido) lo dice por su code, con la plata devuelta', () => {
+    expect(mensajeDelViaje('flow.nada_cumplido')).toBe('Ningún ítem de tu viaje se pudo confirmar. Te devolvimos el pago.');
   });
 
   it('el total y el plazo del apartado son los que dijo el SERVIDOR al abrir, no la suma del navegador', async () => {

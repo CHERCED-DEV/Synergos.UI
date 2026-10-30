@@ -437,6 +437,11 @@ export interface TravelTrip {
    * tal. Lo que no aparece no es que no exista, pero sus acciones ya no son de esta pantalla.
    */
   readonly soloLectura?: true;
+  /**
+   * Confirmado en parte (historia 3, la política «parcial» del sitio): algún ítem no se pudo confirmar tras cobrar y se
+   * devolvió su parte. Lo dice el servidor en el itinerario; la pantalla no lo calcula.
+   */
+  readonly parcial?: true;
 }
 
 /** One booked item inside a trip (feeds the SH-10 wallet + timeline). */
@@ -446,6 +451,10 @@ export interface TravelTripItem {
   readonly title: string;
   readonly subtitle: string;
   readonly reservationId: string;
+  /** No se pudo confirmar (historia 3): no tiene credencial que enseñar. */
+  readonly noCumplido?: true;
+  /** Lo que se le devolvió por este ítem, en unidades mayores de la moneda del viaje, como lo dijo el servidor. */
+  readonly devuelto?: number;
 }
 
 /** `POST /api/travel/order/{ref}/cancel` response. */
