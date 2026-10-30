@@ -1143,6 +1143,8 @@ interface GuionDelViaje {
   readonly viajesDeAntes?: readonly unknown[];
   /** El itinerario que dice el servidor; sin esto, el de un ítem. */
   readonly itinerario?: readonly unknown[];
+  /** Lo que contestan `/api/travel/search/hotel` y `/api/travel/stay/{id}`; sin esto, el borde de siempre. */
+  readonly hoteles?: { readonly busqueda: unknown; readonly estadia: unknown };
 }
 
 interface PedidoAlViaje {
@@ -1201,6 +1203,12 @@ function puertaDelViaje(guion: GuionDelViaje = {}) {
     rutas.push(`${metodo} ${ruta}`);
     if (guion.viajesDeAntes && /\/api\/travel\/trips$/.test(new URL(ruta, 'http://x').pathname)) {
       return json(200, { trips: guion.viajesDeAntes });
+    }
+    if (guion.hoteles && /\/api\/travel\/search\/hotel$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, guion.hoteles.busqueda);
+    }
+    if (guion.hoteles && /\/api\/travel\/stay\/[^/]+$/.test(new URL(ruta, 'http://x').pathname)) {
+      return json(200, guion.hoteles.estadia);
     }
     const m = /\/api\/flujos\/viajes\.reserva\/([a-z]+)/.exec(ruta);
     if (!m) {
@@ -1461,6 +1469,41 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(detalle).toContain('200.000');
   });
 
+  it('la estadía del portal se agrega con la tarifa de la búsqueda y se reserva con su productRef, no con el id de la estadía (T036)', async () => {
+    // Como lo contesta el CMS (medido en vivo en /viajes/ el 2026-10-26): las ofertas traen el productRef y el precio por
+    // las fechas; el contenido de la estadía, sólo el código de la habitación.
+    const oferta = (plan: string, precio: number, regimen: string, reembolsable: boolean) => ({
+      offerId: `STD/${plan}`, product: 'Hotel', roomTypeCode: 'STD', roomTypeName: 'Habitación Estándar', ratePlanCode: plan,
+      boardBasis: regimen, refundable: reembolsable, roomsLeft: 6, price: precio, priceFormatted: '', currency: 'COP',
+      title: 'Casa Getsemaní Boutique', subtitle: `Habitación Estándar · ${regimen}`, stayId: 'ctg-getsemani',
+      stayName: 'Casa Getsemaní Boutique', city: 'Cartagena', geo: { lat: 10.42, lng: -75.54 }, rating: 9.2,
+    });
+    const puerta = puertaDelViaje({
+      hoteles: {
+        busqueda: { offers: [oferta('STD-FLEX', 440_000, 'BB', true), oferta('STD-NREF', 396_000, 'RO', false)] },
+        estadia: { stay: { stayId: 'ctg-getsemani', name: 'Casa Getsemaní Boutique', city: 'Cartagena', rates: [{ roomTypeCode: 'STD' }], images: [], amenities: [], specs: [] } },
+      },
+    });
+    await montar(puerta);
+    component.selectProduct('hotel');
+    component.hotelDestination.set('Cartagena');
+    component.hotelCheckIn.set('2026-12-20');
+    component.hotelCheckOut.set('2026-12-22');
+    component.search();
+    await asentar(12);
+    component.openStay(component.stayOffers()[0]);
+    await asentar(12);
+
+    expect(component.stay()?.rates.map((r) => [r.id, r.amount, r.rateLabel, r.refundable])).toEqual([
+      ['STD/STD-FLEX', 440_000, 'BB', true],
+      ['STD/STD-NREF', 396_000, 'RO', false],
+    ]);
+    component.addStayToCart();
+    await asentar(12);
+    // El carrito lleva el importe en unidades MENORES.
+    expect(component.cartItems().map((i) => [i.kind, i.productRef, i.amount])).toEqual([['hotel', 'STD/STD-FLEX', 44_000_000]]);
+  });
+
   it('ningún ítem confirmable (flow.nada_cumplido) lo dice por su code, con la plata devuelta', () => {
     expect(mensajeDelViaje('flow.nada_cumplido')).toBe('Ningún ítem de tu viaje se pudo confirmar. Te devolvimos el pago.');
   });
@@ -1561,6 +1604,42 @@ describe('El viaje por la puerta (línea 006)', () => {
     });
     expect(puerta.veces('abrir')).toBe(0);
     expect(component.cartTotalLabel()).toBe(formatearImporte(2_345_000, 'COP'));
+  });
+
+  it('cada línea vale lo que el servidor cotizó por ese ítem, y el resumen del asistente dice ese mismo total (T036)', async () => {
+    // Medido en vivo: la búsqueda traía el vuelo a 680.000 (ida y vuelta) y la puerta lo cotizaba a 340.000; el paso
+    // «Revisar» decía el total del servidor y el resumen de al lado la suma de la búsqueda.
+    const puerta = puertaDelViaje({
+      total: 340_000,
+      itinerario: [
+        { producto: 'FMOCK-1', etiqueta: 'BOG → CTG · Basic', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z', precio: { amount: 340_000, currency: 'COP' } },
+      ],
+    });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.cartItems().map((item) => [item.productRef, item.amount])).toEqual([['FMOCK-1', 34_000_000]]);
+    expect(component.cartTotalMinor()).toBe(34_000_000);
+    component.goToCheckout();
+    fixture.detectChanges();
+    await asentar(12);
+    expect(asistente().pricing().totalAmount).toBe(34_000_000);
+  });
+
+  it('un ítem que el servidor no cotizó, o que no casa con su línea, se queda como estaba', async () => {
+    const puerta = puertaDelViaje({
+      itinerario: [{ producto: 'OTRO', etiqueta: 'Otro', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z', precio: { amount: 1, currency: 'COP' } }],
+    });
+    await montar(puerta);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    expect(component.cartItems().map((item) => item.amount)).toEqual([41_200_000]);
   });
 
   it('si cotizar no puede dar el total lo dice, y el carrito no inventa uno del servidor', async () => {

@@ -739,7 +739,9 @@
     position: fixed;
     top: syn.$space-md;
     right: syn.$space-md;
-    z-index: 40;
+    // Sobre la cabecera fija del sitio (`$z-sticky`): con un 40, su franja de arriba —y «Cerrar»— quedaba debajo y
+    // ningún clic la alcanzaba (T036, medido en vivo en /viajes/).
+    z-index: syn.$z-overlay;
     width: min(syn.px-to-rem(360), calc(100vw - #{syn.$space-lg}));
     max-height: calc(100vh - #{syn.$space-lg});
     overflow-y: auto;
