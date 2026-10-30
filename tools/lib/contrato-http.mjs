@@ -118,10 +118,11 @@ export const MARCA_DE_LA_PUERTA = 'x-synergos-puerta';
  * `cotizar` lo suma el cupón: la fase que abre, anticipada sin saga (`FlowRunner.AnticiparAsync`).
  * `listar` son las sagas del dueño, «mis reservas» (núcleo, NB-6 de 011). `disponibilidad` es una lectura sin
  * saga ni dueño, lo que se ve antes de abrir (NB-3): la única clase de operación que un flujo abre a invitados.
+ * `detalle` es la lectura sin saga que sólo pide el personal (NS-2 de 013): la puerta del CMS comprueba su rol.
  * `devolver` es la fase que abre una operación posterior al cierre (lote 6, N-6 de 004).
  * Es la misma lista que `EnLaPuertaExtensions.Operaciones` y `TablaDeLaPuerta.Operaciones` del CMS.
  */
-export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'devolver', 'disponibilidad', 'listar'];
+export const OPERACIONES_DE_LA_PUERTA = ['abrir', 'cancelar', 'cerrar', 'consultar', 'cotizar', 'detalle', 'devolver', 'disponibilidad', 'listar'];
 
 /**
  * El único acceso que puede traer la marca además del del dueño: una operación del personal (lote 6, P8). La puerta

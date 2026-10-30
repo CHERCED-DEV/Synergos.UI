@@ -537,6 +537,22 @@ describe('la tabla de ejecución y el rechazo de la puerta (ADR 0140 F4, el «cl
     expect(tabla(ts)).toContain('disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },');
   });
 
+  it('detalle es del vocabulario: la lectura sin saga del personal, POST con cuerpo, sin llave y SIN sujeto (NS-2 de 013)', () => {
+    const d = documento();
+    d.paths['/v1/flujos/prueba.envio/detalle'] = {
+      post: {
+        operationId: 'PruebaEnvioDetalle',
+        'x-synergos-flujo': { flujo: 'prueba.envio', operacion: 'detalle', acceso: 'personal' },
+        requestBody: { ...json(ref('CompraRequest')), required: true },
+        responses: { 200: { description: 'OK', ...json(ref('CompraResponse')) }, 400: rechazo('Invalid') },
+      },
+    };
+    expect(validarDocumento(d)).toEqual([]);
+    const ts = generarTs(d, 'Synergos.Bff.Prueba.json');
+    expect(ts).toContain('readonly detalle: OperacionDeLaPuerta<"POST", undefined, CompraRequest, CompraResponse, "ninguna">;');
+    expect(tabla(ts)).toContain('detalle: { metodo: "POST", llave: "ninguna", consulta: [] },');
+  });
+
   it('devolver es del vocabulario, y la marca del personal pasa sin cambiar lo que se genera (lote 6, P8)', () => {
     const d = documento();
     d.paths['/v1/devoluciones'] = {
