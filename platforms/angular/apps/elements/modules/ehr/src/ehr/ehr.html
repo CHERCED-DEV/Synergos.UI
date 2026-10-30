@@ -172,6 +172,9 @@
               <section class="ehr__panel">
                 <h2 class="ehr__panel-title">{{ encabezadoDeLaCita(cita) }}</h2>
                 <p class="ehr__panel-text">{{ estadoDe(cita) }}</p>
+                @if (profesionalDe(cita); as profesional) {
+                  <p class="ehr__panel-text">{{ profesional }}</p>
+                }
                 @if (horaDeLaCita(cita); as hora) {
                   <p class="ehr__panel-text">{{ hora }}</p>
                 }
