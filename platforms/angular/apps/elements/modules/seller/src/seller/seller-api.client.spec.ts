@@ -35,7 +35,7 @@ const LECTURAS: ReadonlyArray<readonly [string, Lector]> = [
   ['la bandeja', (cliente, apiBase) => cliente.pedidos(apiBase, null, 1)],
   ['el detalle', (cliente, apiBase) => cliente.pedido(apiBase, 'saga-7f3a')],
   ['las publicaciones', (cliente, apiBase) => cliente.listings(apiBase, 'COP')],
-  ['las devoluciones', (cliente, apiBase) => cliente.returns(apiBase)],
+  ['las devoluciones', (cliente, apiBase) => cliente.devoluciones(apiBase)],
   ['los mensajes', (cliente, apiBase) => cliente.threads(apiBase)],
 ];
 
@@ -283,5 +283,48 @@ describe('SellerApiClient — las lecturas de la consola no inventan (013-seller
     contestar(200, { raro: true });
 
     expect(await crearCliente().avanzar(API, 'saga-7f3a', 'preparar')).toEqual({ hecho: true, pedido: null });
+  });
+  // ── La cola de devoluciones (T025) ───────────────────────────────────────────────────────────────────────────────
+
+  it('la cola se lee de seller/returns con el estado exacto; una devolución sin estado del CMS no se entiende', async () => {
+    const red = contestar(200, {
+      devoluciones: [
+        {
+          rmaId: 'RMA-1', orderRef: 'saga-7f3a', orderNumber: 'T-2026-0042', camino: 'puerta', producto: 'Teclado', cantidad: 1,
+          motivo: 'Falla', monto: 259000, montoFormatted: '$ 259.000', moneda: 'COP', estado: 'Received', nota: null,
+          solicitada: '2026-10-20T15:00:00+00:00', actualizada: '2026-10-21T15:00:00+00:00',
+        },
+      ],
+    });
+
+    const lectura = await crearCliente().devoluciones(API);
+
+    expect(String(red.mock.calls[0][0])).toBe(`${API}/seller/returns`);
+    expect(lectura).toMatchObject({ tipo: 'leidas', datos: [{ rmaId: 'RMA-1', estado: 'Received', camino: 'puerta', orderNumber: 'T-2026-0042' }] });
+
+    TestBed.resetTestingModule();
+    contestar(200, { devoluciones: [{ rmaId: 'RMA-1', estado: 'en-revision' }] });
+    expect(await crearCliente().devoluciones(API)).toEqual({ tipo: 'caida' });
+  });
+
+  it('mover una devolución manda { status, note } y trae su estado; un reembolso que no sale trae el motivo del servidor', async () => {
+    const red = contestar(200, { claimId: 'RMA-1', rmaId: 'RMA-1', status: 'en-revision', estado: 'Approved' });
+
+    const movida = await crearCliente().moverDevolucion(API, 'RMA 1', 'approved');
+
+    const [url, init] = red.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${API}/return/RMA%201/advance`);
+    expect(JSON.parse(String(init.body))).toEqual({ status: 'approved', note: null });
+    expect(movida).toEqual({ hecho: true, estado: 'Approved' });
+
+    TestBed.resetTestingModule();
+    contestar(400, { error: 'El orquestador no pudo devolver la plata.' });
+    expect(await crearCliente().moverDevolucion(API, 'RMA-1', 'refunded')).toEqual({
+      hecho: false, por: 'rechazo', motivo: 'El orquestador no pudo devolver la plata.',
+    });
+
+    TestBed.resetTestingModule();
+    contestar(503, { error: 'caído' });
+    expect(await crearCliente().moverDevolucion(API, 'RMA-1', 'refunded')).toMatchObject({ hecho: false, por: 'caida' });
   });
 });

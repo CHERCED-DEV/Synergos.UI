@@ -3,15 +3,19 @@ import { LoggerService } from '@synergos/core';
 import { formatearImporte } from '@synergos/vitals-core';
 import {
   ETAPAS_DEL_DESPACHO,
+  esEstadoDeDevolucion,
   type ActoDelDespacho,
   type BandejaDeLaTienda,
   type DestinoDelEnvio,
   type DetalleDelPedido,
+  type DevolucionDeLaTienda,
   type EtapaDelDespacho,
   type EventoDelEnvio,
   type MotivoSinEnvio,
+  type MovimientoDeLaDevolucion,
   type PedidoDeLaTienda,
   type ResultadoDelActo,
+  type ResultadoDelMovimiento,
   type SellerKpiMetric,
   type SellerKpiUnit,
   type SellerListing,
@@ -247,7 +251,69 @@ export class SellerApiClient {
 
   // ─── Devoluciones (RMA) ──────────────────────────────────────────────────────
 
-  returns(apiBase: string): Promise<LecturaDeLaConsola<readonly SellerReturn[]>> {
+  /**
+   * La cola de devoluciones de la tienda entera (013-seller-operaciones, T025): `GET seller/returns`, en el orden del
+   * servidor —lo que más espera, primero—, con el estado exacto y el camino de cada pedido.
+   */
+  devoluciones(apiBase: string): Promise<LecturaDeLaConsola<readonly DevolucionDeLaTienda[]>> {
+    return this.leer(apiBase, `${apiBase}/seller/returns`, 'GET /api/shop/seller/returns', normalizeDevoluciones, mockDevoluciones);
+  }
+
+  /**
+   * Mueve una devolución: `POST return/{rmaId}/advance` con `{ status, note }`, que es lo que lee el CMS
+   * (`ReturnAdvanceBody`). Devuelve el estado en que quedó, o que no se movió (#77) con el motivo que dio el servidor:
+   * un reembolso que no sale deja la devolución recibida, y lo dice.
+   */
+  async moverDevolucion(
+    apiBase: string,
+    rmaId: string,
+    status: MovimientoDeLaDevolucion,
+    note?: string,
+  ): Promise<ResultadoDelMovimiento> {
+    const endpoint = 'POST /api/shop/return/{rmaId}/advance';
+    if (typeof fetch !== 'function' || !apiBase) {
+      this.avisar(endpoint, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
+      return { hecho: false, por: 'caida', motivo: null };
+    }
+    const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
+    let respuesta: Response;
+    try {
+      respuesta = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, note: note ?? null }),
+      });
+    } catch (error) {
+      this.avisar(endpoint, error);
+      return { hecho: false, por: 'caida', motivo: null };
+    }
+    let cuerpo: unknown = null;
+    try {
+      cuerpo = await respuesta.json();
+    } catch {
+      cuerpo = null;
+    }
+    if (respuesta.ok) {
+      return { hecho: true, estado: isRecord(cuerpo) && esEstadoDeDevolucion(cuerpo['estado']) ? cuerpo['estado'] : null };
+    }
+    if (respuesta.status === 401 || respuesta.status === 403) {
+      return { hecho: false, por: respuesta.status === 401 ? 'sin-sesion' : 'sin-permiso', motivo: null };
+    }
+    const motivo = isRecord(cuerpo) ? textoONulo(cuerpo['error']) : null;
+    if (respuesta.status >= 500) {
+      this.avisar(endpoint, new Error(`HTTP ${respuesta.status}`));
+      return { hecho: false, por: 'caida', motivo };
+    }
+    return { hecho: false, por: 'rechazo', motivo };
+  }
+
+  /**
+   * Las devoluciones de QUIEN PREGUNTA (`GET returns`): la consola las leía como la cola de la tienda, y el personal veía
+   * las suyas como comprador. Desde 013-seller-operaciones T025 la consola lee la cola del personal
+   * ({@link devoluciones}). Queda aquí sin llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es
+   * un superset)— hasta que el arquitecto decida su retiro: está anotado en la bitácora de 013, con {@link orders}.
+   */
+  private returns(apiBase: string): Promise<LecturaDeLaConsola<readonly SellerReturn[]>> {
     return this.leer(apiBase, `${apiBase}/returns`, 'GET /api/shop/returns', normalizeReturns, mockReturns);
   }
 
@@ -257,27 +323,19 @@ export class SellerApiClient {
    * **`null` es «no se pudo» (#77).** Devolvía
    * `action === 'approve' ? 'aprobado' : 'rechazado'`, o sea el ECO de la intención de
    * quien llamó presentado como la respuesta del servidor — la regla 19 otra vez, con el
-   * parámetro haciendo de resultado. A diferencia de `advanceShipment`, este endpoint **sí
-   * existe** (`HttpPost("return/{rmaId}/advance")`), así que sólo mentía cuando el servidor
-   * estaba de verdad caído; el corte es el mismo y el grado, distinto.
+   * parámetro haciendo de resultado.
+   *
+   * Y mandaba `{ action }`, que el CMS no lee (`ReturnAdvanceBody` es `{ status, note }`): contestaba 400 siempre, así
+   * que aprobar o rechazar desde la consola no funcionó nunca (G-7 lo señaló en 013). Desde T025 pasa por
+   * {@link moverDevolucion}, y queda desconectada —privada, sin llamador, no borrada— con {@link returns}.
    */
-  async advanceReturn(
+  private async advanceReturn(
     apiBase: string,
     rmaId: string,
     action: SellerReturnAction,
   ): Promise<SellerReturnStatus | null> {
-    const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
-    try {
-      const data = await this.postJson(apiBase, url, { action });
-      const status = normalizeReturnStatus(isRecord(data) ? data['status'] : undefined);
-      if (status) {
-        return status;
-      }
-      throw new Error('return-advance-shape');
-    } catch (error) {
-      this.avisar('POST /api/shop/return/{rmaId}/advance', error);
-      return null;
-    }
+    const movida = await this.moverDevolucion(apiBase, rmaId, action === 'approve' ? 'approved' : 'rejected');
+    return movida.hecho ? (action === 'approve' ? 'en-revision' : 'rechazado') : null;
   }
 
   // ─── Publicar producto ───────────────────────────────────────────────────────
@@ -703,6 +761,48 @@ function normalizeDetalle(value: unknown): DetalleDelPedido | null {
   };
 }
 
+/**
+ * Una devolución de la cola, o `null` si no se entiende: sin `rmaId` o sin un estado exacto no se sabe qué acción le
+ * toca, y pintarle una supuesta sería decidir por el servidor.
+ */
+function normalizeDevolucion(value: unknown): DevolucionDeLaTienda | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rmaId = readString(value['rmaId']).trim();
+  const estado = value['estado'];
+  if (!rmaId || !esEstadoDeDevolucion(estado)) {
+    return null;
+  }
+  const camino = value['camino'];
+  return {
+    rmaId,
+    orderRef: readString(value['orderRef']).trim(),
+    orderNumber: textoONulo(value['orderNumber']),
+    camino: camino === 'puerta' || camino === 'directa' ? camino : null,
+    producto: readString(value['producto']).trim(),
+    cantidad: Math.max(0, Math.trunc(readNumber(value['cantidad']))),
+    motivo: readString(value['motivo']).trim(),
+    monto: readNumber(value['monto']),
+    montoFormatted: readString(value['montoFormatted']).trim(),
+    moneda: readString(value['moneda']).trim(),
+    estado,
+    nota: textoONulo(value['nota']),
+    solicitada: readString(value['solicitada']).trim(),
+    actualizada: readString(value['actualizada']).trim(),
+  };
+}
+
+function normalizeDevoluciones(value: unknown): readonly DevolucionDeLaTienda[] | null {
+  if (!isRecord(value) || !Array.isArray(value['devoluciones'])) {
+    return null;
+  }
+  return legibles(
+    value['devoluciones'],
+    value['devoluciones'].map(normalizeDevolucion).filter((d): d is DevolucionDeLaTienda => d !== null),
+  );
+}
+
 const LISTING_STATUSES: readonly SellerListingStatus[] = ['activa', 'pausada', 'agotada'];
 
 function normalizeListings(value: unknown, currency: string): readonly SellerListing[] | null {
@@ -1004,6 +1104,30 @@ function mockBandeja(etapa: EtapaDelDespacho | null): BandejaDeLaTienda {
     cuentas: { paid: cuenta('paid'), preparing: cuenta('preparing'), shipped: cuenta('shipped'), delivered: cuenta('delivered') },
     sinConciliar: 0,
   };
+}
+
+/** La cola de ejemplo: sólo con la marca de la demo, y una por estado para que se vean sus acciones. */
+function mockDevoluciones(): readonly DevolucionDeLaTienda[] {
+  // Del primer pedido de ejemplo: su moneda y el importe de su línea, sin escribir una moneda aquí.
+  const pedido = mockPedidos()[0];
+  const linea = pedido.lineas[0];
+  const base = {
+    orderRef: pedido.orderRef,
+    orderNumber: pedido.orderNumber,
+    camino: pedido.camino,
+    cantidad: 1,
+    monto: linea.amount,
+    montoFormatted: linea.amountFormatted,
+    moneda: pedido.moneda,
+    nota: null,
+    solicitada: pedido.fecha,
+    actualizada: pedido.fecha,
+  };
+  return [
+    { ...base, rmaId: 'demo-rma-1', producto: 'Audífonos inalámbricos', motivo: 'No encienden', estado: 'Requested' },
+    { ...base, rmaId: 'demo-rma-2', producto: 'Funda de silicona', motivo: 'Color equivocado', estado: 'Received' },
+    { ...base, rmaId: 'demo-rma-3', producto: 'Cargador USB-C', motivo: 'Llegó roto', estado: 'Approved' },
+  ];
 }
 
 function mockDetalle(orderRef: string): DetalleDelPedido {

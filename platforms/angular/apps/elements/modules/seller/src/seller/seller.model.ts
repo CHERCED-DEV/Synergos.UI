@@ -155,6 +155,51 @@ export type ResultadoDelActo =
       readonly etapa: EtapaDelDespacho | null;
     };
 
+// ─── La cola de devoluciones del personal (013-seller-operaciones, T025) ─────
+
+/** El estado EXACTO de una devolución, como lo dice `GET seller/returns`: el personal decide con éste, no con el rótulo. */
+export type EstadoDeLaDevolucion = 'Requested' | 'Approved' | 'Received' | 'Refunded' | 'Rejected';
+
+/** Si un valor es un estado exacto de devolución: los de `ShopReturnStatus` del CMS. */
+export function esEstadoDeDevolucion(value: unknown): value is EstadoDeLaDevolucion {
+  return value === 'Requested' || value === 'Approved' || value === 'Received' || value === 'Refunded' || value === 'Rejected';
+}
+
+/** Lo que el personal le pide a una devolución: el `status` que lee `POST return/{rmaId}/advance` (`ReturnAdvanceBody`). */
+export type MovimientoDeLaDevolucion = 'approved' | 'rejected' | 'received' | 'refunded';
+
+/** Una devolución de la cola de la tienda (`VendedorDeLaTiendaController.DevolucionDto`, T024). */
+export interface DevolucionDeLaTienda {
+  readonly rmaId: string;
+  readonly orderRef: string;
+  /** El número del pedido; nulo si su orden no se encuentra. */
+  readonly orderNumber: string | null;
+  /** Por dónde volverá la plata; nulo si su orden no se encuentra. */
+  readonly camino: 'puerta' | 'directa' | null;
+  readonly producto: string;
+  readonly cantidad: number;
+  readonly motivo: string;
+  /** Lo que se devolvería: el total de la línea de la orden, con su texto del servidor. */
+  readonly monto: number;
+  readonly montoFormatted: string;
+  readonly moneda: string;
+  readonly estado: EstadoDeLaDevolucion;
+  readonly nota: string | null;
+  /** ISO-8601: se pinta en la zona del sitio. */
+  readonly solicitada: string;
+  readonly actualizada: string;
+}
+
+/** Lo que dejó mover una devolución: su estado nuevo, o que no se movió (#77) y el motivo que dio el servidor. */
+export type ResultadoDelMovimiento =
+  | { readonly hecho: true; readonly estado: EstadoDeLaDevolucion | null }
+  | {
+      readonly hecho: false;
+      readonly por: 'sin-sesion' | 'sin-permiso' | 'rechazo' | 'caida';
+      /** El motivo del servidor (un reembolso que no salió dice por qué); nulo si no lo dio. */
+      readonly motivo: string | null;
+    };
+
 /** Una página de la bandeja, con las cuentas por etapa de la tienda entera (no de la página ni del filtro). */
 export interface BandejaDeLaTienda {
   readonly pedidos: readonly PedidoDeLaTienda[];

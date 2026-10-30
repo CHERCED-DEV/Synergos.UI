@@ -245,6 +245,24 @@
         </div>
       </section>
     }
+
+    <!-- Reembolsar mueve plata: se confirma antes (013-seller-operaciones, T025). -->
+    @if (activeSection() === 'devoluciones' && reembolsoAbierto(); as aReembolsar) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelReembolso(aReembolsar)">
+        <p class="seller__detalle-resumen">{{ textoDelReembolso(aReembolsar) }}</p>
+        <div class="seller__envio-acciones">
+          <button
+            type="button"
+            class="seller__btn seller__btn--primary seller__reembolsar"
+            [disabled]="devolucionEnVuelo() !== null"
+            (click)="moverDevolucion(aReembolsar, 'refunded')"
+          >
+            {{ devolucionEnVuelo() === aReembolsar.rmaId ? accionEnVuelo.label : textoConfirmarReembolso }}
+          </button>
+          <button type="button" class="seller__btn" (click)="cerrarReembolso()">{{ textoCancelar }}</button>
+        </div>
+      </section>
+    }
   }
 
   <!-- ═══ PUBLICAR: SH-6 authoring wizard (borrador persistente) ═══════════ -->

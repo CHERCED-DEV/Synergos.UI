@@ -45,9 +45,13 @@ import {
   type BandejaDeLaTienda,
   type DestinoDelEnvio,
   type DetalleDelPedido,
+  type DevolucionDeLaTienda,
+  type EstadoDeLaDevolucion,
   type EtapaDelDespacho,
+  type MovimientoDeLaDevolucion,
   type PedidoDeLaTienda,
   type ResultadoDelActo,
+  type ResultadoDelMovimiento,
   type SellerKpiMetric,
   type SellerListing,
   type SellerMessage,
@@ -55,7 +59,6 @@ import {
   type SellerPublishReceipt,
   type SellerReputation,
   type SellerReturn,
-  type SellerReturnAction,
   type SellerSectionId,
   type SellerThread,
   type SellerView,
@@ -93,7 +96,7 @@ interface SellerRowVm {
   readonly tone: 'ok' | 'warn' | 'info' | 'muted';
   readonly pedido?: PedidoDeLaTienda;
   readonly listing?: SellerListing;
-  readonly rma?: SellerReturn;
+  readonly devolucion?: DevolucionDeLaTienda;
 }
 
 /** El detalle abierto: el pedido de la fila, cómo va su lectura y lo que trajo. */
@@ -160,16 +163,26 @@ const LISTING_FILTERS: readonly ConsoleFilter[] = [
   { key: 'agotadas', label: 'Agotadas' },
 ];
 
-const RETURN_FILTERS: readonly ConsoleFilter[] = [
-  { key: 'todas', label: 'Todas' },
-  { key: 'abiertas', label: 'Abiertas' },
-  { key: 'resueltas', label: 'Resueltas' },
-];
-
 /** El prefijo del id de la acción de fila de un acto del despacho: `acto:preparar`, `acto:enviar`, `acto:entregar`. */
 const PREFIJO_DEL_ACTO = 'acto:';
-const APPROVE_ACTION: ConsoleRowAction = { id: 'approve', label: 'Aprobar', kind: 'primary' };
-const REJECT_ACTION: ConsoleRowAction = { id: 'reject', label: 'Rechazar', kind: 'danger' };
+/** Lo que dice una celda sin dato: una raya, y no un texto que lo invente. */
+const SIN_DATO = '—';
+
+/** El prefijo del id de la acción de fila que mueve una devolución: `devolucion:approved`, `devolucion:refunded`… */
+const PREFIJO_DE_LA_DEVOLUCION = 'devolucion:';
+
+/** Si una devolución pide algo al personal: las de «Abiertas», y las que cuenta su insignia. */
+const estaAbierta = (estado: EstadoDeLaDevolucion): boolean =>
+  estado === 'Requested' || estado === 'Received' || estado === 'Approved';
+
+/** Lo que puede pasarle a una devolución desde cada estado (la máquina del CMS: `StubReturnService`). */
+const MOVIMIENTOS_DESDE: Readonly<Record<EstadoDeLaDevolucion, readonly MovimientoDeLaDevolucion[]>> = {
+  Requested: ['approved', 'rejected'],
+  Approved: ['received'],
+  Received: ['refunded'],
+  Refunded: [],
+  Rejected: [],
+};
 
 /** Wizard steps: datos → media (URLs) → precio/stock → preview → publicar. */
 const PUBLISH_STEPS = [
@@ -301,7 +314,8 @@ export class SellerElementComponent implements OnInit {
   private bandejaPedida = 0;
 
   readonly listings = signal<readonly SellerListing[]>([]);
-  readonly returns = signal<readonly SellerReturn[]>([]);
+  /** La cola de devoluciones de la tienda entera, en el orden del servidor (013-seller-operaciones, T025). */
+  readonly devoluciones = signal<readonly DevolucionDeLaTienda[]>([]);
   readonly threads = signal<readonly SellerThread[]>([]);
 
   /**
@@ -379,6 +393,34 @@ export class SellerElementComponent implements OnInit {
     'Los pedidos de la puerta no se despachan desde este sitio.',
   );
 
+  // ─── La cola de devoluciones (013-seller-operaciones, T025) ────────────────
+  /** El botón de cada movimiento; salen por el estado EXACTO de la devolución. */
+  readonly accionDeLaDevolucion: Readonly<Record<MovimientoDeLaDevolucion, ConsoleRowAction>> = {
+    approved: { id: `${PREFIJO_DE_LA_DEVOLUCION}approved`, label: t('Seller.Operaciones.ReturnApprove', 'Aprobar'), kind: 'primary' },
+    rejected: { id: `${PREFIJO_DE_LA_DEVOLUCION}rejected`, label: t('Seller.Operaciones.ReturnReject', 'Rechazar'), kind: 'danger' },
+    received: { id: `${PREFIJO_DE_LA_DEVOLUCION}received`, label: t('Seller.Operaciones.ReturnReceive', 'Marcar recibida'), kind: 'primary' },
+    refunded: { id: `${PREFIJO_DE_LA_DEVOLUCION}refunded`, label: t('Seller.Operaciones.ReturnRefund', 'Reembolsar'), kind: 'primary' },
+  };
+  /** Cómo se llama cada estado de una devolución: en la columna y en lo que no se movió. */
+  readonly textoEstadosDeDevolucion: Readonly<Record<EstadoDeLaDevolucion, string>> = {
+    Requested: t('Seller.Operaciones.ReturnRequested', 'Pedida'),
+    Approved: t('Seller.Operaciones.ReturnApproved', 'Aprobada'),
+    Received: t('Seller.Operaciones.ReturnReceived', 'Recibida'),
+    Refunded: t('Seller.Operaciones.ReturnRefunded', 'Reembolsada'),
+    Rejected: t('Seller.Operaciones.ReturnRejected', 'Rechazada'),
+  };
+  /** Los filtros de la cola: todas, las que piden algo y las cerradas. */
+  readonly filtrosDeDevoluciones: readonly ConsoleFilter[] = [
+    { key: 'todas', label: t('Seller.Operaciones.ReturnsAll', 'Todas') },
+    { key: 'abiertas', label: t('Seller.Operaciones.ReturnsOpen', 'Abiertas') },
+    { key: 'resueltas', label: t('Seller.Operaciones.ReturnsClosed', 'Resueltas') },
+  ];
+  /** La devolución que se está moviendo. */
+  readonly devolucionEnVuelo = signal<string | null>(null);
+  /** La devolución que se va a reembolsar, esperando que se confirme. */
+  readonly reembolsoAbierto = signal<DevolucionDeLaTienda | null>(null);
+  readonly textoConfirmarReembolso = t('Seller.Operaciones.RefundConfirmAction', 'Sí, reembolsar');
+
   /** El aviso de las compras que el servidor no alcanzó a confirmar en esta lectura. */
   readonly avisoSinConciliar = computed(() => {
     const n = this.bandeja()?.sinConciliar ?? 0;
@@ -449,8 +491,7 @@ export class SellerElementComponent implements OnInit {
 
   readonly openReturnsCount = computed(
     () =>
-      this.returns().filter((rma) => rma.status === 'abierto' || rma.status === 'en-revision')
-        .length,
+      this.devoluciones().filter((d) => estaAbierta(d.estado)).length,
   );
 
   /**
@@ -500,7 +541,7 @@ export class SellerElementComponent implements OnInit {
       case 'publicaciones':
         return LISTING_FILTERS;
       case 'devoluciones':
-        return RETURN_FILTERS;
+        return this.filtrosDeDevoluciones;
       case 'reputacion':
         return [];
       default:
@@ -539,12 +580,11 @@ export class SellerElementComponent implements OnInit {
       const actos = row.pedido.actos.filter((a): a is ActoDelDespacho => ACTOS_DEL_DESPACHO.includes(a as ActoDelDespacho));
       return [...actos.map((acto) => this.accionDelActo[acto]), this.accionDetalle];
     }
-    if (
-      row.kind === 'return' &&
-      row.rma &&
-      (row.rma.status === 'abierto' || row.rma.status === 'en-revision')
-    ) {
-      return [APPROVE_ACTION, REJECT_ACTION];
+    if (row.kind === 'return' && row.devolucion) {
+      if (this.devolucionEnVuelo() === row.devolucion.rmaId) {
+        return [this.accionEnVuelo];
+      }
+      return MOVIMIENTOS_DESDE[row.devolucion.estado].map((movimiento) => this.accionDeLaDevolucion[movimiento]);
     }
     return [];
   };
@@ -701,8 +741,13 @@ export class SellerElementComponent implements OnInit {
       void this.abrirDetalle(row.pedido);
       return;
     }
-    if ((event.actionId === 'approve' || event.actionId === 'reject') && row.rma) {
-      void this.resolveReturn(row.rma, event.actionId);
+    if (event.actionId.startsWith(PREFIJO_DE_LA_DEVOLUCION) && row.devolucion) {
+      const movimiento = event.actionId.slice(PREFIJO_DE_LA_DEVOLUCION.length) as MovimientoDeLaDevolucion;
+      if (movimiento === 'refunded') {
+        this.abrirReembolso(row.devolucion);
+      } else {
+        void this.moverDevolucion(row.devolucion, movimiento);
+      }
     }
   }
 
@@ -869,18 +914,64 @@ export class SellerElementComponent implements OnInit {
     }
   }
 
-  private async resolveReturn(rma: SellerReturn, action: SellerReturnAction): Promise<void> {
-    const status = await this.#api.advanceReturn(this.apiBase(), rma.rmaId, action);
-    if (!status) {
-      this.actionError.set(
-        `No pudimos ${action === 'approve' ? 'aprobar' : 'rechazar'} la devolución ${rma.rmaId}. Sigue en «${rma.status}».`,
-      );
+  /**
+   * Mueve una devolución (T025). Una a la vez: mientras vuela, su fila no ofrece otra acción y un segundo clic no sale.
+   * La cola se vuelve a leer sólo con la respuesta del servidor; si no se movió (#77) —un reembolso que no salió, por
+   * ejemplo—, sigue donde estaba y el aviso dice el motivo del servidor y en qué estado sigue.
+   */
+  async moverDevolucion(devolucion: DevolucionDeLaTienda, movimiento: MovimientoDeLaDevolucion): Promise<void> {
+    if (this.devolucionEnVuelo() !== null) {
       return;
     }
+    this.devolucionEnVuelo.set(devolucion.rmaId);
     this.actionError.set(null);
-    this.returns.update((list) =>
-      list.map((entry) => (entry.rmaId === rma.rmaId ? { ...entry, status } : entry)),
-    );
+    try {
+      const resultado = await this.#api.moverDevolucion(this.apiBase(), devolucion.rmaId, movimiento);
+      if (!resultado.hecho) {
+        if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
+          this.marcar('devoluciones', resultado.por);
+          return;
+        }
+        this.actionError.set(this.textoDeLaDevolucionQueNoSeMovio(devolucion, resultado));
+        return;
+      }
+      this.reembolsoAbierto.set(null);
+      this.marcar('devoluciones', 'sin-cargar');
+      await this.loadReturns();
+    } finally {
+      this.devolucionEnVuelo.set(null);
+    }
+  }
+
+  /** Por qué una devolución no se movió, con el estado en que sigue. */
+  private textoDeLaDevolucionQueNoSeMovio(
+    devolucion: DevolucionDeLaTienda,
+    resultado: Extract<ResultadoDelMovimiento, { readonly hecho: false }>,
+  ): string {
+    const motivo =
+      resultado.por === 'caida'
+        ? t('Seller.Operaciones.TryAgain', 'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo.')
+        : (resultado.motivo ?? t('Seller.Operaciones.ReturnFailed', 'No pudimos mover la devolución {rma}.', { rma: devolucion.rmaId }));
+    const sigueEn = t('Seller.Operaciones.ReturnStillIn', 'La devolución sigue en «{estado}».', {
+      estado: this.textoEstadosDeDevolucion[devolucion.estado],
+    });
+    return `${motivo} ${sigueEn}`;
+  }
+
+  /** Reembolsar mueve plata: pide confirmarlo antes. */
+  abrirReembolso(devolucion: DevolucionDeLaTienda): void {
+    this.reembolsoAbierto.set(devolucion);
+  }
+
+  cerrarReembolso(): void {
+    this.reembolsoAbierto.set(null);
+  }
+
+  textoDelReembolso(devolucion: DevolucionDeLaTienda): string {
+    return t('Seller.Operaciones.RefundConfirm', 'Reembolsar {monto} de la devolución {rma}: la plata vuelve a quien compró.', {
+      monto: devolucion.montoFormatted || this.formatPrice(devolucion.monto, devolucion.moneda),
+      rma: devolucion.rmaId,
+    });
   }
 
   // ─── Filters (client-side over the API data; la bandeja filtra en el servidor) ─
@@ -899,16 +990,15 @@ export class SellerElementComponent implements OnInit {
     }
   }
 
-  private filteredReturns(): readonly SellerReturn[] {
-    const filter = this.sectionFilter();
-    const returns = this.returns();
-    switch (filter) {
+  private filteredReturns(): readonly DevolucionDeLaTienda[] {
+    const devoluciones = this.devoluciones();
+    switch (this.sectionFilter()) {
       case 'abiertas':
-        return returns.filter((rma) => rma.status === 'abierto' || rma.status === 'en-revision');
+        return devoluciones.filter((d) => estaAbierta(d.estado));
       case 'resueltas':
-        return returns.filter((rma) => rma.status === 'aprobado' || rma.status === 'rechazado');
+        return devoluciones.filter((d) => !estaAbierta(d.estado));
       default:
-        return returns;
+        return devoluciones;
     }
   }
 
@@ -923,7 +1013,7 @@ export class SellerElementComponent implements OnInit {
       cells: {
         orden: pedido.orderNumber,
         fecha: this.momento(pedido.fecha),
-        comprador: pedido.comprador || '—',
+        comprador: pedido.comprador || SIN_DATO,
         productos: pedido.lineas
           .map((line) => (line.qty > 1 ? `${line.title} ×${line.qty}` : line.title))
           .join(' · '),
@@ -951,26 +1041,26 @@ export class SellerElementComponent implements OnInit {
     };
   }
 
-  private returnRow(rma: SellerReturn): SellerRowVm {
+  private returnRow(devolucion: DevolucionDeLaTienda): SellerRowVm {
     return {
-      id: rma.rmaId,
+      id: devolucion.rmaId,
       kind: 'return',
-      rma,
+      devolucion,
       tone:
-        rma.status === 'aprobado'
+        devolucion.estado === 'Refunded'
           ? 'ok'
-          : rma.status === 'rechazado'
+          : devolucion.estado === 'Rejected'
             ? 'muted'
-            : rma.status === 'en-revision'
-              ? 'info'
-              : 'warn',
+            : devolucion.estado === 'Requested'
+              ? 'warn'
+              : 'info',
       cells: {
-        rma: rma.rmaId,
-        orden: rma.orderNumber,
-        producto: rma.productTitle,
-        motivo: rma.reason,
-        fecha: rma.date,
-        estado: this.returnStatusLabel(rma.status),
+        rma: devolucion.rmaId,
+        orden: devolucion.orderNumber ?? SIN_DATO,
+        producto: devolucion.cantidad > 1 ? `${devolucion.producto} ×${devolucion.cantidad}` : devolucion.producto,
+        motivo: devolucion.motivo,
+        fecha: devolucion.solicitada ? this.momento(devolucion.solicitada) : SIN_DATO,
+        estado: this.textoEstadosDeDevolucion[devolucion.estado],
       },
     };
   }
@@ -1236,7 +1326,9 @@ export class SellerElementComponent implements OnInit {
   }
 
   private loadReturns(): Promise<void> {
-    return this.leer('devoluciones', () => this.#api.returns(this.apiBase()), (returns) => this.returns.set(returns));
+    return this.leer('devoluciones', () => this.#api.devoluciones(this.apiBase()), (devoluciones) =>
+      this.devoluciones.set(devoluciones),
+    );
   }
 
   private loadThreads(): Promise<void> {
