@@ -25,6 +25,9 @@ import {
   type MessageSendEvent,
 } from '@synergos/shells';
 import {
+  LiveRegionComponent,
+  SynEmptyStateComponent,
+  SynErrorStateComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -32,7 +35,7 @@ import {
 } from '@synergos/shared';
 import type { SellerProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
-import { SellerApiClient } from './seller-api.client';
+import { SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
 import {
   type SellerKpiMetric,
   type SellerListing,
@@ -47,7 +50,7 @@ import {
   type SellerThread,
   type SellerView,
 } from './seller.model';
-import { formatearImporte } from '@synergos/vitals-core';
+import { formatearImporte, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynSeller</c>.
@@ -82,6 +85,20 @@ interface SellerRowVm {
   readonly listing?: SellerListing;
   readonly rma?: SellerReturn;
 }
+
+/** Las lecturas de la consola, cada una con su estado (013-seller-operaciones, T006). */
+type Lectura = 'resumen' | 'ventas' | 'publicaciones' | 'devoluciones' | 'mensajes';
+
+/** Dónde está una lectura: sin pedir, en vuelo, leída, vacía, de ejemplo (sólo con la marca) o por qué no. */
+type EstadoDeLectura = 'sin-cargar' | 'cargando' | LecturaDeLaConsola<unknown>['tipo'];
+
+/** Qué lectura llena cada sección del panel: Reputación sale del resumen, como los indicadores. */
+const LECTURA_DE_LA_SECCION: Readonly<Record<SellerSectionId, Lectura>> = {
+  ventas: 'ventas',
+  publicaciones: 'publicaciones',
+  devoluciones: 'devoluciones',
+  reputacion: 'resumen',
+};
 
 const DEFAULT_HEADING = 'Centro de vendedores';
 
@@ -164,6 +181,7 @@ export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
   });
 }
 
@@ -172,7 +190,14 @@ let sellerInstanceId = 0;
 @Component({
   selector: 'sg-seller',
   standalone: true,
-  imports: [ConsoleShellComponent, AuthoringWizardComponent, MessageCenterComponent],
+  imports: [
+    ConsoleShellComponent,
+    AuthoringWizardComponent,
+    MessageCenterComponent,
+    LiveRegionComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+  ],
   templateUrl: './seller.html',
   styleUrl: './seller.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -191,8 +216,8 @@ export class SellerElementComponent implements OnInit {
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   /**
-   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
-   * no hay una base de respaldo compilada (ADR 0137).
+   * Dónde vive la API. Sin ella no se llama a nada y cada lectura dice que no se pudo (con la marca
+   * de la demo, enseña su muestra y lo dice): no hay una base de respaldo compilada (ADR 0137).
    */
   readonly apiBase = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
@@ -240,7 +265,7 @@ export class SellerElementComponent implements OnInit {
   // ─── Top-level router (3 vistas) ───────────────────────────────────────────
   readonly view = signal<SellerView>('panel');
 
-  // ─── Data (always from the API — visible mock degradation) ─────────────────
+  // ─── Data (from the API; the samples only behind MUESTRAS_DE_LA_CONSOLA) ───
   readonly kpiMetrics = signal<readonly SellerKpiMetric[]>([]);
   readonly reputation = signal<SellerReputation | null>(null);
   /**
@@ -250,23 +275,37 @@ export class SellerElementComponent implements OnInit {
    */
   readonly repSkeletonCards = [0, 1, 2];
   readonly orders = signal<readonly SellerOrder[]>([]);
-  readonly ordersLoaded = signal(false);
-  readonly ordersLoading = signal(false);
   readonly listings = signal<readonly SellerListing[]>([]);
-  readonly listingsLoaded = signal(false);
-  readonly listingsLoading = signal(false);
   readonly returns = signal<readonly SellerReturn[]>([]);
-  readonly returnsLoaded = signal(false);
-  readonly returnsLoading = signal(false);
   readonly threads = signal<readonly SellerThread[]>([]);
-  readonly threadsLoaded = signal(false);
-  readonly threadsLoading = signal(false);
+
+  /**
+   * Cómo quedó cada lectura (013-seller-operaciones, T006). Reemplaza los `*Loaded`/`*Loading` y el
+   * `degraded` del cliente: «cargó o no» no alcanzaba para no mentir. Una lista vacía, una sesión
+   * vencida, un miembro que no es del personal y un servidor caído se pintaban igual: con los
+   * ejemplos y su cartel.
+   */
+  readonly lecturas = signal<Readonly<Record<Lectura, EstadoDeLectura>>>({
+    resumen: 'sin-cargar',
+    ventas: 'sin-cargar',
+    publicaciones: 'sin-cargar',
+    devoluciones: 'sin-cargar',
+    mensajes: 'sin-cargar',
+  });
+
+  /** Los textos de la consola, de la sección `Seller.Operaciones` del diccionario (ADR 0136). */
+  readonly textoSinSesion = t('Seller.Operaciones.SignIn', 'Inicia sesión para atender la tienda.');
+  readonly textoIniciarSesion = t('Seller.Operaciones.SignInAction', 'Iniciar sesión');
+  readonly textoSinPermiso = t('Seller.Operaciones.StaffOnly', 'Esta consola es del personal de la tienda.');
+  readonly textoCaida = t('Seller.Operaciones.LoadFailed', 'No pudimos cargar esta sección.');
+  readonly textoReintentar = t('Seller.Operaciones.Retry', 'Reintentar');
+  readonly textoDeMuestras = t('Seller.Operaciones.Samples', 'Estás viendo datos de ejemplo, no los de la tienda.');
 
   /**
    * Lo que una ESCRITURA no consiguió, dicho donde el vendedor lo ve (#77).
    *
-   * Es distinto del cartel de `degraded()`, y por eso no se reusa: aquél dice «estás viendo
-   * datos de ejemplo» sobre LECTURAS, que es legítimo (regla 4); esto dice «lo que acabás de
+   * Es distinto del cartel de `muestras()`, y por eso no se reusa: aquél dice «estás viendo
+   * datos de ejemplo» sobre LECTURAS, sólo con la marca de la demo; esto dice «lo que acabás de
    * pedir no ocurrió». Meter las dos cosas en el mismo cartel haría que la segunda se leyera
    * como la primera, que es de lo que quien publica un producto no se entera.
    */
@@ -275,19 +314,26 @@ export class SellerElementComponent implements OnInit {
   /** Cuántas respuestas no salieron en esta pestaña: el id local de su burbuja marcada. */
   private unsentReplies = 0;
 
-  readonly degraded = computed(() => {
-    // Recompute on each data load; the flag is set by the API client.
-    void this.kpiMetrics();
-    void this.orders();
-    void this.listings();
-    void this.returns();
-    void this.threads();
-    return this.#api.degraded;
+  /** Alguna lectura enseña ejemplos: sólo pasa con la marca de la demo, y entonces se dice. */
+  readonly muestras = computed(() => Object.values(this.lecturas()).includes('muestras'));
+
+  /**
+   * Lo que cierra la consola entera. Sin sesión o sin permiso no es de una sección —es de quien
+   * la abre—, así que se dice una vez, en lugar de las vistas: con su salida (iniciar sesión), o
+   * sin ninguna (no es del personal).
+   */
+  readonly acceso = computed<'sin-sesion' | 'sin-permiso' | null>(() => {
+    const estados = Object.values(this.lecturas());
+    if (estados.includes('sin-sesion')) {
+      return 'sin-sesion';
+    }
+    return estados.includes('sin-permiso') ? 'sin-permiso' : null;
   });
 
   // ─── SH-5 console: sections + KPIs + rows ──────────────────────────────────
   readonly activeSection = signal<SellerSectionId>('ventas');
   readonly sectionFilter = signal('todas');
+  readonly lecturaActiva = computed(() => LECTURA_DE_LA_SECCION[this.activeSection()]);
 
   readonly consoleConfig = computed<ConsoleShellConfig>(() => ({
     heading: 'Panel',
@@ -296,6 +342,9 @@ export class SellerElementComponent implements OnInit {
     actionsLabel: 'Acciones',
     emptyMessage: 'No hay registros en esta cola.',
     loadingMessage: 'Cargando…',
+    // La cola que no se pudo leer lo dice, con su «Reintentar» (`retry`): una cola vacía sería
+    // otra respuesta, la que el servidor no dio.
+    errorMessage: this.lecturas()[this.lecturaActiva()] === 'caida' ? this.textoCaida : undefined,
     sections: [
       { id: 'ventas', label: 'Ventas', badge: this.orders().length || undefined },
       {
@@ -356,18 +405,10 @@ export class SellerElementComponent implements OnInit {
     }
   });
 
-  readonly sectionLoading = computed(() => {
-    switch (this.activeSection()) {
-      case 'publicaciones':
-        return this.listingsLoading();
-      case 'devoluciones':
-        return this.returnsLoading();
-      case 'reputacion':
-        return false;
-      default:
-        return this.ordersLoading();
-    }
-  });
+  /** Reputación pinta su propio esqueleto; las colas, el del shell. */
+  readonly sectionLoading = computed(
+    () => this.activeSection() !== 'reputacion' && this.enVuelo(this.lecturaActiva()),
+  );
 
   readonly consoleRows = computed<readonly SellerRowVm[]>(() => {
     switch (this.activeSection()) {
@@ -478,6 +519,45 @@ export class SellerElementComponent implements OnInit {
 
   onFilterChange(filterKey: string): void {
     this.sectionFilter.set(filterKey);
+  }
+
+  /** «Reintentar»: vuelve a pedir una lectura que no se pudo leer. */
+  recargar(lectura: Lectura): void {
+    switch (lectura) {
+      case 'resumen':
+        void this.loadSummary();
+        return;
+      case 'ventas':
+        void this.loadOrders();
+        return;
+      case 'publicaciones':
+        void this.loadListings();
+        return;
+      case 'devoluciones':
+        void this.loadReturns();
+        return;
+      case 'mensajes':
+        void this.loadThreads();
+        return;
+    }
+  }
+
+  /** La lectura todavía no contestó (o no se pidió): la superficie pinta su esqueleto. */
+  enVuelo(lectura: Lectura): boolean {
+    const estado = this.lecturas()[lectura];
+    return estado === 'sin-cargar' || estado === 'cargando';
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página (la forma de la tienda y de reserva). Método y no
+   * `computed`: la URL cambia con la navegación.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/account/login';
+    }
+    const aqui = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `/account/login?returnUrl=${encodeURIComponent(aqui)}`;
   }
 
   onRowAction(event: ConsoleRowActionEvent<SellerRowVm>): void {
@@ -678,7 +758,7 @@ export class SellerElementComponent implements OnInit {
       this.publishReceipt.set(receipt);
       this.productpublished.emit(receipt);
       // Surface the new listing in Publicaciones without waiting for the API.
-      if (this.listingsLoaded()) {
+      if (this.cargada('publicaciones')) {
         this.listings.update((list) => [
           {
             id: receipt.productId,
@@ -861,62 +941,67 @@ export class SellerElementComponent implements OnInit {
   }
 
   // ─── Data loading ──────────────────────────────────────────────────────────
-  private async loadSummary(): Promise<void> {
-    const summary = await this.#api.summary(this.apiBase());
-    this.kpiMetrics.set(summary.kpis);
-    this.reputation.set(summary.reputation);
+  private loadSummary(): Promise<void> {
+    return this.leer('resumen', () => this.#api.summary(this.apiBase()), (summary) => {
+      this.kpiMetrics.set(summary.kpis);
+      this.reputation.set(summary.reputation);
+    });
   }
 
-  private async loadOrders(): Promise<void> {
-    if (this.ordersLoaded()) {
-      return;
-    }
-    this.ordersLoading.set(true);
-    try {
-      this.orders.set(await this.#api.orders(this.apiBase(), this.currency()));
-      this.ordersLoaded.set(true);
-    } finally {
-      this.ordersLoading.set(false);
-    }
+  private loadOrders(): Promise<void> {
+    return this.leer('ventas', () => this.#api.orders(this.apiBase(), this.currency()), (orders) =>
+      this.orders.set(orders),
+    );
   }
 
-  private async loadListings(): Promise<void> {
-    if (this.listingsLoaded()) {
-      return;
-    }
-    this.listingsLoading.set(true);
-    try {
-      this.listings.set(await this.#api.listings(this.apiBase(), this.currency()));
-      this.listingsLoaded.set(true);
-    } finally {
-      this.listingsLoading.set(false);
-    }
+  private loadListings(): Promise<void> {
+    return this.leer('publicaciones', () => this.#api.listings(this.apiBase(), this.currency()), (listings) =>
+      this.listings.set(listings),
+    );
   }
 
-  private async loadReturns(): Promise<void> {
-    if (this.returnsLoaded()) {
-      return;
-    }
-    this.returnsLoading.set(true);
-    try {
-      this.returns.set(await this.#api.returns(this.apiBase()));
-      this.returnsLoaded.set(true);
-    } finally {
-      this.returnsLoading.set(false);
-    }
+  private loadReturns(): Promise<void> {
+    return this.leer('devoluciones', () => this.#api.returns(this.apiBase()), (returns) => this.returns.set(returns));
   }
 
-  private async loadThreads(): Promise<void> {
-    if (this.threadsLoaded()) {
+  private loadThreads(): Promise<void> {
+    return this.leer('mensajes', () => this.#api.threads(this.apiBase()), (threads) => this.threads.set(threads));
+  }
+
+  /**
+   * Pide una lectura y deja dicho cómo quedó. No vuelve a pedir lo que ya contestó con datos ni lo
+   * que está en vuelo; lo demás —sin pedir, caída, sin sesión, sin permiso— sí, que es lo que hace
+   * «Reintentar». Un fallo que el cliente no esperaba es una caída, no un esqueleto eterno.
+   */
+  private async leer<T>(
+    lectura: Lectura,
+    pedir: () => Promise<LecturaDeLaConsola<T>>,
+    guardar: (datos: T) => void,
+  ): Promise<void> {
+    if (this.lecturas()[lectura] === 'cargando' || this.cargada(lectura)) {
       return;
     }
-    this.threadsLoading.set(true);
+    this.marcar(lectura, 'cargando');
+    let resultado: LecturaDeLaConsola<T>;
     try {
-      this.threads.set(await this.#api.threads(this.apiBase()));
-      this.threadsLoaded.set(true);
-    } finally {
-      this.threadsLoading.set(false);
+      resultado = await pedir();
+    } catch {
+      resultado = { tipo: 'caida' };
     }
+    if (resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras') {
+      guardar(resultado.datos);
+    }
+    this.marcar(lectura, resultado.tipo);
+  }
+
+  /** La lectura ya contestó con datos: leídos, vacíos o, con la marca, de ejemplo. */
+  private cargada(lectura: Lectura): boolean {
+    const estado = this.lecturas()[lectura];
+    return estado === 'leidas' || estado === 'vacia' || estado === 'muestras';
+  }
+
+  private marcar(lectura: Lectura, estado: EstadoDeLectura): void {
+    this.lecturas.update((estados) => ({ ...estados, [lectura]: estado }));
   }
 
   // ─── Labels + formatting (UI copy only — data comes from the API) ──────────

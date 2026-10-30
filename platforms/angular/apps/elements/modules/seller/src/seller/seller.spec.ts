@@ -1,14 +1,71 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { type Provider, provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ConsoleShellComponent } from '@synergos/shells';
-import { SellerApiClient } from './seller-api.client';
+import { MUESTRAS_DE_LA_CONSOLA, SellerApiClient } from './seller-api.client';
 import { SellerElementComponent } from './seller';
 import { asentar } from '../../../../../../tools/asentar';
 import { SELLER_SYNHOST } from '@synergos/contracts';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: SELLER_SYNHOST.ejemplo.apiBase };
+
+/** La demo que DECLARA los ejemplos de la consola (T006): sin esta marca, la consola no los pinta. */
+const CON_MUESTRAS_DE_LA_CONSOLA: Provider[] = [{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }];
+
+/** Un pedido como lo emite `OrderDto` del CMS en `GET orders`. */
+const PEDIDO_DEL_CMS = {
+  orderRef: 'saga-7f3a',
+  orderNumber: 'T-2026-0042',
+  status: 'Paid',
+  customerName: 'Lucía Gómez',
+  customerEmail: 'lucia@correo.co',
+  total: 259000,
+  totalFormatted: '$ 259.000',
+  currency: 'COP',
+  date: '2026-10-20T15:00:00+00:00',
+  createdAt: '2026-10-20T15:00:00+00:00',
+  items: [
+    {
+      productId: 'P-9',
+      variantId: null,
+      title: 'Teclado mecánico compacto 65%',
+      qty: 1,
+      amount: 259000,
+      productName: 'Teclado mecánico compacto 65%',
+      quantity: 1,
+      unitPrice: 259000,
+      unitPriceFormatted: '$ 259.000',
+      lineTotal: 259000,
+      lineTotalFormatted: '$ 259.000',
+      currency: 'COP',
+      canReturn: false,
+      returnBlock: null,
+    },
+  ],
+};
+
+/** Un hilo como lo emite hoy `ThreadSummaryDto` del CMS en `GET messages`: `threadId` y no `id`, sin asunto (T030). */
+const HILO_DEL_CMS = {
+  threadId: 'th_31',
+  contextRef: 'P-9',
+  participants: ['comprador@correo.co', 'vendedor@tienda.co'],
+  lastMessagePreview: '¿Tiene garantía?',
+  lastMessageAt: '2026-09-30T10:00:00+00:00',
+  messageCount: 1,
+};
+
+/** Un borde que contesta `status` a todo: la sesión vencida (401), el que no es del personal (403), el caído (500). */
+function installStatus(status: number): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: 'no' }), { status, headers: { 'content-type': 'application/json' } }),
+      ),
+    ),
+  );
+}
 
 /** Minimal in-memory localStorage stand-in so the wizard's draft store can persist. */
 function installMemoryStorage(): void {
@@ -76,15 +133,15 @@ function installFakeServer(respuestas: Record<string, unknown>): ReturnType<type
   return fetchMock;
 }
 
-// Smoke suite (directiva: mínimos, no exhaustivo) — render + secciones + degradación.
+// Smoke suite (directiva: mínimos, no exhaustivo) — render + secciones + lo que dice cada lectura.
 describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   let fixture: ComponentFixture<SellerElementComponent>;
   let component: SellerElementComponent;
 
-  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [SellerElementComponent],
-      providers: [provideZonelessChangeDetection(), SellerApiClient],
+      providers: [provideZonelessChangeDetection(), SellerApiClient, ...extra],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SellerElementComponent);
@@ -152,29 +209,35 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     });
   });
 
-  // ── render: panel + KPIs + secciones + degradación visible ──────────────────
-  it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
+  // ── render: panel + KPIs + secciones; los ejemplos, sólo con la marca ───────
+  it('sin la base de la API no llama a nada y lo dice: caída, sin ejemplos (ADR 0137, CMS#196)', async () => {
     const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
     vi.stubGlobal('fetch', red);
     await createComponent({});
 
     expect(red).not.toHaveBeenCalled();
-    expect(component.orders().length).toBeGreaterThan(0);
-    expect(component.degraded()).toBe(true);
+    // Afirmaba `orders().length > 0` y `degraded()`: los pedidos de ejemplo como el camino normal (T006).
+    expect(component.orders()).toEqual([]);
+    expect(component.lecturas().ventas).toBe('caida');
+    expect(component.muestras()).toBe(false);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('syn-console-shell syn-error-state')?.textContent).toContain(
+      'No pudimos cargar esta sección.',
+    );
   });
 
-  it('renders the panel with KPIs, the four sections and a visible degradation flag', async () => {
+  it('con la marca de la demo, el panel enseña sus ejemplos —indicadores, cuatro secciones, la cola con su acción— y lo dice', async () => {
     installMemoryStorage();
-    // Offline → every endpoint degrades to mock data.
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
-    expect(component).toBeTruthy();
     expect(component.view()).toBe('panel');
-    expect(component.degraded()).toBe(true);
+    expect(component.muestras()).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')?.textContent?.trim()).toBe(
+      'Estás viendo datos de ejemplo, no los de la tienda.',
+    );
 
-    // KPIs from the (degraded) summary, pre-formatted for SH-5.
-    expect(component.consoleKpis().length).toBeGreaterThan(0);
+    // KPIs from the sample summary, pre-formatted for SH-5.
     expect(component.consoleKpis().map((kpi) => kpi.id)).toContain('ventas');
 
     // The console shell mounts with the four secciones.
@@ -187,18 +250,36 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       'reputacion',
     ]);
 
-    // Ventas queue populated from the API (mock degradado) with row actions.
-    expect(component.orders().length).toBeGreaterThan(0);
-    expect(component.consoleRows().length).toBeGreaterThan(0);
+    // Ventas queue from the samples, with row actions.
     const paidRow = component.consoleRows().find((row) => row.order?.status === 'paid');
     expect(paidRow).toBeDefined();
     expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['advance']);
   });
 
-  // ── secciones: cola de devoluciones + aprobar RMA (degradado) ────────────────
+  it('sin la marca, con el CMS de hoy, nada se inventa: la cola es la del servidor, sin indicadores ni cartel', async () => {
+    installMemoryStorage();
+    installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+    await createComponent();
+
+    expect(component.muestras()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')).toBeNull();
+    // `GET seller/summary` no existe en el CMS de hoy (404): sin indicadores, en vez de los de ejemplo.
+    expect(component.lecturas().resumen).toBe('caida');
+    expect(component.consoleKpis()).toEqual([]);
+    expect(component.consoleRows().map((row) => row.id)).toEqual(['T-2026-0042']);
+  });
+
+  // ── secciones: cola de devoluciones + aprobar RMA con el POST caído ──────────
   it('switches to devoluciones and resolves an RMA through the advance action', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    // La cola la contesta el servidor; el POST que la resuelve, no (404).
+    installFakeServer({
+      'GET /api/shop/returns': {
+        returns: [
+          { rmaId: 'RMA-1', orderRef: 'ORD-9', product: 'Teclado', reason: 'Falla', openedAt: '2026-01-05', status: 'abierto' },
+        ],
+      },
+    });
     await createComponent();
 
     component.onSectionChange('devoluciones');
@@ -217,7 +298,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     component.onRowAction({ actionId: 'approve', row: open!, sectionId: 'devoluciones' });
     await flushMicrotasks();
 
-    // Con la red caída el RMA NO se mueve (#77). Este test afirmaba `'aprobado'`, que es lo
+    // Con el POST caído el RMA NO se mueve (#77). Este test afirmaba `'aprobado'`, que es lo
     // que el `catch` fabricaba haciendo eco de la intención de quien pulsó: el vendedor veía
     // la devolución resuelta y el servidor no se había enterado.
     const resolved = component.returns().find((rma) => rma.rmaId === open!.rma!.rmaId);
@@ -262,7 +343,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   // ── ventas: el envío NO avanza solo cuando el endpoint no está ───────────────
   it('leaves the order untouched and says so when the advance endpoint is missing', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    // El pedido lo contesta el servidor; `POST order/{ref}/tracking/advance` no existe en el CMS (404).
+    installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
     await createComponent();
 
     const paid = component.orders().find((order) => order.status === 'paid');
@@ -279,7 +361,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     const advanced = component.orders().find((order) => order.orderNumber === paid!.orderNumber);
     expect(advanced?.status).toBe('paid');
     expect(component.actionError()).toContain(paid!.orderNumber);
-    expect(component.degraded()).toBe(true);
+    // Una escritura caída no es «datos de ejemplo»: ese cartel es de las lecturas, y sólo con la marca.
+    expect(component.muestras()).toBe(false);
   });
 
   // ── publicar (SH-6): sin borde no hay recibo, y el borrador SOBREVIVE ────────
@@ -320,7 +403,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(component.draft()['title']).toBe(draft.title);   // …y el borrador NO se borró
     expect(component.actionError()).toContain('borrador');
     expect(component.publishing()).toBe(false);
-    expect(component.degraded()).toBe(true);
+    expect(component.muestras()).toBe(false);
   });
 
   // ── publicar: con el borde VIVO, la referencia es la del servidor ────────────
@@ -374,7 +457,11 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     lastMessageAt: '2026-09-30T15:00:00+00:00',
   };
 
-  /** Abre «Mensajes» (una LECTURA: degrada al hilo de ejemplo) y el primer hilo sin leer. */
+  /**
+   * Abre «Mensajes» y el primer hilo sin leer. Los hilos salen de la demo (la marca): la bandeja de hoy no se
+   * lee —`GET messages` contesta `threadId` y no `id`, y eso lo arregla T031—. Lo que se prueba acá es la
+   * RESPUESTA, que va al servidor.
+   */
   async function abrirHiloSinLeer(): Promise<number> {
     component.goTo('mensajes');
     await flushMicrotasks();
@@ -394,7 +481,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   it('loads buyer threads and appends the seller reply to the active thread', async () => {
     installMemoryStorage();
     installFakeServer({ 'POST /reply': HILO_RESPONDIDO });
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
     await component.onSendReply({
@@ -419,7 +506,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   it('con el POST /reply caído la respuesta queda marcada en el hilo, se dice una vez y se reintenta', async () => {
     installMemoryStorage();
     installFakeServer({}); // nada contesta: el POST /reply sale 404
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
     await component.onSendReply({
@@ -487,5 +574,118 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(announcement).not.toBeNull();
     expect(announcement!.getAttribute('role')).toBe('status');
     expect(announcement!.textContent).toContain('Cargando reputación');
+  });
+
+  // ══ Cada lectura dice lo que pasó (013-seller-operaciones, T006) ══════════════════════════════════════════════
+  //
+  // Sin sesión y sin permiso son de quien abre la consola: se dicen una vez, en lugar de las vistas. La caída es de una
+  // lectura: la dice su superficie, con «Reintentar». Vacía es una respuesta. Y ninguna se tapa con ejemplos, aunque la
+  // página tenga la marca de la demo.
+  describe('lo que dice cada lectura (T006)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const tituloDelAcceso = (): string | undefined =>
+      host().querySelector('syn-empty-state.seller__acceso .syn-empty__title')?.textContent?.trim();
+
+    it('sin sesión (401) la consola entera lo dice una vez, con el login de vuelta a esta página; la marca no lo tapa', async () => {
+      const antes = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.history.replaceState(null, '', '/tienda/vendedor/?vista=panel#ventas');
+      try {
+        installStatus(401);
+        await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
+
+        expect(tituloDelAcceso()).toBe('Inicia sesión para atender la tienda.');
+        const enlace = host().querySelector<HTMLAnchorElement>('syn-empty-state.seller__acceso a.syn-empty__action');
+        expect(enlace?.textContent?.trim()).toBe('Iniciar sesión');
+        const href = enlace?.getAttribute('href') ?? '';
+        expect(href.startsWith('/account/login?returnUrl=')).toBe(true);
+        expect(decodeURIComponent(href.slice('/account/login?returnUrl='.length))).toBe('/tienda/vendedor/?vista=panel#ventas');
+
+        expect(host().querySelector('syn-console-shell')).toBeNull();
+        expect(host().querySelector('.seller__notice--warn')).toBeNull();
+        expect(component.orders()).toEqual([]);
+      } finally {
+        window.history.replaceState(null, '', antes);
+      }
+    });
+
+    it('sin permiso (403) lo dice sin salida: la consola es del personal', async () => {
+      installStatus(403);
+      await createComponent();
+
+      expect(tituloDelAcceso()).toBe('Esta consola es del personal de la tienda.');
+      expect(host().querySelector('syn-empty-state.seller__acceso .syn-empty__action')).toBeNull();
+      expect(host().querySelector('syn-console-shell')).toBeNull();
+
+      // Tampoco por las otras vistas: el acceso es de la consola entera.
+      component.goTo('mensajes');
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(host().querySelector('syn-message-center')).toBeNull();
+      expect(tituloDelAcceso()).toBe('Esta consola es del personal de la tienda.');
+    });
+
+    it('una cola caída lo dice con «Reintentar» —no «Nada por aquí»—, y reintentar la vuelve a pedir', async () => {
+      installStatus(500);
+      await createComponent();
+
+      const caida = host().querySelector('syn-console-shell syn-error-state');
+      expect(caida?.textContent).toContain('No pudimos cargar esta sección.');
+      expect(host().querySelector('syn-console-shell syn-empty-state')).toBeNull();
+
+      installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+      caida!.querySelector<HTMLButtonElement>('button')!.click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.lecturas().ventas).toBe('leidas');
+      expect(host().querySelector('syn-console-shell syn-error-state')).toBeNull();
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['T-2026-0042']);
+    });
+
+    it('Reputación sin resumen dice que no se pudo —no un esqueleto para siempre— y su «Reintentar» vuelve a pedirlo', async () => {
+      installFakeServer({ 'GET /api/shop/orders': { orders: [PEDIDO_DEL_CMS] } });
+      await createComponent();
+      const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
+      (shell.componentInstance as { selectSection(id: string): void }).selectSection('reputacion');
+      fixture.detectChanges();
+
+      // La que está a la vista es Reputación, sin tabla: si el shell volviera a Ventas, la caída del resumen se leería
+      // como la de la cola de pedidos.
+      expect(host().querySelector('.syn-console__nav-btn.is-active')?.textContent).toContain('Reputación');
+      expect(host().querySelector('syn-console-shell table')).toBeNull();
+      expect(host().querySelector('.seller__rep-card--skeleton')).toBeNull();
+      const caida = host().querySelector('syn-error-state');
+      expect(caida?.textContent).toContain('No pudimos cargar esta sección.');
+      const reintentar = caida!.querySelector<HTMLButtonElement>('button')!;
+      expect(reintentar.textContent?.trim()).toBe('Reintentar');
+
+      const red = installFakeServer({});
+      reintentar.click();
+      await flushMicrotasks();
+      expect(red.mock.calls.map(([url]) => String(url))).toContain('/api/shop/seller/summary');
+    });
+
+    it('Mensajes que no se pueden leer lo dicen —no «No tienes mensajes»—, también con la forma de hoy de GET messages', async () => {
+      installFakeServer({ 'GET /api/shop/messages': { threads: [HILO_DEL_CMS] } });
+      await createComponent();
+      component.goTo('mensajes');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.lecturas().mensajes).toBe('caida');
+      expect(host().querySelector('syn-message-center')).toBeNull();
+      expect(host().querySelector('syn-error-state')?.textContent).toContain('No pudimos cargar esta sección.');
+    });
+
+    it('la cola que el servidor contesta sin pedidos dice que no hay, sin ejemplos aunque la página tenga la marca', async () => {
+      installFakeServer({ 'GET /api/shop/orders': { orders: [] } });
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
+
+      expect(component.lecturas().ventas).toBe('vacia');
+      expect(component.orders()).toEqual([]);
+      expect(host().querySelector('syn-console-shell syn-empty-state')?.textContent).toContain(
+        'No hay registros en esta cola.',
+      );
+    });
   });
 });

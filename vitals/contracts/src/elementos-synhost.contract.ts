@@ -670,7 +670,7 @@ export interface SelectMultiProps {
   readonly maxSelections?: number;
 }
 
-/** <synergos-seller> · funcionalidad */
+/** <synergos-seller> · funcionalidad · diccionario: Seller.Operaciones */
 export interface SellerProps {
   /** contenido */
   readonly heading?: string;
@@ -678,6 +678,8 @@ export interface SellerProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly zonaHoraria: string;
 }
 
 /** <synergos-separator> · pieza */
@@ -2382,16 +2384,17 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   nombre: "seller",
   tipo: "funcionalidad",
   record: "SellerProps",
-  diccionario: [],
-  claves: [],
-  campos: ["heading","subheading","apiBase"],
+  diccionario: ["Seller.Operaciones"],
+  claves: ["Seller.Operaciones.LoadFailed","Seller.Operaciones.Retry","Seller.Operaciones.Samples","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly"],
+  campos: ["heading","subheading","apiBase","zonaHoraria"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Tu negocio, en un solo panel",
     "subheading": "Ventas, publicaciones, mensajes y devoluciones",
-    "apiBase": "/api/shop"
+    "apiBase": "/api/shop",
+    "zonaHoraria": "America/Bogota"
   },
 };
 

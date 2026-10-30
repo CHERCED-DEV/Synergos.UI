@@ -43,27 +43,47 @@
     </nav>
   </header>
 
-  <!-- Mock-data degradation notice -->
-  @if (degraded()) {
-    <p class="seller__notice seller__notice--warn" role="status">
-      Mostrando datos de ejemplo: el motor de la tienda aún no responde.
-    </p>
+  <!--
+    Datos de ejemplo: sólo con la marca de la demo (MUESTRAS_DE_LA_CONSOLA), y dicho. Se lee en la
+    página y se anuncia por la región del documento, que ya existía: un <p role="status"> nacido
+    dentro del @if, con su mensaje, callaba.
+  -->
+  @if (muestras()) {
+    <p class="seller__notice seller__notice--warn">{{ textoDeMuestras }}</p>
+    <syn-live-region [message]="textoDeMuestras" announceInitial />
   }
 
   <!--
     Lo que una ESCRITURA no consiguió (#77). Va aparte del cartel de arriba a propósito:
-    aquél habla de LECTURAS degradadas —«datos de ejemplo»— y esto de una acción que el
-    vendedor acaba de pedir y NO ocurrió. Es `alert` y no `status` porque interrumpe: quien
-    pulsó «publicar» tiene que enterarse antes de irse de la pantalla.
+    aquél habla de LECTURAS de ejemplo y esto de una acción que el vendedor acaba de pedir y
+    NO ocurrió. Es `alert` y no `status` porque interrumpe: quien pulsó «publicar» tiene que
+    enterarse antes de irse de la pantalla.
   -->
   @if (actionError(); as fallo) {
     <p class="seller__notice seller__notice--error" role="alert">{{ fallo }}</p>
   }
 
+  <!--
+    Sin sesión o sin permiso es de quien abre la consola, no de una sección: se dice una vez,
+    en lugar de las vistas, con su salida si la tiene (013-seller-operaciones, T006).
+  -->
+  @if (acceso(); as motivo) {
+    <syn-empty-state
+      class="seller__acceso"
+      kind="no-access"
+      [title]="motivo === 'sin-sesion' ? textoSinSesion : textoSinPermiso"
+      [actionLabel]="motivo === 'sin-sesion' ? textoIniciarSesion : undefined"
+      [actionHref]="motivo === 'sin-sesion' ? loginUrl() : undefined"
+    />
+  }
+
   <!-- ═══ PANEL: SH-5 console (KPIs + Ventas/Publicaciones/Devoluciones/Reputación) ═══ -->
-  @if (view() === 'panel') {
+  @if (view() === 'panel' && !acceso()) {
+    <!-- `[section]`: la sección la lleva la consola. Sin atarla, el shell vuelve a la primera
+         cada vez que cambia su `config` (un badge que carga, una cola que se cae). -->
     <syn-console-shell
       [config]="consoleConfig()"
+      [section]="activeSection()"
       [kpis]="consoleKpis()"
       [rows]="consoleRows()"
       [columns]="consoleColumns()"
@@ -75,6 +95,7 @@
       (sectionchange)="onSectionChange($event)"
       (filterchange)="onFilterChange($event)"
       (rowaction)="onRowAction($event)"
+      (retry)="recargar(lecturaActiva())"
     />
 
     <!-- One cell renderer for every queue: text cells + a status chip. -->
@@ -93,9 +114,16 @@
       }
     </ng-template>
 
-    <!-- Reputación: custom section fed by GET /seller/summary. -->
+    <!-- Reputación: custom section fed by GET /seller/summary. Sin resumen, lo dice: un esqueleto
+         sobre una lectura caída sería «cargando» para siempre. -->
     <ng-template #sellerSection>
-      @if (reputation(); as rep) {
+      @if (lecturas().resumen === 'caida') {
+        <syn-error-state
+          [message]="textoCaida"
+          [retryLabel]="textoReintentar"
+          (retry)="recargar('resumen')"
+        />
+      } @else if (reputation(); as rep) {
         <div class="seller__rep" aria-label="Reputación del vendedor">
           <article class="seller__rep-card seller__rep-card--hero">
             <p class="seller__rep-score">{{ formatRating(rep.score) }}</p>
@@ -135,7 +163,7 @@
   }
 
   <!-- ═══ PUBLICAR: SH-6 authoring wizard (borrador persistente) ═══════════ -->
-  @if (view() === 'publicar') {
+  @if (view() === 'publicar' && !acceso()) {
     @if (publishReceipt(); as receipt) {
       <div class="seller__receipt" role="status">
         <p class="seller__receipt-icon" aria-hidden="true">
@@ -338,18 +366,27 @@
   }
 
   <!-- ═══ MENSAJES: SH-7 message center (preguntas de compradores) ═════════ -->
-  @if (view() === 'mensajes') {
-    <syn-message-center
-      [config]="messagesConfig"
-      [threads]="threads()"
-      [activeThread]="activeThread()"
-      [loading]="threadsLoading()"
-      [sending]="sending()"
-      [threadTemplate]="threadRow"
-      [detailTemplate]="threadDetail"
-      (threadselect)="onThreadSelect($event)"
-      (send)="onSendReply($event)"
-    />
+  @if (view() === 'mensajes' && !acceso()) {
+    <!-- Sin hilos leídos no hay bandeja que pintar: «No tienes mensajes» sería otra respuesta. -->
+    @if (lecturas().mensajes === 'caida') {
+      <syn-error-state
+        [message]="textoCaida"
+        [retryLabel]="textoReintentar"
+        (retry)="recargar('mensajes')"
+      />
+    } @else {
+      <syn-message-center
+        [config]="messagesConfig"
+        [threads]="threads()"
+        [activeThread]="activeThread()"
+        [loading]="enVuelo('mensajes')"
+        [sending]="sending()"
+        [threadTemplate]="threadRow"
+        [detailTemplate]="threadDetail"
+        (threadselect)="onThreadSelect($event)"
+        (send)="onSendReply($event)"
+      />
+    }
 
     <ng-template #threadRow let-thread>
       <span class="seller__thread-row" [class.is-unread]="thread.unread">
