@@ -4,8 +4,10 @@ import { By } from '@angular/platform-browser';
 import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
 import { OUTCOME_TO_STATUS, isClosedStatus, type ApplicationSummary } from './gov.model';
+import { MOCK_FORMS } from './gov.mock';
 import { asentar } from '../../../../../../tools/asentar';
 import { GOV_SYNHOST } from '@synergos/contracts';
+import { definirCoordinador } from '@synergos/vitals-core';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: GOV_SYNHOST.ejemplo.apiBase };
@@ -2058,4 +2060,358 @@ describe('GovApiClient (v2 contract)', () => {
     });
   });
 
+});
+
+// ══ LA RADICACIÓN POR LA PUERTA (009-gobierno-tramite T031 y T033) ══════════════════════════════════
+//
+// El portal radica por el `<synergos-flujo flujo="gobierno.radicacion">` que coloca la vista, con el envoltorio
+// GENERADO del flujo, cuando el CMS declara ese camino: abrir autoriza la tasa que cotiza el SERVIDOR, el CMS guarda las
+// respuestas y acuña el radicado, y cerrar captura y hace nacer el expediente. Lo que se mira es lo que viajó —la llave
+// de la intención, el trámite con su clase, la aceptación con su versión— y lo que contestó el servidor.
+
+type OperacionDeLaRadicacion = 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'cotizar';
+
+interface RespuestaDelCms {
+  readonly status: number;
+  readonly code?: string;
+  readonly transient?: boolean;
+}
+
+interface GuionDeLaRadicacion {
+  /** La tasa que dice el servidor, en unidades MAYORES. */
+  readonly total?: number;
+  readonly rechazos?: Partial<Record<OperacionDeLaRadicacion, { readonly code: string; readonly status?: number }>>;
+  /** Lo que contesta el CMS a cada guardado de respuestas, en orden; sin guion, el radicado. */
+  readonly respuestas?: readonly RespuestaDelCms[];
+  /** Lo que contesta el CMS a «Mis solicitudes»: la carpeta del miembro, o 401 sin sesión; sin guion, cae (muestra). */
+  readonly misSolicitudes?: 'sin-sesion' | readonly object[];
+}
+
+interface PedidoALaRadicacion {
+  readonly operacion: string;
+  readonly url: string;
+  readonly llave: string | null;
+  readonly cuerpo: { tramite?: { kind: string; id: string }; notificacionElectronica?: boolean; versionDelTexto?: string } | null;
+}
+
+/** La puerta de la radicación, la ruta del CMS que guarda las respuestas y la ruta directa; lo demás cae (muestra). */
+function puertaDeLaRadicacion(guion: GuionDeLaRadicacion = {}) {
+  const pedidos: PedidoALaRadicacion[] = [];
+  const rutas: string[] = [];
+  const guardadas: { radicacion: string; answers: Record<string, string> }[] = [];
+  const respuestas = [...(guion.respuestas ?? [])];
+  let estado = 'Running';
+  let tramite = { kind: 'gobierno.tramite', id: '' };
+  const total = { amount: guion.total ?? 70_000, currency: 'COP' };
+  const json = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } }));
+  const radicacion = () => ({
+    id: 'rad-1',
+    flujo: 'gobierno.radicacion',
+    numero: 'RAD00001',
+    estado,
+    datos: {
+      tramite,
+      total,
+      expediente: estado === 'Completed' ? 'inst-1' : null,
+      estado: estado === 'Completed' ? 'submitted' : null,
+      notificacionElectronica: true,
+      versionDelTexto: '2026-10-v1',
+    },
+    compensacionesPendientes: 0,
+    error: null,
+    deshaciendo: false,
+  });
+  const fetchDoble = vi.fn((url: string, init?: RequestInit): Promise<Response> => {
+    const ruta = String(url);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    rutas.push(`${metodo} ${ruta}`);
+    const guardar = /\/api\/gov\/radicaciones\/([^/]+)\/respuestas$/.exec(ruta);
+    if (guardar) {
+      guardadas.push({ radicacion: decodeURIComponent(guardar[1]), answers: JSON.parse(String(init?.body)).answers });
+      const r = respuestas.shift();
+      return r && r.status >= 300
+        ? json(r.status, { code: r.code ?? '', transient: r.transient ?? false, title: 'guionado', detail: 'guionado' })
+        : json(200, { radicado: 'SG-2026-009001', caseId: 'case_rad_1' });
+    }
+    if (metodo === 'GET' && ruta.endsWith('/api/gov/applications') && guion.misSolicitudes) {
+      return guion.misSolicitudes === 'sin-sesion'
+        ? json(401, { code: 'gov.sesion_requerida' })
+        : json(200, { applications: guion.misSolicitudes });
+    }
+    if (metodo === 'POST' && ruta.endsWith('/api/gov/application')) {
+      return json(200, {
+        application: {
+          id: 'app_77',
+          reference: 'RAD-2026-000777',
+          serviceId: 'svc-antecedentes',
+          serviceName: 'Por la ruta directa',
+          status: 'submitted',
+          submittedAt: '2026-10-25T10:00:00+00:00',
+          currentStage: 'Radicada',
+          feeMinor: 0,
+          feeStatus: null,
+        },
+      });
+    }
+    const m = /\/api\/flujos\/gobierno\.radicacion\/([a-z]+)/.exec(ruta);
+    if (!m) {
+      return Promise.reject(new Error('offline'));
+    }
+    const operacion = m[1] as OperacionDeLaRadicacion;
+    const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoALaRadicacion['cuerpo']) : null;
+    pedidos.push({ operacion, url: ruta, llave: new Headers(init?.headers).get('Idempotency-Key'), cuerpo });
+    if (cuerpo?.tramite) tramite = cuerpo.tramite;
+    const rechazo = guion.rechazos?.[operacion];
+    if (rechazo) {
+      const status = rechazo.status ?? 409;
+      return json(status, { code: rechazo.code, detail: 'guionado', title: 'Conflict', transient: status >= 500 });
+    }
+    switch (operacion) {
+      case 'abrir':
+        return json(201, radicacion());
+      case 'cerrar':
+        estado = 'Completed';
+        return json(200, radicacion());
+      default:
+        return json(200, radicacion());
+    }
+  });
+  return {
+    fetchDoble,
+    pedidos,
+    guardadas,
+    veces: (operacion: OperacionDeLaRadicacion) => pedidos.filter((p) => p.operacion === operacion).length,
+    directas: () => rutas.filter((r) => r === 'POST /api/gov/application').length,
+    alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
+  };
+}
+
+/** Lo que el CMS manda cuando el sitio declara la puerta para la radicación. */
+const POR_LA_PUERTA = { ...NEGOCIO_DEL_CMS, camino: 'puerta' };
+
+const RESPUESTAS = { motivoConsulta: 'laboral', aceptaTratamiento: 'true' };
+
+describe('La radicación por la puerta (009-gobierno-tramite T031 y T033)', () => {
+  let fixture: ComponentFixture<GovElementComponent>;
+  let component: GovElementComponent;
+
+  beforeAll(() => definirCoordinador());
+
+  async function montar(puerta: ReturnType<typeof puertaDeLaRadicacion>, config: object = POR_LA_PUERTA): Promise<void> {
+    window.location.hash = '';
+    vi.stubGlobal('fetch', puerta.fetchDoble);
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la radicación encuentra por ancestro.
+    const flujo = document.createElement('synergos-flujo');
+    flujo.setAttribute('flujo', 'gobierno.radicacion');
+    document.body.appendChild(flujo);
+    flujo.appendChild(fixture.nativeElement as HTMLElement);
+    fixture.componentRef.setInput('config', config);
+    fixture.detectChanges();
+    await flushMicrotasks();
+  }
+
+  afterEach(() => {
+    document.querySelectorAll('synergos-flujo').forEach((flujo) => flujo.remove());
+    window.location.hash = '';
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+    document.querySelectorAll('[data-syn-live-announcer]').forEach((node) => node.remove());
+  });
+
+  async function hastaElFormulario(): Promise<void> {
+    component.openService(component.services().find((s) => s.id === 'svc-antecedentes')!);
+    await flushMicrotasks();
+    component.startApplication();
+    await flushMicrotasks();
+    expect(component.view()).toBe('apply');
+  }
+
+  async function radicar(): Promise<void> {
+    component.onFormSubmit({ answers: RESPUESTAS });
+    await flushMicrotasks(40);
+    fixture.detectChanges();
+  }
+
+  it('«puerta»: abre con la llave de la intención, el trámite y la aceptación; el CMS guarda; cierra; el comprobante dice el radicado y la tasa del SERVIDOR', async () => {
+    const puerta = puertaDeLaRadicacion({ total: 70_000 });
+    await montar(puerta);
+    await hastaElFormulario();
+    component.aceptaNotificacion.set(true);
+
+    await radicar();
+
+    expect(puerta.pedidos.map((p) => p.operacion)).toEqual(['abrir', 'cerrar']);
+    const abrir = puerta.pedidos[0]!;
+    expect(abrir.llave).toMatch(/^radicacion-svc-antecedentes-[0-9a-f]{32}$/);
+    expect(abrir.cuerpo).toEqual({
+      tramite: { kind: 'gobierno.tramite', id: 'svc-antecedentes' },
+      notificacionElectronica: true,
+      versionDelTexto: component.txt.versionDeLaAceptacion,
+    });
+    expect(puerta.guardadas).toEqual([{ radicacion: 'rad-1', answers: RESPUESTAS }]);
+    expect(puerta.pedidos[1]!.url).toContain('id=rad-1');
+    expect(puerta.directas()).toBe(0);
+    expect(component.view()).toBe('receipt');
+    expect(component.confirmedApplication()?.reference).toBe('SG-2026-009001');
+    // La ficha dice «gratuito» (0) y el servidor cobró 70.000: el comprobante dice lo que cobró el servidor.
+    expect(component.service()?.feeMinor).toBe(0);
+    expect(component.receiptFacts().find((f) => f.id === 'tasa')?.value).toBe(component.formatMoney(70_000, 'COP'));
+  });
+
+  it('reintentar tras un corte es la MISMA intención: la misma llave, un solo comprobante', async () => {
+    const puerta = puertaDeLaRadicacion({ respuestas: [{ status: 503, code: 'gov.orquestador_no_disponible', transient: true }] });
+    await montar(puerta);
+    await hastaElFormulario();
+
+    await radicar();
+    expect(component.view()).toBe('apply');
+    expect(component.errorMessage()).toBe('La radicación en línea no está disponible ahora.');
+    expect(puerta.veces('cerrar')).toBe(0);
+
+    await radicar();
+
+    const llaves = puerta.pedidos.filter((p) => p.operacion === 'abrir').map((p) => p.llave);
+    expect(llaves).toHaveLength(2);
+    expect(llaves[1]).toBe(llaves[0]);
+    expect(component.view()).toBe('receipt');
+  });
+
+  it('sin sesión dice «Inicie sesión para radicar» y no guarda ni cierra nada', async () => {
+    const puerta = puertaDeLaRadicacion({ rechazos: { abrir: { code: 'puerta.sesion_requerida', status: 401 } } });
+    await montar(puerta);
+    await hastaElFormulario();
+
+    await radicar();
+
+    expect(component.errorMessage()).toBe('Inicie sesión para radicar.');
+    expect(puerta.guardadas).toEqual([]);
+    expect(puerta.veces('cerrar')).toBe(0);
+    expect(component.view()).toBe('apply');
+  });
+
+  it('sin destino dice que no está disponible y NUNCA cae a la ruta directa', async () => {
+    const puerta = puertaDeLaRadicacion({ rechazos: { abrir: { code: 'puerta.flujo_no_disponible', status: 503 } } });
+    await montar(puerta);
+    await hastaElFormulario();
+
+    await radicar();
+
+    expect(component.errorMessage()).toBe('La radicación en línea no está disponible ahora.');
+    expect(puerta.directas()).toBe(0);
+    expect(component.confirmedApplication()).toBeNull();
+  });
+
+  it.each([
+    ['abrir', 'pricing.price_not_found', 404, 'Este trámite no se puede radicar en línea ahora.'],
+    ['abrir', 'pricing.price_not_in_effect', 409, 'Este trámite no se puede radicar en línea ahora.'],
+    ['abrir', 'payments.payment_declined', 409, 'No se pudo cobrar la tasa; no se radicó nada.'],
+    ['cerrar', 'payments.capture_failed', 409, 'No se pudo cobrar la tasa; no se radicó nada.'],
+  ] as const)('el «no» de %s (%s) se dice con el texto de su código', async (operacion, code, status, texto) => {
+    const puerta = puertaDeLaRadicacion({ rechazos: { [operacion]: { code, status } } });
+    await montar(puerta);
+    await hastaElFormulario();
+
+    await radicar();
+
+    expect(component.errorMessage()).toBe(texto);
+    expect(component.view()).toBe('apply');
+    expect(component.confirmedApplication()).toBeNull();
+  });
+
+  it('«no-disponible»: el sitio declaró la puerta y no hay orquestador; lo dice sin una sola petición', async () => {
+    const puerta = puertaDeLaRadicacion();
+    await montar(puerta, { ...NEGOCIO_DEL_CMS, camino: 'no-disponible' });
+    await hastaElFormulario();
+
+    await radicar();
+
+    expect(component.errorMessage()).toBe('La radicación en línea no está disponible ahora.');
+    expect(puerta.alaPuerta()).toBe(0);
+    expect(puerta.directas()).toBe(0);
+  });
+
+  it.each([
+    ['«directa»', { ...NEGOCIO_DEL_CMS, camino: 'directa' }],
+    ['sin camino (un CMS anterior)', NEGOCIO_DEL_CMS],
+  ])('%s: radica por la ruta directa, con 0 peticiones a /api/flujos (T033)', async (_, config) => {
+    const puerta = puertaDeLaRadicacion();
+    await montar(puerta, config);
+    await hastaElFormulario();
+
+    await radicar();
+
+    expect(puerta.alaPuerta()).toBe(0);
+    expect(puerta.directas()).toBe(1);
+    expect(component.confirmedApplication()?.reference).toBe('RAD-2026-000777');
+  });
+
+  it('radicar otro trámite en la misma visita pide SU formulario, no reutiliza el del anterior', async () => {
+    await montar(puertaDeLaRadicacion());
+    await hastaElFormulario();
+    expect(component.form()?.id).toBe(MOCK_FORMS['svc-antecedentes']!.id);
+
+    component.backToCatalog();
+    await flushMicrotasks();
+    component.openService(component.services().find((s) => s.id === 'svc-pasaporte')!);
+    await flushMicrotasks();
+    component.startApplication();
+    await flushMicrotasks();
+
+    expect(component.view()).toBe('apply');
+    expect(component.service()?.id).toBe('svc-pasaporte');
+    expect(component.form()?.id).toBe(MOCK_FORMS['svc-pasaporte']!.id);
+  });
+
+  const SOLICITUD_RADICADA = {
+    id: 'case_rad_1',
+    reference: 'SG-2026-009001',
+    serviceId: 'svc-antecedentes',
+    serviceName: 'Certificado de antecedentes',
+    status: 'submitted',
+    submittedAt: '2026-10-25T10:00:00+00:00',
+    currentStage: 'Radicada',
+    feeMinor: 70_000,
+    feeStatus: 'captured',
+  };
+
+  it('el enlace del correo (?radicacion=) abre «Mis solicitudes», donde el CMS confirma el expediente, y quita el parámetro (FR-019)', async () => {
+    window.history.replaceState(null, '', '/gobierno/?radicacion=pta-1&utm=correo');
+    try {
+      const puerta = puertaDeLaRadicacion({ misSolicitudes: [SOLICITUD_RADICADA] });
+      await montar(puerta);
+      await flushMicrotasks(20);
+
+      expect(component.view()).toBe('applications');
+      expect(window.location.hash).toContain('mis-solicitudes');
+      expect(component.applications().map((a) => a.reference)).toEqual(['SG-2026-009001']);
+      expect(puerta.alaPuerta()).toBe(0);
+      // Leído, el parámetro sale de la URL (lo demás de la consulta se queda): si no, cada recarga lo reabriría.
+      expect(window.location.search).toBe('?utm=correo');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it('sin sesión el enlace del correo pide entrar y CONSERVA el parámetro para volver', async () => {
+    window.history.replaceState(null, '', '/gobierno/?radicacion=pta-1');
+    try {
+      await montar(puertaDeLaRadicacion({ misSolicitudes: 'sin-sesion' }));
+      await flushMicrotasks(20);
+
+      expect(component.view()).toBe('applications');
+      expect(component.citizenAccess()).toBe('anon');
+      expect(window.location.search).toBe('?radicacion=pta-1');
+      expect(component.loginUrl()).toContain(encodeURIComponent('?radicacion=pta-1'));
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
 });

@@ -724,6 +724,39 @@ describe('La estadía por la puerta (línea 006)', () => {
     expect(cancelarPendiente()).toBeNull();
   });
 
+  it('al cancelar lo pendiente, el aviso del intento fallido se va: en pantalla queda sólo lo que pasó después (T038)', async () => {
+    const puerta = puertaDeLaEstadia({ rechazos: { cerrar: { code: 'viajes.not_continuable' } }, estadoTrasCerrar: 'Running' });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+    const delIntento = avisos();
+    expect(delIntento.length).toBeGreaterThan(0);
+
+    cancelarPendiente()!.click();
+    await settle(fixture, 20);
+
+    expect(avisos()).toEqual(['Cancelamos tu reserva sin confirmar. No se te cobró nada.']);
+  });
+
+  it('si la cancelación no sale, el aviso del intento se queda: la estadía sigue pendiente', async () => {
+    const puerta = puertaDeLaEstadia({
+      rechazos: { cerrar: { code: 'viajes.not_continuable' }, cancelar: { code: 'viajes.transitorio', status: 503, transient: true } },
+      estadoTrasCerrar: 'Running',
+    });
+    montar(puerta);
+    await hastaRevisar();
+    await confirmar();
+    const delIntento = avisos();
+
+    cancelarPendiente()!.click();
+    await settle(fixture, 20);
+
+    for (const aviso of delIntento) {
+      expect(avisos()).toContain(aviso);
+    }
+    expect(cancelarPendiente()).not.toBeNull();
+  });
+
   it('«directa» (o sin declarar): ni una petición a /api/flujos; aparta y cobra por /hold y /pay como siempre', async () => {
     for (const config of [{ ...POR_LA_PUERTA, bookingPath: 'directa' }, NEGOCIO_DEL_CMS]) {
       const puerta = puertaDeLaEstadia();

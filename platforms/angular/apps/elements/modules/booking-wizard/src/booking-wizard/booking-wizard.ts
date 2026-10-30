@@ -9,6 +9,7 @@ import {
   type OnInit,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -229,6 +230,8 @@ export class BookingWizardElementComponent implements OnInit {
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  /** El asistente compartido: su aviso del intento es suyo, y sólo esta ficha sabe cuándo dejó de ser verdad. */
+  private readonly asistente = viewChild(CheckoutWizardComponent);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<BookingWizardConfig | undefined, unknown>(undefined, {
@@ -669,7 +672,8 @@ export class BookingWizardElementComponent implements OnInit {
 
   /**
    * Cancela la estadía PENDIENTE: suelta el apartado y anula la autorización. Lo confirmado no se cancela aquí: lo
-   * gestiona quien vende (006-P3). Lo que queda lo dice el servidor.
+   * gestiona quien vende (006-P3). Lo que queda lo dice el servidor. Cancelada, el aviso del intento que falló deja de
+   * ser verdad y se quita (T038); si la cancelación no sale, se queda: la estadía sigue pendiente.
    */
   async cancelarEstadiaPendiente(): Promise<void> {
     const id = this.estadiaPendienteId();
@@ -679,6 +683,7 @@ export class BookingWizardElementComponent implements OnInit {
     const r = await cancelarEstadia(this.#host, id);
     if (r.ok && r.valor.estado === 'Compensated') {
       this.#store.setSession(sinEstadiaPendiente(this.#store.getValidSession()));
+      this.asistente()?.errorMessage.set('');
       this.avisoDeLaEstadia.set(t('Travel.Booking.CancelledNoCharge', 'Cancelamos tu reserva sin confirmar. No se te cobró nada.'));
     } else {
       this.avisoDeLaEstadia.set(

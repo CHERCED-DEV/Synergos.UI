@@ -115,7 +115,34 @@ import {
   type RechazoDelFlujo,
 } from '@synergos/vitals-core';
 import { caminoDelViajePendiente, itemsDelViaje, sinViajePendiente, viajePendiente } from './travel-fulfillment.strategy';
-import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe } from './travel-viaje';
+import { cancelarViaje, consultarViaje, cotizarViaje, listarViajes, viajeComoTrip, type Importe, type ParadaLeida } from './travel-viaje';
+
+/**
+ * Las tarifas de una estadía para las fechas buscadas, una por oferta de esa estadía en la búsqueda (T036, medido en vivo
+ * en `/viajes/`).
+ *
+ * <p>El CMS da el contenido de la estadía sin precio —la disponibilidad y el precio viven en la búsqueda, lo dice el propio
+ * endpoint— y su `rates` sólo trae el código de la habitación, así que la ficha quedaba sin ninguna tarifa y el botón de
+ * agregarla, apagado. Cada oferta sí trae su `productRef` (`STD/STD-FLEX`, lo que se reserva), su precio por esas fechas,
+ * la habitación, el régimen y si se reembolsa.</p>
+ */
+export function tarifasDeLaBusqueda(ofertas: readonly TravelOffer[], stayId: string): readonly StayRate[] {
+  return ofertas
+    .filter((oferta) => oferta.product === 'hotel' && oferta.stayId === stayId)
+    .map((oferta) => {
+      const detalle = oferta.detail as Record<string, unknown>;
+      const texto = (clave: string): string => (typeof detalle[clave] === 'string' ? (detalle[clave] as string).trim() : '');
+      return {
+        id: oferta.offerId,
+        roomLabel: texto('roomTypeName') || oferta.subtitle || oferta.title,
+        rateLabel: texto('boardBasis'),
+        amount: oferta.amount,
+        currency: oferta.currency,
+        refundable: detalle['refundable'] === true,
+        perks: oferta.badges ?? [],
+      };
+    });
+}
 
 /**
  * Lo que se dice de un rechazo del viaje por la puerta, elegido por su `code` y nunca por su `title` (sección
@@ -1062,9 +1089,38 @@ export class TravelShellElementComponent implements OnInit {
     if (turno !== this.#cotizacion) {
       return;
     }
-    this.totalCotizado.set(r.ok ? r.valor : null);
-    if (!r.ok && clasificarRechazo(r.rechazo) !== 'sesion') {
+    this.totalCotizado.set(r.ok ? r.valor.total : null);
+    if (r.ok) {
+      this.alPrecioDelServidor(r.valor.itinerario);
+    } else if (clasificarRechazo(r.rechazo) !== 'sesion') {
       this.avisoDelViaje.set(mensajeDelViaje(r.rechazo.code));
+    }
+  }
+
+  /**
+   * Por la puerta, cada línea vale lo que el servidor cotizó por ese ítem, no lo que trajo la búsqueda: así las
+   * líneas, el total del carrito y el resumen del asistente dicen lo mismo, que es lo que se cobra (T036 de la línea
+   * 006). El itinerario viene en el orden de los ítems; uno que no casa, o sin precio del servidor, se queda como está.
+   */
+  private alPrecioDelServidor(itinerario: readonly ParadaLeida[]): void {
+    const items = this.#store.items();
+    if (itinerario.length !== items.length) {
+      return;
+    }
+    let cambio = false;
+    items.forEach((item, indice) => {
+      const parada = itinerario[indice];
+      if (!parada.precio || parada.producto !== item.productRef) {
+        return;
+      }
+      const amount = Math.round((parada.precio.amount * 100) / Math.max(1, item.quantity));
+      if (amount !== item.amount) {
+        this.#store.addItem({ ...item, amount });
+        cambio = true;
+      }
+    });
+    if (cambio) {
+      this.reprice();
     }
   }
 
@@ -1446,7 +1502,9 @@ export class TravelShellElementComponent implements OnInit {
     }
     const subtitle = `${rate.roomLabel} · ${rate.rateLabel}`;
     this.commitToCart({
-      productRef: detail.id,
+      // Lo que se reserva es la TARIFA (`STD/STD-FLEX`, el productRef de la oferta), no la estadía: con el id de la
+      // estadía la puerta no encuentra ni recurso ni tarifa (T036, medido en vivo).
+      productRef: rate.id,
       kind: 'hotel',
       label: detail.title,
       amount: rate.amount,
@@ -1472,8 +1530,11 @@ export class TravelShellElementComponent implements OnInit {
       const detail = await this.#orchestrator.callApi(`stay:${id}`, () =>
         this.#api.stay(this.apiBase(), id, this.currency()),
       );
-      this.stay.set(detail);
-      this.selectedRateId.set(detail.rates[0]?.id ?? '');
+      // El precio de cada tarifa es el de la búsqueda, para sus fechas: el contenido de la estadía no lo trae (T036).
+      const deLaBusqueda = tarifasDeLaBusqueda(this.stayOffers(), id);
+      const conTarifas = deLaBusqueda.length > 0 ? { ...detail, rates: deLaBusqueda } : detail;
+      this.stay.set(conTarifas);
+      this.selectedRateId.set(conTarifas.rates[0]?.id ?? '');
     } catch (error) {
       this.errorMessage.set('No pudimos abrir el alojamiento. Intenta de nuevo.');
       void error;

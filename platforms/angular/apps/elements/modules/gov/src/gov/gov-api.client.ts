@@ -39,6 +39,7 @@ import {
  *  - `GET  /api/gov/service/{id}`               → `{ service }`
  *  - `GET  /api/gov/form/{serviceId}`           → `{ form }`
  *  - `POST /api/gov/application`                → `{ application }`   (summary)
+ *  - `POST /api/gov/radicaciones/{id}/respuestas` → `{ radicado, caseId }` 🔒 sesión (la puerta, 009 T031)
  *  - `GET  /api/gov/applications`               → `{ applications }`  🔒 sesión
  *  - `GET  /api/gov/notifications`              → `{ notifications }` 🔒 sesión
  *  - `POST /api/gov/notification/{id}/open`     → `{ notification }`  🔒 sesión
@@ -121,6 +122,33 @@ export function isGovForbidden(error: unknown): error is GovForbiddenError {
  */
 function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
+/**
+ * El CMS dijo que NO a las respuestas de una radicación por la puerta, con su código (problem+json): la radicación no
+ * es de quien la pide, ya no está abierta, falta una respuesta obligatoria o la puerta no está abierta en el sitio. La
+ * pantalla traduce el código; el `detail` es para el log.
+ */
+export class GovRechazoDeLaRadicacionError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status: number,
+    readonly transient: boolean,
+  ) {
+    super(`Gov radicación rechazada: ${status} ${code}`);
+    this.name = 'GovRechazoDeLaRadicacionError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isGovRechazoDeLaRadicacion(error: unknown): error is GovRechazoDeLaRadicacionError {
+  return error instanceof Error && error.name === 'GovRechazoDeLaRadicacionError';
+}
+
+/** Lo que el CMS guardó de una radicación por la puerta: el radicado que acuñó y el expediente donde quedó. */
+export interface RespuestasGuardadas {
+  readonly radicado: string;
+  readonly caseId: string;
 }
 
 /**
@@ -251,6 +279,51 @@ export class GovApiClient {
       this.rethrowIfAuthError(error);
       this.writeFailed('POST /api/gov/application', error);
     }
+  }
+
+  /**
+   * Las respuestas de una radicación por la puerta (009-gobierno-tramite T031), entre abrir y cerrar: el CMS comprueba
+   * con el orquestador que es del miembro y sigue abierta, las guarda con el contacto de la sesión y acuña el radicado.
+   * Repetirla mientras siga abierta reemplaza las respuestas y conserva el radicado.
+   *
+   * **No degrada**, como radicar: el radicado es la prueba del ciudadano y no se fabrica.
+   *
+   * @throws {GovUnauthorizedError} sin sesión.
+   * @throws {GovRechazoDeLaRadicacionError} con el código del CMS.
+   * @throws {GovWriteFailedError} si no llegó o la respuesta no trae el radicado.
+   */
+  async respuestasDeLaRadicacion(
+    apiBase: string,
+    radicacion: string,
+    answers: Readonly<Record<string, string>>,
+  ): Promise<RespuestasGuardadas> {
+    const url = `${apiBase}/radicaciones/${encodeURIComponent(radicacion)}/respuestas`;
+    const endpoint = 'POST /api/gov/radicaciones/{radicacion}/respuestas';
+    let response: Response;
+    try {
+      response = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers }),
+      });
+    } catch (error) {
+      this.writeFailed(endpoint, error);
+    }
+    if (response.status === 401) {
+      throw new GovUnauthorizedError(url);
+    }
+    const data: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const code = isRecord(data) ? readString(data['code']).trim() : '';
+      throw new GovRechazoDeLaRadicacionError(
+        code, response.status, isRecord(data) ? data['transient'] === true : response.status >= 500);
+    }
+    const radicado = isRecord(data) ? readString(data['radicado']).trim() : '';
+    const caseId = isRecord(data) ? readString(data['caseId']).trim() : '';
+    if (!radicado || !caseId) {
+      this.writeFailed(endpoint, new Error('respuestas-shape'));
+    }
+    return { radicado, caseId };
   }
 
   /**
@@ -832,6 +905,8 @@ function normalizeServiceDetail(value: unknown): GovServiceDetail | null {
     required: readStringArray(root['required']),
     feeMinor: Math.max(0, Math.trunc(readNumber(root['feeMinor']))),
     currency: readString(root['currency']).trim(),
+    // La clave con que se radica por la puerta (009, T031); un CMS anterior no la manda, y entonces es el id.
+    key: readString(root['key']).trim() || id,
   };
 }
 
@@ -1194,8 +1269,9 @@ function toServiceSummary(detail: MockServiceDetail): GovService {
   };
 }
 
-function mockServiceDetail(id: string): MockServiceDetail {
-  return MOCK_SERVICES.find((detail) => detail.id === id) ?? MOCK_SERVICES[0];
+function mockServiceDetail(id: string): MockServiceDetail & Pick<GovServiceDetail, 'key'> {
+  const detail = MOCK_SERVICES.find((d) => d.id === id) ?? MOCK_SERVICES[0];
+  return { ...detail, key: detail.id };
 }
 
 function mockForm(serviceId: string): GovForm {

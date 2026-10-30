@@ -10,6 +10,7 @@ export const AVISOS_GENERADOS = {
   "alquiler.renta": { parametro: "alquiler", marcador: "id" },
   "educacion.matricula": { parametro: "matricula", marcador: "id" },
   "eventos.compra": { parametro: "compra", marcador: "id" },
+  "gobierno.radicacion": { parametro: "radicacion", marcador: "id" },
   "propiedades.visita": { parametro: "visita", marcador: "id" },
   "reservas.servicio": { parametro: "reserva", marcador: "id" },
   "salud.cita": { parametro: "cita", marcador: "id" },
