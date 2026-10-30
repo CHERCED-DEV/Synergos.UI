@@ -729,6 +729,8 @@
     border-radius: syn.$radius-md;
   }
   &__trip-meta { margin: 0; color: var(--ts-text-secondary); }
+  &__trip-readonly { display: block; margin: 0; font-size: syn.$font-size-sm; color: var(--ts-text-secondary); font-style: italic; }
+  &__trip-parcial { display: block; margin: 0; font-size: syn.$font-size-sm; color: var(--ts-text); font-weight: 600; }
   &__trip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: syn.$space-3; }
   &__cancel-note { margin: 0; color: var(--ts-danger); font-size: syn.$font-size-sm; font-weight: 600; }
 

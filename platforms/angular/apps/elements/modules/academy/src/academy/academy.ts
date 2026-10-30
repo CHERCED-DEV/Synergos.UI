@@ -229,9 +229,12 @@ export function sanitizeAcademyConfig(value: AcademyConfig): AcademyConfig {
 export function mensajeDeLaMatricula(code: string): string {
   const noDisponible = t('Academy.Enrollment.Unavailable', 'Este curso no admite matrícula en línea ahora.');
   const pagoFallido = t('Academy.Enrollment.PaymentFailed', 'El pago no se pudo completar. Intenta de nuevo o usa otro medio de pago.');
+  const entradaInvalida = t('Academy.Enrollment.BadRequest', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.');
   const porCodigo: Readonly<Record<string, string>> = {
     [RAZON_ACTIVANDO]: t('Academy.Enrollment.Activating', 'Tu pago quedó registrado. Estamos abriendo tu aula…'),
-    'educacion.entrada_invalida': t('Academy.Enrollment.BadRequest', 'No pudimos leer el curso o el plan. Vuelve a elegirlo.'),
+    'educacion.entrada_invalida': entradaInvalida,
+    // La línea de la oferta común (001-P11): un curso o un plan con otra forma de clave, rechazado antes de cotizar.
+    'flow.linea_invalida': entradaInvalida,
     'educacion.saga_not_found': t('Academy.Enrollment.NotFound', 'No encontramos esa matrícula.'),
     'pricing.price_not_found': noDisponible,
     'pricing.price_not_in_effect': noDisponible,

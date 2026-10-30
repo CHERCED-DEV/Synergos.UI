@@ -716,6 +716,10 @@
     <!-- SH-11 (#19). El wallet de credenciales (voucher + PNR) es SH-10 y sigue
          siendo del dominio: entra como artefacto dentro de la confirmación. -->
     <ng-template #credenciales>
+      <!-- Confirmado en parte (historia 3): lo que no se cumplió no tiene credencial; se dice con lo devuelto. -->
+      @if (notaDeLaConfirmacion()) {
+        <syn-live-region class="travel__notice" [message]="notaDeLaConfirmacion()" [visuallyHidden]="false" announceInitial />
+      }
       <syn-credential-wallet [config]="walletConfig" [credentials]="confirmationCredentials()" />
     </ng-template>
     <syn-confirmation-shell
@@ -767,7 +771,14 @@
         <span class="travel__trip-title">{{ trip.title }}</span>
         <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
       </span>
-      <span class="travel__trip-dates">{{ trip.startDate }} → {{ trip.endDate }} · {{ tripTotalLabel(trip) }}</span>
+      @if (trip.soloLectura) {
+        <span class="travel__trip-readonly">{{ textoSoloLectura }}</span>
+      }
+      @if (trip.parcial) {
+        <span class="travel__trip-parcial">{{ textoParcial }}</span>
+      }
+      <!-- Un viaje de antes por la directa no trae fechas: se dice su total, sin un « → » vacío. -->
+      <span class="travel__trip-dates">@if (trip.startDate) {<span>{{ trip.startDate }} → {{ trip.endDate }} · </span>}{{ tripTotalLabel(trip) }}</span>
     </ng-template>
 
     <ng-template #tripDetail let-trip>
@@ -776,7 +787,13 @@
           <span class="travel__trip-title">{{ trip.title }}</span>
           <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
         </div>
-        <p class="travel__trip-meta">{{ trip.destination }} · {{ tripTotalLabel(trip) }}</p>
+        <p class="travel__trip-meta">@if (trip.destination) {<span>{{ trip.destination }} · </span>}{{ tripTotalLabel(trip) }}</p>
+        @if (trip.soloLectura) {
+          <p class="travel__trip-readonly">{{ textoSoloLectura }}</p>
+        }
+        @if (trip.parcial) {
+          <p class="travel__trip-parcial">{{ textoParcial }}. {{ notaParcial(noCumplidosDe(trip), trip.currency || currency()) }}</p>
+        }
 
         <syn-tracking-timeline
           heading="Estado del viaje"

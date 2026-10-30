@@ -55,6 +55,7 @@ import {
   consultarCita,
   cotizarCita,
   escribirYAsentar,
+  listarCitas,
   relojEnZona,
   ventanaDeLaCita,
   zonaValida,
@@ -1097,6 +1098,9 @@ export class EhrElementComponent implements OnInit {
     } else {
       // Sin total del servidor no hay copago: ni un cero inventado ni el de otra elección.
       this.rechazoDelCopago.set(r.ok ? 'cliente.sin_total' : r.rechazo.code);
+      // Y el rechazo no queda como la respuesta de esta elección: volver al asistente la cotiza otra vez. En vivo
+      // (T034), concedido el permiso tras un 403, el asistente lo seguía pidiendo hasta recargar la página.
+      this.#ultimaCotizacion = '';
     }
   }
 
@@ -1107,6 +1111,8 @@ export class EhrElementComponent implements OnInit {
     }
     this.estadoDelEnlace.set('cargando');
     this.textoDelEnlace.set(t('Health.Appointment.Loading', 'Buscando tu cita…'));
+    // El directorio, para nombrar al profesional de la cita (US1/AC4: estado, fecha, profesional y total).
+    void this.ensureDoctors();
     this.navigate('visits');
     const r = await consultarCita(this.#host, id);
     if (r.ok) {
@@ -1131,6 +1137,36 @@ export class EhrElementComponent implements OnInit {
   horaDeLaCita(cita: CitaLeida): string {
     const reloj = cita.ventana ? relojEnZona(cita.ventana.start, this.zona()) : null;
     return reloj ? `${this.formatDate(reloj.fecha)} · ${reloj.hora}` : '';
+  }
+
+  /** El profesional de la cita por su nombre en el directorio, o nada: no se nombra a uno que no se conoce. */
+  profesionalDe(cita: CitaLeida): string {
+    return this.doctors().find((doctor) => doctor.id === cita.profesionalId)?.name ?? '';
+  }
+
+  /**
+   * Una cita CONFIRMADA de la puerta como fila de «Mis citas», o `null`: una pendiente la lleva el asistente y una
+   * deshecha no llegó a ser cita. El motivo no viaja por la puerta, así que la fila se nombra por su número, como el
+   * aviso.
+   */
+  private filaDeLaCita(cita: CitaLeida, paciente: string): Appointment | null {
+    const reloj = cita.estado === 'Completed' && cita.ventana ? relojEnZona(cita.ventana.start, this.zona()) : null;
+    if (!reloj || !cita.ventana) {
+      return null;
+    }
+    const minutos = Math.round((Date.parse(cita.ventana.end) - Date.parse(cita.ventana.start)) / 60_000);
+    return {
+      id: cita.id,
+      patientId: this.patientId(),
+      patientName: paciente,
+      doctorId: cita.profesionalId,
+      doctorName: this.doctorName(cita.profesionalId),
+      date: reloj.fecha,
+      time: reloj.hora,
+      durationMin: minutos > 0 ? minutos : MINUTOS_DE_LA_CITA,
+      reason: this.encabezadoDeLaCita(cita),
+      status: 'booked',
+    };
   }
 
   /**
@@ -1519,18 +1555,36 @@ export class EhrElementComponent implements OnInit {
 
   // ─── PATIENT · my appointments ───────────────────────────────────────────────
   /**
-   * Las citas del paciente: la próxima, que trae `portal/home` del paciente de la SESIÓN.
+   * Las citas del paciente: la próxima, que trae `portal/home` del paciente de la SESIÓN, y por la puerta las
+   * confirmadas que da `listar` (T034).
    *
    * Antes completaba la lista con `GET /appointments` filtrado en el navegador por el
    * `patientId` de la página —la agenda de TODOS los pacientes de la clínica, bajada a la
    * página de uno—. Desde #197 esa ruta es de la superficie clínica (rol) y un paciente recibe
    * 403; el portal no tiene, hoy, una lista propia de citas pasadas.
+   *
+   * Por la puerta, `portal/home` no conoce las citas del orquestador: sin `listar`, una cita agendada sólo se
+   * veía en la sesión que la agendó, y tras recargar «Mis citas» decía que no había ninguna (en vivo, T034).
    */
   private async loadMyAppointments(): Promise<void> {
     this.loading.set(true);
     try {
       const home = this.home() ?? (await this.#api.portalHome(this.apiBase()));
       const list: Appointment[] = home.nextAppointment ? [home.nextAppointment] : [];
+      if (this.porLaPuerta()) {
+        await this.ensureDoctors();
+        const r = await listarCitas(this.#host);
+        if (!r.ok) {
+          throw new Error(r.rechazo.code);
+        }
+        for (const cita of r.valor) {
+          const fila = this.filaDeLaCita(cita, home.patient.name);
+          if (fila && !list.some((a) => a.id === fila.id)) {
+            list.push(fila);
+          }
+        }
+        list.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+      }
       this.myAppointments.set(list);
       this.appointmentsLoaded.set(true);
       this.markRead('appointments', true);

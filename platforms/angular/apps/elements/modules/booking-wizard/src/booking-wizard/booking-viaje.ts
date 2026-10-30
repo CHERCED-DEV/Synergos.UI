@@ -37,10 +37,25 @@ export interface EstadiaLeida {
   readonly total: Importe | null;
   /** Cuándo vence el apartado, si la agenda lo dijo. */
   readonly vence: string | null;
+  /** La habitación como la guardó el itinerario (su etiqueta, o su producto); vacía si el servidor no la dio. */
+  readonly habitacion: string;
+  /** El día de entrada y el de salida (`AAAA-MM-DD`) de la ventana del itinerario; vacíos si no la dio. */
+  readonly entrada: string;
+  readonly salida: string;
 }
 
 function leerEstadia(r: BffViajes.ViajesReservaRespuesta): EstadiaLeida {
-  return { id: r.id, numero: r.numero, estado: r.estado, total: r.datos.total, vence: r.datos.vence };
+  const parte = r.datos.itinerario?.[0];
+  return {
+    id: r.id,
+    numero: r.numero,
+    estado: r.estado,
+    total: r.datos.total,
+    vence: r.datos.vence,
+    habitacion: parte ? parte.etiqueta || parte.producto : '',
+    entrada: parte?.inicio.slice(0, 10) ?? '',
+    salida: parte?.fin.slice(0, 10) ?? '',
+  };
 }
 
 function leida(r: ResultadoDelFlujo<BffViajes.ViajesReservaRespuesta>): ResultadoDelFlujo<EstadiaLeida> {
@@ -66,7 +81,8 @@ export async function abrirEstadia(
   ventana: { start: string; end: string },
   llave: string,
 ): Promise<ResultadoDelFlujo<EstadiaLeida>> {
-  return leida(await abrirViajesReserva(desde, { cuerpo: { items: [{ producto, etiqueta: etiqueta || null, ventana }] }, llave }));
+  // Una estadía es alojamiento: el servidor la cotiza por noche (lote 10, 006-H2).
+  return leida(await abrirViajesReserva(desde, { cuerpo: { items: [{ producto, etiqueta: etiqueta || null, ventana, porNoche: true }] }, llave }));
 }
 
 /** Captura el total y confirma la habitación. Idempotente sobre una estadía ya completada. */
@@ -79,6 +95,7 @@ export async function cancelarEstadia(desde: Element, id: string): Promise<Resul
   return leida(await cancelarViajesReserva(desde, { consulta: { id } }));
 }
 
+/** Lee la estadía por su id: para terminar una cuyo cierre no contestó, y para la del enlace del aviso. */
 export async function consultarEstadia(desde: Element, id: string): Promise<ResultadoDelFlujo<EstadiaLeida>> {
   return leida(await consultarViajesReserva(desde, { consulta: { id } }));
 }
