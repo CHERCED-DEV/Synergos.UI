@@ -1255,11 +1255,6 @@ export class StorefrontElementComponent implements OnInit {
     }
   }
 
-  // ─── Native input bindings ───────────────────────────────────────────────────
-  bind(setter: (value: string) => void): (event: Event) => void {
-    return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
-  }
-
   // ─── Router ──────────────────────────────────────────────────────────────────
   navigate(view: StorefrontView, param = ''): void {
     if (view === 'checkout' && !this.hasCart()) {

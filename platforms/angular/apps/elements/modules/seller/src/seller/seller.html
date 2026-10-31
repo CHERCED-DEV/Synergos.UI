@@ -13,33 +13,14 @@
     </div>
 
     <nav class="seller__nav" aria-label="Vistas de la consola">
-      <button
-        type="button"
-        class="seller__nav-btn"
-        [class.is-active]="view() === 'panel'"
-        (click)="goTo('panel')"
-      >
-        Panel
-      </button>
-      <button
-        type="button"
-        class="seller__nav-btn"
-        [class.is-active]="view() === 'publicar'"
-        (click)="goTo('publicar')"
-      >
-        Publicar
-      </button>
-      <button
-        type="button"
-        class="seller__nav-btn"
-        [class.is-active]="view() === 'mensajes'"
-        (click)="goTo('mensajes')"
-      >
+      <syn-button variant="ghost" size="sm" [current]="view() === 'panel'" (pressed)="goTo('panel')">Panel</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="view() === 'publicar'" (pressed)="goTo('publicar')">Publicar</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="view() === 'mensajes'" (pressed)="goTo('mensajes')">
         Mensajes
         @if (unreadCount() > 0) {
-          <span class="seller__nav-badge">{{ unreadCount() }}</span>
+          <syn-badge tone="brand" [text]="'' + unreadCount()" />
         }
-      </button>
+      </syn-button>
     </nav>
   </header>
 
@@ -113,9 +94,7 @@
     <!-- One cell renderer for every queue: text cells + a status chip. -->
     <ng-template #sellerCell let-row let-column="column">
       @if (column.key === 'estado') {
-        <span class="seller__status" [class]="'seller__status--' + row.tone">
-          {{ row.cells[column.key] }}
-        </span>
+        <syn-status-tag [label]="row.cells[column.key]" [tone]="toneDeLaFila(row.tone)" />
       } @else {
         <span
           class="seller__cell"
@@ -178,7 +157,7 @@
       <section class="seller__detalle" [attr.aria-label]="textoDelDetalle(abierto.pedido.orderNumber)">
         <header class="seller__detalle-head">
           <h2 class="seller__detalle-title">{{ textoDelDetalle(abierto.pedido.orderNumber) }}</h2>
-          <button type="button" class="seller__btn" (click)="cerrarDetalle()">{{ textoCerrar }}</button>
+          <syn-button variant="outline" size="sm" (pressed)="cerrarDetalle()">{{ textoCerrar }}</syn-button>
         </header>
         @if (abierto.estado === 'caida') {
           <syn-error-state
@@ -220,28 +199,24 @@
         <header class="seller__detalle-head">
           <h2 class="seller__detalle-title">{{ textoDelEnvio(aEnviar.orderNumber) }}</h2>
         </header>
-        <label class="seller__field">
-          <span class="seller__field-label">{{ textoGuia }}</span>
-          <input
-            class="seller__input seller__guia"
-            type="text"
-            autocomplete="off"
-            [attr.maxlength]="guiaMaxima"
-            [value]="guia()"
-            (input)="escribirGuia($event)"
-          />
-          <span class="seller__hint">{{ textoAyudaDeLaGuia }}</span>
-        </label>
+        <syn-input
+          class="seller__guia"
+          autocomplete="off"
+          [label]="textoGuia"
+          [hint]="textoAyudaDeLaGuia"
+          [maxlength]="guiaMaxima"
+          [value]="guia()"
+          (valueChange)="guia.set($event)"
+        />
         <div class="seller__envio-acciones">
-          <button
-            type="button"
-            class="seller__btn seller__btn--primary seller__enviar"
+          <syn-button
+            class="seller__enviar"
             [disabled]="actoEnVuelo() !== null"
-            (click)="actuar(aEnviar, 'enviar', guia())"
+            (pressed)="actuar(aEnviar, 'enviar', guia())"
           >
             {{ actoEnVuelo() === aEnviar.orderRef ? accionEnVuelo.label : accionDelActo.enviar.label }}
-          </button>
-          <button type="button" class="seller__btn" (click)="cerrarEnvio()">{{ textoCancelar }}</button>
+          </syn-button>
+          <syn-button variant="outline" (pressed)="cerrarEnvio()">{{ textoCancelar }}</syn-button>
         </div>
       </section>
     }
@@ -251,15 +226,14 @@
       <section class="seller__detalle" [attr.aria-label]="textoDelReembolso(aReembolsar)">
         <p class="seller__detalle-resumen">{{ textoDelReembolso(aReembolsar) }}</p>
         <div class="seller__envio-acciones">
-          <button
-            type="button"
-            class="seller__btn seller__btn--primary seller__reembolsar"
+          <syn-button
+            class="seller__reembolsar"
             [disabled]="devolucionEnVuelo() !== null"
-            (click)="moverDevolucion(aReembolsar, 'refunded')"
+            (pressed)="moverDevolucion(aReembolsar, 'refunded')"
           >
             {{ devolucionEnVuelo() === aReembolsar.rmaId ? accionEnVuelo.label : textoConfirmarReembolso }}
-          </button>
-          <button type="button" class="seller__btn" (click)="cerrarReembolso()">{{ textoCancelar }}</button>
+          </syn-button>
+          <syn-button variant="outline" (pressed)="cerrarReembolso()">{{ textoCancelar }}</syn-button>
         </div>
       </section>
     }
@@ -280,10 +254,8 @@
           Referencia <strong>{{ receipt.productId }}</strong> · estado {{ receipt.status }}.
         </p>
         <div class="seller__receipt-actions">
-          <button type="button" class="seller__btn seller__btn--primary" (click)="publishAnother()">
-            Publicar otro producto
-          </button>
-          <button type="button" class="seller__btn" (click)="goTo('panel')">Ir al panel</button>
+          <syn-button (pressed)="publishAnother()">Publicar otro producto</syn-button>
+          <syn-button variant="outline" (pressed)="goTo('panel')">Ir al panel</syn-button>
         </div>
       </div>
     } @else {
@@ -302,85 +274,47 @@
           <!-- Paso 1: datos del producto -->
           @case ('datos') {
             <div class="seller__form">
-              <label class="seller__field">
-                <span class="seller__field-label">Título de la publicación</span>
-                <input
-                  class="seller__input"
-                  type="text"
-                  [value]="draftString(draft, 'title')"
-                  (input)="patchField(patch, 'title', $event)"
-                />
-              </label>
+              <syn-input label="Título de la publicación" [value]="draftString(draft, 'title')" (valueChange)="patchField(patch, 'title', $event)" />
               <div class="seller__form-row">
-                <label class="seller__field">
-                  <span class="seller__field-label">Marca</span>
-                  <input
-                    class="seller__input"
-                    type="text"
-                    [value]="draftString(draft, 'brand')"
-                    (input)="patchField(patch, 'brand', $event)"
-                  />
-                </label>
-                <label class="seller__field">
-                  <span class="seller__field-label">Categoría</span>
-                  <input
-                    class="seller__input"
-                    type="text"
-                    [value]="draftString(draft, 'category')"
-                    (input)="patchField(patch, 'category', $event)"
-                  />
-                </label>
+                <syn-input label="Marca" [value]="draftString(draft, 'brand')" (valueChange)="patchField(patch, 'brand', $event)" />
+                <syn-input label="Categoría" [value]="draftString(draft, 'category')" (valueChange)="patchField(patch, 'category', $event)" />
               </div>
-              <label class="seller__field">
-                <span class="seller__field-label">Descripción</span>
-                <textarea
-                  class="seller__input seller__input--area"
-                  rows="4"
-                  [value]="draftString(draft, 'description')"
-                  (input)="patchField(patch, 'description', $event)"
-                ></textarea>
-              </label>
+              <syn-textarea
+                label="Descripción"
+                [rows]="4"
+                [value]="draftString(draft, 'description')"
+                (valueChange)="patchField(patch, 'description', $event)"
+              />
             </div>
           }
           <!-- Paso 2: fotos por URL -->
           @case ('media') {
             <div class="seller__form">
               <div class="seller__media-add">
-                <label class="seller__field seller__field--grow">
-                  <span class="seller__field-label">URL de la imagen</span>
-                  <input
-                    class="seller__input"
-                    type="url"
-                    placeholder="https://…"
-                    [value]="mediaUrl()"
-                    (input)="onMediaUrlInput($event)"
-                  />
-                </label>
-                <button
-                  type="button"
-                  class="seller__btn"
-                  [disabled]="!mediaUrl().trim()"
-                  (click)="addImage(patch, draft)"
-                >
+                <syn-input
+                  class="seller__field--grow"
+                  type="url"
+                  label="URL de la imagen"
+                  placeholder="https://…"
+                  [value]="mediaUrl()"
+                  (valueChange)="mediaUrl.set($event)"
+                />
+                <syn-button variant="outline" [disabled]="!mediaUrl().trim()" (pressed)="addImage(patch, draft)">
                   Agregar foto
-                </button>
+                </syn-button>
               </div>
               @if (draftImages(draft).length > 0) {
                 <ul class="seller__media-list">
                   @for (url of draftImages(draft); track url) {
                     <li class="seller__media-item">
                       <span class="seller__media-url">{{ url }}</span>
-                      <button
-                        type="button"
-                        class="seller__media-remove"
-                        [attr.aria-label]="'Quitar ' + url"
-                        (click)="removeImage(patch, draft, url)"
-                      >
-                        <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                          <path d="M18 6 6 18" />
-                          <path d="m6 6 12 12" />
-                        </svg>
-                      </button>
+                      <syn-icon-button
+                        icon="x"
+                        variant="ghost"
+                        size="sm"
+                        [ariaLabel]="'Quitar ' + url"
+                        (pressed)="removeImage(patch, draft, url)"
+                      />
                     </li>
                   }
                 </ul>
@@ -393,39 +327,27 @@
           @case ('precio') {
             <div class="seller__form">
               <div class="seller__form-row">
-                <label class="seller__field">
-                  <span class="seller__field-label">Precio ({{ currency() }})</span>
-                  <input
-                    class="seller__input"
-                    type="number"
-                    min="0"
-                    [value]="draftNumber(draft, 'amount') || ''"
-                    (input)="patchField(patch, 'amount', $event)"
-                  />
-                </label>
-                <label class="seller__field">
-                  <span class="seller__field-label">Stock disponible</span>
-                  <input
-                    class="seller__input"
-                    type="number"
-                    min="0"
-                    [value]="draftNumber(draft, 'stock') || ''"
-                    (input)="patchField(patch, 'stock', $event)"
-                  />
-                </label>
+                <syn-input
+                  type="number"
+                  label="Precio ({{ currency() }})"
+                  [min]="0"
+                  [value]="'' + (draftNumber(draft, 'amount') || '')"
+                  (valueChange)="patchField(patch, 'amount', $event)"
+                />
+                <syn-input
+                  type="number"
+                  label="Stock disponible"
+                  [min]="0"
+                  [value]="'' + (draftNumber(draft, 'stock') || '')"
+                  (valueChange)="patchField(patch, 'stock', $event)"
+                />
               </div>
-              <label class="seller__field">
-                <span class="seller__field-label">Condición</span>
-                <select
-                  class="seller__input"
-                  [value]="draftCondition(draft)"
-                  (change)="patchField(patch, 'condition', $event)"
-                >
-                  <option value="new">Nuevo</option>
-                  <option value="used">Usado</option>
-                  <option value="refurbished">Reacondicionado</option>
-                </select>
-              </label>
+              <syn-select
+                label="Condición"
+                [options]="condiciones"
+                [value]="draftCondition(draft)"
+                (valueChange)="patchField(patch, 'condition', $event)"
+              />
             </div>
           }
           <!-- Paso 4: preview antes de publicar -->
@@ -521,7 +443,7 @@
             @if (message.failed) {
               <p class="seller__msg-failed">
                 No enviada
-                <button type="button" class="seller__msg-retry" (click)="retryReply(thread, message)">Reintentar</button>
+                <syn-link class="seller__msg-retry" (activated)="retryReply(thread, message)">Reintentar</syn-link>
               </p>
             } @else {
               <p class="seller__msg-meta">

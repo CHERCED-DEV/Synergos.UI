@@ -951,19 +951,19 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
       pedir('pta-1', 'enviar');
       fixture.detectChanges();
-      const campo = host().querySelector<HTMLInputElement>('.seller__guia')!;
+      const campo = host().querySelector<HTMLInputElement>('.seller__guia input')!;
       expect(campo.getAttribute('maxlength')).toBe('80');
 
       campo.value = 'G'.repeat(81);
       campo.dispatchEvent(new Event('input'));
-      host().querySelector<HTMLButtonElement>('.seller__enviar')!.click();
+      host().querySelector<HTMLButtonElement>('.seller__enviar button')!.click();
       await asentarYPintar();
       expect(s.actos).toEqual([]);
       expect(component.actionError()).toBe('La guía: hasta 80 caracteres, en una línea.');
 
       campo.value = `  ${'G'.repeat(80)}  `;
       campo.dispatchEvent(new Event('input'));
-      host().querySelector<HTMLButtonElement>('.seller__enviar')!.click();
+      host().querySelector<HTMLButtonElement>('.seller__enviar button')!.click();
       await asentarYPintar();
       expect(s.actos).toEqual([{ orderRef: 'pta-1', cuerpo: { acto: 'enviar', guia: 'G'.repeat(80) } }]);
       expect(etapaDe('pta-1')).toBe('shipped');
@@ -1102,7 +1102,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       mover('RMA-3', 'refunded');
       fixture.detectChanges();
       expect(s.movimientos).toEqual([]);
-      const confirmar = host().querySelector<HTMLButtonElement>('.seller__reembolsar')!;
+      const confirmar = host().querySelector<HTMLButtonElement>('.seller__reembolsar button')!;
       expect(confirmar.textContent?.trim()).toBe('Sí, reembolsar');
       expect(host().textContent).toContain('Reembolsar $ 259.000 de la devolución RMA-3');
 
@@ -1121,7 +1121,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
       mover('RMA-3', 'refunded');
       fixture.detectChanges();
-      host().querySelector<HTMLButtonElement>('.seller__reembolsar')!.click();
+      host().querySelector<HTMLButtonElement>('.seller__reembolsar button')!.click();
       await asentarYPintar();
 
       expect(estadoDe('RMA-3')).toBe('Received');

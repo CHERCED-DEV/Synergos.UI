@@ -25,13 +25,23 @@ import {
   type MessageSendEvent,
 } from '@synergos/shells';
 import {
+  BadgeComponent,
+  ButtonComponent,
+  IconButtonComponent,
+  InputComponent,
+  LinkComponent,
   LiveRegionComponent,
+  SelectComponent,
+  StatusTagComponent,
   SynEmptyStateComponent,
   SynErrorStateComponent,
+  TextareaComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  type SelectOption,
+  type StatusTagTone,
 } from '@synergos/shared';
 import type { SellerProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
@@ -217,6 +227,14 @@ let sellerInstanceId = 0;
     LiveRegionComponent,
     SynEmptyStateComponent,
     SynErrorStateComponent,
+    BadgeComponent,
+    ButtonComponent,
+    IconButtonComponent,
+    InputComponent,
+    LinkComponent,
+    SelectComponent,
+    StatusTagComponent,
+    TextareaComponent,
   ],
   templateUrl: './seller.html',
   styleUrl: './seller.scss',
@@ -762,10 +780,6 @@ export class SellerElementComponent implements OnInit {
     this.guia.set('');
   }
 
-  escribirGuia(evento: Event): void {
-    this.guia.set((evento.target as HTMLInputElement).value);
-  }
-
   textoDelEnvio(numero: string): string {
     return t('Seller.Operaciones.ShipOrder', 'Enviar el pedido {numero}', { numero });
   }
@@ -1134,22 +1148,34 @@ export class SellerElementComponent implements OnInit {
     this.goTo('panel');
   }
 
-  /** Merge one field into the wizard draft (used by the step template). */
-  patchField(
-    patch: (values: AuthoringDraft) => void,
-    key: string,
-    event: Event,
-  ): void {
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
-    patch({ [key]: target?.value ?? '' });
+  /** Merge one field into the wizard draft (used by the step template), with the text its field emits. */
+  patchField(patch: (values: AuthoringDraft) => void, key: string, value: string): void {
+    patch({ [key]: value });
+  }
+
+  /** Las condiciones de una publicación, para el selector del paso de precio. */
+  readonly condiciones: readonly SelectOption[] = [
+    { value: 'new', label: 'Nuevo' },
+    { value: 'used', label: 'Usado' },
+    { value: 'refurbished', label: 'Reacondicionado' },
+  ];
+
+  /** El tono del design system para el de una fila de la consola (`syn-status-tag`). */
+  toneDeLaFila(tone: 'ok' | 'warn' | 'info' | 'muted'): StatusTagTone {
+    switch (tone) {
+      case 'ok':
+        return 'success';
+      case 'warn':
+        return 'warning';
+      case 'info':
+        return 'pending';
+      case 'muted':
+        return 'inactive';
+    }
   }
 
   // Media step: URL list handling over the opaque draft.
   readonly mediaUrl = signal('');
-
-  onMediaUrlInput(event: Event): void {
-    this.mediaUrl.set((event.target as HTMLInputElement | null)?.value ?? '');
-  }
 
   addImage(patch: (values: AuthoringDraft) => void, draft: AuthoringDraft): void {
     const url = this.mediaUrl().trim();

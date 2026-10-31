@@ -1,5 +1,6 @@
 {
   "obligatorias": [
+    "seller",
     "storefront"
   ],
   "piso": {
@@ -12,7 +13,6 @@
     "gov": 30,
     "realty": 55,
     "reserva": 9,
-    "seller": 22,
     "travel-shell": 36
   }
 }
