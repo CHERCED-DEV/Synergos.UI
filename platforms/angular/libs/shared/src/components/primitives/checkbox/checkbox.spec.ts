@@ -27,4 +27,14 @@ describe(CheckboxComponent.name, () => {
 
     expect(changed).toHaveBeenCalledWith(true);
   });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(CheckboxComponent);
+    const b = TestBed.createComponent(CheckboxComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });

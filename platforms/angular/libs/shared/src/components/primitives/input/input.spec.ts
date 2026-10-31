@@ -141,4 +141,14 @@ describe(InputComponent.name, () => {
       expect(stock.getAttribute('step')).toBe('1');
     });
   });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(InputComponent);
+    const b = TestBed.createComponent(InputComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });

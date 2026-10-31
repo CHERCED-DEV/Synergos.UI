@@ -30,4 +30,14 @@ describe(RadioComponent.name, () => {
 
     expect(selected).toHaveBeenCalledWith('active');
   });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(RadioComponent);
+    const b = TestBed.createComponent(RadioComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });

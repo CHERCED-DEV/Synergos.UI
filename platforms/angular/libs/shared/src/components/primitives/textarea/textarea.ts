@@ -68,7 +68,9 @@ export class TextareaComponent {
   readonly focused = output<void>();
   readonly blurred = output<void>();
 
-  readonly fieldId = computed(() => this.id() || `syn-textarea-${textareaId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++textareaId;
+  readonly fieldId = computed(() => this.id() || `syn-textarea-${this.#numero}`);
   readonly hintId = computed(() => `${this.fieldId()}-hint`);
   readonly describedByIds = computed(() => {
     const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
@@ -79,9 +81,6 @@ export class TextareaComponent {
     () => coerceTrimmedStringInput(this.autocomplete()) ?? null,
   );
 
-  constructor() {
-    textareaId += 1;
-  }
 
   onInput(event: Event): void {
     const target = event.target;

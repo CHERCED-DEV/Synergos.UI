@@ -127,7 +127,9 @@ export class InputComponent {
   readonly focused = output<void>();
   readonly blurred = output<void>();
 
-  readonly fieldId = computed(() => this.id() || `syn-input-${inputId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++inputId;
+  readonly fieldId = computed(() => this.id() || `syn-input-${this.#numero}`);
   readonly hintId = computed(() => `${this.fieldId()}-hint`);
   readonly describedByIds = computed(() => {
     const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
@@ -146,9 +148,6 @@ export class InputComponent {
     () => coerceTrimmedStringInput(this.autocomplete()) ?? null,
   );
 
-  constructor() {
-    inputId += 1;
-  }
 
   onInput(event: Event): void {
     const target = event.target;

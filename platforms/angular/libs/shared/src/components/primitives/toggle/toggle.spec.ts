@@ -37,4 +37,14 @@ describe(ToggleComponent.name, () => {
     expect(fixture.nativeElement.textContent).toContain('Receive alerts');
     expect(fixture.nativeElement.textContent).toContain('Enable booking updates');
   });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(ToggleComponent);
+    const b = TestBed.createComponent(ToggleComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });
