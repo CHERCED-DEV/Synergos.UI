@@ -82,7 +82,7 @@ export {
   SkeletonComponent,
   type SkeletonShape,
 } from './components/primitives/skeleton/skeleton';
-export { SelectComponent } from './components/primitives/select/select';
+export { SelectComponent, type SelectOption } from './components/primitives/select/select';
 export { SpinnerComponent, type SpinnerConfig } from './components/primitives/spinner/spinner';
 export {
   StatusTagComponent,
