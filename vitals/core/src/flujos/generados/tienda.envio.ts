@@ -39,6 +39,15 @@ export function consultarTiendaEnvio(
   return pedirAlFlujo(desde, FLUJO_TIENDA_ENVIO, "consultar", args, opciones);
 }
 
+/** `detalle`: POST con cuerpo; llave ninguna. */
+export function detalleTiendaEnvio(
+  desde: Element,
+  args: ArgsDe<Operaciones["detalle"]>,
+  opciones?: OpcionesDePedido,
+): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["detalle"]>>> {
+  return pedirAlFlujo(desde, FLUJO_TIENDA_ENVIO, "detalle", args, opciones);
+}
+
 /** `listar`: GET con consulta; llave ninguna. */
 export function listarTiendaEnvio(
   desde: Element,
