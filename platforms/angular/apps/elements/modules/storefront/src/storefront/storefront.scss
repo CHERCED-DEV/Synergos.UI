@@ -89,21 +89,7 @@
     gap: syn.$space-2;
   }
 
-
   // ─── Notices / errors ──────────────────────────────────────────────────────
-  &__notice {
-    margin: 0;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-md;
-    background: var(--sf-surface-muted);
-    color: var(--sf-text-secondary);
-    font-size: syn.$font-size-sm;
-
-    &--warn {
-      background: var(--sf-warn-soft);
-      color: var(--sf-warn);
-    }
-  }
 
   &__error {
     margin: 0;

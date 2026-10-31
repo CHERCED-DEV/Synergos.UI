@@ -66,16 +66,12 @@
 
   <!-- Multi-tab live-session notice -->
   @if (liveConflict()) {
-    <p class="storefront__notice" role="status">
-      Otra pestaña tomó esta sesión de compra. Tu carrito se sincronizó.
-    </p>
+    <syn-status-banner tone="info" [message]="textoOtraPestana" />
   }
 
   <!-- Mock-data degradation notice -->
   @if (degraded()) {
-    <p class="storefront__notice storefront__notice--warn" role="status">
-      Mostrando datos de ejemplo: el motor de la tienda aún no responde.
-    </p>
+    <syn-status-banner tone="degraded" [message]="textoDatosDeEjemplo" />
   }
 
   <!-- Global error live region -->
@@ -601,7 +597,7 @@
               [checked]="paymentMethod() === 'pse'"
               (selected)="setPaymentMethod('pse')"
             />
-            <p class="storefront__notice">Demostración: no se realiza un cobro real.</p>
+            <syn-status-banner tone="info" message="Demostración: no se realiza un cobro real." />
           </fieldset>
         }
         @case ('revisar') {
@@ -781,7 +777,7 @@
         }
         @case ('mensajes') {
           <div class="storefront__messages">
-            <p class="storefront__notice">Mensajería v1 — lectura de hilos; responder llega con la cara vendedor.</p>
+            <syn-status-banner tone="info" message="Mensajería v1 — lectura de hilos; responder llega con la cara vendedor." />
             @if (threads().length === 0) {
               <p class="storefront__empty">No tienes mensajes con vendedores.</p>
             } @else {
@@ -804,12 +800,12 @@
           <fieldset class="storefront__form">
             <legend class="storefront__heading">Mis datos</legend>
             @if (isAuthenticated()) {
-              <p class="storefront__notice">
-                Sesión iniciada como <strong>{{ memberEmail() }}</strong>. Estos datos prellenan el
-                checkout y puedes cambiarlos si compras para otra persona.
-              </p>
+              <syn-status-banner
+                tone="info"
+                [message]="'Estos datos prellenan el checkout y puedes cambiarlos si compras para otra persona. Sesión iniciada como ' + memberEmail() + '.'"
+              />
             } @else {
-              <p class="storefront__notice">Estos datos prellenan el checkout.</p>
+              <syn-status-banner tone="info" message="Estos datos prellenan el checkout." />
             }
             <syn-input label="Nombre completo" autocomplete="name" [value]="customerName()" (valueChange)="customerName.set($event)" />
             <syn-input label="Correo electrónico" type="email" autocomplete="email" [value]="customerEmail()" (valueChange)="customerEmail.set($event)" />
