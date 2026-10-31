@@ -77,4 +77,14 @@ describe(TextareaComponent.name, () => {
       expect(renderTextarea({}).hasAttribute('inputmode')).toBe(false);
     });
   });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(TextareaComponent);
+    const b = TestBed.createComponent(TextareaComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });

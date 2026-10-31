@@ -160,7 +160,14 @@ export const EXCEPCIONES = {
   // sigue vivo al lado. No saltaba (99 % del techo); se sube con ~8 % de aire para que el siguiente cambio no lo haga por
   // nada. Lo evitable no es del vertical: 6 559 escapes `ɵ` (38 KB), la decisión de `charset` que anotó eventos.
   'travel-shell': { techo: 470 * KB, razon: 'vertical completa: búsqueda, pax, itinerario y reserva por la puerta con «Mis viajes». 436 KB medidos el 2026-10-24, 265 de shells (61 %)' },
-  seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
+  // Resubido el 2026-10-31 (ADR 0140, línea 013): 173,2 KB medidos (177 396 B) desde los 141 de la línea base del
+  // 2026-09-22. Lo que entró es la consola del personal sobre la tienda de verdad: la bandeja de la tienda entera con
+  // sus filtros, su página y su detalle; el despacho con la guía; la cola de devoluciones con el reembolso confirmado;
+  // los cinco estados de cada lectura y las fechas en la hora del sitio. Ninguna lib de feature nueva (`vitals-core` se
+  // empaqueta en cada elemento, como en los demás) y los externals universales siguen ahí. Por el superset se conservan
+  // cuatro métodos desconectados del cliente y las muestras detrás de su marca. Lo evitable no es del vertical: 2 496
+  // escapes `\uXXXX` (~14,6 KB), la decisión de `charset` que anotó eventos. Se sube con ~8 % de aire.
+  seller: { techo: 187 * KB, razon: 'consola del vendedor: la bandeja con su detalle, el despacho con la guía y la cola de devoluciones. 173 KB medidos el 2026-10-31' },
   // Resubido el 2026-10-24 (ADR 0140, línea 006): 111,5 KB medidos (114 179 B) desde los 89,4 de antes de la puerta,
   // reempaquetando la entrada AOT con metafile: 42,4 de shells (37 %), 50,5 del propio componente, 8,3 de la puerta común
   // (vitals/core/flujos, que el asistente carga por primera vez), 5,2 del motor de transacción y 4,0 de contratos. Lo que

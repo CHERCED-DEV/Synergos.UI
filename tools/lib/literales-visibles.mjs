@@ -53,7 +53,7 @@ export function esHumano(s) {
 }
 
 // ── plantillas ───────────────────────────────────────────────────────────────
-const ATTR_VISIBLES = new Set(['aria-label', 'placeholder', 'title', 'alt', 'aria-description', 'aria-roledescription', 'aria-valuetext', 'label']);
+const ATTR_VISIBLES = new Set(['aria-label', 'arialabel', 'message', 'description', 'hint', 'heading', 'subheading', 'eyebrow', 'supportingtext', 'actionlabel', 'retrylabel', 'loadinglabel', 'dismisslabel', 'emptymessage', 'placeholder', 'title', 'alt', 'aria-description', 'aria-roledescription', 'aria-valuetext', 'label']);
 const NO_BINDING = new Set(['class', 'style', 'role', 'id', 'href', 'src', 'srcset', 'type', 'name', 'for', 'rel', 'target', 'tabindex', 'track', 'ngClass', 'ngStyle', 'ngSwitch', 'ngSwitchCase', 'loading', 'decoding', 'autocomplete', 'inputmode', 'pattern', 'lang', 'dir', 'viewBox', 'd', 'fill', 'stroke', 'transform', 'points', 'x', 'y', 'width', 'height']);
 const NO_ATTR_BIND = /^(attr\.)?(aria-(current|live|hidden|expanded|selected|pressed|checked|disabled|controls|describedby|labelledby|owns|haspopup|modal|busy|atomic|relevant|invalid|required|orientation|sort|level|posinset|setsize|valuenow|valuemin|valuemax|activedescendant|autocomplete|readonly|multiselectable)|data-.*|role|class\..*|style\..*|id|href|src|type|name|for|rel|target|tabindex|lang|dir|loading|datetime|hreflang|download|value|min|max|step|autocomplete|inputmode|colspan|rowspan|width|height|viewBox|d|fill|stroke|cx|cy|r|x|y|x1|x2|y1|y2|points|transform|ngClass|ngStyle|ngSwitch|ngSwitchCase|formControlName)$/;
 

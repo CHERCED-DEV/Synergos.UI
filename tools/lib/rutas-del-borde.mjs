@@ -47,12 +47,9 @@ export const SIN_BORDE = {
     'Escritura. Ya NO fabrica (#77): sin borde devuelve `null` y la consola deja el pedido ' +
     'quieto y lo dice. La ruta sigue ausente en el CMS — `order/{orderRef}/tracking` existe ' +
     'sólo como GET— así que el botón no puede funcionar hasta que exista.',
-  'seller :: returns': 'Lectura de la cola de RMA; degrada a mock con cartel.',
   'seller :: seller/product':
     'Escritura. Ya NO fabrica (#77): sin borde devuelve `null`, el borrador sobrevive y no se ' +
     'emite `productpublished`. Publicar no funciona hasta que el CMS declare la ruta.',
-  'seller :: seller/products': 'Lectura del catálogo del vendedor; degrada a mock con cartel.',
-  'seller :: seller/summary': 'Lectura de KPIs; degrada a mock con cartel.',
   'shop :: moderation/{}/{}': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
   'shop :: promo': 'Validación de un código promocional; sin borde no aplica descuento.',
   'shop :: reviews/{}/reports': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',

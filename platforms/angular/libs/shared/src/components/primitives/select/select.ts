@@ -74,7 +74,9 @@ export class SelectComponent {
 
   readonly valueChange = output<string>();
 
-  readonly fieldId = computed(() => this.id() || `syn-select-${selectId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++selectId;
+  readonly fieldId = computed(() => this.id() || `syn-select-${this.#numero}`);
   readonly hintId = computed(() => `${this.fieldId()}-hint`);
   readonly describedByIds = computed(() => {
     const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
@@ -85,9 +87,6 @@ export class SelectComponent {
     () => coerceTrimmedStringInput(this.autocomplete()) ?? null,
   );
 
-  constructor() {
-    selectId += 1;
-  }
 
   onChange(event: Event): void {
     const target = event.target;

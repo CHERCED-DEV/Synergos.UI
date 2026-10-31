@@ -78,6 +78,60 @@ export interface TiendaDevolucionRespuesta {
   readonly deshaciendo: boolean;
 }
 
+export interface TiendaEntregaEntrada {
+  readonly compra: string;
+}
+
+export interface TiendaEntregaPagina {
+  readonly items: readonly TiendaEntregaRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface TiendaEntregaRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly compra: string | null; readonly estadoDelEnvio: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export interface TiendaEnvioDetalle {
+  readonly flujo: string;
+  readonly datos: { readonly destino: { readonly linea1: string; readonly linea2?: string | null; readonly ciudad: string; readonly region?: string | null; readonly codigoPostal?: string | null; readonly pais: string; readonly contacto?: string | null; } | null; readonly transportadora: string | null; readonly estadoDelEnvio: string | null; readonly eventos: readonly ({ readonly estado: string; readonly nota: string | null; readonly instante: string; })[] | null; };
+}
+
+export interface TiendaEnvioDetalleEntrada {
+  readonly compra: string;
+}
+
+export interface TiendaEnvioEntrada {
+  readonly compra: string;
+  readonly guia?: string | null;
+}
+
+export interface TiendaEnvioPagina {
+  readonly items: readonly TiendaEnvioRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface TiendaEnvioRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly compra: string | null; readonly estadoDelEnvio: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 /**
  * Una operación por la puerta: con qué método, qué va en la consulta (los parámetros de ruta del
  * orquestador viajan ahí, con su nombre), el cuerpo que se manda (`undefined` si no lleva), lo
@@ -107,6 +161,19 @@ export interface OperacionesDeLaPuerta {
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaDevolucionRespuesta, "ninguna">;
     readonly devolver: OperacionDeLaPuerta<"POST", undefined, TiendaDevolucionEntrada, TiendaDevolucionRespuesta, "requerida">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaDevolucionPagina, "ninguna">;
+  };
+  readonly "tienda.entrega": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, TiendaEntregaEntrada, TiendaEntregaRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TiendaEntregaRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaEntregaRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaEntregaPagina, "ninguna">;
+  };
+  readonly "tienda.envio": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, TiendaEnvioEntrada, TiendaEnvioRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, TiendaEnvioRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, TiendaEnvioRespuesta, "ninguna">;
+    readonly detalle: OperacionDeLaPuerta<"POST", undefined, TiendaEnvioDetalleEntrada, TiendaEnvioDetalle, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, TiendaEnvioPagina, "ninguna">;
   };
 }
 
@@ -144,6 +211,19 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     devolver: { metodo: "POST", llave: "requerida", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "tienda.entrega": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "tienda.envio": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    detalle: { metodo: "POST", llave: "ninguna", consulta: [] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

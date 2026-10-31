@@ -672,7 +672,7 @@ export interface SelectMultiProps {
   readonly maxSelections?: number;
 }
 
-/** <synergos-seller> · funcionalidad */
+/** <synergos-seller> · funcionalidad · diccionario: Seller.Operaciones */
 export interface SellerProps {
   /** contenido */
   readonly heading?: string;
@@ -680,6 +680,8 @@ export interface SellerProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly zonaHoraria: string;
 }
 
 /** <synergos-separator> · pieza */
@@ -2385,16 +2387,17 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   nombre: "seller",
   tipo: "funcionalidad",
   record: "SellerProps",
-  diccionario: [],
-  claves: [],
-  campos: ["heading","subheading","apiBase"],
+  diccionario: ["Seller.Operaciones"],
+  claves: ["Seller.Operaciones.ActDeliver","Seller.Operaciones.ActFailed","Seller.Operaciones.ActInFlight","Seller.Operaciones.ActPrepare","Seller.Operaciones.ActShip","Seller.Operaciones.Cancel","Seller.Operaciones.CantDispatch","Seller.Operaciones.Carrier","Seller.Operaciones.Close","Seller.Operaciones.Delivered","Seller.Operaciones.Destination","Seller.Operaciones.DispatchUnavailable","Seller.Operaciones.LoadFailed","Seller.Operaciones.Loading","Seller.Operaciones.NoAddress","Seller.Operaciones.NoShipment","Seller.Operaciones.OrderDetail","Seller.Operaciones.OrdersEmpty","Seller.Operaciones.OutOfOrder","Seller.Operaciones.RefundConfirm","Seller.Operaciones.RefundConfirmAction","Seller.Operaciones.Retry","Seller.Operaciones.ReturnApprove","Seller.Operaciones.ReturnApproved","Seller.Operaciones.ReturnFailed","Seller.Operaciones.ReturnReceive","Seller.Operaciones.ReturnReceived","Seller.Operaciones.ReturnRefund","Seller.Operaciones.ReturnRefunded","Seller.Operaciones.ReturnReject","Seller.Operaciones.ReturnRejected","Seller.Operaciones.ReturnRequested","Seller.Operaciones.ReturnStillIn","Seller.Operaciones.ReturnsAll","Seller.Operaciones.ReturnsClosed","Seller.Operaciones.ReturnsOpen","Seller.Operaciones.Samples","Seller.Operaciones.ShipFirst","Seller.Operaciones.ShipOrder","Seller.Operaciones.ShipmentClosed","Seller.Operaciones.ShipmentUnavailable","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly","Seller.Operaciones.StageAll","Seller.Operaciones.StageDelivered","Seller.Operaciones.StagePaid","Seller.Operaciones.StagePreparing","Seller.Operaciones.StageShipped","Seller.Operaciones.StillIn","Seller.Operaciones.Tracking","Seller.Operaciones.TrackingHint","Seller.Operaciones.TrackingInvalid","Seller.Operaciones.TrackingNumber","Seller.Operaciones.TryAgain","Seller.Operaciones.Unreconciled","Seller.Operaciones.ViewDetail"],
+  campos: ["heading","subheading","apiBase","zonaHoraria"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Tu negocio, en un solo panel",
     "subheading": "Ventas, publicaciones, mensajes y devoluciones",
-    "apiBase": "/api/shop"
+    "apiBase": "/api/shop",
+    "zonaHoraria": "America/Bogota"
   },
 };
 

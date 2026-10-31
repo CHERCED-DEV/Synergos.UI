@@ -55,7 +55,9 @@ export class ToggleComponent {
 
   readonly checkedChange = output<boolean>();
 
-  readonly fieldId = computed(() => this.id() || `syn-toggle-${toggleId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++toggleId;
+  readonly fieldId = computed(() => this.id() || `syn-toggle-${this.#numero}`);
   readonly toggleClass = computed(() =>
     classNames(
       'syn-toggle',
@@ -64,9 +66,6 @@ export class ToggleComponent {
     ),
   );
 
-  constructor() {
-    toggleId += 1;
-  }
 
   onChange(event: Event): void {
     const target = event.target;

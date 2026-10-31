@@ -122,4 +122,33 @@ describe(InputComponent.name, () => {
       expect(input.hasAttribute('autocomplete')).toBe(false);
     });
   });
+
+  // 014-despiece-tienda (T003): los límites nativos que las apps escribían a mano.
+  describe('native limits', () => {
+    it('omits them unless asked', () => {
+      const input = renderInput({ type: 'number' });
+
+      for (const attr of ['maxlength', 'min', 'max', 'step']) expect(input.hasAttribute(attr)).toBe(false);
+    });
+
+    it('passes maxlength, min, max and step to the field', () => {
+      const guia = renderInput({ maxlength: 80 });
+      const stock = renderInput({ type: 'number', min: 0, max: 999, step: 1 });
+
+      expect(guia.getAttribute('maxlength')).toBe('80');
+      expect(stock.getAttribute('min')).toBe('0');
+      expect(stock.getAttribute('max')).toBe('999');
+      expect(stock.getAttribute('step')).toBe('1');
+    });
+  });
+
+  // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('gives each instance its own id', () => {
+    const a = TestBed.createComponent(InputComponent);
+    const b = TestBed.createComponent(InputComponent);
+    a.detectChanges();
+    b.detectChanges();
+
+    expect(a.componentInstance.fieldId()).not.toBe(b.componentInstance.fieldId());
+  });
 });

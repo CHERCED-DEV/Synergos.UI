@@ -279,6 +279,10 @@ const CIEGAS_AL_FRAMEWORK = [
   'diccionario-de-elementos.mjs',
   'lib/literales-visibles.mjs',
   'literales-visibles.mjs',
+  // La del piloto Lego de la Tienda (014): recorre cada app con `descubrirFuentes` sobre `PLATAFORMAS` y cuenta etiquetas
+  // HTML (`<button>`, `<input>`…) en sus plantillas, que no tienen dueño de framework.
+  'lib/atomos-en-apps.mjs',
+  'atomos-en-apps.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía

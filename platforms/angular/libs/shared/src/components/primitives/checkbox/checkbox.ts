@@ -36,11 +36,10 @@ export class CheckboxComponent {
 
   readonly checkedChange = output<boolean>();
 
-  readonly fieldId = computed(() => this.id() || `syn-checkbox-${checkboxId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++checkboxId;
+  readonly fieldId = computed(() => this.id() || `syn-checkbox-${this.#numero}`);
 
-  constructor() {
-    checkboxId += 1;
-  }
 
   onChange(event: Event): void {
     const target = event.target;

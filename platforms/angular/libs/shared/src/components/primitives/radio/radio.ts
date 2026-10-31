@@ -40,11 +40,10 @@ export class RadioComponent {
   readonly checkedChange = output<boolean>();
   readonly selected = output<string>();
 
-  readonly fieldId = computed(() => this.id() || `syn-radio-${radioId}`);
+  /** Su número, tomado al construirse: leído en el `computed`, todas las instancias acababan con el último. */
+  readonly #numero = ++radioId;
+  readonly fieldId = computed(() => this.id() || `syn-radio-${this.#numero}`);
 
-  constructor() {
-    radioId += 1;
-  }
 
   onChange(event: Event): void {
     const target = event.target;

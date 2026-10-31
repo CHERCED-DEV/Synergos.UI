@@ -1,6 +1,21 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { formatearImporte } from '@synergos/vitals-core';
 import {
+  ETAPAS_DEL_DESPACHO,
+  esEstadoDeDevolucion,
+  type ActoDelDespacho,
+  type BandejaDeLaTienda,
+  type DestinoDelEnvio,
+  type DetalleDelPedido,
+  type DevolucionDeLaTienda,
+  type EtapaDelDespacho,
+  type EventoDelEnvio,
+  type MotivoSinEnvio,
+  type MovimientoDeLaDevolucion,
+  type PedidoDeLaTienda,
+  type ResultadoDelActo,
+  type ResultadoDelMovimiento,
   type SellerKpiMetric,
   type SellerKpiUnit,
   type SellerListing,
@@ -32,65 +47,111 @@ import {
  *  - `GET  /api/shop/messages`                          → `{ threads }`
  *  - `POST /api/shop/messages/{id}/reply` `{ body }`    → `{ id, body, date }`
  *
- * **Graceful degradation** (same contract as the buyer-side `ShopApiClient`):
- * if an endpoint is not yet wired (network error / non-OK / bad shape), the
- * client falls back to visible **mock data** and logs a `TODO`, flipping the
- * `degraded` flag so the console surfaces a "datos de ejemplo" notice.
+ * **Cada lectura dice lo que pasó** (013-seller-operaciones, T006; la T2, «la UI no miente»): leída, o por qué no
+ * —sin sesión (401), sin permiso (403) o caída (la red, un 5xx, una forma que no se entiende)—. Las muestras de
+ * abajo sólo salen con {@link MUESTRAS_DE_LA_CONSOLA}, y entonces marcadas como tales: antes caían solas con
+ * cualquier fallo y el vendedor veía pedidos, devoluciones y reputación inventados con un cartel.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
 /**
  * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
  * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
- * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ * compilada. Rechaza, y cada llamada lo dice como ante cualquier caída.
  */
 function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
 }
 
+/**
+ * Los pedidos, publicaciones, devoluciones, hilos e indicadores DE EJEMPLO de la consola, sólo para una demo que lo
+ * declare (013-seller-operaciones, T006). El molde de `MUESTRAS_DE_LA_CONSOLA` de la academia (010) y de
+ * `MUESTRAS_DE_LA_CUENTA` de la tienda (004).
+ *
+ * La consola caía a sus `mock*` con cualquier fallo, con un cartel de «datos de ejemplo»: un personal de la tienda
+ * veía ventas, devoluciones y reputación que nadie tenía. El camino real ya no los pinta: sin sesión lo dice, sin
+ * permiso lo dice, y caída dice que no se pudo cargar. Se conservan detrás de esta marca, que una demo provee a
+ * propósito (`{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }`) y que nadie hereda sin escribirla.
+ */
+export const MUESTRAS_DE_LA_CONSOLA = new InjectionToken<boolean>('MUESTRAS_DE_LA_CONSOLA', {
+  factory: () => false,
+});
+
+/**
+ * Lo que dice una lectura de la consola: leída, vacía, de ejemplo (sólo con la marca), o por qué no.
+ *
+ * Vacía es una lista que el servidor contestó sin nada: es una respuesta, no una caída, y con la marca tampoco se tapa
+ * con la muestra (el molde de 010). Sin sesión y sin permiso tampoco son caídas: el servidor contestó, y contestó que
+ * no; con la marca no se tapan, porque un personal que perdió la sesión tiene que enterarse aunque la página sea una
+ * demo.
+ */
+export type LecturaDeLaConsola<T> =
+  | { readonly tipo: 'leidas'; readonly datos: T }
+  | { readonly tipo: 'vacia'; readonly datos: T }
+  | { readonly tipo: 'muestras'; readonly datos: T }
+  | { readonly tipo: 'sin-sesion' }
+  | { readonly tipo: 'sin-permiso' }
+  | { readonly tipo: 'caida' };
+
 @Injectable()
 export class SellerApiClient {
   readonly #logger = inject(LoggerService);
-
-  /** Set to `true` after any mock fallback so the UI can flag example data. */
-  #degraded = false;
-
-  get degraded(): boolean {
-    return this.#degraded;
-  }
+  readonly #muestras = inject(MUESTRAS_DE_LA_CONSOLA);
 
   // ─── Summary (KPIs + reputación) ─────────────────────────────────────────────
 
-  async summary(apiBase: string): Promise<SellerSummary> {
-    const url = `${apiBase}/seller/summary`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const summary = normalizeSummary(data);
-      if (summary) {
-        return summary;
-      }
-      throw new Error('summary-shape');
-    } catch (error) {
-      this.markDegraded('GET /api/shop/seller/summary', error);
-      return mockSummary();
-    }
+  summary(apiBase: string): Promise<LecturaDeLaConsola<SellerSummary>> {
+    return this.leer(apiBase, `${apiBase}/seller/summary`, 'GET /api/shop/seller/summary', normalizeSummary, mockSummary);
+  }
+
+  // ─── La bandeja del personal (013-seller-operaciones, T012) ────────────────────
+
+  /**
+   * Una página de la bandeja: los pedidos pagados de la tienda entera en `etapa` (o todos), con las cuentas por etapa de
+   * la tienda y las compras que el servidor no alcanzó a confirmar. Es la ruta del personal: la de «Mis compras»
+   * (`orders`) es la del comprador, y la consola ya no la lee.
+   */
+  pedidos(apiBase: string, etapa: EtapaDelDespacho | null, pagina: number): Promise<LecturaDeLaConsola<BandejaDeLaTienda>> {
+    const consulta = new URLSearchParams();
+    if (etapa) consulta.set('etapa', etapa);
+    consulta.set('pagina', String(Math.max(1, Math.trunc(pagina) || 1)));
+    return this.leer(
+      apiBase,
+      `${apiBase}/seller/orders?${consulta.toString()}`,
+      'GET /api/shop/seller/orders',
+      normalizeBandeja,
+      () => mockBandeja(etapa),
+      (bandeja) => bandeja.pedidos.length === 0,
+    );
+  }
+
+  /** El detalle de un pedido pagado, con su envío. */
+  pedido(apiBase: string, orderRef: string): Promise<LecturaDeLaConsola<DetalleDelPedido>> {
+    return this.leer(
+      apiBase,
+      `${apiBase}/seller/orders/${encodeURIComponent(orderRef)}`,
+      'GET /api/shop/seller/orders/{orderRef}',
+      normalizeDetalle,
+      () => mockDetalle(orderRef),
+    );
   }
 
   // ─── Ventas ──────────────────────────────────────────────────────────────────
 
-  async orders(apiBase: string, currency: string): Promise<readonly SellerOrder[]> {
-    const url = `${apiBase}/orders`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const orders = normalizeOrders(data, currency);
-      if (orders) {
-        return orders;
-      }
-      throw new Error('orders-shape');
-    } catch (error) {
-      this.markDegraded('GET /api/shop/orders', error);
-      return mockOrders(currency);
-    }
+  /**
+   * «Mis compras» del comprador (`GET orders`): la consola la leía como sus ventas, y el personal veía sus propias
+   * compras. Desde 013-seller-operaciones T012 la consola lee la bandeja del personal ({@link pedidos}). Queda aquí sin
+   * llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es un superset)— hasta que el arquitecto
+   * decida su retiro: está anotado en la bitácora de 013.
+   */
+  private orders(apiBase: string, currency: string): Promise<LecturaDeLaConsola<readonly SellerOrder[]>> {
+    return this.leer(
+      apiBase,
+      `${apiBase}/orders`,
+      'GET /api/shop/orders',
+      (data) => normalizeOrders(data, currency),
+      () => mockOrders(currency),
+    );
   }
 
   /**
@@ -109,8 +170,12 @@ export class SellerApiClient {
    * llamador y el servidor es decoración.** La firma era
    * `advanceShipment(apiBase, orderRef, current)` devolviendo algo derivado de `current`.
    * Por eso `current` ya no se recibe: sin él, el respaldo no se puede escribir.
+   *
+   * Desde 013-seller-operaciones T021 la consola da los actos por la ruta del personal ({@link avanzar}). Queda aquí sin
+   * llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es un superset)— hasta que el arquitecto
+   * decida su retiro: está anotado en la bitácora de 013, con {@link orders}.
    */
-  async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
+  private async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking/advance`;
     try {
       const data = await this.postJson(apiBase, url, { orderRef });
@@ -120,43 +185,136 @@ export class SellerApiClient {
       }
       throw new Error('advance-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/order/{ref}/tracking/advance', error);
+      this.avisar('POST /api/shop/order/{ref}/tracking/advance', error);
       return null;
     }
   }
 
+  /**
+   * El acto del personal sobre un pedido (013-seller-operaciones, T021): `POST seller/orders/{ref}/advance` con
+   * `{ acto, guia }`. Devuelve el pedido como lo dejó el servidor, o que no se hizo (#77) con su código y la etapa en que
+   * sigue: la fila no se mueve por su cuenta.
+   *
+   * 401 y 403 son la sesión y el permiso; un 5xx, la red o un `transient` son «no se pudo ahora»; lo demás es un rechazo
+   * con su código. Un 200 que no se entiende se hizo igual: el servidor dijo que sí, y la consola vuelve a leer.
+   */
+  async avanzar(apiBase: string, orderRef: string, acto: ActoDelDespacho, guia?: string): Promise<ResultadoDelActo> {
+    const endpoint = 'POST /api/shop/seller/orders/{orderRef}/advance';
+    if (typeof fetch !== 'function' || !apiBase) {
+      this.avisar(endpoint, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
+      return { hecho: false, por: 'caida', codigo: null, etapa: null };
+    }
+    const url = `${apiBase}/seller/orders/${encodeURIComponent(orderRef)}/advance`;
+    let respuesta: Response;
+    try {
+      respuesta = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acto, guia: guia ?? null }),
+      });
+    } catch (error) {
+      this.avisar(endpoint, error);
+      return { hecho: false, por: 'caida', codigo: null, etapa: null };
+    }
+    let cuerpo: unknown = null;
+    try {
+      cuerpo = await respuesta.json();
+    } catch {
+      cuerpo = null;
+    }
+    if (respuesta.ok) {
+      return { hecho: true, pedido: normalizePedido(cuerpo) };
+    }
+    if (respuesta.status === 401 || respuesta.status === 403) {
+      return { hecho: false, por: respuesta.status === 401 ? 'sin-sesion' : 'sin-permiso', codigo: null, etapa: null };
+    }
+    const codigo = isRecord(cuerpo) ? textoONulo(cuerpo['code']) : null;
+    const etapa = isRecord(cuerpo) && esEtapa(cuerpo['etapa']) ? cuerpo['etapa'] : null;
+    const transitorio = respuesta.status >= 500 || (isRecord(cuerpo) && cuerpo['transient'] === true);
+    if (transitorio) {
+      this.avisar(endpoint, new Error(`HTTP ${respuesta.status}`));
+    }
+    return { hecho: false, por: transitorio ? 'caida' : 'rechazo', codigo, etapa };
+  }
+
   // ─── Publicaciones ───────────────────────────────────────────────────────────
 
-  async listings(apiBase: string, currency: string): Promise<readonly SellerListing[]> {
-    const url = `${apiBase}/seller/products`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const listings = normalizeListings(data, currency);
-      if (listings) {
-        return listings;
-      }
-      throw new Error('listings-shape');
-    } catch (error) {
-      this.markDegraded('GET /api/shop/seller/products', error);
-      return mockListings(currency);
-    }
+  listings(apiBase: string, currency: string): Promise<LecturaDeLaConsola<readonly SellerListing[]>> {
+    return this.leer(
+      apiBase,
+      `${apiBase}/seller/products`,
+      'GET /api/shop/seller/products',
+      (data) => normalizeListings(data, currency),
+      () => mockListings(currency),
+    );
   }
 
   // ─── Devoluciones (RMA) ──────────────────────────────────────────────────────
 
-  async returns(apiBase: string): Promise<readonly SellerReturn[]> {
-    const url = `${apiBase}/returns`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const returns = normalizeReturns(data);
-      if (returns) {
-        return returns;
-      }
-      throw new Error('returns-shape');
-    } catch (error) {
-      this.markDegraded('GET /api/shop/returns', error);
-      return mockReturns();
+  /**
+   * La cola de devoluciones de la tienda entera (013-seller-operaciones, T025): `GET seller/returns`, en el orden del
+   * servidor —lo que más espera, primero—, con el estado exacto y el camino de cada pedido.
+   */
+  devoluciones(apiBase: string): Promise<LecturaDeLaConsola<readonly DevolucionDeLaTienda[]>> {
+    return this.leer(apiBase, `${apiBase}/seller/returns`, 'GET /api/shop/seller/returns', normalizeDevoluciones, mockDevoluciones);
+  }
+
+  /**
+   * Mueve una devolución: `POST return/{rmaId}/advance` con `{ status, note }`, que es lo que lee el CMS
+   * (`ReturnAdvanceBody`). Devuelve el estado en que quedó, o que no se movió (#77) con el motivo que dio el servidor:
+   * un reembolso que no sale deja la devolución recibida, y lo dice.
+   */
+  async moverDevolucion(
+    apiBase: string,
+    rmaId: string,
+    status: MovimientoDeLaDevolucion,
+    note?: string,
+  ): Promise<ResultadoDelMovimiento> {
+    const endpoint = 'POST /api/shop/return/{rmaId}/advance';
+    if (typeof fetch !== 'function' || !apiBase) {
+      this.avisar(endpoint, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
+      return { hecho: false, por: 'caida', motivo: null };
     }
+    const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
+    let respuesta: Response;
+    try {
+      respuesta = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, note: note ?? null }),
+      });
+    } catch (error) {
+      this.avisar(endpoint, error);
+      return { hecho: false, por: 'caida', motivo: null };
+    }
+    let cuerpo: unknown = null;
+    try {
+      cuerpo = await respuesta.json();
+    } catch {
+      cuerpo = null;
+    }
+    if (respuesta.ok) {
+      return { hecho: true, estado: isRecord(cuerpo) && esEstadoDeDevolucion(cuerpo['estado']) ? cuerpo['estado'] : null };
+    }
+    if (respuesta.status === 401 || respuesta.status === 403) {
+      return { hecho: false, por: respuesta.status === 401 ? 'sin-sesion' : 'sin-permiso', motivo: null };
+    }
+    const motivo = isRecord(cuerpo) ? textoONulo(cuerpo['error']) : null;
+    if (respuesta.status >= 500) {
+      this.avisar(endpoint, new Error(`HTTP ${respuesta.status}`));
+      return { hecho: false, por: 'caida', motivo };
+    }
+    return { hecho: false, por: 'rechazo', motivo };
+  }
+
+  /**
+   * Las devoluciones de QUIEN PREGUNTA (`GET returns`): la consola las leía como la cola de la tienda, y el personal veía
+   * las suyas como comprador. Desde 013-seller-operaciones T025 la consola lee la cola del personal
+   * ({@link devoluciones}). Queda aquí sin llamador y fuera de la API del cliente —desconectada, no borrada (Synergos es
+   * un superset)— hasta que el arquitecto decida su retiro: está anotado en la bitácora de 013, con {@link orders}.
+   */
+  private returns(apiBase: string): Promise<LecturaDeLaConsola<readonly SellerReturn[]>> {
+    return this.leer(apiBase, `${apiBase}/returns`, 'GET /api/shop/returns', normalizeReturns, mockReturns);
   }
 
   /**
@@ -165,27 +323,19 @@ export class SellerApiClient {
    * **`null` es «no se pudo» (#77).** Devolvía
    * `action === 'approve' ? 'aprobado' : 'rechazado'`, o sea el ECO de la intención de
    * quien llamó presentado como la respuesta del servidor — la regla 19 otra vez, con el
-   * parámetro haciendo de resultado. A diferencia de `advanceShipment`, este endpoint **sí
-   * existe** (`HttpPost("return/{rmaId}/advance")`), así que sólo mentía cuando el servidor
-   * estaba de verdad caído; el corte es el mismo y el grado, distinto.
+   * parámetro haciendo de resultado.
+   *
+   * Y mandaba `{ action }`, que el CMS no lee (`ReturnAdvanceBody` es `{ status, note }`): contestaba 400 siempre, así
+   * que aprobar o rechazar desde la consola no funcionó nunca (G-7 lo señaló en 013). Desde T025 pasa por
+   * {@link moverDevolucion}, y queda desconectada —privada, sin llamador, no borrada— con {@link returns}.
    */
-  async advanceReturn(
+  private async advanceReturn(
     apiBase: string,
     rmaId: string,
     action: SellerReturnAction,
   ): Promise<SellerReturnStatus | null> {
-    const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
-    try {
-      const data = await this.postJson(apiBase, url, { action });
-      const status = normalizeReturnStatus(isRecord(data) ? data['status'] : undefined);
-      if (status) {
-        return status;
-      }
-      throw new Error('return-advance-shape');
-    } catch (error) {
-      this.markDegraded('POST /api/shop/return/{rmaId}/advance', error);
-      return null;
-    }
+    const movida = await this.moverDevolucion(apiBase, rmaId, action === 'approve' ? 'approved' : 'rejected');
+    return movida.hecho ? (action === 'approve' ? 'en-revision' : 'rechazado') : null;
   }
 
   // ─── Publicar producto ───────────────────────────────────────────────────────
@@ -219,26 +369,15 @@ export class SellerApiClient {
       }
       throw new Error('publish-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/seller/product', error);
+      this.avisar('POST /api/shop/seller/product', error);
       return null;
     }
   }
 
   // ─── Mensajes / preguntas ────────────────────────────────────────────────────
 
-  async threads(apiBase: string): Promise<readonly SellerThread[]> {
-    const url = `${apiBase}/messages`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const threads = normalizeThreads(data);
-      if (threads) {
-        return threads;
-      }
-      throw new Error('messages-shape');
-    } catch (error) {
-      this.markDegraded('GET /api/shop/messages', error);
-      return mockThreads();
-    }
+  threads(apiBase: string): Promise<LecturaDeLaConsola<readonly SellerThread[]>> {
+    return this.leer(apiBase, `${apiBase}/messages`, 'GET /api/shop/messages', normalizeThreads, mockThreads);
   }
 
   /**
@@ -264,8 +403,8 @@ export class SellerApiClient {
       }
       throw new Error('reply-shape');
     } catch (error) {
-      // No enciende `degraded`: ese cartel es de las LECTURAS («datos de ejemplo»), y aquí
-      // no hay ejemplo que enseñar — hay una respuesta que no salió.
+      // No pasa por `noSePudo`: eso es de las LECTURAS, y aquí no hay ejemplo que enseñar —
+      // hay una respuesta que no salió.
       this.#logger.warn('Shop seller API "POST /api/shop/messages/{id}/reply" — the reply was NOT sent.', error);
       return null;
     }
@@ -273,8 +412,53 @@ export class SellerApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(apiBase: string, url: string): Promise<unknown> {
-    return this.request(apiBase, url, { method: 'GET' });
+  /**
+   * Una lectura, con lo que pasó: 401 es sin sesión y 403 sin permiso (el servidor contestó que no); la red, un 5xx
+   * o una forma que el normalizador no entiende son una caída. Sin `apiBase` no se llama a nada (ADR 0137), y eso
+   * también es una caída: no hay dónde leer.
+   */
+  private async leer<T>(
+    apiBase: string,
+    url: string,
+    endpoint: string,
+    normalizar: (value: unknown) => T | null,
+    muestra: () => T,
+    esVacia: (datos: T) => boolean = (datos) => Array.isArray(datos) && datos.length === 0,
+  ): Promise<LecturaDeLaConsola<T>> {
+    if (typeof fetch !== 'function' || !apiBase) {
+      return this.noSePudo(endpoint, muestra, new Error(apiBase ? 'fetch-unavailable' : 'sin-api'));
+    }
+    let respuesta: Response;
+    try {
+      respuesta = await llamar(apiBase, url, { method: 'GET', headers: { Accept: 'application/json' } });
+    } catch (error) {
+      return this.noSePudo(endpoint, muestra, error);
+    }
+    if (respuesta.status === 401 || respuesta.status === 403) {
+      await respuesta.body?.cancel();
+      return { tipo: respuesta.status === 401 ? 'sin-sesion' : 'sin-permiso' };
+    }
+    if (!respuesta.ok) {
+      await respuesta.body?.cancel();
+      return this.noSePudo(endpoint, muestra, new Error(`HTTP ${respuesta.status}`));
+    }
+    let cuerpo: unknown;
+    try {
+      cuerpo = await respuesta.json();
+    } catch (error) {
+      return this.noSePudo(endpoint, muestra, error);
+    }
+    const datos = normalizar(cuerpo);
+    if (datos === null) {
+      return this.noSePudo(endpoint, muestra, new Error('forma'));
+    }
+    return esVacia(datos) ? { tipo: 'vacia', datos } : { tipo: 'leidas', datos };
+  }
+
+  /** Una lectura que no se pudo: la muestra sólo con la marca; si no, caída. */
+  private noSePudo<T>(endpoint: string, muestra: () => T, error: unknown): LecturaDeLaConsola<T> {
+    this.avisar(endpoint, error);
+    return this.#muestras ? { tipo: 'muestras', datos: muestra() } : { tipo: 'caida' };
   }
 
   private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
@@ -288,7 +472,7 @@ export class SellerApiClient {
   /**
    * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
    * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
-   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   * compilada. Se rechaza, y la escritura que la pidió dice que no se hizo (#77).
    */
   private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
@@ -305,10 +489,8 @@ export class SellerApiClient {
     );
   }
 
-  private markDegraded(endpoint: string, error: unknown): void {
-    this.#degraded = true;
-    // TODO(backend): remove the mock fallback once the Tienda API responds.
-    this.#logger.warn(`Shop seller API "${endpoint}" unavailable — using mock data.`, error);
+  private avisar(endpoint: string, error: unknown): void {
+    this.#logger.warn(`Shop seller API "${endpoint}" unavailable.`, error);
   }
 }
 
@@ -357,6 +539,15 @@ function readList(value: unknown, key: string): readonly unknown[] | null {
     return value[key];
   }
   return null;
+}
+
+/**
+ * Lo legible de una lista, o `null` si el servidor mandó entradas y no se entendió ninguna: eso es una forma ilegible
+ * —una caída—, no una lista vacía. Vacía es sólo la que el servidor mandó sin nada. Sin esto, un contrato que se movió
+ * (hoy `GET messages` contesta `threadId` y no `id`) se pintaba como «no tienes mensajes».
+ */
+function legibles<T>(recibidas: readonly unknown[], leidas: readonly T[]): readonly T[] | null {
+  return recibidas.length > 0 && leidas.length === 0 ? null : leidas;
 }
 
 const KPI_UNITS: readonly SellerKpiUnit[] = ['currency', 'count', 'rating', 'percent'];
@@ -426,7 +617,7 @@ function normalizeOrders(value: unknown, currency: string): readonly SellerOrder
   if (!list) {
     return null;
   }
-  return list
+  const orders = list
     .map((entry): SellerOrder | null => {
       if (!isRecord(entry)) {
         return null;
@@ -452,6 +643,164 @@ function normalizeOrders(value: unknown, currency: string): readonly SellerOrder
       };
     })
     .filter((order): order is SellerOrder => order !== null);
+  return legibles(list, orders);
+}
+
+// ─── La bandeja del personal: la forma de `VendedorDeLaTiendaController` (T011) ───
+
+function textoONulo(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function esEtapa(value: unknown): value is EtapaDelDespacho {
+  return typeof value === 'string' && (ETAPAS_DEL_DESPACHO as readonly string[]).includes(value);
+}
+
+/** Un pedido de la bandeja, o `null` si no se entiende: sin su referencia, su etapa o su camino no hay qué pintar. */
+function normalizePedido(value: unknown): PedidoDeLaTienda | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const orderRef = readString(value['orderRef']).trim();
+  const orderNumber = readString(value['orderNumber']).trim();
+  const camino = value['camino'];
+  if (!orderRef || !orderNumber || !esEtapa(value['etapa']) || (camino !== 'puerta' && camino !== 'directa')) {
+    return null;
+  }
+  const lineas = Array.isArray(value['lineas']) ? value['lineas'] : [];
+  return {
+    orderRef,
+    orderNumber,
+    fecha: readString(value['fecha']).trim(),
+    comprador: readString(value['comprador']).trim(),
+    camino,
+    etapa: value['etapa'],
+    total: readNumber(value['total']),
+    totalFormatted: readString(value['totalFormatted']).trim(),
+    moneda: readString(value['moneda']).trim(),
+    lineas: lineas.filter(isRecord).map((l) => ({
+      title: readString(l['title']).trim(),
+      qty: Math.max(1, Math.trunc(readNumber(l['qty']))),
+      amount: readNumber(l['amount']),
+      amountFormatted: readString(l['amountFormatted']).trim(),
+    })),
+    actos: Array.isArray(value['actos']) ? value['actos'].filter((a): a is string => typeof a === 'string') : [],
+    motivoSinActos: textoONulo(value['motivoSinActos']),
+  };
+}
+
+/**
+ * La bandeja, o `null` si su forma no se entiende. Las cuentas son de la tienda entera y van las cuatro: una que falta
+ * no es un cero, es una respuesta que no se entiende (un `?? 0` afirmaría «no hay»).
+ */
+function normalizeBandeja(value: unknown): BandejaDeLaTienda | null {
+  if (!isRecord(value) || !Array.isArray(value['pedidos']) || !isRecord(value['cuentas'])) {
+    return null;
+  }
+  const cuentasCrudas = value['cuentas'];
+  if (!ETAPAS_DEL_DESPACHO.every((e) => typeof cuentasCrudas[e] === 'number')) {
+    return null;
+  }
+  const pedidos = legibles(value['pedidos'], value['pedidos'].map(normalizePedido).filter((p): p is PedidoDeLaTienda => p !== null));
+  if (!pedidos) {
+    return null;
+  }
+  return {
+    pedidos,
+    pagina: Math.max(1, Math.trunc(readNumber(value['pagina']))),
+    porPagina: Math.max(1, Math.trunc(readNumber(value['porPagina']))),
+    total: Math.max(0, Math.trunc(readNumber(value['total']))),
+    cuentas: {
+      paid: cuentasCrudas['paid'] as number,
+      preparing: cuentasCrudas['preparing'] as number,
+      shipped: cuentasCrudas['shipped'] as number,
+      delivered: cuentasCrudas['delivered'] as number,
+    },
+    sinConciliar: Math.max(0, Math.trunc(readNumber(value['sinConciliar']))),
+  };
+}
+
+function normalizeDestino(value: unknown): DestinoDelEnvio | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  return {
+    line1: textoONulo(value['line1']),
+    line2: textoONulo(value['line2']),
+    city: textoONulo(value['city']),
+    region: textoONulo(value['region']),
+    postalCode: textoONulo(value['postalCode']),
+    country: textoONulo(value['country']),
+    contact: textoONulo(value['contact']),
+  };
+}
+
+const MOTIVOS_SIN_ENVIO: readonly MotivoSinEnvio[] = ['sin_direccion', 'sin_envio', 'envio_no_disponible'];
+
+/** El detalle: el pedido, más su envío tal como lo dijo el servidor (o por qué no lo trae). */
+function normalizeDetalle(value: unknown): DetalleDelPedido | null {
+  const pedido = normalizePedido(value);
+  if (!pedido || !isRecord(value)) {
+    return null;
+  }
+  const envio = value['envio'];
+  const motivo = value['motivoSinEnvio'];
+  return {
+    ...pedido,
+    envio: isRecord(envio)
+      ? {
+          destino: normalizeDestino(envio['destino']),
+          transportadora: textoONulo(envio['transportadora']),
+          estado: textoONulo(envio['estado']),
+          eventos: (Array.isArray(envio['eventos']) ? envio['eventos'] : []).filter(isRecord).map(
+            (e): EventoDelEnvio => ({ estado: readString(e['estado']).trim(), nota: textoONulo(e['nota']), fecha: readString(e['fecha']).trim() }),
+          ),
+        }
+      : null,
+    motivoSinEnvio: (MOTIVOS_SIN_ENVIO as readonly unknown[]).includes(motivo) ? (motivo as MotivoSinEnvio) : null,
+  };
+}
+
+/**
+ * Una devolución de la cola, o `null` si no se entiende: sin `rmaId` o sin un estado exacto no se sabe qué acción le
+ * toca, y pintarle una supuesta sería decidir por el servidor.
+ */
+function normalizeDevolucion(value: unknown): DevolucionDeLaTienda | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rmaId = readString(value['rmaId']).trim();
+  const estado = value['estado'];
+  if (!rmaId || !esEstadoDeDevolucion(estado)) {
+    return null;
+  }
+  const camino = value['camino'];
+  return {
+    rmaId,
+    orderRef: readString(value['orderRef']).trim(),
+    orderNumber: textoONulo(value['orderNumber']),
+    camino: camino === 'puerta' || camino === 'directa' ? camino : null,
+    producto: readString(value['producto']).trim(),
+    cantidad: Math.max(0, Math.trunc(readNumber(value['cantidad']))),
+    motivo: readString(value['motivo']).trim(),
+    monto: readNumber(value['monto']),
+    montoFormatted: readString(value['montoFormatted']).trim(),
+    moneda: readString(value['moneda']).trim(),
+    estado,
+    nota: textoONulo(value['nota']),
+    solicitada: readString(value['solicitada']).trim(),
+    actualizada: readString(value['actualizada']).trim(),
+  };
+}
+
+function normalizeDevoluciones(value: unknown): readonly DevolucionDeLaTienda[] | null {
+  if (!isRecord(value) || !Array.isArray(value['devoluciones'])) {
+    return null;
+  }
+  return legibles(
+    value['devoluciones'],
+    value['devoluciones'].map(normalizeDevolucion).filter((d): d is DevolucionDeLaTienda => d !== null),
+  );
 }
 
 const LISTING_STATUSES: readonly SellerListingStatus[] = ['activa', 'pausada', 'agotada'];
@@ -461,7 +810,7 @@ function normalizeListings(value: unknown, currency: string): readonly SellerLis
   if (!list) {
     return null;
   }
-  return list
+  const listings = list
     .map((entry): SellerListing | null => {
       if (!isRecord(entry)) {
         return null;
@@ -489,6 +838,7 @@ function normalizeListings(value: unknown, currency: string): readonly SellerLis
       };
     })
     .filter((listing): listing is SellerListing => listing !== null);
+  return legibles(list, listings);
 }
 
 const RETURN_STATUSES: readonly SellerReturnStatus[] = [
@@ -510,7 +860,7 @@ function normalizeReturns(value: unknown): readonly SellerReturn[] | null {
   if (!list) {
     return null;
   }
-  return list
+  const returns = list
     .map((entry): SellerReturn | null => {
       if (!isRecord(entry)) {
         return null;
@@ -530,6 +880,7 @@ function normalizeReturns(value: unknown): readonly SellerReturn[] | null {
       };
     })
     .filter((rma): rma is SellerReturn => rma !== null);
+  return legibles(list, returns);
 }
 
 function normalizePublishReceipt(value: unknown): SellerPublishReceipt | null {
@@ -596,7 +947,7 @@ function normalizeThreads(value: unknown): readonly SellerThread[] | null {
   if (!list) {
     return null;
   }
-  return list
+  const threads = list
     .map((entry): SellerThread | null => {
       if (!isRecord(entry)) {
         return null;
@@ -633,9 +984,10 @@ function normalizeThreads(value: unknown): readonly SellerThread[] | null {
       };
     })
     .filter((thread): thread is SellerThread => thread !== null);
+  return legibles(list, threads);
 }
 
-// ─── Mock data (visible degradation while the backend is not yet wired) ────────
+// ─── Muestras: sólo con MUESTRAS_DE_LA_CONSOLA, y con su cartel ────────────────
 
 function mockSummary(): SellerSummary {
   return {
@@ -715,6 +1067,81 @@ function mockOrders(currency: string): readonly SellerOrder[] {
       items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000 }],
     },
   ];
+}
+
+/** Los pedidos de ejemplo como los pinta la bandeja: los de {@link mockOrders}, en pesos. */
+function mockPedidos(): readonly PedidoDeLaTienda[] {
+  return mockOrders('COP').map((o, i): PedidoDeLaTienda => ({
+    orderRef: `muestra-${o.orderNumber}`,
+    orderNumber: o.orderNumber,
+    fecha: `${o.date}T15:00:00Z`,
+    comprador: o.buyer,
+    camino: i % 2 === 0 ? 'puerta' : 'directa',
+    etapa: o.status === 'preparing' || o.status === 'shipped' || o.status === 'delivered' ? o.status : 'paid',
+    total: o.total,
+    totalFormatted: formatearImporte(o.total, o.currency),
+    moneda: o.currency,
+    lineas: o.items.map((l) => ({
+      title: l.title,
+      qty: l.qty,
+      amount: l.amount * l.qty,
+      amountFormatted: formatearImporte(l.amount * l.qty, o.currency),
+    })),
+    actos: [],
+    motivoSinActos: null,
+  }));
+}
+
+function mockBandeja(etapa: EtapaDelDespacho | null): BandejaDeLaTienda {
+  const todos = mockPedidos();
+  const pedidos = etapa ? todos.filter((p) => p.etapa === etapa) : todos;
+  const cuenta = (e: EtapaDelDespacho): number => todos.filter((p) => p.etapa === e).length;
+  return {
+    pedidos,
+    pagina: 1,
+    porPagina: 50,
+    total: pedidos.length,
+    cuentas: { paid: cuenta('paid'), preparing: cuenta('preparing'), shipped: cuenta('shipped'), delivered: cuenta('delivered') },
+    sinConciliar: 0,
+  };
+}
+
+/** La cola de ejemplo: sólo con la marca de la demo, y una por estado para que se vean sus acciones. */
+function mockDevoluciones(): readonly DevolucionDeLaTienda[] {
+  // Del primer pedido de ejemplo: su moneda y el importe de su línea, sin escribir una moneda aquí.
+  const pedido = mockPedidos()[0];
+  const linea = pedido.lineas[0];
+  const base = {
+    orderRef: pedido.orderRef,
+    orderNumber: pedido.orderNumber,
+    camino: pedido.camino,
+    cantidad: 1,
+    monto: linea.amount,
+    montoFormatted: linea.amountFormatted,
+    moneda: pedido.moneda,
+    nota: null,
+    solicitada: pedido.fecha,
+    actualizada: pedido.fecha,
+  };
+  return [
+    { ...base, rmaId: 'demo-rma-1', producto: 'Audífonos inalámbricos', motivo: 'No encienden', estado: 'Requested' },
+    { ...base, rmaId: 'demo-rma-2', producto: 'Funda de silicona', motivo: 'Color equivocado', estado: 'Received' },
+    { ...base, rmaId: 'demo-rma-3', producto: 'Cargador USB-C', motivo: 'Llegó roto', estado: 'Approved' },
+  ];
+}
+
+function mockDetalle(orderRef: string): DetalleDelPedido {
+  const pedido = mockPedidos().find((p) => p.orderRef === orderRef) ?? mockPedidos()[0];
+  return {
+    ...pedido,
+    envio: {
+      destino: { line1: 'Calle 93 # 11-26', line2: null, city: 'Bogotá', region: 'Cundinamarca', postalCode: null, country: 'CO', contact: pedido.comprador },
+      transportadora: 'servientrega',
+      estado: 'Ready',
+      eventos: [{ estado: 'Ready', nota: null, fecha: pedido.fecha }],
+    },
+    motivoSinEnvio: null,
+  };
 }
 
 function mockListings(currency: string): readonly SellerListing[] {

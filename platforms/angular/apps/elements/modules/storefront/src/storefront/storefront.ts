@@ -6,10 +6,12 @@ import {
   ElementRef,
   type OnInit,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
@@ -67,7 +69,15 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  BadgeComponent,
+  ButtonComponent,
+  IconButtonComponent,
+  IconComponent,
+  InputComponent,
+  LinkComponent,
   LiveAnnouncerService,
+  RadioComponent,
+  StatusTagComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   monogram as monogramOf,
@@ -77,6 +87,7 @@ import {
   type AppliedPromo,
   type PromoCodeConfig,
   type PromoRejection,
+  type StatusTagTone,
   SynSkeletonComponent,
   SynErrorStateComponent,
   SynStatusBannerComponent,
@@ -401,6 +412,14 @@ let storefrontInstanceId = 0;
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
+    BadgeComponent,
+    ButtonComponent,
+    IconButtonComponent,
+    IconComponent,
+    InputComponent,
+    LinkComponent,
+    RadioComponent,
+    StatusTagComponent,
   ],
   templateUrl: './storefront.html',
   styleUrl: './storefront.scss',
@@ -612,6 +631,9 @@ export class StorefrontElementComponent implements OnInit {
     this.formatMinor(this.cartTotalMinor()),
   );
   readonly liveConflict = this.#store.liveSessionConflict;
+  /** Los dos avisos de la tienda: se pintan con `syn-status-banner` y se anuncian por la región que ya existía. */
+  readonly textoOtraPestana = 'Otra pestaña tomó esta sesión de compra. Tu carrito se sincronizó.';
+  readonly textoDatosDeEjemplo = 'Mostrando datos de ejemplo: el motor de la tienda aún no responde.';
   readonly degraded = computed(() => {
     // Recompute on each navigation/data load; the flag is set by the API client.
     void this.searched();
@@ -1010,6 +1032,19 @@ export class StorefrontElementComponent implements OnInit {
     const cartWidget = this.#orchestrator.register('storefront-cart', { order: 0 });
     this.#orchestrator.setStatus(cartWidget, 'ready');
 
+    // Los dos avisos de la tienda se pintan con `syn-status-banner`, que nace con su mensaje dentro de su @if y no se
+    // anuncia: se anuncian por la región que ya existía, cuando pasan a verdad (014-despiece-tienda, T006).
+    effect(() => {
+      if (this.liveConflict()) {
+        untracked(() => this.#announcer.announce(this.textoOtraPestana));
+      }
+    });
+    effect(() => {
+      if (this.degraded()) {
+        untracked(() => this.#announcer.announce(this.textoDatosDeEjemplo));
+      }
+    });
+
     // Hash router: deep-linkable views (#/<scope>/p/<id>, #/<scope>/cuenta/...).
     const onHashChange = (): void => this.applyHash();
     if (typeof window !== 'undefined') {
@@ -1236,11 +1271,6 @@ export class StorefrontElementComponent implements OnInit {
     } finally {
       this.resolviendo.set(false);
     }
-  }
-
-  // ─── Native input bindings ───────────────────────────────────────────────────
-  bind(setter: (value: string) => void): (event: Event) => void {
-    return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
   }
 
   // ─── Router ──────────────────────────────────────────────────────────────────
@@ -2626,6 +2656,24 @@ export class StorefrontElementComponent implements OnInit {
         return 'Entregado';
       case 'cancelled':
         return 'Cancelado';
+    }
+  }
+
+  /** El tono del design system para el estado de un pedido o de un reclamo (`syn-status-tag`). */
+  toneDelEstado(status: string): StatusTagTone {
+    switch (status) {
+      case 'delivered':
+      case 'resuelto':
+        return 'success';
+      case 'cancelled':
+      case 'rechazado':
+        return 'critical';
+      case 'pending':
+      case 'abierto':
+      case 'en-revision':
+        return 'pending';
+      default:
+        return 'neutral';
     }
   }
 

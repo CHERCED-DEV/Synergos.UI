@@ -25,29 +25,55 @@ import {
   type MessageSendEvent,
 } from '@synergos/shells';
 import {
+  BadgeComponent,
+  ButtonComponent,
+  IconButtonComponent,
+  InputComponent,
+  LinkComponent,
+  LiveRegionComponent,
+  SelectComponent,
+  StatusTagComponent,
+  SynEmptyStateComponent,
+  SynErrorStateComponent,
+  TextareaComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  type SelectOption,
+  type StatusTagTone,
 } from '@synergos/shared';
 import type { SellerProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
-import { SellerApiClient } from './seller-api.client';
+import { SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
+import { momentoDeLaConsola } from './fechas-de-la-consola';
 import {
+  ACTOS_DEL_DESPACHO,
+  ETAPAS_DEL_DESPACHO,
+  GUIA_MAXIMA,
+  type ActoDelDespacho,
+  type BandejaDeLaTienda,
+  type DestinoDelEnvio,
+  type DetalleDelPedido,
+  type DevolucionDeLaTienda,
+  type EstadoDeLaDevolucion,
+  type EtapaDelDespacho,
+  type MovimientoDeLaDevolucion,
+  type PedidoDeLaTienda,
+  type ResultadoDelActo,
+  type ResultadoDelMovimiento,
   type SellerKpiMetric,
   type SellerListing,
   type SellerMessage,
-  type SellerOrder,
   type SellerPublishRequest,
   type SellerPublishReceipt,
   type SellerReputation,
   type SellerReturn,
-  type SellerReturnAction,
   type SellerSectionId,
   type SellerThread,
   type SellerView,
 } from './seller.model';
-import { formatearImporte } from '@synergos/vitals-core';
+import { formatearImporte, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynSeller</c>.
@@ -78,10 +104,31 @@ interface SellerRowVm {
   readonly cells: Readonly<Record<string, string>>;
   /** Visual tone of the `estado` chip. */
   readonly tone: 'ok' | 'warn' | 'info' | 'muted';
-  readonly order?: SellerOrder;
+  readonly pedido?: PedidoDeLaTienda;
   readonly listing?: SellerListing;
-  readonly rma?: SellerReturn;
+  readonly devolucion?: DevolucionDeLaTienda;
 }
+
+/** El detalle abierto: el pedido de la fila, cómo va su lectura y lo que trajo. */
+interface DetalleAbierto {
+  readonly pedido: PedidoDeLaTienda;
+  readonly estado: EstadoDeLectura;
+  readonly datos: DetalleDelPedido | null;
+}
+
+/** Las lecturas de la consola, cada una con su estado (013-seller-operaciones, T006). */
+type Lectura = 'resumen' | 'ventas' | 'publicaciones' | 'devoluciones' | 'mensajes';
+
+/** Dónde está una lectura: sin pedir, en vuelo, leída, vacía, de ejemplo (sólo con la marca) o por qué no. */
+type EstadoDeLectura = 'sin-cargar' | 'cargando' | LecturaDeLaConsola<unknown>['tipo'];
+
+/** Qué lectura llena cada sección del panel: Reputación sale del resumen, como los indicadores. */
+const LECTURA_DE_LA_SECCION: Readonly<Record<SellerSectionId, Lectura>> = {
+  ventas: 'ventas',
+  publicaciones: 'publicaciones',
+  devoluciones: 'devoluciones',
+  reputacion: 'resumen',
+};
 
 const DEFAULT_HEADING = 'Centro de vendedores';
 
@@ -119,13 +166,6 @@ const RETURN_COLUMNS: readonly ConsoleColumn[] = [
   { key: 'estado', label: 'Estado' },
 ];
 
-const ORDER_FILTERS: readonly ConsoleFilter[] = [
-  { key: 'todas', label: 'Todas' },
-  { key: 'por-enviar', label: 'Por enviar' },
-  { key: 'enviadas', label: 'Enviadas' },
-  { key: 'entregadas', label: 'Entregadas' },
-];
-
 const LISTING_FILTERS: readonly ConsoleFilter[] = [
   { key: 'todas', label: 'Todas' },
   { key: 'activas', label: 'Activas' },
@@ -133,19 +173,26 @@ const LISTING_FILTERS: readonly ConsoleFilter[] = [
   { key: 'agotadas', label: 'Agotadas' },
 ];
 
-const RETURN_FILTERS: readonly ConsoleFilter[] = [
-  { key: 'todas', label: 'Todas' },
-  { key: 'abiertas', label: 'Abiertas' },
-  { key: 'resueltas', label: 'Resueltas' },
-];
+/** El prefijo del id de la acción de fila de un acto del despacho: `acto:preparar`, `acto:enviar`, `acto:entregar`. */
+const PREFIJO_DEL_ACTO = 'acto:';
+/** Lo que dice una celda sin dato: una raya, y no un texto que lo invente. */
+const SIN_DATO = '—';
 
-const ADVANCE_ACTION: ConsoleRowAction = {
-  id: 'advance',
-  label: 'Avanzar envío',
-  kind: 'primary',
+/** El prefijo del id de la acción de fila que mueve una devolución: `devolucion:approved`, `devolucion:refunded`… */
+const PREFIJO_DE_LA_DEVOLUCION = 'devolucion:';
+
+/** Si una devolución pide algo al personal: las de «Abiertas», y las que cuenta su insignia. */
+const estaAbierta = (estado: EstadoDeLaDevolucion): boolean =>
+  estado === 'Requested' || estado === 'Received' || estado === 'Approved';
+
+/** Lo que puede pasarle a una devolución desde cada estado (la máquina del CMS: `StubReturnService`). */
+const MOVIMIENTOS_DESDE: Readonly<Record<EstadoDeLaDevolucion, readonly MovimientoDeLaDevolucion[]>> = {
+  Requested: ['approved', 'rejected'],
+  Approved: ['received'],
+  Received: ['refunded'],
+  Refunded: [],
+  Rejected: [],
 };
-const APPROVE_ACTION: ConsoleRowAction = { id: 'approve', label: 'Aprobar', kind: 'primary' };
-const REJECT_ACTION: ConsoleRowAction = { id: 'reject', label: 'Rechazar', kind: 'danger' };
 
 /** Wizard steps: datos → media (URLs) → precio/stock → preview → publicar. */
 const PUBLISH_STEPS = [
@@ -164,6 +211,7 @@ export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
   });
 }
 
@@ -172,7 +220,22 @@ let sellerInstanceId = 0;
 @Component({
   selector: 'sg-seller',
   standalone: true,
-  imports: [ConsoleShellComponent, AuthoringWizardComponent, MessageCenterComponent],
+  imports: [
+    ConsoleShellComponent,
+    AuthoringWizardComponent,
+    MessageCenterComponent,
+    LiveRegionComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+    BadgeComponent,
+    ButtonComponent,
+    IconButtonComponent,
+    InputComponent,
+    LinkComponent,
+    SelectComponent,
+    StatusTagComponent,
+    TextareaComponent,
+  ],
   templateUrl: './seller.html',
   styleUrl: './seller.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -191,8 +254,8 @@ export class SellerElementComponent implements OnInit {
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   /**
-   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
-   * no hay una base de respaldo compilada (ADR 0137).
+   * Dónde vive la API. Sin ella no se llama a nada y cada lectura dice que no se pudo (con la marca
+   * de la demo, enseña su muestra y lo dice): no hay una base de respaldo compilada (ADR 0137).
    */
   readonly apiBase = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
@@ -226,7 +289,10 @@ export class SellerElementComponent implements OnInit {
    * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
    * número solo).
    */
-  readonly currency = computed(() => this.orders()[0]?.currency || this.listings()[0]?.currency || '');
+  readonly currency = computed(() => this.pedidos()[0]?.moneda || this.listings()[0]?.currency || '');
+
+  /** La zona en que se dicen las fechas: la del sitio (la de los listados), que manda el CMS. */
+  readonly zonaHoraria = computed(() => this.config()?.zonaHoraria ?? '');
 
   readonly instanceId = (sellerInstanceId += 1);
   readonly fieldId = `syn-seller-${this.instanceId}`;
@@ -240,7 +306,7 @@ export class SellerElementComponent implements OnInit {
   // ─── Top-level router (3 vistas) ───────────────────────────────────────────
   readonly view = signal<SellerView>('panel');
 
-  // ─── Data (always from the API — visible mock degradation) ─────────────────
+  // ─── Data (from the API; the samples only behind MUESTRAS_DE_LA_CONSOLA) ───
   readonly kpiMetrics = signal<readonly SellerKpiMetric[]>([]);
   readonly reputation = signal<SellerReputation | null>(null);
   /**
@@ -249,24 +315,143 @@ export class SellerElementComponent implements OnInit {
    * answered) — the mould is a fixed shape, not a guess.
    */
   readonly repSkeletonCards = [0, 1, 2];
-  readonly orders = signal<readonly SellerOrder[]>([]);
-  readonly ordersLoaded = signal(false);
-  readonly ordersLoading = signal(false);
+
+  /**
+   * La bandeja del personal (013-seller-operaciones, T012): una página de los pedidos pagados de la tienda entera,
+   * filtrada y paginada en el servidor, con las cuentas de la tienda. Antes «Ventas» leía `GET orders`, que es «Mis
+   * compras» del comprador: el personal veía sus propias compras como ventas.
+   */
+  readonly bandeja = signal<BandejaDeLaTienda | null>(null);
+  readonly pedidos = computed(() => this.bandeja()?.pedidos ?? []);
+  /** Cuántos pedidos hay con el filtro, en todas las páginas; sin bandeja, el shell cuenta sus filas. */
+  readonly totalDeLaBandeja = computed(() => this.bandeja()?.total ?? null);
+  readonly paginaDeVentas = signal(1);
+  /** El pedido cuyo detalle está abierto, y cómo va su lectura. */
+  readonly detalle = signal<DetalleAbierto | null>(null);
+  /** Cuántas veces se pidió la bandeja: una respuesta que llega tarde (otro filtro u otra página) no se pinta. */
+  private bandejaPedida = 0;
+
   readonly listings = signal<readonly SellerListing[]>([]);
-  readonly listingsLoaded = signal(false);
-  readonly listingsLoading = signal(false);
-  readonly returns = signal<readonly SellerReturn[]>([]);
-  readonly returnsLoaded = signal(false);
-  readonly returnsLoading = signal(false);
+  /** La cola de devoluciones de la tienda entera, en el orden del servidor (013-seller-operaciones, T025). */
+  readonly devoluciones = signal<readonly DevolucionDeLaTienda[]>([]);
   readonly threads = signal<readonly SellerThread[]>([]);
-  readonly threadsLoaded = signal(false);
-  readonly threadsLoading = signal(false);
+
+  /**
+   * Cómo quedó cada lectura (013-seller-operaciones, T006). Reemplaza los `*Loaded`/`*Loading` y el
+   * `degraded` del cliente: «cargó o no» no alcanzaba para no mentir. Una lista vacía, una sesión
+   * vencida, un miembro que no es del personal y un servidor caído se pintaban igual: con los
+   * ejemplos y su cartel.
+   */
+  readonly lecturas = signal<Readonly<Record<Lectura, EstadoDeLectura>>>({
+    resumen: 'sin-cargar',
+    ventas: 'sin-cargar',
+    publicaciones: 'sin-cargar',
+    devoluciones: 'sin-cargar',
+    mensajes: 'sin-cargar',
+  });
+
+  /** Los textos de la consola, de la sección `Seller.Operaciones` del diccionario (ADR 0136). */
+  readonly textoSinSesion = t('Seller.Operaciones.SignIn', 'Inicia sesión para atender la tienda.');
+  readonly textoIniciarSesion = t('Seller.Operaciones.SignInAction', 'Iniciar sesión');
+  readonly textoSinPermiso = t('Seller.Operaciones.StaffOnly', 'Esta consola es del personal de la tienda.');
+  readonly textoCaida = t('Seller.Operaciones.LoadFailed', 'No pudimos cargar esta sección.');
+  readonly textoReintentar = t('Seller.Operaciones.Retry', 'Reintentar');
+  readonly textoDeMuestras = t('Seller.Operaciones.Samples', 'Estás viendo datos de ejemplo, no los de la tienda.');
+  readonly textoBandejaVacia = t('Seller.Operaciones.OrdersEmpty', 'No hay pedidos pagados en esta etapa.');
+  readonly textoVerDetalle = t('Seller.Operaciones.ViewDetail', 'Ver detalle');
+  readonly textoDestino = t('Seller.Operaciones.Destination', 'Destino');
+  readonly textoTransportadora = t('Seller.Operaciones.Carrier', 'Transportadora');
+  readonly textoCerrar = t('Seller.Operaciones.Close', 'Cerrar');
+  readonly textoCargando = t('Seller.Operaciones.Loading', 'Cargando…');
+  readonly textoSinDireccion = t('Seller.Operaciones.NoAddress', 'Este pedido no tiene una dirección registrada.');
+  readonly textoSinEnvio = t('Seller.Operaciones.NoShipment', 'Este pedido todavía no tiene envío.');
+  readonly textoEnvioNoDisponible = t('Seller.Operaciones.ShipmentUnavailable', 'No pudimos leer el envío ahora.');
+  /** Cómo se llama cada etapa del despacho: en la columna, en los filtros y en las cuentas. */
+  readonly textoEtapas: Readonly<Record<EtapaDelDespacho, string>> = {
+    paid: t('Seller.Operaciones.StagePaid', 'Por preparar'),
+    preparing: t('Seller.Operaciones.StagePreparing', 'En preparación'),
+    shipped: t('Seller.Operaciones.StageShipped', 'En camino'),
+    delivered: t('Seller.Operaciones.StageDelivered', 'Entregado'),
+  };
+
+  /**
+   * Los filtros de la bandeja: todos, o una etapa. Las etiquetas no llevan las cuentas, y es a propósito: el shell lleva
+   * el filtro activo atado a la lista de filtros, y una lista que cambia con cada lectura lo devolvería a «Todos» con
+   * la bandeja filtrada. Las cuentas de la tienda van en la banda de indicadores de Ventas.
+   */
+  readonly filtrosDeVentas: readonly ConsoleFilter[] = [
+    { key: 'todas', label: t('Seller.Operaciones.StageAll', 'Todos') },
+    ...ETAPAS_DEL_DESPACHO.map((etapa) => ({ key: etapa, label: this.textoEtapas[etapa] })),
+  ];
+
+  /** Ver el detalle de un pedido: su envío, a dónde va y con quién. */
+  readonly accionDetalle: ConsoleRowAction = { id: 'detalle', label: this.textoVerDetalle };
+
+  // ─── Los actos del despacho (013-seller-operaciones, T021) ─────────────────
+  /** El botón de cada acto: sale sólo si el servidor lo pone en `actos`. */
+  readonly accionDelActo: Readonly<Record<ActoDelDespacho, ConsoleRowAction>> = {
+    preparar: { id: `${PREFIJO_DEL_ACTO}preparar`, label: t('Seller.Operaciones.ActPrepare', 'Preparar'), kind: 'primary' },
+    enviar: { id: `${PREFIJO_DEL_ACTO}enviar`, label: t('Seller.Operaciones.ActShip', 'Marcar enviado'), kind: 'primary' },
+    entregar: { id: `${PREFIJO_DEL_ACTO}entregar`, label: t('Seller.Operaciones.ActDeliver', 'Marcar entregado'), kind: 'primary' },
+  };
+  /** Lo que ocupa el lugar del acto mientras vuela: no hace nada, y el acto no se puede pedir dos veces. */
+  readonly accionEnVuelo: ConsoleRowAction = { id: 'acto-en-vuelo', label: t('Seller.Operaciones.ActInFlight', 'Guardando…') };
+  /** El pedido cuyo acto está en vuelo. */
+  readonly actoEnVuelo = signal<string | null>(null);
+  /** El pedido que se va a marcar enviado, con su guía a medio escribir. */
+  readonly envioAbierto = signal<PedidoDeLaTienda | null>(null);
+  readonly guia = signal('');
+  readonly guiaMaxima = GUIA_MAXIMA;
+  readonly textoGuia = t('Seller.Operaciones.TrackingNumber', 'Guía (opcional)');
+  readonly textoAyudaDeLaGuia = t('Seller.Operaciones.TrackingHint', 'Hasta 80 caracteres, en una línea.');
+  readonly textoCancelar = t('Seller.Operaciones.Cancel', 'Cancelar');
+  readonly textoGuiaInvalida = t('Seller.Operaciones.TrackingInvalid', 'La guía: hasta 80 caracteres, en una línea.');
+  readonly textoDespachoNoDisponible = t(
+    'Seller.Operaciones.DispatchUnavailable',
+    'Los pedidos de la puerta no se despachan desde este sitio.',
+  );
+
+  // ─── La cola de devoluciones (013-seller-operaciones, T025) ────────────────
+  /** El botón de cada movimiento; salen por el estado EXACTO de la devolución. */
+  readonly accionDeLaDevolucion: Readonly<Record<MovimientoDeLaDevolucion, ConsoleRowAction>> = {
+    approved: { id: `${PREFIJO_DE_LA_DEVOLUCION}approved`, label: t('Seller.Operaciones.ReturnApprove', 'Aprobar'), kind: 'primary' },
+    rejected: { id: `${PREFIJO_DE_LA_DEVOLUCION}rejected`, label: t('Seller.Operaciones.ReturnReject', 'Rechazar'), kind: 'danger' },
+    received: { id: `${PREFIJO_DE_LA_DEVOLUCION}received`, label: t('Seller.Operaciones.ReturnReceive', 'Marcar recibida'), kind: 'primary' },
+    refunded: { id: `${PREFIJO_DE_LA_DEVOLUCION}refunded`, label: t('Seller.Operaciones.ReturnRefund', 'Reembolsar'), kind: 'primary' },
+  };
+  /** Cómo se llama cada estado de una devolución: en la columna y en lo que no se movió. */
+  readonly textoEstadosDeDevolucion: Readonly<Record<EstadoDeLaDevolucion, string>> = {
+    Requested: t('Seller.Operaciones.ReturnRequested', 'Pedida'),
+    Approved: t('Seller.Operaciones.ReturnApproved', 'Aprobada'),
+    Received: t('Seller.Operaciones.ReturnReceived', 'Recibida'),
+    Refunded: t('Seller.Operaciones.ReturnRefunded', 'Reembolsada'),
+    Rejected: t('Seller.Operaciones.ReturnRejected', 'Rechazada'),
+  };
+  /** Los filtros de la cola: todas, las que piden algo y las cerradas. */
+  readonly filtrosDeDevoluciones: readonly ConsoleFilter[] = [
+    { key: 'todas', label: t('Seller.Operaciones.ReturnsAll', 'Todas') },
+    { key: 'abiertas', label: t('Seller.Operaciones.ReturnsOpen', 'Abiertas') },
+    { key: 'resueltas', label: t('Seller.Operaciones.ReturnsClosed', 'Resueltas') },
+  ];
+  /** La devolución que se está moviendo. */
+  readonly devolucionEnVuelo = signal<string | null>(null);
+  /** La devolución que se va a reembolsar, esperando que se confirme. */
+  readonly reembolsoAbierto = signal<DevolucionDeLaTienda | null>(null);
+  readonly textoConfirmarReembolso = t('Seller.Operaciones.RefundConfirmAction', 'Sí, reembolsar');
+
+  /** El aviso de las compras que el servidor no alcanzó a confirmar en esta lectura. */
+  readonly avisoSinConciliar = computed(() => {
+    const n = this.bandeja()?.sinConciliar ?? 0;
+    return n > 0
+      ? t('Seller.Operaciones.Unreconciled', '{n} compras recientes todavía no se confirman aquí: vuelve a cargar en un momento.', { n })
+      : '';
+  });
 
   /**
    * Lo que una ESCRITURA no consiguió, dicho donde el vendedor lo ve (#77).
    *
-   * Es distinto del cartel de `degraded()`, y por eso no se reusa: aquél dice «estás viendo
-   * datos de ejemplo» sobre LECTURAS, que es legítimo (regla 4); esto dice «lo que acabás de
+   * Es distinto del cartel de `muestras()`, y por eso no se reusa: aquél dice «estás viendo
+   * datos de ejemplo» sobre LECTURAS, sólo con la marca de la demo; esto dice «lo que acabás de
    * pedir no ocurrió». Meter las dos cosas en el mismo cartel haría que la segunda se leyera
    * como la primera, que es de lo que quien publica un producto no se entera.
    */
@@ -275,29 +460,39 @@ export class SellerElementComponent implements OnInit {
   /** Cuántas respuestas no salieron en esta pestaña: el id local de su burbuja marcada. */
   private unsentReplies = 0;
 
-  readonly degraded = computed(() => {
-    // Recompute on each data load; the flag is set by the API client.
-    void this.kpiMetrics();
-    void this.orders();
-    void this.listings();
-    void this.returns();
-    void this.threads();
-    return this.#api.degraded;
+  /** Alguna lectura enseña ejemplos: sólo pasa con la marca de la demo, y entonces se dice. */
+  readonly muestras = computed(() => Object.values(this.lecturas()).includes('muestras'));
+
+  /**
+   * Lo que cierra la consola entera. Sin sesión o sin permiso no es de una sección —es de quien
+   * la abre—, así que se dice una vez, en lugar de las vistas: con su salida (iniciar sesión), o
+   * sin ninguna (no es del personal).
+   */
+  readonly acceso = computed<'sin-sesion' | 'sin-permiso' | null>(() => {
+    const estados = Object.values(this.lecturas());
+    if (estados.includes('sin-sesion')) {
+      return 'sin-sesion';
+    }
+    return estados.includes('sin-permiso') ? 'sin-permiso' : null;
   });
 
   // ─── SH-5 console: sections + KPIs + rows ──────────────────────────────────
   readonly activeSection = signal<SellerSectionId>('ventas');
   readonly sectionFilter = signal('todas');
+  readonly lecturaActiva = computed(() => LECTURA_DE_LA_SECCION[this.activeSection()]);
 
   readonly consoleConfig = computed<ConsoleShellConfig>(() => ({
     heading: 'Panel',
     navLabel: 'Secciones del panel de vendedor',
     kpisLabel: 'Indicadores del negocio',
     actionsLabel: 'Acciones',
-    emptyMessage: 'No hay registros en esta cola.',
+    emptyMessage: this.activeSection() === 'ventas' ? this.textoBandejaVacia : 'No hay registros en esta cola.',
     loadingMessage: 'Cargando…',
+    // La cola que no se pudo leer lo dice, con su «Reintentar» (`retry`): una cola vacía sería
+    // otra respuesta, la que el servidor no dio.
+    errorMessage: this.lecturas()[this.lecturaActiva()] === 'caida' ? this.textoCaida : undefined,
     sections: [
-      { id: 'ventas', label: 'Ventas', badge: this.orders().length || undefined },
+      { id: 'ventas', label: 'Ventas', badge: this.bandeja()?.cuentas.paid || undefined },
       {
         id: 'publicaciones',
         label: 'Publicaciones',
@@ -314,11 +509,27 @@ export class SellerElementComponent implements OnInit {
 
   readonly openReturnsCount = computed(
     () =>
-      this.returns().filter((rma) => rma.status === 'abierto' || rma.status === 'en-revision')
-        .length,
+      this.devoluciones().filter((d) => estaAbierta(d.estado)).length,
   );
 
-  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() =>
+  /**
+   * En Ventas, las cuentas de la bandeja: cuántos pedidos hay en cada etapa en la tienda ENTERA, que no dependen del
+   * filtro ni de la página. En las demás secciones, los indicadores del resumen.
+   */
+  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() => {
+    const cuentas = this.bandeja()?.cuentas;
+    if (this.activeSection() === 'ventas' && cuentas) {
+      return ETAPAS_DEL_DESPACHO.map((etapa) => ({
+        id: etapa,
+        label: this.textoEtapas[etapa],
+        value: this.formatNumber(cuentas[etapa]),
+        trend: 'flat' as const,
+      }));
+    }
+    return this.indicadoresDelResumen();
+  });
+
+  private readonly indicadoresDelResumen = computed<readonly ConsoleKpi[]>(() =>
     this.kpiMetrics().map((metric) => ({
       id: metric.id,
       label: metric.label,
@@ -348,26 +559,18 @@ export class SellerElementComponent implements OnInit {
       case 'publicaciones':
         return LISTING_FILTERS;
       case 'devoluciones':
-        return RETURN_FILTERS;
+        return this.filtrosDeDevoluciones;
       case 'reputacion':
         return [];
       default:
-        return ORDER_FILTERS;
+        return this.filtrosDeVentas;
     }
   });
 
-  readonly sectionLoading = computed(() => {
-    switch (this.activeSection()) {
-      case 'publicaciones':
-        return this.listingsLoading();
-      case 'devoluciones':
-        return this.returnsLoading();
-      case 'reputacion':
-        return false;
-      default:
-        return this.ordersLoading();
-    }
-  });
+  /** Reputación pinta su propio esqueleto; las colas, el del shell. */
+  readonly sectionLoading = computed(
+    () => this.activeSection() !== 'reputacion' && this.enVuelo(this.lecturaActiva()),
+  );
 
   readonly consoleRows = computed<readonly SellerRowVm[]>(() => {
     switch (this.activeSection()) {
@@ -378,21 +581,28 @@ export class SellerElementComponent implements OnInit {
       case 'reputacion':
         return [];
       default:
-        return this.filteredOrders().map((order) => this.orderRow(order));
+        // La bandeja viene filtrada y paginada del servidor: se pinta tal cual.
+        return this.pedidos().map((pedido) => this.pedidoRow(pedido));
     }
   });
 
-  /** Per-row actions: only status-appropriate verbs surface. */
+  /**
+   * Per-row actions: only status-appropriate verbs surface. Un pedido ofrece los actos que el servidor pone en `actos`, y
+   * ninguno más (T021); mientras uno vuela, en su lugar dice que se está guardando. Su detalle se ve siempre.
+   */
   readonly rowActionsFor = (row: SellerRowVm): readonly ConsoleRowAction[] => {
-    if (row.kind === 'order' && row.order && this.canAdvance(row.order)) {
-      return [ADVANCE_ACTION];
+    if (row.kind === 'order' && row.pedido) {
+      if (this.actoEnVuelo() === row.pedido.orderRef) {
+        return [this.accionEnVuelo, this.accionDetalle];
+      }
+      const actos = row.pedido.actos.filter((a): a is ActoDelDespacho => ACTOS_DEL_DESPACHO.includes(a as ActoDelDespacho));
+      return [...actos.map((acto) => this.accionDelActo[acto]), this.accionDetalle];
     }
-    if (
-      row.kind === 'return' &&
-      row.rma &&
-      (row.rma.status === 'abierto' || row.rma.status === 'en-revision')
-    ) {
-      return [APPROVE_ACTION, REJECT_ACTION];
+    if (row.kind === 'return' && row.devolucion) {
+      if (this.devolucionEnVuelo() === row.devolucion.rmaId) {
+        return [this.accionEnVuelo];
+      }
+      return MOVIMIENTOS_DESDE[row.devolucion.estado].map((movimiento) => this.accionDeLaDevolucion[movimiento]);
     }
     return [];
   };
@@ -469,7 +679,12 @@ export class SellerElementComponent implements OnInit {
       : 'ventas';
     this.activeSection.set(section);
     this.sectionFilter.set('todas');
-    if (section === 'publicaciones') {
+    if (section === 'ventas') {
+      // El shell vuelve a «Todos» al cambiar de sección: la bandeja se vuelve a pedir así, para no pintar la del filtro
+      // de antes bajo el chip de «Todos».
+      this.paginaDeVentas.set(1);
+      void this.loadOrders();
+    } else if (section === 'publicaciones') {
       void this.loadListings();
     } else if (section === 'devoluciones') {
       void this.loadReturns();
@@ -478,71 +693,302 @@ export class SellerElementComponent implements OnInit {
 
   onFilterChange(filterKey: string): void {
     this.sectionFilter.set(filterKey);
+    if (this.activeSection() === 'ventas') {
+      this.paginaDeVentas.set(1);
+      void this.loadOrders();
+    }
+  }
+
+  /** La bandeja pagina en el servidor: otra página es otra lectura. */
+  onPageChange(pagina: number): void {
+    this.paginaDeVentas.set(pagina);
+    void this.loadOrders();
+  }
+
+  /** «Reintentar»: vuelve a pedir una lectura que no se pudo leer. */
+  recargar(lectura: Lectura): void {
+    switch (lectura) {
+      case 'resumen':
+        void this.loadSummary();
+        return;
+      case 'ventas':
+        void this.loadOrders();
+        return;
+      case 'publicaciones':
+        void this.loadListings();
+        return;
+      case 'devoluciones':
+        void this.loadReturns();
+        return;
+      case 'mensajes':
+        void this.loadThreads();
+        return;
+    }
+  }
+
+  /** La lectura todavía no contestó (o no se pidió): la superficie pinta su esqueleto. */
+  enVuelo(lectura: Lectura): boolean {
+    const estado = this.lecturas()[lectura];
+    return estado === 'sin-cargar' || estado === 'cargando';
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página (la forma de la tienda y de reserva). Método y no
+   * `computed`: la URL cambia con la navegación.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/account/login';
+    }
+    const aqui = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `/account/login?returnUrl=${encodeURIComponent(aqui)}`;
   }
 
   onRowAction(event: ConsoleRowActionEvent<SellerRowVm>): void {
     const row = event.row;
-    if (event.actionId === 'advance' && row.order) {
-      void this.advanceOrder(row.order);
+    if (event.actionId.startsWith(PREFIJO_DEL_ACTO) && row.pedido) {
+      const acto = event.actionId.slice(PREFIJO_DEL_ACTO.length) as ActoDelDespacho;
+      if (acto === 'enviar') {
+        this.abrirEnvio(row.pedido);
+      } else {
+        void this.actuar(row.pedido, acto);
+      }
       return;
     }
-    if ((event.actionId === 'approve' || event.actionId === 'reject') && row.rma) {
-      void this.resolveReturn(row.rma, event.actionId);
+    if (event.actionId === 'detalle' && row.pedido) {
+      void this.abrirDetalle(row.pedido);
+      return;
+    }
+    if (event.actionId.startsWith(PREFIJO_DE_LA_DEVOLUCION) && row.devolucion) {
+      const movimiento = event.actionId.slice(PREFIJO_DE_LA_DEVOLUCION.length) as MovimientoDeLaDevolucion;
+      if (movimiento === 'refunded') {
+        this.abrirReembolso(row.devolucion);
+      } else {
+        void this.moverDevolucion(row.devolucion, movimiento);
+      }
     }
   }
 
-  private canAdvance(order: SellerOrder): boolean {
-    return order.status === 'paid' || order.status === 'preparing' || order.status === 'shipped';
+  /** Marcar enviado pide antes la guía, que es opcional: abre su formulario. */
+  abrirEnvio(pedido: PedidoDeLaTienda): void {
+    this.guia.set('');
+    this.envioAbierto.set(pedido);
   }
 
-  private async advanceOrder(order: SellerOrder): Promise<void> {
-    const status = await this.#api.advanceShipment(this.apiBase(), order.orderNumber);
-    if (!status) {
-      // El servidor no lo movió, así que la fila NO se mueve (#77). Pintarle el estado
-      // siguiente al vendedor le decía que el pedido iba en camino cuando no había salido.
-      this.actionError.set(
-        `No pudimos avanzar el pedido ${order.orderNumber}. Sigue en «${order.status}»; volvé a intentarlo.`,
-      );
+  cerrarEnvio(): void {
+    this.envioAbierto.set(null);
+    this.guia.set('');
+  }
+
+  textoDelEnvio(numero: string): string {
+    return t('Seller.Operaciones.ShipOrder', 'Enviar el pedido {numero}', { numero });
+  }
+
+  /**
+   * Da un acto sobre un pedido (T021). Uno a la vez: mientras vuela, el acto de esa fila no se puede pedir otra vez, y un
+   * segundo clic no sale. La fila se mueve sólo con la respuesta del servidor; si no se hizo (#77), sigue donde estaba y
+   * el aviso dice por qué y en qué etapa sigue.
+   */
+  async actuar(pedido: PedidoDeLaTienda, acto: ActoDelDespacho, guia?: string): Promise<void> {
+    if (this.actoEnVuelo() !== null) {
       return;
     }
+    const escrita = guia?.trim() ?? '';
+    if (escrita.length > GUIA_MAXIMA || /[\r\n]/.test(escrita)) {
+      this.actionError.set(this.textoGuiaInvalida);
+      return;
+    }
+    this.actoEnVuelo.set(pedido.orderRef);
     this.actionError.set(null);
-    this.orders.update((list) =>
-      list.map((entry) =>
-        entry.orderNumber === order.orderNumber ? { ...entry, status } : entry,
-      ),
-    );
-  }
-
-  private async resolveReturn(rma: SellerReturn, action: SellerReturnAction): Promise<void> {
-    const status = await this.#api.advanceReturn(this.apiBase(), rma.rmaId, action);
-    if (!status) {
-      this.actionError.set(
-        `No pudimos ${action === 'approve' ? 'aprobar' : 'rechazar'} la devolución ${rma.rmaId}. Sigue en «${rma.status}».`,
-      );
-      return;
+    try {
+      const resultado = await this.#api.avanzar(this.apiBase(), pedido.orderRef, acto, escrita || undefined);
+      if (!resultado.hecho) {
+        if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
+          this.marcar('ventas', resultado.por);
+          return;
+        }
+        this.actionError.set(this.textoDelActoQueNoSalio(pedido, resultado));
+        return;
+      }
+      this.cerrarEnvio();
+      // La fila se mueve con lo que diga el servidor: se vuelve a leer la bandeja, con su etapa y sus actos nuevos.
+      await this.loadOrders();
+    } finally {
+      this.actoEnVuelo.set(null);
     }
-    this.actionError.set(null);
-    this.returns.update((list) =>
-      list.map((entry) => (entry.rmaId === rma.rmaId ? { ...entry, status } : entry)),
-    );
   }
 
-  // ─── Filters (client-side over the API data) ───────────────────────────────
-  private filteredOrders(): readonly SellerOrder[] {
-    const filter = this.sectionFilter();
-    const orders = this.orders();
-    switch (filter) {
-      case 'por-enviar':
-        return orders.filter((order) => order.status === 'paid' || order.status === 'preparing');
-      case 'enviadas':
-        return orders.filter((order) => order.status === 'shipped');
-      case 'entregadas':
-        return orders.filter((order) => order.status === 'delivered');
+  /** Por qué un acto no salió, con la etapa en que sigue el pedido. */
+  private textoDelActoQueNoSalio(
+    pedido: PedidoDeLaTienda,
+    resultado: Extract<ResultadoDelActo, { readonly hecho: false }>,
+  ): string {
+    const sigueEn = t('Seller.Operaciones.StillIn', 'El pedido sigue en «{etapa}».', {
+      etapa: this.textoEtapas[resultado.etapa ?? pedido.etapa],
+    });
+    return `${this.motivoDelActo(pedido, resultado)} ${sigueEn}`;
+  }
+
+  /** El motivo, por el código del servidor (los de `contracts/puerta-vendedor.md` de 013). */
+  private motivoDelActo(pedido: PedidoDeLaTienda, resultado: Extract<ResultadoDelActo, { readonly hecho: false }>): string {
+    if (resultado.por === 'caida') {
+      return t('Seller.Operaciones.TryAgain', 'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo.');
+    }
+    switch (resultado.codigo) {
+      case 'flow.original_no_encontrada':
+      case 'flow.original_no_completada':
+      case 'flow.original_sin_dato':
+      case 'fulfillment.shipment_not_found':
+        return t('Seller.Operaciones.CantDispatch', 'Este pedido no se puede despachar desde la consola.');
+      case 'fulfillment.transition_not_allowed':
+        return t('Seller.Operaciones.ShipFirst', 'Primero márcalo enviado.');
+      case 'fulfillment.shipment_closed':
+        return t('Seller.Operaciones.ShipmentClosed', 'El envío ya terminó.');
+      case 'tienda.despacho_no_disponible':
+        return this.textoDespachoNoDisponible;
+      case 'tienda.acto_fuera_de_orden':
+        return t('Seller.Operaciones.OutOfOrder', 'Ese paso ya no le toca a este pedido.');
+      case 'tienda.guia_invalida':
+        return this.textoGuiaInvalida;
       default:
-        return orders;
+        return t('Seller.Operaciones.ActFailed', 'No pudimos mover el pedido {numero}.', { numero: pedido.orderNumber });
     }
   }
 
+  /** Por qué un pedido no tiene actos, dicho para quien despacha; vacío si no hay motivo que decir. */
+  textoSinActosDe(motivo: string | null): string {
+    switch (motivo) {
+      case 'entregado':
+        return t('Seller.Operaciones.Delivered', 'Este pedido ya se entregó.');
+      case 'despacho_no_disponible':
+        return this.textoDespachoNoDisponible;
+      default:
+        return '';
+    }
+  }
+
+  // ─── El detalle de un pedido (013-seller-operaciones, T012) ────────────────
+  /** Abre el detalle de un pedido: su envío, a dónde va y con quién. Reabrirlo es «Reintentar». */
+  async abrirDetalle(pedido: PedidoDeLaTienda): Promise<void> {
+    this.detalle.set({ pedido, estado: 'cargando', datos: null });
+    let resultado: LecturaDeLaConsola<DetalleDelPedido>;
+    try {
+      resultado = await this.#api.pedido(this.apiBase(), pedido.orderRef);
+    } catch {
+      resultado = { tipo: 'caida' };
+    }
+    if (this.detalle()?.pedido.orderRef !== pedido.orderRef) {
+      return; // mientras volaba se abrió otro, o se cerró
+    }
+    if (resultado.tipo === 'sin-sesion' || resultado.tipo === 'sin-permiso') {
+      this.marcar('ventas', resultado.tipo);
+    }
+    this.detalle.set({
+      pedido,
+      estado: resultado.tipo,
+      datos: resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras' ? resultado.datos : null,
+    });
+  }
+
+  cerrarDetalle(): void {
+    this.detalle.set(null);
+  }
+
+  textoDelDetalle(numero: string): string {
+    return t('Seller.Operaciones.OrderDetail', 'Pedido {numero}', { numero });
+  }
+
+  /** El instante en es-CO y en la hora del sitio. */
+  momento(instante: string): string {
+    return momentoDeLaConsola(instante, this.zonaHoraria());
+  }
+
+  /** La fecha, el comprador y el total del pedido, en una línea. */
+  resumenDelPedido(pedido: PedidoDeLaTienda): string {
+    return [this.momento(pedido.fecha), pedido.comprador, pedido.totalFormatted].filter(Boolean).join(' · ');
+  }
+
+  /** A dónde va, en una línea; con su contacto entre paréntesis. */
+  destinoEnUnaLinea(destino: DestinoDelEnvio): string {
+    const lugar = [destino.line1, destino.line2, destino.city, destino.region, destino.country].filter(Boolean).join(', ');
+    return destino.contact ? `${lugar} (${destino.contact})` : lugar;
+  }
+
+  /** Por qué el pedido no trae su envío entero, dicho para quien despacha. */
+  textoSinEnvioDe(motivo: DetalleDelPedido['motivoSinEnvio']): string {
+    switch (motivo) {
+      case 'sin_direccion':
+        return this.textoSinDireccion;
+      case 'sin_envio':
+        return this.textoSinEnvio;
+      case 'envio_no_disponible':
+        return this.textoEnvioNoDisponible;
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Mueve una devolución (T025). Una a la vez: mientras vuela, su fila no ofrece otra acción y un segundo clic no sale.
+   * La cola se vuelve a leer sólo con la respuesta del servidor; si no se movió (#77) —un reembolso que no salió, por
+   * ejemplo—, sigue donde estaba y el aviso dice el motivo del servidor y en qué estado sigue.
+   */
+  async moverDevolucion(devolucion: DevolucionDeLaTienda, movimiento: MovimientoDeLaDevolucion): Promise<void> {
+    if (this.devolucionEnVuelo() !== null) {
+      return;
+    }
+    this.devolucionEnVuelo.set(devolucion.rmaId);
+    this.actionError.set(null);
+    try {
+      const resultado = await this.#api.moverDevolucion(this.apiBase(), devolucion.rmaId, movimiento);
+      if (!resultado.hecho) {
+        if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
+          this.marcar('devoluciones', resultado.por);
+          return;
+        }
+        this.actionError.set(this.textoDeLaDevolucionQueNoSeMovio(devolucion, resultado));
+        return;
+      }
+      this.reembolsoAbierto.set(null);
+      this.marcar('devoluciones', 'sin-cargar');
+      await this.loadReturns();
+    } finally {
+      this.devolucionEnVuelo.set(null);
+    }
+  }
+
+  /** Por qué una devolución no se movió, con el estado en que sigue. */
+  private textoDeLaDevolucionQueNoSeMovio(
+    devolucion: DevolucionDeLaTienda,
+    resultado: Extract<ResultadoDelMovimiento, { readonly hecho: false }>,
+  ): string {
+    const motivo =
+      resultado.por === 'caida'
+        ? t('Seller.Operaciones.TryAgain', 'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo.')
+        : (resultado.motivo ?? t('Seller.Operaciones.ReturnFailed', 'No pudimos mover la devolución {rma}.', { rma: devolucion.rmaId }));
+    const sigueEn = t('Seller.Operaciones.ReturnStillIn', 'La devolución sigue en «{estado}».', {
+      estado: this.textoEstadosDeDevolucion[devolucion.estado],
+    });
+    return `${motivo} ${sigueEn}`;
+  }
+
+  /** Reembolsar mueve plata: pide confirmarlo antes. */
+  abrirReembolso(devolucion: DevolucionDeLaTienda): void {
+    this.reembolsoAbierto.set(devolucion);
+  }
+
+  cerrarReembolso(): void {
+    this.reembolsoAbierto.set(null);
+  }
+
+  textoDelReembolso(devolucion: DevolucionDeLaTienda): string {
+    return t('Seller.Operaciones.RefundConfirm', 'Reembolsar {monto} de la devolución {rma}: la plata vuelve a quien compró.', {
+      monto: devolucion.montoFormatted || this.formatPrice(devolucion.monto, devolucion.moneda),
+      rma: devolucion.rmaId,
+    });
+  }
+
+  // ─── Filters (client-side over the API data; la bandeja filtra en el servidor) ─
   private filteredListings(): readonly SellerListing[] {
     const filter = this.sectionFilter();
     const listings = this.listings();
@@ -558,42 +1004,35 @@ export class SellerElementComponent implements OnInit {
     }
   }
 
-  private filteredReturns(): readonly SellerReturn[] {
-    const filter = this.sectionFilter();
-    const returns = this.returns();
-    switch (filter) {
+  private filteredReturns(): readonly DevolucionDeLaTienda[] {
+    const devoluciones = this.devoluciones();
+    switch (this.sectionFilter()) {
       case 'abiertas':
-        return returns.filter((rma) => rma.status === 'abierto' || rma.status === 'en-revision');
+        return devoluciones.filter((d) => estaAbierta(d.estado));
       case 'resueltas':
-        return returns.filter((rma) => rma.status === 'aprobado' || rma.status === 'rechazado');
+        return devoluciones.filter((d) => !estaAbierta(d.estado));
       default:
-        return returns;
+        return devoluciones;
     }
   }
 
   // ─── Row projections (domain → opaque cells for the shell) ─────────────────
-  private orderRow(order: SellerOrder): SellerRowVm {
+  /** Un pedido de la bandeja: la fecha en la hora del sitio, el total que formateó el servidor y la etapa con su nombre. */
+  private pedidoRow(pedido: PedidoDeLaTienda): SellerRowVm {
     return {
-      id: order.orderNumber,
+      id: pedido.orderRef,
       kind: 'order',
-      order,
-      tone:
-        order.status === 'delivered'
-          ? 'ok'
-          : order.status === 'cancelled'
-            ? 'muted'
-            : order.status === 'shipped'
-              ? 'info'
-              : 'warn',
+      pedido,
+      tone: pedido.etapa === 'delivered' ? 'ok' : pedido.etapa === 'shipped' ? 'info' : 'warn',
       cells: {
-        orden: order.orderNumber,
-        fecha: order.date,
-        comprador: order.buyer || '—',
-        productos: order.items
+        orden: pedido.orderNumber,
+        fecha: this.momento(pedido.fecha),
+        comprador: pedido.comprador || SIN_DATO,
+        productos: pedido.lineas
           .map((line) => (line.qty > 1 ? `${line.title} ×${line.qty}` : line.title))
           .join(' · '),
-        total: this.formatPrice(order.total, order.currency || this.currency()),
-        estado: this.orderStatusLabel(order.status),
+        total: pedido.totalFormatted || this.formatPrice(pedido.total, pedido.moneda),
+        estado: this.textoEtapas[pedido.etapa],
       },
     };
   }
@@ -616,26 +1055,26 @@ export class SellerElementComponent implements OnInit {
     };
   }
 
-  private returnRow(rma: SellerReturn): SellerRowVm {
+  private returnRow(devolucion: DevolucionDeLaTienda): SellerRowVm {
     return {
-      id: rma.rmaId,
+      id: devolucion.rmaId,
       kind: 'return',
-      rma,
+      devolucion,
       tone:
-        rma.status === 'aprobado'
+        devolucion.estado === 'Refunded'
           ? 'ok'
-          : rma.status === 'rechazado'
+          : devolucion.estado === 'Rejected'
             ? 'muted'
-            : rma.status === 'en-revision'
-              ? 'info'
-              : 'warn',
+            : devolucion.estado === 'Requested'
+              ? 'warn'
+              : 'info',
       cells: {
-        rma: rma.rmaId,
-        orden: rma.orderNumber,
-        producto: rma.productTitle,
-        motivo: rma.reason,
-        fecha: rma.date,
-        estado: this.returnStatusLabel(rma.status),
+        rma: devolucion.rmaId,
+        orden: devolucion.orderNumber ?? SIN_DATO,
+        producto: devolucion.cantidad > 1 ? `${devolucion.producto} ×${devolucion.cantidad}` : devolucion.producto,
+        motivo: devolucion.motivo,
+        fecha: devolucion.solicitada ? this.momento(devolucion.solicitada) : SIN_DATO,
+        estado: this.textoEstadosDeDevolucion[devolucion.estado],
       },
     };
   }
@@ -678,7 +1117,7 @@ export class SellerElementComponent implements OnInit {
       this.publishReceipt.set(receipt);
       this.productpublished.emit(receipt);
       // Surface the new listing in Publicaciones without waiting for the API.
-      if (this.listingsLoaded()) {
+      if (this.cargada('publicaciones')) {
         this.listings.update((list) => [
           {
             id: receipt.productId,
@@ -709,22 +1148,34 @@ export class SellerElementComponent implements OnInit {
     this.goTo('panel');
   }
 
-  /** Merge one field into the wizard draft (used by the step template). */
-  patchField(
-    patch: (values: AuthoringDraft) => void,
-    key: string,
-    event: Event,
-  ): void {
-    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
-    patch({ [key]: target?.value ?? '' });
+  /** Merge one field into the wizard draft (used by the step template), with the text its field emits. */
+  patchField(patch: (values: AuthoringDraft) => void, key: string, value: string): void {
+    patch({ [key]: value });
+  }
+
+  /** Las condiciones de una publicación, para el selector del paso de precio. */
+  readonly condiciones: readonly SelectOption[] = [
+    { value: 'new', label: 'Nuevo' },
+    { value: 'used', label: 'Usado' },
+    { value: 'refurbished', label: 'Reacondicionado' },
+  ];
+
+  /** El tono del design system para el de una fila de la consola (`syn-status-tag`). */
+  toneDeLaFila(tone: 'ok' | 'warn' | 'info' | 'muted'): StatusTagTone {
+    switch (tone) {
+      case 'ok':
+        return 'success';
+      case 'warn':
+        return 'warning';
+      case 'info':
+        return 'pending';
+      case 'muted':
+        return 'inactive';
+    }
   }
 
   // Media step: URL list handling over the opaque draft.
   readonly mediaUrl = signal('');
-
-  onMediaUrlInput(event: Event): void {
-    this.mediaUrl.set((event.target as HTMLInputElement | null)?.value ?? '');
-  }
 
   addImage(patch: (values: AuthoringDraft) => void, draft: AuthoringDraft): void {
     const url = this.mediaUrl().trim();
@@ -861,81 +1312,92 @@ export class SellerElementComponent implements OnInit {
   }
 
   // ─── Data loading ──────────────────────────────────────────────────────────
-  private async loadSummary(): Promise<void> {
-    const summary = await this.#api.summary(this.apiBase());
-    this.kpiMetrics.set(summary.kpis);
-    this.reputation.set(summary.reputation);
+  private loadSummary(): Promise<void> {
+    return this.leer('resumen', () => this.#api.summary(this.apiBase()), (summary) => {
+      this.kpiMetrics.set(summary.kpis);
+      this.reputation.set(summary.reputation);
+    });
   }
 
+  /**
+   * La bandeja, con el filtro y la página de ahora. Siempre se vuelve a pedir —un filtro, una página, «Reintentar» o
+   * un acto son otra lectura—, y la que llega tarde no se pinta: con dos filtros seguidos, la respuesta del primero
+   * dejaría filas de una etapa bajo el chip de otra.
+   */
   private async loadOrders(): Promise<void> {
-    if (this.ordersLoaded()) {
+    const pedida = ++this.bandejaPedida;
+    const etapa = (ETAPAS_DEL_DESPACHO as readonly string[]).includes(this.sectionFilter())
+      ? (this.sectionFilter() as EtapaDelDespacho)
+      : null;
+    this.marcar('ventas', 'cargando');
+    let resultado: LecturaDeLaConsola<BandejaDeLaTienda>;
+    try {
+      resultado = await this.#api.pedidos(this.apiBase(), etapa, this.paginaDeVentas());
+    } catch {
+      resultado = { tipo: 'caida' };
+    }
+    if (pedida !== this.bandejaPedida) {
       return;
     }
-    this.ordersLoading.set(true);
-    try {
-      this.orders.set(await this.#api.orders(this.apiBase(), this.currency()));
-      this.ordersLoaded.set(true);
-    } finally {
-      this.ordersLoading.set(false);
+    if (resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras') {
+      this.bandeja.set(resultado.datos);
     }
+    this.marcar('ventas', resultado.tipo);
   }
 
-  private async loadListings(): Promise<void> {
-    if (this.listingsLoaded()) {
-      return;
-    }
-    this.listingsLoading.set(true);
-    try {
-      this.listings.set(await this.#api.listings(this.apiBase(), this.currency()));
-      this.listingsLoaded.set(true);
-    } finally {
-      this.listingsLoading.set(false);
-    }
+  private loadListings(): Promise<void> {
+    return this.leer('publicaciones', () => this.#api.listings(this.apiBase(), this.currency()), (listings) =>
+      this.listings.set(listings),
+    );
   }
 
-  private async loadReturns(): Promise<void> {
-    if (this.returnsLoaded()) {
-      return;
-    }
-    this.returnsLoading.set(true);
-    try {
-      this.returns.set(await this.#api.returns(this.apiBase()));
-      this.returnsLoaded.set(true);
-    } finally {
-      this.returnsLoading.set(false);
-    }
+  private loadReturns(): Promise<void> {
+    return this.leer('devoluciones', () => this.#api.devoluciones(this.apiBase()), (devoluciones) =>
+      this.devoluciones.set(devoluciones),
+    );
   }
 
-  private async loadThreads(): Promise<void> {
-    if (this.threadsLoaded()) {
+  private loadThreads(): Promise<void> {
+    return this.leer('mensajes', () => this.#api.threads(this.apiBase()), (threads) => this.threads.set(threads));
+  }
+
+  /**
+   * Pide una lectura y deja dicho cómo quedó. No vuelve a pedir lo que ya contestó con datos ni lo
+   * que está en vuelo; lo demás —sin pedir, caída, sin sesión, sin permiso— sí, que es lo que hace
+   * «Reintentar». Un fallo que el cliente no esperaba es una caída, no un esqueleto eterno.
+   */
+  private async leer<T>(
+    lectura: Lectura,
+    pedir: () => Promise<LecturaDeLaConsola<T>>,
+    guardar: (datos: T) => void,
+  ): Promise<void> {
+    if (this.lecturas()[lectura] === 'cargando' || this.cargada(lectura)) {
       return;
     }
-    this.threadsLoading.set(true);
+    this.marcar(lectura, 'cargando');
+    let resultado: LecturaDeLaConsola<T>;
     try {
-      this.threads.set(await this.#api.threads(this.apiBase()));
-      this.threadsLoaded.set(true);
-    } finally {
-      this.threadsLoading.set(false);
+      resultado = await pedir();
+    } catch {
+      resultado = { tipo: 'caida' };
     }
+    if (resultado.tipo === 'leidas' || resultado.tipo === 'vacia' || resultado.tipo === 'muestras') {
+      guardar(resultado.datos);
+    }
+    this.marcar(lectura, resultado.tipo);
+  }
+
+  /** La lectura ya contestó con datos: leídos, vacíos o, con la marca, de ejemplo. */
+  private cargada(lectura: Lectura): boolean {
+    const estado = this.lecturas()[lectura];
+    return estado === 'leidas' || estado === 'vacia' || estado === 'muestras';
+  }
+
+  private marcar(lectura: Lectura, estado: EstadoDeLectura): void {
+    this.lecturas.update((estados) => ({ ...estados, [lectura]: estado }));
   }
 
   // ─── Labels + formatting (UI copy only — data comes from the API) ──────────
-  orderStatusLabel(status: SellerOrder['status']): string {
-    switch (status) {
-      case 'pending':
-        return 'Pendiente de pago';
-      case 'paid':
-        return 'Por preparar';
-      case 'preparing':
-        return 'Preparando';
-      case 'shipped':
-        return 'Enviada';
-      case 'delivered':
-        return 'Entregada';
-      case 'cancelled':
-        return 'Cancelada';
-    }
-  }
 
   listingStatusLabel(status: SellerListing['status']): string {
     switch (status) {
