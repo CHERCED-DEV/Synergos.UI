@@ -61,6 +61,20 @@ for (const plataforma of PLATAFORMAS) {
   }
 }
 
+// Las libs de dominio (014-despiece-tienda), cada una como su propia unidad. No son hojas del design system: traen el
+// vocabulario de su vertical. Sin contarlas, mudar un texto de una app a su lib lo sacaba de la cuenta, y la cifra
+// bajaba sin que se tradujera nada.
+for (const plataforma of PLATAFORMAS) {
+  const raiz = resolve(RAIZ, plataforma.dominios);
+  if (!existsSync(raiz)) continue;
+  for (const dominio of readdirSync(raiz, { withFileTypes: true }).filter((d) => d.isDirectory())) {
+    const nombre = `dominio/${dominio.name}`;
+    const hallados = literalesDelElemento(ts, fuentes(join(raiz, dominio.name)));
+    actual[nombre] = (actual[nombre] ?? 0) + hallados.length;
+    if (VER === nombre) for (const h of hallados) console.log(`  ${h.ruta}:${h.linea}  [${h.tipo}]  ${h.texto}`);
+  }
+}
+
 const elementos = Object.keys(actual).length;
 const total = Object.values(actual).reduce((a, n) => a + n, 0);
 console.log(`[literales] ${elementos} elementos · ${total} textos de interfaz escritos a mano (fuera de t())`);

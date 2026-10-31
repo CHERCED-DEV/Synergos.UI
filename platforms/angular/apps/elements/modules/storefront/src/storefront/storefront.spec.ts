@@ -6,8 +6,8 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { MUESTRAS_DE_LA_CUENTA, ShopApiClient } from './shop-api.client';
 import { ShopFulfillmentStrategy } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
-import type { ShopOrder } from './shop.model';
-import type { ShopProduct } from './shop.model';
+import type { ShopOrder } from '@synergos/dominio/tienda';
+import type { ShopProduct } from '@synergos/dominio/tienda';
 import { asentar } from '../../../../../../tools/asentar';
 import { STOREFRONT_SYNHOST } from '@synergos/contracts';
 

@@ -14,7 +14,7 @@ import { asentar } from '../../../../../../tools/asentar';
 import { ShopApiClient } from './shop-api.client';
 import { ShopFulfillmentStrategy, llaveRetenida } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
-import type { ShopProduct } from './shop.model';
+import type { ShopProduct } from '@synergos/dominio/tienda';
 
 /**
  * El storefront por la puerta (004-tienda-compra: T021, T025, T030, T036, T043): lo que el ELEMENTO hace con

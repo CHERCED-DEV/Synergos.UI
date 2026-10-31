@@ -996,14 +996,14 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     };
 
     /** Una devolución como la emite el CMS (`VendedorDeLaTiendaController.DevolucionDto`, T024). */
-    const devolucionDelCms = (rmaId: string, estado: string): Record<string, unknown> => ({
+    const devolucionDelCms = (rmaId: string, estado: string, motivo = 'Llegó con teclas flojas'): Record<string, unknown> => ({
       rmaId,
       orderRef: `ord-${rmaId}`,
       orderNumber: `N-${rmaId}`,
       camino: 'puerta',
       producto: 'Teclado mecánico compacto 65%',
       cantidad: 1,
-      motivo: 'Llegó con teclas flojas',
+      motivo,
       monto: 259000,
       montoFormatted: '$ 259.000',
       moneda: 'COP',
@@ -1020,8 +1020,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     }
 
     /** El borde con la forma del CMS: la cola de lo que hay, y el movimiento que la cambia. */
-    function servidor(inicial: Record<string, string>): Servidor {
-      const estado = new Map(Object.entries(inicial).map(([rma, e]) => [rma, devolucionDelCms(rma, e)]));
+    function servidor(inicial: Record<string, string>, motivos: Record<string, string> = {}): Servidor {
+      const estado = new Map(Object.entries(inicial).map(([rma, e]) => [rma, devolucionDelCms(rma, e, motivos[rma])]));
       const s: Servidor = { movimientos: [], responde: null };
       vi.stubGlobal(
         'fetch',
@@ -1080,6 +1080,16 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
         'Rechazada',
       ]);
       expect(component.openReturnsCount()).toBe(3);
+    });
+
+    it('el motivo se lee con su texto, el mismo que eligió quien compra; un texto libre de antes, tal cual', async () => {
+      servidor({ 'RMA-1': 'Requested', 'RMA-2': 'Approved' }, { 'RMA-1': 'damaged' });
+      await abrirLaCola();
+
+      expect(fila('RMA-1').cells['motivo']).toBe('Llegó dañado');
+      expect(fila('RMA-2').cells['motivo']).toBe('Llegó con teclas flojas');
+      expect(host().textContent).toContain('Llegó dañado');
+      expect(host().textContent).not.toContain('damaged');
     });
 
     it('aprobar manda { status: approved } y la cola se vuelve a leer con lo que dice el servidor', async () => {

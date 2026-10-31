@@ -19,7 +19,7 @@ import {
   llaveDeLaIntencion,
   llaveRetenida,
 } from './shop-fulfillment.strategy';
-import type { CompraPendienteDelServidor, OrdenDeLaPuerta } from './shop.model';
+import type { CompraPendienteDelServidor, OrdenDeLaPuerta } from '@synergos/dominio/tienda';
 
 /**
  * La estrategia de la tienda por los dos caminos (004-tienda-compra, T020, T024, T027): lo que viaja a la

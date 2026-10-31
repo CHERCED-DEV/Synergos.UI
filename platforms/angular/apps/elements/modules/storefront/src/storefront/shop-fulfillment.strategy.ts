@@ -27,7 +27,7 @@ import {
   type SearchCriteria,
   type ShopCustomer,
   type ShopProduct,
-} from './shop.model';
+} from '@synergos/dominio/tienda';
 import {
   abrirCompraDeTienda,
   cerrarCompraDeTienda,

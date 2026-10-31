@@ -68,4 +68,6 @@ export const BUNDLED_SYNERGOS = [
   'transaction-engine',
   'shells',
   'shop',
+  // El dominio de la Tienda (014-despiece-tienda): `storefront` y `seller` lo componen.
+  'dominio/tienda',
 ];

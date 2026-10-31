@@ -40,7 +40,7 @@ import {
   type ShopOrder,
   type ShopProduct,
   type WishlistEntry,
-} from './shop.model';
+} from '@synergos/dominio/tienda';
 
 /**
  * Thin HTTP client over the Tienda backend contract (provided by the backend

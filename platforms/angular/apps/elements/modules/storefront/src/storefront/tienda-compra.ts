@@ -1,6 +1,6 @@
 import type { BffTienda } from '@synergos/contracts';
 import type { SessionData, SessionItem } from '@synergos/transaction-engine';
-import { varianteDelCatalogo } from './shop.model';
+import { varianteDelCatalogo } from '@synergos/dominio/tienda';
 import {
   abrirTiendaCompra,
   cancelarTiendaCompra,

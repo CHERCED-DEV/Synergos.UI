@@ -73,6 +73,7 @@ import {
   type SellerThread,
   type SellerView,
 } from './seller.model';
+import { etiquetaDelMotivo } from '@synergos/dominio/tienda';
 import { formatearImporte, t } from '@synergos/vitals-core';
 
 /**
@@ -1072,7 +1073,7 @@ export class SellerElementComponent implements OnInit {
         rma: devolucion.rmaId,
         orden: devolucion.orderNumber ?? SIN_DATO,
         producto: devolucion.cantidad > 1 ? `${devolucion.producto} ×${devolucion.cantidad}` : devolucion.producto,
-        motivo: devolucion.motivo,
+        motivo: etiquetaDelMotivo(devolucion.motivo),
         fecha: devolucion.solicitada ? this.momento(devolucion.solicitada) : SIN_DATO,
         estado: this.textoEstadosDeDevolucion[devolucion.estado],
       },

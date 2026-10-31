@@ -121,7 +121,6 @@ import {
 import {
   STOREFRONT_FLOW,
   caminoDeLaCompra,
-  type AccountSectionId,
   type CaminoDeCompra,
   type CompraPendienteDelServidor,
   type LecturaDeCompras,
@@ -136,19 +135,19 @@ import {
   type ReturnStatus,
   type SellerDeskResult,
   type SellerOrder,
-  type SellerView,
   type ShopModerationItem,
-  type ShopRole,
   type SearchCriteria,
   type ShopCustomer,
   type ShopOrder,
   type ShopProduct,
   type ShopPromo,
   type SortKey,
-  type StorefrontView,
   type WishlistEntry,
+  MOTIVOS_DE_DEVOLUCION,
+  etiquetaDelMotivo,
   varianteSintetica,
-} from './shop.model';
+} from '@synergos/dominio/tienda';
+import type { AccountSectionId, SellerView, ShopRole, StorefrontView } from './vistas';
 import {
   AVISOS_GENERADOS,
   aMenores,
@@ -253,22 +252,6 @@ const RETURN_ERRORS: Readonly<Record<string, string>> = {
   invalid: 'No se puede devolver esa línea. Revisa el pedido.',
   failed: 'No pudimos abrir el reclamo. Intenta de nuevo.',
 };
-
-/** Los motivos, con el nombre que entiende quien compra. */
-const RETURN_REASON_LABELS: Readonly<Record<ReturnReason, string>> = {
-  damaged: 'Llegó dañado',
-  defective: 'No funciona',
-  'not-as-described': 'No es lo que decía la publicación',
-  'changed-mind': 'Cambié de opinión',
-};
-
-/** Los cuatro, en el orden en que se ofrecen. */
-const RETURN_REASONS: readonly ReturnReason[] = [
-  'damaged',
-  'defective',
-  'not-as-described',
-  'changed-mind',
-];
 
 /**
  * La línea, tal como la nombra el borde: `productId` o `productId/variantId`
@@ -977,7 +960,7 @@ export class StorefrontElementComponent implements OnInit {
   readonly returnsByRef = signal<Readonly<Record<string, readonly ReturnCase[]>>>({});
   /** Los pedidos cuyos reclamos SÍ se pudieron leer. Ver `canReturn`. */
   readonly returnsLoaded = signal<ReadonlySet<string>>(new Set<string>());
-  readonly returnReasons = RETURN_REASONS;
+  readonly returnReasons = MOTIVOS_DE_DEVOLUCION;
   readonly returnDraft = signal<ReturnDraft | null>(null);
   readonly returnSending = signal(false);
   readonly returnError = signal('');
@@ -2570,7 +2553,7 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   returnReasonLabel(reason: string): string {
-    return RETURN_REASON_LABELS[reason as ReturnReason] ?? reason;
+    return etiquetaDelMotivo(reason);
   }
 
   private async loadOrders(): Promise<void> {
