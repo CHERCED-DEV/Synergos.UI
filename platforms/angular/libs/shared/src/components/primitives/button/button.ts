@@ -10,7 +10,8 @@ import {
   resolveConfigValue,
 } from '@synergos/vitals-core/inputs';
 
-type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'danger' | 'gradient';
+/** `plain`: sin cromo (ni relleno, ni borde, ni fondo): una superficie clicable —una imagen, una fila— con el foco y el área táctil del botón. */
+type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'danger' | 'gradient' | 'plain';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonConfig {
@@ -41,7 +42,7 @@ function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfi
   return omitUndefinedProperties<ButtonConfig>({
     label: coerceTrimmedStringInput(value.label),
     ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
-    variant: coerceStringEnumInput(value.variant, ['solid', 'outline', 'ghost', 'danger', 'gradient'] as const),
+    variant: coerceStringEnumInput(value.variant, ['solid', 'outline', 'ghost', 'danger', 'gradient', 'plain'] as const),
     size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg'] as const),
     type: coerceStringEnumInput(value.type, ['button', 'submit', 'reset'] as const),
     disabled: coerceOptionalBooleanInput(value.disabled),
@@ -106,17 +107,18 @@ function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfi
           <span class="syn-button__busy-text" aria-hidden="true">{{ loadingLabel() }}</span>
         }
       </button>
-      <!--
-        A spinner is invisible to a screen reader, so aria-busy alone would leave the
-        user with silence. This region is rendered ALWAYS (empty at rest) and only its
-        text changes — a live region created at the same time as its content is
-        routinely missed by screen readers. It sits OUTSIDE the button so it can never
-        leak into the button's accessible name.
-      -->
-      <span class="syn-button__status" role="status" aria-live="polite" aria-atomic="true">{{
-        statusMessage()
-      }}</span>
     }
+    <!--
+      A spinner is invisible to a screen reader, so aria-busy alone would leave the
+      user with silence. This region is rendered ALWAYS (empty at rest) and only its
+      text changes — a live region created at the same time as its content is
+      routinely missed by screen readers. It sits OUTSIDE the button so it can never
+      leak into the button's accessible name, and outside the @if of the two shapes so
+      it exists from the first render (the link shape never fills it: it never loads).
+    -->
+    <span class="syn-button__status" role="status" aria-live="polite" aria-atomic="true">{{
+      statusMessage()
+    }}</span>
   `,
   styleUrl: './button.scss',
 })
@@ -191,7 +193,7 @@ export class ButtonComponent {
   );
 
   /** Empty at rest so the live region only ever announces the transition INTO loading. */
-  readonly statusMessage = computed(() => (this.loading() ? this.loadingLabel() : ''));
+  readonly statusMessage = computed(() => (this.loading() && !this.href() ? this.loadingLabel() : ''));
 
   readonly pressed = output<MouseEvent>();
 

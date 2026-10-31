@@ -29,14 +29,16 @@
   font-size: syn.$font-size-2xl;
 }
 
+// Los tonos van con tokens de tema (014-despiece-tienda): con el color fijo de antes (neutral-700) el icono casi
+// desaparecía en los temas oscuros. El neutro es el color del texto que lo rodea: dentro de un botón, el del botón.
 .syn-icon--neutral {
-  color: syn.$color-neutral-700;
+  color: currentColor;
 }
 
 .syn-icon--brand {
-  color: syn.$color-brand-600;
+  color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
 }
 
 .syn-icon--inverse {
-  color: syn.$color-neutral-0;
+  color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
 }

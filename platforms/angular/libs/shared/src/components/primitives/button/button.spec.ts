@@ -221,6 +221,12 @@ describe(ButtonComponent.name, () => {
       expect(button.classList.contains('syn-button--current')).toBe(true);
     });
 
+    it('has a plain variant for a clickable surface, with its own name', () => {
+      const { button } = render({ variant: 'plain', ariaLabel: 'Ver Audífonos de diadema' });
+      expect(button.classList.contains('syn-button--plain')).toBe(true);
+      expect(button.getAttribute('aria-label')).toBe('Ver Audífonos de diadema');
+    });
+
     it('takes the full width of its container', () => {
       const { fixture, button } = render({ label: 'Agregar al carrito', block: true });
       expect(button.classList.contains('syn-button--block')).toBe(true);

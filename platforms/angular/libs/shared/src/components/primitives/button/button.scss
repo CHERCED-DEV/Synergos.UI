@@ -155,6 +155,14 @@ a.syn-button {
 .syn-button--md { @include syn.button-size(md); }
 .syn-button--lg { @include syn.button-size(lg); }
 
+// Lo proyectado (un icono y su texto, un contador) va en fila y con el mismo hueco que el botón: la etiqueta es UN
+// hijo del flex del botón, así que sin esto un SVG proyectado caía encima del texto (014-despiece-tienda).
+.syn-button__label {
+  display:     inline-flex;
+  align-items: center;
+  gap:         syn.$space-xs;
+}
+
 // ── Estado de carga ───────────────────────────────────────────────────────────
 // 16px: sobre la grilla de 8. El default del mixin (14) no lo está.
 $loading-spinner-size: syn.px-to-rem(16);
@@ -248,5 +256,31 @@ $loading-spinner-size: syn.px-to-rem(16);
 
   .syn-button--loading .syn-button__busy-text {
     display: flex;
+  }
+}
+
+// ── Sin cromo (`plain`) — 014-despiece-tienda, T003 ───────────────────────────
+// Una superficie clicable (la imagen de una tarjeta, una fila): sin relleno, ni borde, ni fondo, ni el salto al pasar
+// el puntero; conserva el foco visible del botón. Va después de los tamaños y con dos clases, porque los anula.
+.syn-button.syn-button--plain {
+  display:     block;
+  min-height:  0;
+  padding:     0;
+  border:      0;
+  background:  none;
+  color:       inherit;
+  box-shadow:  none;
+  font:        inherit;
+  text-align:  inherit;
+  white-space: normal;
+
+  &:where(:hover, :focus-visible):not(:disabled) {
+    background: none;
+    box-shadow: none;
+    transform:  none;
+  }
+
+  .syn-button__label {
+    display: block;
   }
 }
