@@ -10,6 +10,30 @@
 // lo que el cliente necesita en ejecución; quién lo importa, y qué rompe un renombre, lo dice la
 // regla 24 de CLAUDE.md.
 
+export interface GobiernoDecisionEntrada {
+  readonly radicacion: string;
+  readonly decision: string;
+  readonly nota: string;
+}
+
+export interface GobiernoDecisionPagina {
+  readonly items: readonly GobiernoDecisionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface GobiernoDecisionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly radicacion: string | null; readonly decision: string | null; readonly estado: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 export interface GobiernoRadicacionCotizacion {
   readonly flujo: string;
   readonly datos: { readonly tramite: { readonly kind: "gobierno.tramite"; readonly id: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly expediente: string | null; readonly estado: string | null; readonly notificacionElectronica: boolean | null; readonly versionDelTexto: string | null; };
@@ -34,6 +58,52 @@ export interface GobiernoRadicacionRespuesta {
   readonly numero: string;
   readonly estado: string;
   readonly datos: { readonly tramite: { readonly kind: "gobierno.tramite"; readonly id: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly expediente: string | null; readonly estado: string | null; readonly notificacionElectronica: boolean | null; readonly versionDelTexto: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export interface GobiernoSubsanacionEntrada {
+  readonly radicacion: string;
+  readonly nota?: string | null;
+}
+
+export interface GobiernoSubsanacionPagina {
+  readonly items: readonly GobiernoSubsanacionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface GobiernoSubsanacionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly radicacion: string | null; readonly estado: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export interface GobiernoTomaEntrada {
+  readonly radicacion: string;
+  readonly nota?: string | null;
+}
+
+export interface GobiernoTomaPagina {
+  readonly items: readonly GobiernoTomaRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface GobiernoTomaRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly radicacion: string | null; readonly estado: string | null; };
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
@@ -68,6 +138,12 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
 
 /** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
 export interface OperacionesDeLaPuerta {
+  readonly "gobierno.decision": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, GobiernoDecisionEntrada, GobiernoDecisionRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, GobiernoDecisionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, GobiernoDecisionRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, GobiernoDecisionPagina, "ninguna">;
+  };
   readonly "gobierno.radicacion": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, GobiernoRadicacionEntrada, GobiernoRadicacionRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, GobiernoRadicacionRespuesta, "ninguna">;
@@ -75,6 +151,18 @@ export interface OperacionesDeLaPuerta {
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, GobiernoRadicacionRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, GobiernoRadicacionEntrada, GobiernoRadicacionCotizacion, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, GobiernoRadicacionPagina, "ninguna">;
+  };
+  readonly "gobierno.subsanacion": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, GobiernoSubsanacionEntrada, GobiernoSubsanacionRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, GobiernoSubsanacionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, GobiernoSubsanacionRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, GobiernoSubsanacionPagina, "ninguna">;
+  };
+  readonly "gobierno.toma": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, GobiernoTomaEntrada, GobiernoTomaRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, GobiernoTomaRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, GobiernoTomaRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, GobiernoTomaPagina, "ninguna">;
   };
 }
 
@@ -100,12 +188,30 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
 export const OPERACIONES_DE_LA_PUERTA = {
+  "gobierno.decision": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
   "gobierno.radicacion": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "gobierno.subsanacion": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "gobierno.toma": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

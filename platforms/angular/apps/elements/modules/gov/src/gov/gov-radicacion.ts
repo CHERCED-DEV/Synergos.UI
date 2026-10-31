@@ -85,6 +85,15 @@ export function nuevaLlaveDeLaRadicacion(tramite: string): string {
   return `radicacion-${tramite}-${idAleatorio()}`;
 }
 
+/**
+ * La llave de un acto sobre el expediente (tomar, decidir, subsanar; 009 T039): UNA por intención, como la de la
+ * radicación. El CMS la lleva al flujo posterior de un expediente de la puerta atada a la persona, así que el doble clic
+ * o el reintento tras un corte caen en el mismo acto; otro acto, después, es otra intención.
+ */
+export function nuevaLlaveDelActo(acto: string): string {
+  return `${acto}-${idAleatorio()}`;
+}
+
 /** Abre la radicación: autoriza la tasa (o la omite si el trámite es gratuito), sin mover plata. */
 export async function abrirRadicacion(
   desde: Element,

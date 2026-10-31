@@ -145,6 +145,27 @@ export function isGovRechazoDeLaRadicacion(error: unknown): error is GovRechazoD
   return error instanceof Error && error.name === 'GovRechazoDeLaRadicacionError';
 }
 
+/**
+ * El CMS dijo que NO a un acto del expediente —tomar, decidir, subsanar—, con su código (009, T039): para uno de la
+ * puerta es el del proceso o el de la puerta (`workflow.transition_not_allowed`, `workflow.instance_closed`…). La
+ * pantalla lo dice por su código; sin código, con el fallo de ese acto.
+ */
+export class GovRechazoDelActoError extends Error {
+  constructor(
+    readonly code: string,
+    readonly status: number,
+    readonly transient: boolean,
+  ) {
+    super(`Gov acto rechazado: ${status} ${code}`);
+    this.name = 'GovRechazoDelActoError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isGovRechazoDelActo(error: unknown): error is GovRechazoDelActoError {
+  return error instanceof Error && error.name === 'GovRechazoDelActoError';
+}
+
 /** Lo que el CMS guardó de una radicación por la puerta: el radicado que acuñó y el expediente donde quedó. */
 export interface RespuestasGuardadas {
   readonly radicado: string;
@@ -474,19 +495,10 @@ export class GovApiClient {
    * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario.
    * @throws {GovWriteFailedError} si el borde no la registró.
    */
-  async decide(apiBase: string, body: DecisionRequest): Promise<GovCase> {
-    const url = `${apiBase}/decision`;
-    try {
-      const data = await this.postJson(apiBase, url, body);
-      const kase = normalizeCase(isRecord(data) ? data['case'] : data);
-      if (kase) {
-        return kase;
-      }
-      throw new Error('decision-shape');
-    } catch (error) {
-      this.rethrowIfAuthError(error);
-      this.writeFailed('POST /api/gov/decision', error);
-    }
+  async decide(apiBase: string, body: DecisionRequest, llave?: string): Promise<GovCase> {
+    const endpoint = 'POST /api/gov/decision';
+    const data = await this.actuar(apiBase, `${apiBase}/decision`, body, endpoint, llave);
+    return normalizeCase(isRecord(data) ? data['case'] : data) ?? this.writeFailed(endpoint, new Error('decision-shape'));
   }
 
   /**
@@ -497,19 +509,11 @@ export class GovApiClient {
    * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si el expediente no es suyo.
    * @throws {GovWriteFailedError} si el borde no la registró.
    */
-  async resubmit(apiBase: string, applicationId: string, note: string): Promise<ApplicationDetail> {
+  async resubmit(apiBase: string, applicationId: string, note: string, llave?: string): Promise<ApplicationDetail> {
+    const endpoint = 'POST /api/gov/application/{id}/resubmit';
     const url = `${apiBase}/application/${encodeURIComponent(applicationId)}/resubmit`;
-    try {
-      const data = await this.postJson(apiBase, url, { note });
-      const detail = normalizeDetail(isRecord(data) ? data['application'] : data);
-      if (detail) {
-        return detail;
-      }
-      throw new Error('resubmit-shape');
-    } catch (error) {
-      this.rethrowIfAuthError(error);
-      this.writeFailed('POST /api/gov/application/{id}/resubmit', error);
-    }
+    const data = await this.actuar(apiBase, url, { note }, endpoint, llave);
+    return normalizeDetail(isRecord(data) ? data['application'] : data) ?? this.writeFailed(endpoint, new Error('resubmit-shape'));
   }
 
   /**
@@ -520,19 +524,43 @@ export class GovApiClient {
    * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario.
    * @throws {GovWriteFailedError} si el borde no lo registró.
    */
-  async take(apiBase: string, caseId: string): Promise<GovCase> {
-    const url = `${apiBase}/case/${encodeURIComponent(caseId)}/take`;
+  async take(apiBase: string, caseId: string, llave?: string): Promise<GovCase> {
+    const endpoint = 'POST /api/gov/case/{id}/take';
+    const data = await this.actuar(apiBase, `${apiBase}/case/${encodeURIComponent(caseId)}/take`, {}, endpoint, llave);
+    return normalizeCase(isRecord(data) ? data['case'] : data) ?? this.writeFailed(endpoint, new Error('take-shape'));
+  }
+
+  /**
+   * Un acto del expediente (tomar, decidir, subsanar), con la llave de su INTENCIÓN: el CMS la usa cuando el expediente
+   * nació por la puerta y el acto va a su flujo posterior (009, T039), así que el doble clic o el reintento tras un corte
+   * caen en el mismo acto. Un «no» con código viaja tipado ({@link GovRechazoDelActoError}); la red caída, como
+   * {@link GovWriteFailedError}: no se fabrica un acuse.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, sin rol o si no es suyo.
+   */
+  private async actuar(apiBase: string, url: string, body: unknown, endpoint: string, llave?: string): Promise<unknown> {
+    let response: Response;
     try {
-      const data = await this.postJson(apiBase, url, {});
-      const kase = normalizeCase(isRecord(data) ? data['case'] : data);
-      if (kase) {
-        return kase;
-      }
-      throw new Error('take-shape');
+      response = await llamar(apiBase, url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(llave ? { 'Idempotency-Key': llave } : {}) },
+        body: JSON.stringify(body),
+      });
     } catch (error) {
-      this.rethrowIfAuthError(error);
-      this.writeFailed('POST /api/gov/case/{id}/take', error);
+      this.writeFailed(endpoint, error);
     }
+    if (response.status === 401) {
+      throw new GovUnauthorizedError(url);
+    }
+    if (response.status === 403) {
+      throw new GovForbiddenError(url);
+    }
+    const data: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const code = isRecord(data) ? readString(data['code']).trim() : '';
+      throw new GovRechazoDelActoError(code, response.status, isRecord(data) ? data['transient'] === true : response.status >= 500);
+    }
+    return data;
   }
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
