@@ -373,6 +373,37 @@ export function periodoDeLaBusqueda(desde: string, hasta: string): TravelPeriod 
   return { start, end: end && end > start ? end : new Date(Date.parse(start) + 86_400_000).toISOString() };
 }
 
+/** Cuántos viajan en un vuelo, como los cobra el catálogo. */
+export interface PasajerosDelVuelo {
+  readonly adultos: number;
+  readonly ninos: number;
+  readonly infantes: number;
+}
+
+/**
+ * Los pasajeros de un vuelo desde la ocupación de la búsqueda (lote 13, 006-P9), con la regla del catálogo: adulto desde
+ * los 12 años, niño de 2 a 11 (paga su tarifa de niño) e infante menor de 2 (no paga ni ocupa silla). La MISMA cuenta va
+ * a la búsqueda —para que la oferta diga el precio de esos pasajeros— y a la puerta, que los cobra.
+ */
+export function pasajerosDelVuelo(rooms: readonly PaxRoom[]): PasajerosDelVuelo {
+  let adultos = 0;
+  let ninos = 0;
+  let infantes = 0;
+  for (const room of rooms) {
+    adultos += room.adults;
+    for (const edad of room.childAges) {
+      if (edad >= 12) {
+        adultos += 1;
+      } else if (edad >= 2) {
+        ninos += 1;
+      } else {
+        infantes += 1;
+      }
+    }
+  }
+  return { adultos, ninos, infantes };
+}
+
 function instanteUtc(fecha: string): string {
   const texto = fecha.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {

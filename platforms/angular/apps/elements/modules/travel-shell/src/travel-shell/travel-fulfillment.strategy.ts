@@ -336,7 +336,11 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
   }
 }
 
-/** Cada línea del carrito como ítem del viaje: el producto de la oferta, su nombre y su periodo. */
+/**
+ * Cada línea del carrito como ítem del viaje: el producto de la oferta, su nombre, su periodo y cómo se cobra, como lo
+ * cobra el catálogo: el hotel por noche (006-H2), el auto por día y el vuelo por trayecto, con sus tramos y sus
+ * pasajeros (lote 13, 006-P9). La marca no pone el precio: lo cotiza el servidor.
+ */
 export function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
   return session.items.map((item) => {
     const selection = item.selection as Record<string, unknown>;
@@ -345,8 +349,15 @@ export function itemsDelViaje(session: SessionData): readonly ItemDelViaje[] {
       etiqueta: item.label,
       start: readString(selection['start']),
       end: readString(selection['end']),
-      // Sólo el hotel va por noche; el vuelo y el auto, por producto (006-H2).
       porNoche: item.kind === 'hotel',
+      porDia: item.kind === 'car',
+      ...(item.kind === 'flight'
+        ? {
+            tramos: readNumber(selection['tramos']) === 2 ? 2 : 1,
+            adultos: Math.max(1, readNumber(selection['adultos'])),
+            ninos: Math.max(0, readNumber(selection['ninos'])),
+          }
+        : {}),
     };
   });
 }

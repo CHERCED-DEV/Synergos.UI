@@ -8,7 +8,7 @@ import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy, itemsDelViaje } from './travel-fulfillment.strategy';
 import { entradaDelViaje } from './travel-viaje';
 import { TravelShellElementComponent, mensajeDelViaje } from './travel-shell';
-import { periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
+import { pasajerosDelVuelo, periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
 
 /** Una línea del checkout con la forma de `CartItemDto` del CMS (defecto 1 de la línea 006). */
 function lineaDeEjemplo(product: TravelProduct, offerId: string): TravelCheckoutLine {
@@ -1629,6 +1629,23 @@ describe('El viaje por la puerta (línea 006)', () => {
     expect(asistente().pricing().totalAmount).toBe(34_000_000);
   });
 
+  it('el vuelo se busca y se cotiza con sus pasajeros y sus tramos: lo que anuncia la oferta es lo que cobra la puerta (lote 13)', async () => {
+    const puerta = puertaDelViaje();
+    await montar(puerta);
+    component.flightRooms.set([{ adults: 2, childAges: [14, 6, 1] }]);
+    await unVueloEnElCarrito();
+    component.goToCart();
+    fixture.detectChanges();
+    await asentar(20);
+
+    const busqueda = puerta.rutas.find((r) => r.includes('/search/flight'))!;
+    const consulta = new URL(busqueda.slice(busqueda.indexOf(' ') + 1), 'http://x').searchParams;
+    expect([consulta.get('adults'), consulta.get('children'), consulta.get('infants')]).toEqual(['3', '1', '1']);
+    const [vuelo] = puerta.pedidos.filter((p) => p.operacion === 'cotizar').at(-1)!.cuerpo!.items! as unknown as Record<string, unknown>[];
+    // Ida (01-08) y vuelta (05-08): dos tramos, para los tres adultos (el de 14 años lo es) y el niño; el infante no paga.
+    expect(vuelo).toEqual(expect.objectContaining({ tramos: 2, adultos: 3, ninos: 1 }));
+  });
+
   it('un ítem que el servidor no cotizó, o que no casa con su línea, se queda como estaba', async () => {
     const puerta = puertaDelViaje({
       itinerario: [{ producto: 'OTRO', etiqueta: 'Otro', inicio: '2026-08-01T00:00:00Z', fin: '2026-08-05T00:00:00Z', precio: { amount: 1, currency: 'COP' } }],
@@ -1764,16 +1781,44 @@ describe('El viaje por la puerta (línea 006)', () => {
   });
 });
 
-describe('el alojamiento va por noche (006-H2)', () => {
-  const linea = (kind: string, productRef: string) => ({
+describe('cada ítem va a la puerta como lo cobra el catálogo (006-H2 y lote 13, 006-P9)', () => {
+  const linea = (kind: string, productRef: string, extra: Record<string, unknown> = {}) => ({
     id: `${kind}:${productRef}`, kind, productRef, label: productRef, amount: 0, quantity: 1,
-    selection: { start: '2026-11-23T00:00:00.000Z', end: '2026-11-26T00:00:00.000Z' },
+    selection: { start: '2026-11-23T00:00:00.000Z', end: '2026-11-26T00:00:00.000Z', ...extra },
   });
 
-  it('sólo el hotel lleva la marca: el vuelo y el auto van por producto', () => {
-    const sesion = { items: [linea('hotel', 'STD/STD-FLEX'), linea('flight', 'SYN2200-ECOBAS'), linea('car', 'ECON')] } as never;
-    const items = entradaDelViaje(itemsDelViaje(sesion)).items;
+  it('el hotel por noche, el auto por día y el vuelo por trayecto con sus tramos y pasajeros', () => {
+    const sesion = {
+      items: [
+        linea('hotel', 'STD/STD-FLEX'),
+        linea('flight', 'SYN2200-ECOBAS', { tramos: 2, adultos: 2, ninos: 1 }),
+        linea('car', 'ECON'),
+      ],
+    } as never;
+    const [hotel, vuelo, auto] = entradaDelViaje(itemsDelViaje(sesion)).items;
 
-    expect(items.map((i) => i.porNoche ?? null)).toEqual([true, null, null]);
+    expect(hotel).toMatchObject({ porNoche: true });
+    expect(vuelo).toMatchObject({ tramos: 2, adultos: 2, ninos: 1 });
+    expect(auto).toMatchObject({ porDia: true });
+    // Una sola marca por ítem: la puerta rechaza dos.
+    expect([hotel, vuelo, auto].map((i) => [i.porNoche ?? null, i.porDia ?? null, i.tramos ?? null])).toEqual([
+      [true, null, null],
+      [null, null, 2],
+      [null, true, null],
+    ]);
+  });
+
+  it('un vuelo sin niños no los manda, y uno de una línea vieja va de ida para un adulto', () => {
+    const sesion = { items: [linea('flight', 'SYN2200-ECOBAS', { tramos: 1, adultos: 3, ninos: 0 }), linea('flight', 'SYN2240-ECOBAS')] } as never;
+    const [tres, viejo] = entradaDelViaje(itemsDelViaje(sesion)).items;
+
+    expect(tres).toEqual(expect.objectContaining({ tramos: 1, adultos: 3 }));
+    expect(tres).not.toHaveProperty('ninos');
+    expect(viejo).toEqual(expect.objectContaining({ tramos: 1, adultos: 1 }));
+  });
+
+  it('los pasajeros con la regla del catálogo: adulto desde 12 años, niño de 2 a 11, infante menor de 2', () => {
+    expect(pasajerosDelVuelo([{ adults: 2, childAges: [14, 11, 2, 1, 0] }, { adults: 1, childAges: [] }]))
+      .toEqual({ adultos: 4, ninos: 2, infantes: 2 });
   });
 });

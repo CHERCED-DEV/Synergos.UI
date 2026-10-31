@@ -70,6 +70,15 @@ export interface ItemDelViaje {
    * no pone el precio: si no casa con la tarifa del producto, el servidor no lo cotiza.
    */
   readonly porNoche?: boolean;
+  /** Un auto: su tarifa POR DÍA por los días de su periodo (lote 13, 006-P9). */
+  readonly porDia?: boolean;
+  /**
+   * Un vuelo: su tarifa POR TRAYECTO por los tramos (1 la ida, 2 ida y vuelta) y los adultos, y la del niño por los tramos y
+   * los niños (lote 13, 006-P9). Los infantes no pagan.
+   */
+  readonly tramos?: number;
+  readonly adultos?: number;
+  readonly ninos?: number;
 }
 
 export function leerViaje(r: BffViajes.ViajesReservaRespuesta): ViajeLeido {
@@ -96,6 +105,8 @@ export function entradaDelViaje(items: readonly ItemDelViaje[]): BffViajes.Viaje
       etiqueta: item.etiqueta || null,
       ventana: { start: item.start, end: item.end },
       ...(item.porNoche ? { porNoche: true } : {}),
+      ...(item.porDia ? { porDia: true } : {}),
+      ...(item.tramos ? { tramos: item.tramos, adultos: item.adultos ?? 1, ...(item.ninos ? { ninos: item.ninos } : {}) } : {}),
     })),
   };
 }
