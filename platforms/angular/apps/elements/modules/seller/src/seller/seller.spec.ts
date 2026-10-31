@@ -1,14 +1,71 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { type Provider, provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ConsoleShellComponent } from '@synergos/shells';
-import { SellerApiClient } from './seller-api.client';
+import { MUESTRAS_DE_LA_CONSOLA, SellerApiClient } from './seller-api.client';
 import { SellerElementComponent } from './seller';
 import { asentar } from '../../../../../../tools/asentar';
 import { SELLER_SYNHOST } from '@synergos/contracts';
 
 /** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
 const NEGOCIO_DEL_CMS = { apiBase: SELLER_SYNHOST.ejemplo.apiBase };
+
+/** La demo que DECLARA los ejemplos de la consola (T006): sin esta marca, la consola no los pinta. */
+const CON_MUESTRAS_DE_LA_CONSOLA: Provider[] = [{ provide: MUESTRAS_DE_LA_CONSOLA, useValue: true }];
+
+/**
+ * Un pedido como lo emite la bandeja del CMS (`VendedorDeLaTiendaController.PedidoDto`, T011). La consola ya no lee
+ * `GET orders`, que es «Mis compras» del comprador (T012).
+ */
+const PEDIDO_DEL_CMS = {
+  orderRef: 'saga-7f3a',
+  orderNumber: 'T-2026-0042',
+  fecha: '2026-10-20T15:00:00+00:00',
+  comprador: 'Lucía Gómez',
+  camino: 'puerta',
+  etapa: 'paid',
+  total: 259000,
+  totalFormatted: '$ 259.000',
+  moneda: 'COP',
+  lineas: [{ title: 'Teclado mecánico compacto 65%', qty: 1, amount: 259000, amountFormatted: '$ 259.000' }],
+  actos: ['preparar'],
+  motivoSinActos: null,
+};
+
+/** La bandeja como la emite el CMS (`BandejaDto`): una página, las cuentas de la tienda entera y lo no conciliado. */
+function bandejaDelCms(pedidos: readonly object[] = [PEDIDO_DEL_CMS], cambios: object = {}): object {
+  return {
+    pedidos,
+    pagina: 1,
+    porPagina: 50,
+    total: pedidos.length,
+    cuentas: { paid: pedidos.length, preparing: 0, shipped: 0, delivered: 0 },
+    sinConciliar: 0,
+    ...cambios,
+  };
+}
+
+/** Un hilo como lo emite hoy `ThreadSummaryDto` del CMS en `GET messages`: `threadId` y no `id`, sin asunto (T030). */
+const HILO_DEL_CMS = {
+  threadId: 'th_31',
+  contextRef: 'P-9',
+  participants: ['comprador@correo.co', 'vendedor@tienda.co'],
+  lastMessagePreview: '¿Tiene garantía?',
+  lastMessageAt: '2026-09-30T10:00:00+00:00',
+  messageCount: 1,
+};
+
+/** Un borde que contesta `status` a todo: la sesión vencida (401), el que no es del personal (403), el caído (500). */
+function installStatus(status: number): void {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: 'no' }), { status, headers: { 'content-type': 'application/json' } }),
+      ),
+    ),
+  );
+}
 
 /** Minimal in-memory localStorage stand-in so the wizard's draft store can persist. */
 function installMemoryStorage(): void {
@@ -76,15 +133,15 @@ function installFakeServer(respuestas: Record<string, unknown>): ReturnType<type
   return fetchMock;
 }
 
-// Smoke suite (directiva: mínimos, no exhaustivo) — render + secciones + degradación.
+// Smoke suite (directiva: mínimos, no exhaustivo) — render + secciones + lo que dice cada lectura.
 describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   let fixture: ComponentFixture<SellerElementComponent>;
   let component: SellerElementComponent;
 
-  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [SellerElementComponent],
-      providers: [provideZonelessChangeDetection(), SellerApiClient],
+      providers: [provideZonelessChangeDetection(), SellerApiClient, ...extra],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SellerElementComponent);
@@ -152,30 +209,36 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     });
   });
 
-  // ── render: panel + KPIs + secciones + degradación visible ──────────────────
-  it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
+  // ── render: panel + KPIs + secciones; los ejemplos, sólo con la marca ───────
+  it('sin la base de la API no llama a nada y lo dice: caída, sin ejemplos (ADR 0137, CMS#196)', async () => {
     const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
     vi.stubGlobal('fetch', red);
     await createComponent({});
 
     expect(red).not.toHaveBeenCalled();
-    expect(component.orders().length).toBeGreaterThan(0);
-    expect(component.degraded()).toBe(true);
+    // Afirmaba `orders().length > 0` y `degraded()`: los pedidos de ejemplo como el camino normal (T006).
+    expect(component.pedidos()).toEqual([]);
+    expect(component.lecturas().ventas).toBe('caida');
+    expect(component.muestras()).toBe(false);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('syn-console-shell syn-error-state')?.textContent).toContain(
+      'No pudimos cargar esta sección.',
+    );
   });
 
-  it('renders the panel with KPIs, the four sections and a visible degradation flag', async () => {
+  it('con la marca de la demo, el panel enseña sus ejemplos —indicadores, cuatro secciones, la cola con su acción— y lo dice', async () => {
     installMemoryStorage();
-    // Offline → every endpoint degrades to mock data.
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
-    expect(component).toBeTruthy();
     expect(component.view()).toBe('panel');
-    expect(component.degraded()).toBe(true);
+    expect(component.muestras()).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')?.textContent?.trim()).toBe(
+      'Estás viendo datos de ejemplo, no los de la tienda.',
+    );
 
-    // KPIs from the (degraded) summary, pre-formatted for SH-5.
-    expect(component.consoleKpis().length).toBeGreaterThan(0);
-    expect(component.consoleKpis().map((kpi) => kpi.id)).toContain('ventas');
+    // En Ventas, la banda de indicadores son las cuentas de la bandeja (T012).
+    expect(component.consoleKpis().map((kpi) => kpi.id)).toEqual(['paid', 'preparing', 'shipped', 'delivered']);
 
     // The console shell mounts with the four secciones.
     const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
@@ -187,99 +250,55 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       'reputacion',
     ]);
 
-    // Ventas queue populated from the API (mock degradado) with row actions.
-    expect(component.orders().length).toBeGreaterThan(0);
-    expect(component.consoleRows().length).toBeGreaterThan(0);
-    const paidRow = component.consoleRows().find((row) => row.order?.status === 'paid');
+    // Ventas queue from the samples, with row actions.
+    // Los pedidos de ejemplo no traen actos: sólo su detalle.
+    const paidRow = component.consoleRows().find((row) => row.pedido?.etapa === 'paid');
     expect(paidRow).toBeDefined();
-    expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['advance']);
+    expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['detalle']);
   });
 
-  // ── secciones: cola de devoluciones + aprobar RMA (degradado) ────────────────
-  it('switches to devoluciones and resolves an RMA through the advance action', async () => {
+  it('sin la marca, con el CMS de hoy, nada se inventa: la cola es la del servidor, sin indicadores ni cartel', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
-    component.onSectionChange('devoluciones');
-    await flushMicrotasks();
-
-    expect(component.activeSection()).toBe('devoluciones');
-    expect(component.returns().length).toBeGreaterThan(0);
-
-    const open = component.consoleRows().find((row) => row.rma?.status === 'abierto');
-    expect(open).toBeDefined();
-    expect(component.rowActionsFor(open!).map((action) => action.id)).toEqual([
-      'approve',
-      'reject',
-    ]);
-
-    component.onRowAction({ actionId: 'approve', row: open!, sectionId: 'devoluciones' });
-    await flushMicrotasks();
-
-    // Con la red caída el RMA NO se mueve (#77). Este test afirmaba `'aprobado'`, que es lo
-    // que el `catch` fabricaba haciendo eco de la intención de quien pulsó: el vendedor veía
-    // la devolución resuelta y el servidor no se había enterado.
-    const resolved = component.returns().find((rma) => rma.rmaId === open!.rma!.rmaId);
-    expect(resolved?.status).toBe('abierto');
-    expect(component.actionError()).toContain(open!.rma!.rmaId);
-    // Y sigue accionable, que es la mitad que importa: una fila que se queda sin botones
-    // después de un fallo deja al vendedor sin forma de reintentar.
-    const sameRow = component.consoleRows().find((row) => row.rma?.rmaId === open!.rma!.rmaId);
-    expect(component.rowActionsFor(sameRow!).map((a) => a.id)).toEqual(['approve', 'reject']);
+    expect(component.muestras()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')).toBeNull();
+    // `GET seller/summary` no existe en el CMS de hoy (404): sin indicadores, en vez de los de ejemplo.
+    expect(component.lecturas().resumen).toBe('caida');
+    // En Ventas, los indicadores son las cuentas de la bandeja: las del servidor, no las de ejemplo.
+    expect(component.consoleKpis().map((kpi) => kpi.value)).toEqual(['1', '0', '0', '0']);
+    expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
   });
 
-  // ── devoluciones: con el borde VIVO, el estado sale del servidor ─────────────
-  it('takes the resolved RMA status from the server, not from the action pressed', async () => {
-    installMemoryStorage();
-    // Se pulsa `approve` y el servidor contesta `en-revision`, que el eco **no puede
-    // producir** —fabricaba `aprobado` para approve y `rechazado` para reject— y que sí está
-    // en el vocabulario (`SellerReturnStatus`). Es la regla 7: el fixture tiene que EXIGIR la
-    // regla. Con `aprobado` no se distinguiría leer la respuesta de repetir la intención, y
-    // con un valor de fuera del tipo —probé `devuelto`— lo que se mide es el normalizador.
-    installFakeServer({
-      'POST /api/shop/return/RMA-1/advance': { status: 'en-revision' },
-      '/api/shop/returns': {
-        returns: [
-          { rmaId: 'RMA-1', orderRef: 'ORD-9', product: 'Teclado', reason: 'Falla', openedAt: '2026-01-05', status: 'abierto' },
-        ],
-      },
-    });
-    await createComponent();
-    component.onSectionChange('devoluciones');
-    await flushMicrotasks();
-
-    const open = component.consoleRows().find((row) => row.rma?.rmaId === 'RMA-1');
-    expect(open).toBeDefined();
-
-    component.onRowAction({ actionId: 'approve', row: open!, sectionId: 'devoluciones' });
-    await flushMicrotasks();
-
-    expect(component.returns().find((r) => r.rmaId === 'RMA-1')?.status).toBe('en-revision');
-    expect(component.actionError()).toBeNull();
-  });
+  // Las devoluciones (la cola, sus acciones y el POST que no sale) están en «la cola de devoluciones (T025)», abajo.
 
   // ── ventas: el envío NO avanza solo cuando el endpoint no está ───────────────
   it('leaves the order untouched and says so when the advance endpoint is missing', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    // El pedido lo contesta el servidor; el acto, no (404 en esta tabla).
+    installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
-    const paid = component.orders().find((order) => order.status === 'paid');
+    const paid = component.pedidos().find((pedido) => pedido.etapa === 'paid');
     expect(paid).toBeDefined();
 
-    const row = component.consoleRows().find((entry) => entry.order?.orderNumber === paid!.orderNumber);
-    component.onRowAction({ actionId: 'advance', row: row!, sectionId: 'ventas' });
+    const row = component.consoleRows().find((entry) => entry.pedido?.orderRef === paid!.orderRef);
+    // El servidor dice qué actos tiene (T021): preparar, y nada más.
+    expect(component.rowActionsFor(row!).map((a) => a.id)).toEqual(['acto:preparar', 'detalle']);
+    component.onRowAction({ actionId: 'acto:preparar', row: row!, sectionId: 'ventas' });
     await flushMicrotasks();
 
     // Este test se llamaba «advances a shipment one status forward when the endpoint is
     // missing» y afirmaba `'preparing'` — el título decía el defecto. `POST
     // order/{ref}/tracking/advance` NO EXISTE en el CMS, así que eso pasaba el 100 % de las
     // veces y el pedido se pintaba en camino sin haber salido.
-    const advanced = component.orders().find((order) => order.orderNumber === paid!.orderNumber);
-    expect(advanced?.status).toBe('paid');
+    const advanced = component.pedidos().find((pedido) => pedido.orderRef === paid!.orderRef);
+    expect(advanced?.etapa).toBe('paid');
+    expect(component.actionError()).toContain('Por preparar');
     expect(component.actionError()).toContain(paid!.orderNumber);
-    expect(component.degraded()).toBe(true);
+    // Una escritura caída no es «datos de ejemplo»: ese cartel es de las lecturas, y sólo con la marca.
+    expect(component.muestras()).toBe(false);
   });
 
   // ── publicar (SH-6): sin borde no hay recibo, y el borrador SOBREVIVE ────────
@@ -320,7 +339,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(component.draft()['title']).toBe(draft.title);   // …y el borrador NO se borró
     expect(component.actionError()).toContain('borrador');
     expect(component.publishing()).toBe(false);
-    expect(component.degraded()).toBe(true);
+    expect(component.muestras()).toBe(false);
   });
 
   // ── publicar: con el borde VIVO, la referencia es la del servidor ────────────
@@ -374,7 +393,11 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     lastMessageAt: '2026-09-30T15:00:00+00:00',
   };
 
-  /** Abre «Mensajes» (una LECTURA: degrada al hilo de ejemplo) y el primer hilo sin leer. */
+  /**
+   * Abre «Mensajes» y el primer hilo sin leer. Los hilos salen de la demo (la marca): la bandeja de hoy no se
+   * lee —`GET messages` contesta `threadId` y no `id`, y eso lo arregla T031—. Lo que se prueba acá es la
+   * RESPUESTA, que va al servidor.
+   */
   async function abrirHiloSinLeer(): Promise<number> {
     component.goTo('mensajes');
     await flushMicrotasks();
@@ -394,7 +417,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   it('loads buyer threads and appends the seller reply to the active thread', async () => {
     installMemoryStorage();
     installFakeServer({ 'POST /reply': HILO_RESPONDIDO });
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
     await component.onSendReply({
@@ -419,7 +442,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   it('con el POST /reply caído la respuesta queda marcada en el hilo, se dice una vez y se reintenta', async () => {
     installMemoryStorage();
     installFakeServer({}); // nada contesta: el POST /reply sale 404
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
     await component.onSendReply({
@@ -487,5 +510,655 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(announcement).not.toBeNull();
     expect(announcement!.getAttribute('role')).toBe('status');
     expect(announcement!.textContent).toContain('Cargando reputación');
+  });
+
+  // ══ Cada lectura dice lo que pasó (013-seller-operaciones, T006) ══════════════════════════════════════════════
+  //
+  // Sin sesión y sin permiso son de quien abre la consola: se dicen una vez, en lugar de las vistas. La caída es de una
+  // lectura: la dice su superficie, con «Reintentar». Vacía es una respuesta. Y ninguna se tapa con ejemplos, aunque la
+  // página tenga la marca de la demo.
+  describe('lo que dice cada lectura (T006)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const tituloDelAcceso = (): string | undefined =>
+      host().querySelector('syn-empty-state.seller__acceso .syn-empty__title')?.textContent?.trim();
+
+    it('sin sesión (401) la consola entera lo dice una vez, con el login de vuelta a esta página; la marca no lo tapa', async () => {
+      const antes = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.history.replaceState(null, '', '/tienda/vendedor/?vista=panel#ventas');
+      try {
+        installStatus(401);
+        await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
+
+        expect(tituloDelAcceso()).toBe('Inicia sesión para atender la tienda.');
+        const enlace = host().querySelector<HTMLAnchorElement>('syn-empty-state.seller__acceso a.syn-empty__action');
+        expect(enlace?.textContent?.trim()).toBe('Iniciar sesión');
+        const href = enlace?.getAttribute('href') ?? '';
+        expect(href.startsWith('/account/login?returnUrl=')).toBe(true);
+        expect(decodeURIComponent(href.slice('/account/login?returnUrl='.length))).toBe('/tienda/vendedor/?vista=panel#ventas');
+
+        expect(host().querySelector('syn-console-shell')).toBeNull();
+        expect(host().querySelector('.seller__notice--warn')).toBeNull();
+        expect(component.pedidos()).toEqual([]);
+      } finally {
+        window.history.replaceState(null, '', antes);
+      }
+    });
+
+    it('sin permiso (403) lo dice sin salida: la consola es del personal', async () => {
+      installStatus(403);
+      await createComponent();
+
+      expect(tituloDelAcceso()).toBe('Esta consola es del personal de la tienda.');
+      expect(host().querySelector('syn-empty-state.seller__acceso .syn-empty__action')).toBeNull();
+      expect(host().querySelector('syn-console-shell')).toBeNull();
+
+      // Tampoco por las otras vistas: el acceso es de la consola entera.
+      component.goTo('mensajes');
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(host().querySelector('syn-message-center')).toBeNull();
+      expect(tituloDelAcceso()).toBe('Esta consola es del personal de la tienda.');
+    });
+
+    it('una cola caída lo dice con «Reintentar» —no «Nada por aquí»—, y reintentar la vuelve a pedir', async () => {
+      installStatus(500);
+      await createComponent();
+
+      const caida = host().querySelector('syn-console-shell syn-error-state');
+      expect(caida?.textContent).toContain('No pudimos cargar esta sección.');
+      expect(host().querySelector('syn-console-shell syn-empty-state')).toBeNull();
+
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
+      caida!.querySelector<HTMLButtonElement>('button')!.click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.lecturas().ventas).toBe('leidas');
+      expect(host().querySelector('syn-console-shell syn-error-state')).toBeNull();
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
+    });
+
+    it('Reputación sin resumen dice que no se pudo —no un esqueleto para siempre— y su «Reintentar» vuelve a pedirlo', async () => {
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
+      await createComponent();
+      const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
+      (shell.componentInstance as { selectSection(id: string): void }).selectSection('reputacion');
+      fixture.detectChanges();
+
+      // La que está a la vista es Reputación, sin tabla: si el shell volviera a Ventas, la caída del resumen se leería
+      // como la de la cola de pedidos.
+      expect(host().querySelector('.syn-console__nav-btn.is-active')?.textContent).toContain('Reputación');
+      expect(host().querySelector('syn-console-shell table')).toBeNull();
+      expect(host().querySelector('.seller__rep-card--skeleton')).toBeNull();
+      const caida = host().querySelector('syn-error-state');
+      expect(caida?.textContent).toContain('No pudimos cargar esta sección.');
+      const reintentar = caida!.querySelector<HTMLButtonElement>('button')!;
+      expect(reintentar.textContent?.trim()).toBe('Reintentar');
+
+      const red = installFakeServer({});
+      reintentar.click();
+      await flushMicrotasks();
+      expect(red.mock.calls.map(([url]) => String(url))).toContain('/api/shop/seller/summary');
+    });
+
+    it('Mensajes que no se pueden leer lo dicen —no «No tienes mensajes»—, también con la forma de hoy de GET messages', async () => {
+      installFakeServer({ 'GET /api/shop/messages': { threads: [HILO_DEL_CMS] } });
+      await createComponent();
+      component.goTo('mensajes');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.lecturas().mensajes).toBe('caida');
+      expect(host().querySelector('syn-message-center')).toBeNull();
+      expect(host().querySelector('syn-error-state')?.textContent).toContain('No pudimos cargar esta sección.');
+    });
+
+    it('la cola que el servidor contesta sin pedidos dice que no hay, sin ejemplos aunque la página tenga la marca', async () => {
+      installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms([]) });
+      await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
+
+      expect(component.lecturas().ventas).toBe('vacia');
+      expect(component.pedidos()).toEqual([]);
+      expect(host().querySelector('syn-console-shell syn-empty-state')?.textContent).toContain(
+        'No hay pedidos pagados en esta etapa.',
+      );
+    });
+  });
+
+  // ══ La bandeja del personal (013-seller-operaciones, T012) ═════════════════════════════════════════════════════
+  //
+  // Ventas lee la bandeja de la tienda entera (`GET seller/orders`), filtrada y paginada en el SERVIDOR, con las
+  // cuentas de la tienda en la banda de indicadores; el detalle de un pedido dice a dónde va y con quién; las fechas van
+  // en la hora del sitio. Los dobles tienen la forma de `VendedorDeLaTiendaController` (T011).
+  describe('la bandeja (T012)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const json = (status: number, cuerpo: unknown): Response =>
+      new Response(JSON.stringify(cuerpo), { status, headers: { 'content-type': 'application/json' } });
+    const pedido = (orderRef: string, etapa: string, cambios: object = {}): object => ({
+      ...PEDIDO_DEL_CMS,
+      orderRef,
+      orderNumber: `N-${orderRef}`,
+      etapa,
+      ...cambios,
+    });
+    const CUENTAS = { paid: 5, preparing: 2, shipped: 1, delivered: 9 };
+
+    /** Un borde que contesta la bandeja según la etapa y la página que se le piden, y el detalle de cada pedido. */
+    function servidor(
+      bandeja: (etapa: string | null, pagina: number) => object,
+      detalles: Record<string, object> = {},
+    ): string[] {
+      const pedidas: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = new URL(String(input), 'http://cms.local');
+          if (url.pathname === '/api/shop/seller/orders') {
+            pedidas.push(url.search);
+            return Promise.resolve(json(200, bandeja(url.searchParams.get('etapa'), Number(url.searchParams.get('pagina')))));
+          }
+          const ref = /^\/api\/shop\/seller\/orders\/(.+)$/.exec(url.pathname)?.[1];
+          const detalle = ref ? detalles[decodeURIComponent(ref)] : undefined;
+          return Promise.resolve(detalle ? json(200, detalle) : json(404, { error: 'not found' }));
+        }),
+      );
+      return pedidas;
+    }
+
+    const chips = (): HTMLButtonElement[] => Array.from(host().querySelectorAll<HTMLButtonElement>('.syn-console__filter'));
+    const indicadores = (): string[] =>
+      Array.from(host().querySelectorAll('.syn-console__kpi-value')).map((k) => k.textContent?.trim() ?? '');
+
+    async function asentarYPintar(): Promise<void> {
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    it('el filtro pide su etapa al servidor; las cuentas son las de la tienda entera y el chip no vuelve a «Todos»', async () => {
+      const pedidas = servidor((etapa) =>
+        etapa === 'shipped'
+          ? bandejaDelCms([pedido('pta-enviado', 'shipped')], { cuentas: CUENTAS })
+          : bandejaDelCms([pedido('pta-pagado', 'paid')], { cuentas: CUENTAS }),
+      );
+      await createComponent();
+
+      expect(pedidas).toEqual(['?pagina=1']);
+      // Las cuentas del servidor (5/2/1/9), no las de la página (un pagado): la página trae uno solo.
+      expect(indicadores()).toEqual(['5', '2', '1', '9']);
+
+      chips().find((c) => c.textContent?.trim() === 'En camino')!.click();
+      await asentarYPintar();
+
+      expect(pedidas).toEqual(['?pagina=1', '?etapa=shipped&pagina=1']);
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
+      expect(indicadores()).toEqual(['5', '2', '1', '9']);
+      expect(chips().find((c) => c.getAttribute('aria-pressed') === 'true')?.textContent?.trim()).toBe('En camino');
+    });
+
+    it('la página siguiente se pide al servidor', async () => {
+      const pedidas = servidor((_, pagina) =>
+        bandejaDelCms([pedido(`pta-${pagina}`, 'paid')], { total: 51, cuentas: { ...CUENTAS, paid: 51 } }),
+      );
+      await createComponent();
+
+      const siguiente = Array.from(host().querySelectorAll<HTMLButtonElement>('.syn-console__page-btn')).at(-1)!;
+      expect(host().querySelector('.syn-console__page-status')?.textContent).toContain('Página 1 de 2');
+      siguiente.click();
+      await asentarYPintar();
+
+      expect(pedidas).toEqual(['?pagina=1', '?pagina=2']);
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-2']);
+    });
+
+    it('el detalle dice a dónde va y con quién; sin dirección, lo dice; y se cierra', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid'), pedido('dir-1', 'paid', { camino: 'directa' })]), {
+        'pta-1': {
+          ...pedido('pta-1', 'paid'),
+          envio: {
+            destino: { line1: 'Calle 1 # 2-3', line2: null, city: 'Bogotá', region: null, postalCode: null, country: 'CO', contact: 'Lucía' },
+            transportadora: 'servientrega',
+            estado: 'Ready',
+            eventos: [],
+          },
+          motivoSinEnvio: null,
+        },
+        'dir-1': { ...pedido('dir-1', 'paid', { camino: 'directa' }), envio: { destino: null, transportadora: null, estado: null, eventos: [] }, motivoSinEnvio: 'sin_direccion' },
+      });
+      await createComponent();
+      const verDetalle = (fila: number): void =>
+        Array.from(host().querySelectorAll('.syn-console__tr')[fila].querySelectorAll<HTMLButtonElement>('.syn-console__action'))
+          .find((b) => b.textContent?.trim() === 'Ver detalle')!
+          .click();
+
+      verDetalle(0);
+      await asentarYPintar();
+      const detalle = host().querySelector('.seller__detalle')!;
+      expect(detalle.querySelector('.seller__detalle-title')?.textContent?.trim()).toBe('Pedido N-pta-1');
+      expect(detalle.textContent).toContain('Calle 1 # 2-3, Bogotá, CO (Lucía)');
+      expect(detalle.textContent).toContain('servientrega');
+
+      verDetalle(1);
+      await asentarYPintar();
+      expect(host().querySelector('.seller__detalle')?.textContent).toContain('Este pedido no tiene una dirección registrada.');
+
+      Array.from(host().querySelectorAll<HTMLButtonElement>('.seller__detalle button')).find((b) => b.textContent?.trim() === 'Cerrar')!.click();
+      fixture.detectChanges();
+      expect(host().querySelector('.seller__detalle')).toBeNull();
+    });
+
+    it('las fechas van en la hora del sitio: Madrid a propósito, porque esta máquina está en Bogotá', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
+      await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'Europe/Madrid' });
+      // En Madrid ya es el 21 a la 01:30 (CEST); en Bogotá serían las 18:30 del 20.
+      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^21 .*2026, 01:30$/);
+
+      TestBed.resetTestingModule();
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
+      await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'America/Bogota' });
+      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^20 .*2026, 18:30$/);
+    });
+
+    it('las compras que el servidor no alcanzó a confirmar se dicen', async () => {
+      servidor(() => bandejaDelCms([pedido('pta-1', 'paid')], { sinConciliar: 3 }));
+      await createComponent();
+
+      expect(host().querySelector('.seller__notice--warn')?.textContent?.trim()).toBe(
+        '3 compras recientes todavía no se confirman aquí: vuelve a cargar en un momento.',
+      );
+    });
+
+    it('una bandeja que llega tarde no se pinta: con dos filtros seguidos gana el último', async () => {
+      const pendientes = new Map<string, (r: Response) => void>();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = new URL(String(input), 'http://cms.local');
+          const etapa = url.searchParams.get('etapa') ?? 'todas';
+          if (etapa === 'todas') return Promise.resolve(json(200, bandejaDelCms([pedido('pta-pagado', 'paid')])));
+          return new Promise<Response>((resolver) => pendientes.set(etapa, resolver));
+        }),
+      );
+      await createComponent();
+
+      component.onFilterChange('preparing');
+      component.onFilterChange('shipped');
+      pendientes.get('shipped')!(json(200, bandejaDelCms([pedido('pta-enviado', 'shipped')])));
+      await asentarYPintar();
+      pendientes.get('preparing')!(json(200, bandejaDelCms([pedido('pta-preparando', 'preparing')])));
+      await asentarYPintar();
+
+      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
+    });
+  });
+
+  describe('los actos (T021)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const json = (status: number, cuerpo: unknown): Response =>
+      new Response(JSON.stringify(cuerpo), { status, headers: { 'content-type': 'application/json' } });
+    /** A qué lleva cada acto, como `VendedorDeLaTiendaController.Avanzar` (T019). */
+    const SIGUIENTE: Record<string, { etapa: string; actos: string[]; motivoSinActos: string | null }> = {
+      preparar: { etapa: 'preparing', actos: ['enviar'], motivoSinActos: null },
+      enviar: { etapa: 'shipped', actos: ['entregar'], motivoSinActos: null },
+      entregar: { etapa: 'delivered', actos: [], motivoSinActos: 'entregado' },
+    };
+    const ACTOS_DE: Record<string, string[]> = { paid: ['preparar'], preparing: ['enviar'], shipped: ['entregar'], delivered: [] };
+
+    interface Servidor {
+      readonly actos: { orderRef: string; cuerpo: unknown }[];
+      lecturas: number;
+      /** Lo que contesta el próximo acto; sin él, el servidor lo hace y contesta el pedido movido. */
+      responde: ((orderRef: string) => Response | Promise<Response>) | null;
+      mover(orderRef: string, acto: string): object;
+    }
+
+    /** El borde con la forma del CMS: la bandeja de lo que hay, el acto que la mueve y el detalle de cada pedido. */
+    function servidor(inicial: Record<string, { etapa: string; actos?: string[]; motivoSinActos?: string | null }>): Servidor {
+      const estado = new Map<string, Record<string, unknown>>(
+        Object.entries(inicial).map(([ref, p]) => [
+          ref,
+          { ...PEDIDO_DEL_CMS, orderRef: ref, orderNumber: `N-${ref}`, etapa: p.etapa, actos: p.actos ?? ACTOS_DE[p.etapa], motivoSinActos: p.motivoSinActos ?? null },
+        ]),
+      );
+      const s: Servidor = {
+        actos: [],
+        lecturas: 0,
+        responde: null,
+        mover: (orderRef, acto) => {
+          const movido = { ...estado.get(orderRef)!, ...SIGUIENTE[acto] };
+          estado.set(orderRef, movido);
+          return movido;
+        },
+      };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = new URL(String(input), 'http://cms.local');
+          if (url.pathname === '/api/shop/seller/orders') {
+            s.lecturas++;
+            return json(200, bandejaDelCms([...estado.values()]));
+          }
+          const acto = /^\/api\/shop\/seller\/orders\/([^/]+)\/advance$/.exec(url.pathname)?.[1];
+          if (acto && init?.method === 'POST') {
+            const orderRef = decodeURIComponent(acto);
+            const cuerpo = JSON.parse(String(init.body)) as { acto: string };
+            s.actos.push({ orderRef, cuerpo });
+            return s.responde ? s.responde(orderRef) : json(200, s.mover(orderRef, cuerpo.acto));
+          }
+          const detalle = /^\/api\/shop\/seller\/orders\/([^/]+)$/.exec(url.pathname)?.[1];
+          const pedido = detalle ? estado.get(decodeURIComponent(detalle)) : undefined;
+          return pedido ? json(200, { ...pedido, envio: null, motivoSinEnvio: 'sin_envio' }) : json(404, { error: 'not found' });
+        }),
+      );
+      return s;
+    }
+
+    const fila = (orderRef: string) => component.consoleRows().find((row) => row.id === orderRef)!;
+    const acciones = (orderRef: string): string[] => component.rowActionsFor(fila(orderRef)).map((a) => a.id);
+    const etapaDe = (orderRef: string) => component.pedidos().find((p) => p.orderRef === orderRef)?.etapa;
+    const pedir = (orderRef: string, acto: string): void =>
+      component.onRowAction({ actionId: `acto:${acto}`, row: fila(orderRef), sectionId: 'ventas' });
+
+    async function asentarYPintar(): Promise<void> {
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    it('ofrece los actos que dice el servidor y ninguno más; sin actos, el detalle dice por qué', async () => {
+      servidor({
+        'pta-pagado': { etapa: 'paid' },
+        'pta-preparando': { etapa: 'preparing' },
+        'pta-entregado': { etapa: 'delivered', motivoSinActos: 'entregado' },
+        'pta-cerrada': { etapa: 'paid', actos: [], motivoSinActos: 'despacho_no_disponible' },
+      });
+      await createComponent();
+
+      expect(acciones('pta-pagado')).toEqual(['acto:preparar', 'detalle']);
+      expect(acciones('pta-preparando')).toEqual(['acto:enviar', 'detalle']);
+      expect(acciones('pta-entregado')).toEqual(['detalle']);
+      expect(acciones('pta-cerrada')).toEqual(['detalle']);
+
+      await component.abrirDetalle(fila('pta-cerrada').pedido!);
+      fixture.detectChanges();
+      expect(host().querySelector('.seller__detalle')?.textContent).toContain('Los pedidos de la puerta no se despachan desde este sitio.');
+      await component.abrirDetalle(fila('pta-entregado').pedido!);
+      fixture.detectChanges();
+      expect(host().querySelector('.seller__detalle')?.textContent).toContain('Este pedido ya se entregó.');
+    });
+
+    it('el acto va al servidor y la fila se mueve sólo con su respuesta; un segundo clic mientras vuela no sale', async () => {
+      const s = servidor({ 'pta-1': { etapa: 'paid' } });
+      let liberar: () => void = () => undefined;
+      s.responde = (orderRef) =>
+        new Promise<Response>((resolver) => {
+          liberar = () => resolver(json(200, s.mover(orderRef, 'preparar')));
+        });
+      await createComponent();
+
+      pedir('pta-1', 'preparar');
+      pedir('pta-1', 'preparar');
+      await asentarYPintar();
+
+      expect(s.actos).toEqual([{ orderRef: 'pta-1', cuerpo: { acto: 'preparar', guia: null } }]);
+      expect(etapaDe('pta-1')).toBe('paid');
+      expect(acciones('pta-1')).toEqual(['acto-en-vuelo', 'detalle']);
+
+      liberar();
+      await asentarYPintar();
+
+      expect(etapaDe('pta-1')).toBe('preparing');
+      expect(acciones('pta-1')).toEqual(['acto:enviar', 'detalle']);
+      expect(component.actionError()).toBeNull();
+    });
+
+    it('un rechazo no mueve la fila: dice por qué, por su código, y en qué etapa sigue', async () => {
+      const s = servidor({ 'pta-1': { etapa: 'shipped' } });
+      s.responde = () =>
+        json(409, { code: 'fulfillment.transition_not_allowed', error: 'De Ready no se pasa a Delivered.', transient: false });
+      await createComponent();
+      const lecturas = s.lecturas;
+
+      pedir('pta-1', 'entregar');
+      await asentarYPintar();
+
+      expect(etapaDe('pta-1')).toBe('shipped');
+      expect(s.lecturas).toBe(lecturas);
+      expect(component.actionError()).toBe('Primero márcalo enviado. El pedido sigue en «En camino».');
+      expect(host().querySelector('[role="alert"]')?.textContent).toContain('Primero márcalo enviado.');
+      expect(acciones('pta-1')).toEqual(['acto:entregar', 'detalle']);
+    });
+
+    it('fuera de orden dice la etapa que manda el servidor; una caída, que nada cambió', async () => {
+      const s = servidor({ 'pta-1': { etapa: 'paid' } });
+      s.responde = () => json(409, { code: 'tienda.acto_fuera_de_orden', error: 'No le toca.', etapa: 'shipped' });
+      await createComponent();
+
+      pedir('pta-1', 'preparar');
+      await asentarYPintar();
+      expect(component.actionError()).toBe('Ese paso ya no le toca a este pedido. El pedido sigue en «En camino».');
+
+      s.responde = () => json(503, { code: 'fulfillment.unreachable', error: 'No respondió.', transient: true });
+      pedir('pta-1', 'preparar');
+      await asentarYPintar();
+      expect(component.actionError()).toBe(
+        'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo. El pedido sigue en «Por preparar».',
+      );
+      expect(etapaDe('pta-1')).toBe('paid');
+    });
+
+    it('enviar pide la guía: una de 81 no sale, y una de 80 sale recortada', async () => {
+      const s = servidor({ 'pta-1': { etapa: 'preparing' } });
+      await createComponent();
+
+      pedir('pta-1', 'enviar');
+      fixture.detectChanges();
+      const campo = host().querySelector<HTMLInputElement>('.seller__guia')!;
+      expect(campo.getAttribute('maxlength')).toBe('80');
+
+      campo.value = 'G'.repeat(81);
+      campo.dispatchEvent(new Event('input'));
+      host().querySelector<HTMLButtonElement>('.seller__enviar')!.click();
+      await asentarYPintar();
+      expect(s.actos).toEqual([]);
+      expect(component.actionError()).toBe('La guía: hasta 80 caracteres, en una línea.');
+
+      campo.value = `  ${'G'.repeat(80)}  `;
+      campo.dispatchEvent(new Event('input'));
+      host().querySelector<HTMLButtonElement>('.seller__enviar')!.click();
+      await asentarYPintar();
+      expect(s.actos).toEqual([{ orderRef: 'pta-1', cuerpo: { acto: 'enviar', guia: 'G'.repeat(80) } }]);
+      expect(etapaDe('pta-1')).toBe('shipped');
+      expect(host().querySelector('.seller__guia')).toBeNull();
+    });
+
+    it('sin sesión al actuar, la consola entera lo dice', async () => {
+      const s = servidor({ 'pta-1': { etapa: 'paid' } });
+      s.responde = () => json(401, { error: 'Se requiere iniciar sesión.' });
+      await createComponent();
+
+      pedir('pta-1', 'preparar');
+      await asentarYPintar();
+
+      expect(component.acceso()).toBe('sin-sesion');
+      expect(component.actionError()).toBeNull();
+    });
+  });
+
+  describe('la cola de devoluciones (T025)', () => {
+    const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+    const json = (status: number, cuerpo: unknown): Response =>
+      new Response(JSON.stringify(cuerpo), { status, headers: { 'content-type': 'application/json' } });
+    /** A qué estado lleva cada `status` que lee el CMS (`ReturnAdvanceBody`). */
+    const ESTADO_DEL_MOVIMIENTO: Record<string, string> = {
+      approved: 'Approved',
+      rejected: 'Rejected',
+      received: 'Received',
+      refunded: 'Refunded',
+    };
+
+    /** Una devolución como la emite el CMS (`VendedorDeLaTiendaController.DevolucionDto`, T024). */
+    const devolucionDelCms = (rmaId: string, estado: string): Record<string, unknown> => ({
+      rmaId,
+      orderRef: `ord-${rmaId}`,
+      orderNumber: `N-${rmaId}`,
+      camino: 'puerta',
+      producto: 'Teclado mecánico compacto 65%',
+      cantidad: 1,
+      motivo: 'Llegó con teclas flojas',
+      monto: 259000,
+      montoFormatted: '$ 259.000',
+      moneda: 'COP',
+      estado,
+      nota: null,
+      solicitada: '2026-10-20T15:00:00+00:00',
+      actualizada: '2026-10-20T15:00:00+00:00',
+    });
+
+    interface Servidor {
+      readonly movimientos: { rmaId: string; cuerpo: unknown }[];
+      /** Lo que contesta el próximo movimiento; sin él, el servidor lo hace y contesta la devolución movida. */
+      responde: (() => Response | Promise<Response>) | null;
+    }
+
+    /** El borde con la forma del CMS: la cola de lo que hay, y el movimiento que la cambia. */
+    function servidor(inicial: Record<string, string>): Servidor {
+      const estado = new Map(Object.entries(inicial).map(([rma, e]) => [rma, devolucionDelCms(rma, e)]));
+      const s: Servidor = { movimientos: [], responde: null };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = new URL(String(input), 'http://cms.local');
+          if (url.pathname === '/api/shop/seller/returns') return json(200, { devoluciones: [...estado.values()] });
+          if (url.pathname === '/api/shop/seller/orders') return json(200, bandejaDelCms([]));
+          const rma = /^\/api\/shop\/return\/([^/]+)\/advance$/.exec(url.pathname)?.[1];
+          if (rma && init?.method === 'POST') {
+            const rmaId = decodeURIComponent(rma);
+            const cuerpo = JSON.parse(String(init.body)) as { status: string };
+            s.movimientos.push({ rmaId, cuerpo });
+            if (s.responde) return s.responde();
+            const movida = { ...estado.get(rmaId)!, estado: ESTADO_DEL_MOVIMIENTO[cuerpo.status] };
+            estado.set(rmaId, movida);
+            return json(200, { claimId: rmaId, rmaId, status: 'en-revision', estado: movida['estado'] });
+          }
+          return json(404, { error: 'not found' });
+        }),
+      );
+      return s;
+    }
+
+    const fila = (rmaId: string) => component.consoleRows().find((row) => row.id === rmaId)!;
+    const acciones = (rmaId: string): string[] => component.rowActionsFor(fila(rmaId)).map((a) => a.id);
+    const estadoDe = (rmaId: string) => component.devoluciones().find((d) => d.rmaId === rmaId)?.estado;
+    const mover = (rmaId: string, movimiento: string): void =>
+      component.onRowAction({ actionId: `devolucion:${movimiento}`, row: fila(rmaId), sectionId: 'devoluciones' });
+
+    async function abrirLaCola(): Promise<void> {
+      await createComponent();
+      component.onSectionChange('devoluciones');
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    async function asentarYPintar(): Promise<void> {
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    it('cada devolución ofrece lo que le toca por su estado exacto, y la insignia cuenta las que piden algo', async () => {
+      servidor({ 'RMA-1': 'Requested', 'RMA-2': 'Approved', 'RMA-3': 'Received', 'RMA-4': 'Refunded', 'RMA-5': 'Rejected' });
+      await abrirLaCola();
+
+      expect(acciones('RMA-1')).toEqual(['devolucion:approved', 'devolucion:rejected']);
+      expect(acciones('RMA-2')).toEqual(['devolucion:received']);
+      expect(acciones('RMA-3')).toEqual(['devolucion:refunded']);
+      expect(acciones('RMA-4')).toEqual([]);
+      expect(acciones('RMA-5')).toEqual([]);
+      expect(['RMA-1', 'RMA-2', 'RMA-3', 'RMA-4', 'RMA-5'].map((rma) => fila(rma).cells['estado'])).toEqual([
+        'Pedida',
+        'Aprobada',
+        'Recibida',
+        'Reembolsada',
+        'Rechazada',
+      ]);
+      expect(component.openReturnsCount()).toBe(3);
+    });
+
+    it('aprobar manda { status: approved } y la cola se vuelve a leer con lo que dice el servidor', async () => {
+      const s = servidor({ 'RMA-1': 'Requested' });
+      await abrirLaCola();
+
+      mover('RMA-1', 'approved');
+      await asentarYPintar();
+
+      expect(s.movimientos).toEqual([{ rmaId: 'RMA-1', cuerpo: { status: 'approved', note: null } }]);
+      expect(estadoDe('RMA-1')).toBe('Approved');
+      expect(acciones('RMA-1')).toEqual(['devolucion:received']);
+      expect(component.actionError()).toBeNull();
+    });
+
+    it('reembolsar pide confirmarlo: sin confirmar no sale nada; confirmado, manda { status: refunded }', async () => {
+      const s = servidor({ 'RMA-3': 'Received' });
+      await abrirLaCola();
+
+      mover('RMA-3', 'refunded');
+      fixture.detectChanges();
+      expect(s.movimientos).toEqual([]);
+      const confirmar = host().querySelector<HTMLButtonElement>('.seller__reembolsar')!;
+      expect(confirmar.textContent?.trim()).toBe('Sí, reembolsar');
+      expect(host().textContent).toContain('Reembolsar $ 259.000 de la devolución RMA-3');
+
+      confirmar.click();
+      await asentarYPintar();
+
+      expect(s.movimientos).toEqual([{ rmaId: 'RMA-3', cuerpo: { status: 'refunded', note: null } }]);
+      expect(estadoDe('RMA-3')).toBe('Refunded');
+      expect(host().querySelector('.seller__reembolsar')).toBeNull();
+    });
+
+    it('un reembolso que no sale se queda recibida y dice el motivo del servidor', async () => {
+      const s = servidor({ 'RMA-3': 'Received' });
+      s.responde = () => json(400, { error: 'El orquestador no pudo devolver la plata: payments.refund_over_captured.' });
+      await abrirLaCola();
+
+      mover('RMA-3', 'refunded');
+      fixture.detectChanges();
+      host().querySelector<HTMLButtonElement>('.seller__reembolsar')!.click();
+      await asentarYPintar();
+
+      expect(estadoDe('RMA-3')).toBe('Received');
+      expect(component.actionError()).toBe(
+        'El orquestador no pudo devolver la plata: payments.refund_over_captured. La devolución sigue en «Recibida».',
+      );
+      expect(acciones('RMA-3')).toEqual(['devolucion:refunded']);
+    });
+
+    it('un movimiento que no sale no mueve la fila (#77) y la deja accionable; un segundo clic mientras vuela no sale', async () => {
+      const s = servidor({ 'RMA-1': 'Requested' });
+      let liberar: () => void = () => undefined;
+      s.responde = () => json(503, { error: 'caído' });
+      await abrirLaCola();
+
+      mover('RMA-1', 'approved');
+      await asentarYPintar();
+      expect(estadoDe('RMA-1')).toBe('Requested');
+      expect(component.actionError()).toBe(
+        'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo. La devolución sigue en «Pedida».',
+      );
+      expect(acciones('RMA-1')).toEqual(['devolucion:approved', 'devolucion:rejected']);
+
+      const pendiente = new Promise<Response>((resolver) => {
+        liberar = () => resolver(json(200, { estado: 'Approved' }));
+      });
+      s.responde = () => pendiente;
+      mover('RMA-1', 'approved');
+      mover('RMA-1', 'rejected');
+      await asentarYPintar();
+      expect(acciones('RMA-1')).toEqual(['acto-en-vuelo']);
+      liberar();
+      await asentarYPintar();
+      expect(s.movimientos.map((m) => m.cuerpo)).toEqual([
+        { status: 'approved', note: null },
+        { status: 'approved', note: null },
+      ]);
+    });
   });
 });

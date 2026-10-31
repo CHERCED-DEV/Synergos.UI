@@ -1,5 +1,5 @@
 {
-  "medido": "2026-09-30",
+  "medido": "2026-10-30",
   "nota": "LÍNEA BASE, no objetivo (#82, regla 42). `deuda`: regiones vivas dentro de un bloque que NACEN con su mensaje (o sobran: estado vacío por configuración, esqueleto sin texto, contenedor) — se vigila en los dos sentidos: una nueva rompe, y una arreglada también, para que el commit que la arregla la baje aquí mismo. `censo`: las que están dentro de un bloque porque nacen con su VISTA y después viven; cada una dice por qué NO nace con su mensaje. `--actualizar` reescribe la deuda y no toca el censo.",
   "deuda": [
     "platforms/angular/apps/domains/shop/product-card/src/product-card/product-card.html · @if(loading()) · div[role=status live=polite]",
@@ -95,7 +95,6 @@
     "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(liveConflict()) · p[role=status]",
     "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @else · p[role=status]",
     "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(actionError(); as fallo) · p[role=alert]",
-    "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(degraded()) · p[role=status]",
     "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(publishReceipt(); as receipt) · div[role=status]",
     "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(claimForLine(order.orderNumber, line); as claim) · span[role=status]",
     "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(compareMessage(); as aviso) · p[role=status]",

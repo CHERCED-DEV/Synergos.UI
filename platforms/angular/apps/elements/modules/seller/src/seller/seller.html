@@ -43,27 +43,59 @@
     </nav>
   </header>
 
-  <!-- Mock-data degradation notice -->
-  @if (degraded()) {
-    <p class="seller__notice seller__notice--warn" role="status">
-      Mostrando datos de ejemplo: el motor de la tienda aún no responde.
-    </p>
+  <!--
+    Datos de ejemplo: sólo con la marca de la demo (MUESTRAS_DE_LA_CONSOLA), y dicho. Se lee en la
+    página y se anuncia por la región del documento, que ya existía: un <p role="status"> nacido
+    dentro del @if, con su mensaje, callaba.
+  -->
+  @if (muestras()) {
+    <p class="seller__notice seller__notice--warn">{{ textoDeMuestras }}</p>
+    <syn-live-region [message]="textoDeMuestras" announceInitial />
   }
 
   <!--
     Lo que una ESCRITURA no consiguió (#77). Va aparte del cartel de arriba a propósito:
-    aquél habla de LECTURAS degradadas —«datos de ejemplo»— y esto de una acción que el
-    vendedor acaba de pedir y NO ocurrió. Es `alert` y no `status` porque interrumpe: quien
-    pulsó «publicar» tiene que enterarse antes de irse de la pantalla.
+    aquél habla de LECTURAS de ejemplo y esto de una acción que el vendedor acaba de pedir y
+    NO ocurrió. Es `alert` y no `status` porque interrumpe: quien pulsó «publicar» tiene que
+    enterarse antes de irse de la pantalla.
   -->
   @if (actionError(); as fallo) {
     <p class="seller__notice seller__notice--error" role="alert">{{ fallo }}</p>
   }
 
+  <!--
+    Sin sesión o sin permiso es de quien abre la consola, no de una sección: se dice una vez,
+    en lugar de las vistas, con su salida si la tiene (013-seller-operaciones, T006).
+  -->
+  @if (acceso(); as motivo) {
+    <syn-empty-state
+      class="seller__acceso"
+      kind="no-access"
+      [title]="motivo === 'sin-sesion' ? textoSinSesion : textoSinPermiso"
+      [actionLabel]="motivo === 'sin-sesion' ? textoIniciarSesion : undefined"
+      [actionHref]="motivo === 'sin-sesion' ? loginUrl() : undefined"
+    />
+  }
+
   <!-- ═══ PANEL: SH-5 console (KPIs + Ventas/Publicaciones/Devoluciones/Reputación) ═══ -->
-  @if (view() === 'panel') {
+  @if (view() === 'panel' && !acceso()) {
+    <!-- Las compras que el servidor no alcanzó a confirmar en esta lectura (FR-004): se leen y se anuncian. -->
+    @if (activeSection() === 'ventas' && avisoSinConciliar(); as aviso) {
+      <p class="seller__notice seller__notice--warn">{{ aviso }}</p>
+      <syn-live-region [message]="aviso" announceInitial />
+    }
+
+    <!-- `[section]`: la sección la lleva la consola. Sin atarla, el shell vuelve a la primera
+         cada vez que cambia su `config` (un badge que carga, una cola que se cae). La bandeja
+         pagina en el servidor: `page` y `total` son los suyos. -->
     <syn-console-shell
       [config]="consoleConfig()"
+      [section]="activeSection()"
+      [pageSize]="activeSection() === 'ventas' ? (bandeja()?.porPagina ?? 0) : 0"
+      [page]="paginaDeVentas()"
+      pageMode="server"
+      [total]="totalDeLaBandeja()"
+      (pagechange)="onPageChange($event)"
       [kpis]="consoleKpis()"
       [rows]="consoleRows()"
       [columns]="consoleColumns()"
@@ -75,6 +107,7 @@
       (sectionchange)="onSectionChange($event)"
       (filterchange)="onFilterChange($event)"
       (rowaction)="onRowAction($event)"
+      (retry)="recargar(lecturaActiva())"
     />
 
     <!-- One cell renderer for every queue: text cells + a status chip. -->
@@ -93,9 +126,16 @@
       }
     </ng-template>
 
-    <!-- Reputación: custom section fed by GET /seller/summary. -->
+    <!-- Reputación: custom section fed by GET /seller/summary. Sin resumen, lo dice: un esqueleto
+         sobre una lectura caída sería «cargando» para siempre. -->
     <ng-template #sellerSection>
-      @if (reputation(); as rep) {
+      @if (lecturas().resumen === 'caida') {
+        <syn-error-state
+          [message]="textoCaida"
+          [retryLabel]="textoReintentar"
+          (retry)="recargar('resumen')"
+        />
+      } @else if (reputation(); as rep) {
         <div class="seller__rep" aria-label="Reputación del vendedor">
           <article class="seller__rep-card seller__rep-card--hero">
             <p class="seller__rep-score">{{ formatRating(rep.score) }}</p>
@@ -132,10 +172,101 @@
         <p class="seller__sr" role="status">Cargando reputación…</p>
       }
     </ng-template>
+
+    <!-- El detalle de un pedido de la bandeja: a dónde va y con quién (013-seller-operaciones, T012). -->
+    @if (activeSection() === 'ventas' && detalle(); as abierto) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelDetalle(abierto.pedido.orderNumber)">
+        <header class="seller__detalle-head">
+          <h2 class="seller__detalle-title">{{ textoDelDetalle(abierto.pedido.orderNumber) }}</h2>
+          <button type="button" class="seller__btn" (click)="cerrarDetalle()">{{ textoCerrar }}</button>
+        </header>
+        @if (abierto.estado === 'caida') {
+          <syn-error-state
+            [message]="textoCaida"
+            [retryLabel]="textoReintentar"
+            (retry)="abrirDetalle(abierto.pedido)"
+          />
+        } @else if (abierto.datos; as d) {
+          <p class="seller__detalle-resumen">{{ resumenDelPedido(d) }}</p>
+          <dl class="seller__detalle-envio">
+            @if (d.envio?.destino; as destino) {
+              <div class="seller__detalle-dato">
+                <dt>{{ textoDestino }}</dt>
+                <dd>{{ destinoEnUnaLinea(destino) }}</dd>
+              </div>
+            }
+            @if (d.envio?.transportadora; as transportadora) {
+              <div class="seller__detalle-dato">
+                <dt>{{ textoTransportadora }}</dt>
+                <dd>{{ transportadora }}</dd>
+              </div>
+            }
+          </dl>
+          @if (d.motivoSinEnvio) {
+            <p class="seller__hint">{{ textoSinEnvioDe(d.motivoSinEnvio) }}</p>
+          }
+          @if (textoSinActosDe(d.motivoSinActos); as sinActos) {
+            <p class="seller__hint">{{ sinActos }}</p>
+          }
+        } @else {
+          <p class="seller__hint">{{ textoCargando }}</p>
+        }
+      </section>
+    }
+
+    <!-- Marcar enviado pide antes la guía, que es opcional (013-seller-operaciones, T021). -->
+    @if (activeSection() === 'ventas' && envioAbierto(); as aEnviar) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelEnvio(aEnviar.orderNumber)">
+        <header class="seller__detalle-head">
+          <h2 class="seller__detalle-title">{{ textoDelEnvio(aEnviar.orderNumber) }}</h2>
+        </header>
+        <label class="seller__field">
+          <span class="seller__field-label">{{ textoGuia }}</span>
+          <input
+            class="seller__input seller__guia"
+            type="text"
+            autocomplete="off"
+            [attr.maxlength]="guiaMaxima"
+            [value]="guia()"
+            (input)="escribirGuia($event)"
+          />
+          <span class="seller__hint">{{ textoAyudaDeLaGuia }}</span>
+        </label>
+        <div class="seller__envio-acciones">
+          <button
+            type="button"
+            class="seller__btn seller__btn--primary seller__enviar"
+            [disabled]="actoEnVuelo() !== null"
+            (click)="actuar(aEnviar, 'enviar', guia())"
+          >
+            {{ actoEnVuelo() === aEnviar.orderRef ? accionEnVuelo.label : accionDelActo.enviar.label }}
+          </button>
+          <button type="button" class="seller__btn" (click)="cerrarEnvio()">{{ textoCancelar }}</button>
+        </div>
+      </section>
+    }
+
+    <!-- Reembolsar mueve plata: se confirma antes (013-seller-operaciones, T025). -->
+    @if (activeSection() === 'devoluciones' && reembolsoAbierto(); as aReembolsar) {
+      <section class="seller__detalle" [attr.aria-label]="textoDelReembolso(aReembolsar)">
+        <p class="seller__detalle-resumen">{{ textoDelReembolso(aReembolsar) }}</p>
+        <div class="seller__envio-acciones">
+          <button
+            type="button"
+            class="seller__btn seller__btn--primary seller__reembolsar"
+            [disabled]="devolucionEnVuelo() !== null"
+            (click)="moverDevolucion(aReembolsar, 'refunded')"
+          >
+            {{ devolucionEnVuelo() === aReembolsar.rmaId ? accionEnVuelo.label : textoConfirmarReembolso }}
+          </button>
+          <button type="button" class="seller__btn" (click)="cerrarReembolso()">{{ textoCancelar }}</button>
+        </div>
+      </section>
+    }
   }
 
   <!-- ═══ PUBLICAR: SH-6 authoring wizard (borrador persistente) ═══════════ -->
-  @if (view() === 'publicar') {
+  @if (view() === 'publicar' && !acceso()) {
     @if (publishReceipt(); as receipt) {
       <div class="seller__receipt" role="status">
         <p class="seller__receipt-icon" aria-hidden="true">
@@ -338,18 +469,27 @@
   }
 
   <!-- ═══ MENSAJES: SH-7 message center (preguntas de compradores) ═════════ -->
-  @if (view() === 'mensajes') {
-    <syn-message-center
-      [config]="messagesConfig"
-      [threads]="threads()"
-      [activeThread]="activeThread()"
-      [loading]="threadsLoading()"
-      [sending]="sending()"
-      [threadTemplate]="threadRow"
-      [detailTemplate]="threadDetail"
-      (threadselect)="onThreadSelect($event)"
-      (send)="onSendReply($event)"
-    />
+  @if (view() === 'mensajes' && !acceso()) {
+    <!-- Sin hilos leídos no hay bandeja que pintar: «No tienes mensajes» sería otra respuesta. -->
+    @if (lecturas().mensajes === 'caida') {
+      <syn-error-state
+        [message]="textoCaida"
+        [retryLabel]="textoReintentar"
+        (retry)="recargar('mensajes')"
+      />
+    } @else {
+      <syn-message-center
+        [config]="messagesConfig"
+        [threads]="threads()"
+        [activeThread]="activeThread()"
+        [loading]="enVuelo('mensajes')"
+        [sending]="sending()"
+        [threadTemplate]="threadRow"
+        [detailTemplate]="threadDetail"
+        (threadselect)="onThreadSelect($event)"
+        (send)="onSendReply($event)"
+      />
+    }
 
     <ng-template #threadRow let-thread>
       <span class="seller__thread-row" [class.is-unread]="thread.unread">
