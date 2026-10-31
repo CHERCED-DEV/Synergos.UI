@@ -182,6 +182,17 @@ describe('ShopFulfillmentStrategy: la compra por los dos caminos', () => {
     expect(vistas).toHaveLength(0);
   });
 
+  it('por la ruta directa, la variante sintética «Estándar» viaja como el producto y la del catálogo, tal cual', async () => {
+    // 014-despiece-tienda: la ruta directa mandaba `TAZA-001-default` y el servicio de pedidos la rechazaba (400,
+    // «Variante no encontrada»): un producto sin variantes no se podía comprar por ahí. La puerta ya lo sabía.
+    await estrategia.pay({ session: store.getValidSession(), instrument: instrumento({ camino: undefined }) });
+
+    expect(api.checkouts[0][1]).toEqual([
+      { productId: 'TAZA-001', variantId: '', qty: 2 },
+      { productId: 'CAMI-001', variantId: 'azul', qty: 1 },
+    ]);
+  });
+
   // ── Por la puerta: abrir ─────────────────────────────────────────────────────────────────
 
   it('por la puerta abre con la llave de la intención, las líneas como referencias y el total del SERVIDOR, y la anota', async () => {

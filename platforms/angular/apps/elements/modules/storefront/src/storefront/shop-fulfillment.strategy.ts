@@ -20,6 +20,7 @@ import {
   caminoDeLaCompra,
   type CaminoDeCompra,
   type CheckoutLine,
+  varianteDelCatalogo,
   type CheckoutResult,
   type OrdenDeLaPuerta,
   type OrderConfirmation,
@@ -427,7 +428,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
       const selection = item.selection as Record<string, unknown>;
       return {
         productId: item.productRef,
-        variantId: typeof selection['variantId'] === 'string' ? selection['variantId'] : '',
+        variantId: varianteDelCatalogo(item.productRef, typeof selection['variantId'] === 'string' ? selection['variantId'] : ''),
         qty: item.quantity,
       };
     });

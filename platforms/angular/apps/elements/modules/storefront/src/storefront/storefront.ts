@@ -147,6 +147,7 @@ import {
   type SortKey,
   type StorefrontView,
   type WishlistEntry,
+  varianteSintetica,
 } from './shop.model';
 import {
   AVISOS_GENERADOS,
@@ -284,7 +285,7 @@ function lineRefOf(line: OrderLine): string {
  */
 function varianteEstandar(product: ShopProduct): ProductVariant {
   return {
-    variantId: `${product.id}-default`,
+    variantId: varianteSintetica(product.id),
     label: 'Estándar',
     attributes: {},
     amount: product.amount,

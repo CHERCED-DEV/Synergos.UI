@@ -264,6 +264,20 @@ export interface SearchCriteria {
 // ─── Cart / checkout contract (API) ──────────────────────────────────────────
 
 /** One line in the `POST /api/shop/checkout` request body. */
+/**
+ * La variante «Estándar» que la tienda inventa para un producto que llega sin variantes (004-tienda-compra, etapa 3):
+ * `{producto}-default`. No es del catálogo: es el producto mismo, por los dos caminos de la compra.
+ */
+export function varianteSintetica(productId: string): string {
+  return `${productId}-default`;
+}
+
+/** La variante que el catálogo conoce: vacía si es la sintética (014-despiece-tienda: la ruta directa la mandaba tal cual). */
+export function varianteDelCatalogo(productId: string, variantId: string): string {
+  const variante = variantId.trim();
+  return variante === varianteSintetica(productId) ? '' : variante;
+}
+
 export interface CheckoutLine {
   readonly productId: string;
   readonly variantId: string;

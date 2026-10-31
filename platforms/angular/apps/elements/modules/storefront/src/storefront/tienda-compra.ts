@@ -1,5 +1,6 @@
 import type { BffTienda } from '@synergos/contracts';
 import type { SessionData, SessionItem } from '@synergos/transaction-engine';
+import { varianteDelCatalogo } from './shop.model';
 import {
   abrirTiendaCompra,
   cancelarTiendaCompra,
@@ -104,8 +105,8 @@ function leida(r: ResultadoDelFlujo<BffTienda.TiendaCompraRespuesta>): Resultado
 export function sujetoDeLaLinea(item: SessionItem): string {
   const seleccion = item.selection as Readonly<Record<string, unknown>>;
   const producto = typeof seleccion['productId'] === 'string' && seleccion['productId'] ? seleccion['productId'] : item.productRef;
-  const variante = typeof seleccion['variantId'] === 'string' ? seleccion['variantId'].trim() : '';
-  return variante === '' || variante === `${producto}-default` ? producto : `${producto}:${variante}`;
+  const variante = varianteDelCatalogo(producto, typeof seleccion['variantId'] === 'string' ? seleccion['variantId'] : '');
+  return variante === '' ? producto : `${producto}:${variante}`;
 }
 
 /**
