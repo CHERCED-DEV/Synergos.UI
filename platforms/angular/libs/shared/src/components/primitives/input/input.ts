@@ -60,6 +60,10 @@ let inputId = 0;
         [placeholder]="placeholder()"
         [disabled]="disabled()"
         [required]="required()"
+        [attr.maxlength]="maxlength() ?? null"
+        [attr.min]="min() ?? null"
+        [attr.max]="max() ?? null"
+        [attr.step]="step() ?? null"
         [attr.inputmode]="resolvedInputMode()"
         [attr.autocomplete]="resolvedAutocomplete()"
         [attr.aria-invalid]="invalid() || null"
@@ -112,6 +116,12 @@ export class InputComponent {
   readonly disabled = input(false);
   readonly invalid = input(false);
   readonly required = input(false);
+
+  /** Native limits (014-despiece-tienda, T003): a tracking number of 80 characters, a price or a stock that is never negative. */
+  readonly maxlength = input<number | undefined>(undefined);
+  readonly min = input<number | undefined>(undefined);
+  readonly max = input<number | undefined>(undefined);
+  readonly step = input<number | undefined>(undefined);
 
   readonly valueChange = output<string>();
   readonly focused = output<void>();

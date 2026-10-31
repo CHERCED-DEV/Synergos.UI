@@ -183,4 +183,74 @@ describe(ButtonComponent.name, () => {
       expect(label.textContent?.trim()).toBe('Save');
     });
   });
+
+  // 014-despiece-tienda (T003): los estados que una app pedía con un <button> a mano.
+  describe('toggle, disclosure and navigation states', () => {
+    function render(inputs: Record<string, unknown>) {
+      const fixture = TestBed.createComponent(ButtonComponent);
+      for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+      fixture.detectChanges();
+      return { fixture, button: fixture.nativeElement.querySelector('button') as HTMLButtonElement };
+    }
+
+    it('is not a toggle until told so: no aria-pressed by default', () => {
+      const { button } = render({ label: 'Comparar' });
+      expect(button.hasAttribute('aria-pressed')).toBe(false);
+    });
+
+    it('announces and paints the toggle state', () => {
+      const { fixture, button } = render({ label: 'Comparar', selected: false });
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+      expect(button.classList.contains('syn-button--selected')).toBe(false);
+
+      fixture.componentRef.setInput('selected', true);
+      fixture.detectChanges();
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      expect(button.classList.contains('syn-button--selected')).toBe(true);
+    });
+
+    it('names the panel it opens and whether it is open', () => {
+      const { button } = render({ label: 'Carrito', expanded: true, controls: 'tienda-cart' });
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+      expect(button.getAttribute('aria-controls')).toBe('tienda-cart');
+    });
+
+    it('marks the current place of a navigation', () => {
+      const { button } = render({ label: 'Mi cuenta', current: true });
+      expect(button.getAttribute('aria-current')).toBe('page');
+      expect(button.classList.contains('syn-button--current')).toBe(true);
+    });
+
+    it('takes the full width of its container', () => {
+      const { fixture, button } = render({ label: 'Agregar al carrito', block: true });
+      expect(button.classList.contains('syn-button--block')).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).classList.contains('syn-button-host--block')).toBe(true);
+    });
+  });
+
+  describe('as a link (href)', () => {
+    it('renders an anchor with the button look and its projected content', async () => {
+      const fixture = TestBed.createComponent(ButtonComponent);
+      fixture.componentRef.setInput('href', '/umbraco/surface/login');
+      fixture.componentRef.setInput('label', 'Iniciar sesión');
+      fixture.detectChanges();
+
+      const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+      expect(fixture.nativeElement.querySelector('button')).toBeNull();
+      expect(link.getAttribute('href')).toBe('/umbraco/surface/login');
+      expect(link.classList.contains('syn-button')).toBe(true);
+      expect(link.textContent?.trim()).toBe('Iniciar sesión');
+    });
+
+    it('drops the href when disabled and says so', () => {
+      const fixture = TestBed.createComponent(ButtonComponent);
+      fixture.componentRef.setInput('href', '/carrito');
+      fixture.componentRef.setInput('disabled', true);
+      fixture.detectChanges();
+
+      const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+      expect(link.hasAttribute('href')).toBe(false);
+      expect(link.getAttribute('aria-disabled')).toBe('true');
+    });
+  });
 });

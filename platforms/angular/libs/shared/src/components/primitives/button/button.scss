@@ -111,6 +111,44 @@
   }
 }
 
+// ── El botón como enlace (`href`) ─────────────────────────────────────────────
+// La misma caja; sin el subrayado del enlace. Deshabilitado no tiene `href`: se pinta como el botón deshabilitado.
+a.syn-button {
+  text-decoration: none;
+
+  &[aria-disabled='true'] {
+    background:     var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+    color:          var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+    border-color:   var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+    box-shadow:     none;
+    cursor:         not-allowed;
+    pointer-events: none;
+  }
+}
+
+// ── Ancho completo ────────────────────────────────────────────────────────────
+:host(.syn-button-host--block) {
+  display: block;
+}
+
+.syn-button--block {
+  width: 100%;
+}
+
+// ── Alternancia (`selected`, aria-pressed) y lugar actual (`current`, aria-current) ──
+// Los dos con los tokens de estado de la marca, como la opción elegida de `syn-segmented`: se leen igual en los siete
+// temas. En reposo ganan a la variante (misma especificidad, declarados después); al pasar el puntero manda la variante.
+.syn-button--selected {
+  color:        var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  border-color: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  background:   var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+}
+
+.syn-button--current {
+  color:      var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  background: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+}
+
 // The sm box stays at 32px — on the 8pt grid, per `--syn-control-h-sm`. Only the
 // pointer target grows to 44px (WCAG 2.5.5, AAA). See `_touch-target.scss`.
 .syn-button--sm { @include syn.button-size(sm); @include syn.touch-target; }

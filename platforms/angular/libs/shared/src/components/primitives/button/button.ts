@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input, output } from '@angular/core';
+import { classNames } from '../../../utils/class-names.util';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -26,6 +28,13 @@ export interface ButtonConfig {
    * the button never resizes; anything longer than that footprint gets clipped.
    */
   readonly loadingLabel?: string;
+  /** Takes the full width of its container (a form's main action, a card's footer). */
+  readonly block?: boolean;
+  /**
+   * Renders an `<a>` with the button's look: a call to action that navigates (sign in, go to the cart). It has no
+   * `type` and no loading state; `disabled` drops the `href` and announces `aria-disabled`.
+   */
+  readonly href?: string;
 }
 
 function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfig> {
@@ -38,32 +47,20 @@ function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfi
     disabled: coerceOptionalBooleanInput(value.disabled),
     loading: coerceOptionalBooleanInput(value.loading),
     loadingLabel: coerceTrimmedStringInput(value.loadingLabel),
+    block: coerceOptionalBooleanInput(value.block),
+    href: coerceTrimmedStringInput(value.href),
   });
 }
 
 @Component({
   selector: 'syn-button',
   standalone: true,
+  imports: [NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.syn-button-host--block]': 'block()' },
   template: `
-    <button
-      class="syn-button"
-      [class.syn-button--solid]="variant() === 'solid'"
-      [class.syn-button--outline]="variant() === 'outline'"
-      [class.syn-button--ghost]="variant() === 'ghost'"
-      [class.syn-button--danger]="variant() === 'danger'"
-      [class.syn-button--gradient]="variant() === 'gradient'"
-      [class.syn-button--sm]="size() === 'sm'"
-      [class.syn-button--md]="size() === 'md'"
-      [class.syn-button--lg]="size() === 'lg'"
-      [class.syn-button--loading]="loading()"
-      [type]="type()"
-      [disabled]="disabled()"
-      [attr.aria-disabled]="loading() ? 'true' : null"
-      [attr.aria-busy]="loading() ? 'true' : null"
-      [attr.aria-label]="ariaLabel() || label() || null"
-      (click)="onClick($event)"
-    >
+    <!-- One projection for both shapes: a second <ng-content> would only get the content once. -->
+    <ng-template #contenido>
       <span class="syn-button__label">
         @if (label()) {
           {{ label() }}
@@ -71,26 +68,55 @@ function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfi
           <ng-content />
         }
       </span>
-      @if (loading()) {
-        <!--
-          Visual-only echo of the busy state for users with prefers-reduced-motion,
-          where the spinner is suppressed (see button.scss). aria-hidden because the
-          announcement is the live region below — without it this text would join the
-          button's accessible name whenever the name comes from projected content.
-        -->
-        <span class="syn-button__busy-text" aria-hidden="true">{{ loadingLabel() }}</span>
-      }
-    </button>
-    <!--
-      A spinner is invisible to a screen reader, so aria-busy alone would leave the
-      user with silence. This region is rendered ALWAYS (empty at rest) and only its
-      text changes — a live region created at the same time as its content is
-      routinely missed by screen readers. It sits OUTSIDE the button so it can never
-      leak into the button's accessible name.
-    -->
-    <span class="syn-button__status" role="status" aria-live="polite" aria-atomic="true">{{
-      statusMessage()
-    }}</span>
+    </ng-template>
+
+    @if (href()) {
+      <a
+        [class]="classes()"
+        [attr.href]="disabled() ? null : href()"
+        [attr.aria-disabled]="disabled() ? 'true' : null"
+        [attr.aria-current]="current() ? 'page' : null"
+        [attr.aria-label]="ariaLabel() || label() || null"
+        (click)="onClick($event)"
+      >
+        <ng-container [ngTemplateOutlet]="contenido" />
+      </a>
+    } @else {
+      <button
+        [class]="classes()"
+        [type]="type()"
+        [disabled]="disabled()"
+        [attr.aria-disabled]="loading() ? 'true' : null"
+        [attr.aria-busy]="loading() ? 'true' : null"
+        [attr.aria-pressed]="selected() ?? null"
+        [attr.aria-expanded]="expanded() ?? null"
+        [attr.aria-controls]="controls() || null"
+        [attr.aria-current]="current() ? 'page' : null"
+        [attr.aria-label]="ariaLabel() || label() || null"
+        (click)="onClick($event)"
+      >
+        <ng-container [ngTemplateOutlet]="contenido" />
+        @if (loading()) {
+          <!--
+            Visual-only echo of the busy state for users with prefers-reduced-motion,
+            where the spinner is suppressed (see button.scss). aria-hidden because the
+            announcement is the live region below — without it this text would join the
+            button's accessible name whenever the name comes from projected content.
+          -->
+          <span class="syn-button__busy-text" aria-hidden="true">{{ loadingLabel() }}</span>
+        }
+      </button>
+      <!--
+        A spinner is invisible to a screen reader, so aria-busy alone would leave the
+        user with silence. This region is rendered ALWAYS (empty at rest) and only its
+        text changes — a live region created at the same time as its content is
+        routinely missed by screen readers. It sits OUTSIDE the button so it can never
+        leak into the button's accessible name.
+      -->
+      <span class="syn-button__status" role="status" aria-live="polite" aria-atomic="true">{{
+        statusMessage()
+      }}</span>
+    }
   `,
   styleUrl: './button.scss',
 })
@@ -132,6 +158,36 @@ export class ButtonComponent {
   );
   readonly loadingLabel = computed(() =>
     resolveConfigValue(this.loadingLabelInput(), this.config()?.loadingLabel, 'Loading'),
+  );
+  readonly blockInput = input<boolean | undefined, unknown>(undefined, {
+    alias: 'block',
+    transform: (value: unknown) => (value === undefined ? undefined : booleanAttribute(value)),
+  });
+  readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
+  readonly block = computed(() => resolveConfigValue(this.blockInput(), this.config()?.block, false));
+  readonly href = computed(() => resolveConfigValue(this.hrefInput(), this.config()?.href, ''));
+
+  /**
+   * A toggle's state (a favourite, a filter chip, a variant): `aria-pressed` and the selected look. Left undefined, the
+   * button is not a toggle and announces nothing.
+   */
+  readonly selected = input<boolean | undefined>(undefined);
+  /** For a button that opens a panel (a cart drawer, a menu): `aria-expanded` plus the panel's id in `controls`. */
+  readonly expanded = input<boolean | undefined>(undefined);
+  readonly controls = input('');
+  /** The current place in a navigation (`aria-current="page"`), with its look. */
+  readonly current = input(false, { transform: booleanAttribute });
+
+  readonly classes = computed(() =>
+    classNames(
+      'syn-button',
+      `syn-button--${this.variant()}`,
+      `syn-button--${this.size()}`,
+      this.loading() && !this.href() && 'syn-button--loading',
+      this.block() && 'syn-button--block',
+      this.selected() && 'syn-button--selected',
+      this.current() && 'syn-button--current',
+    ),
   );
 
   /** Empty at rest so the live region only ever announces the transition INTO loading. */
