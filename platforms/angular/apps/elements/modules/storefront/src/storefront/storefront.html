@@ -1,42 +1,40 @@
 <section class="storefront" aria-label="Tienda Synergos">
   <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
   <header class="storefront__bar">
-    <button type="button" class="storefront__brand storefront__brand--btn" (click)="goHome()">
+    <syn-button variant="ghost" class="storefront__brand" (pressed)="goHome()">
       <span class="storefront__brand-mark" aria-hidden="true">◈</span>
       <span class="storefront__brand-text">Synergos Market</span>
-    </button>
+    </syn-button>
 
     <nav class="storefront__nav" aria-label="Navegación de la tienda">
-      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Inicio</button>
-      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'plp'" (click)="goToPlp()">Tienda</button>
-      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'account'" (click)="goToAccount()">Mi cuenta</button>
+      <syn-button variant="ghost" size="sm" [current]="view() === 'home'" (pressed)="goHome()">Inicio</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="view() === 'plp'" (pressed)="goToPlp()">Tienda</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="view() === 'account'" (pressed)="goToAccount()">Mi cuenta</syn-button>
       <!-- La cara B (#32). Tienda era el único de los tres dominios con consola
            que no la tenía, y por eso la cola de moderación de #31 se quedó sin
            sitio y el `advance` de las devoluciones sin consumidor. -->
-      <button
-        type="button"
-        class="storefront__nav-btn"
-        [class.is-active]="role() === 'seller'"
-        (click)="setRole(role() === 'seller' ? 'buyer' : 'seller')"
+      <syn-button
+        variant="ghost"
+        size="sm"
+        [current]="role() === 'seller'"
+        (pressed)="setRole(role() === 'seller' ? 'buyer' : 'seller')"
       >
         {{ role() === 'seller' ? 'Volver a comprar' : 'Vender' }}
-      </button>
-      <button
-        type="button"
+      </syn-button>
+      <syn-button
+        variant="outline"
+        size="sm"
         class="storefront__cart-toggle"
-        [class.is-active]="cartOpen()"
-        [attr.aria-expanded]="cartOpen()"
-        [attr.aria-controls]="fieldId + '-cart'"
-        (click)="toggleCart()"
+        [expanded]="cartOpen()"
+        [controls]="fieldId + '-cart'"
+        (pressed)="toggleCart()"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
         <span>Carrito</span>
         @if (cartCount() > 0) {
-          <span class="storefront__cart-count" [attr.aria-label]="cartCount() + ' artículos'">
-            {{ cartCount() }}
-          </span>
+          <syn-badge tone="brand" [text]="'' + cartCount()" [ariaLabel]="cartCount() + ' artículos'" />
         }
-      </button>
+      </syn-button>
     </nav>
   </header>
 
@@ -46,11 +44,11 @@
       <syn-status-banner tone="info" [message]="textosDeLaPendiente().texto" />
       <div class="storefront__aviso-de-compra-acciones">
         @if (compraSinTerminar()) {
-          <button type="button" class="storefront__btn storefront__btn--primary storefront__btn--sm" [disabled]="resolviendo()" (click)="terminarPendiente()">{{ textosDeLaPendiente().terminar }}</button>
-          <button type="button" class="storefront__btn storefront__btn--ghost storefront__btn--sm" [disabled]="resolviendo()" (click)="cancelarPendiente()">{{ textosDeLaPendiente().cancelar }}</button>
+          <syn-button size="sm" [disabled]="resolviendo()" (pressed)="terminarPendiente()">{{ textosDeLaPendiente().terminar }}</syn-button>
+          <syn-button variant="ghost" size="sm" [disabled]="resolviendo()" (pressed)="cancelarPendiente()">{{ textosDeLaPendiente().cancelar }}</syn-button>
         }
         @for (compra of comprasSinResolver(); track compra.id) {
-          <button type="button" class="storefront__btn storefront__btn--ghost storefront__btn--sm" [disabled]="resolviendo()" (click)="cancelarCompraSinResolver(compra.id)">{{ textosDeLaPendiente().cancelar }} · {{ compra.numero }}</button>
+          <syn-button variant="ghost" size="sm" [disabled]="resolviendo()" (pressed)="cancelarCompraSinResolver(compra.id)">{{ textosDeLaPendiente().cancelar }} · {{ compra.numero }}</syn-button>
         }
       </div>
     </div>
@@ -60,7 +58,7 @@
       <syn-status-banner tone="info" [message]="avisoDelEnlace()" />
       @if (enlacePideSesion()) {
         <div class="storefront__aviso-de-compra-acciones">
-          <a class="storefront__btn storefront__btn--primary storefront__btn--sm" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</a>
+          <syn-button size="sm" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</syn-button>
         </div>
       }
     </div>
@@ -92,21 +90,16 @@
         <h1 class="storefront__hero-title">{{ heading() }}</h1>
         <p class="storefront__hero-sub">{{ subheading() }}</p>
         <form class="storefront__searchbar storefront__searchbar--hero" role="search" (submit)="$event.preventDefault(); submitHomeSearch()">
-          <label class="storefront__sr-only" [attr.for]="fieldId + '-hq'">Buscar productos</label>
-          <input
+          <syn-input
             class="storefront__searchbar-input"
             type="search"
             [id]="fieldId + '-hq'"
+            ariaLabel="Buscar productos"
             placeholder="Buscar productos, marcas y más…"
             [value]="homeTerm()"
-            (input)="bind(homeTerm.set)($event)"
+            (valueChange)="homeTerm.set($event)"
           />
-          <button class="storefront__searchbar-btn" type="submit" aria-label="Buscar">
-            <svg class="storefront__icon" viewBox="0 0 24 24" width="20" height="20" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
-            </svg>
-          </button>
+          <syn-icon-button icon="search" type="submit" size="lg" ariaLabel="Buscar" />
         </form>
       </div>
 
@@ -116,12 +109,12 @@
           <ul class="storefront__cat-rail">
             @for (category of homeCategories(); track category.value) {
               <li>
-                <button type="button" class="storefront__cat-chip" (click)="openCategory(category.value)">
+                <syn-button variant="outline" size="sm" (pressed)="openCategory(category.value)">
                   {{ category.label }}
                   @if (category.count !== undefined) {
-                    <span class="storefront__cat-count">{{ category.count }}</span>
+                    <syn-badge [text]="'' + category.count" />
                   }
-                </button>
+                </syn-button>
               </li>
             }
           </ul>
@@ -162,23 +155,22 @@
 
       <ng-template #homeCard let-product>
         <article class="storefront__card">
-          <button
-            type="button"
+          <syn-button
+            variant="plain"
+            block
             class="storefront__card-media"
-            (click)="openProduct(product)"
-            [attr.aria-label]="'Ver ' + product.title"
+            [ariaLabel]="'Ver ' + product.title"
+            (pressed)="openProduct(product)"
           >
             @if (hasImage(product)) {
               <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
             } @else {
               <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
             }
-          </button>
+          </syn-button>
           <div class="storefront__card-body">
             <h3 class="storefront__card-title">
-              <button type="button" class="storefront__card-link" (click)="openProduct(product)">
-                {{ product.title }}
-              </button>
+              <syn-link tone="neutral" [underline]="false" (activated)="openProduct(product)">{{ product.title }}</syn-link>
             </h3>
             <p class="storefront__card-price">
               @if (productListPriceLabel(product)) {
@@ -219,23 +211,22 @@
 
     <ng-template #productCard let-product let-select="select">
       <article class="storefront__card">
-        <button
-          type="button"
+        <syn-button
+          variant="plain"
+          block
           class="storefront__card-media"
-          (click)="select()"
-          [attr.aria-label]="'Ver ' + product.title"
+          [ariaLabel]="'Ver ' + product.title"
+          (pressed)="select()"
         >
           @if (hasImage(product)) {
             <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
           } @else {
             <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
           }
-        </button>
+        </syn-button>
         <div class="storefront__card-body">
           <h3 class="storefront__card-title">
-            <button type="button" class="storefront__card-link" (click)="select()">
-              {{ product.title }}
-            </button>
+            <syn-link tone="neutral" [underline]="false" (activated)="select()">{{ product.title }}</syn-link>
           </h3>
           <p class="storefront__card-sub">{{ product.subtitle }}</p>
           <p class="storefront__card-price">
@@ -254,44 +245,38 @@
           @if (product.badges.length > 0) {
             <ul class="storefront__card-badges">
               @for (badge of product.badges; track badge) {
-                <li class="storefront__chip">{{ badge }}</li>
+                <li><syn-badge [text]="badge" /></li>
               }
             </ul>
           }
           <div class="storefront__card-actions">
             @if (product.inStock) {
-              <button
-                type="button"
-                class="storefront__btn storefront__btn--primary storefront__btn--sm"
-                (click)="quickAdd(product)"
-              >
+              <syn-button size="sm" class="storefront__card-add" (pressed)="quickAdd(product)">
                 {{ addFailedId() === product.id ? 'Reintentar' : 'Agregar' }}
-              </button>
+              </syn-button>
               @if (addFailedId() === product.id) {
                 <p class="storefront__add-error">No se pudo agregar al carrito.</p>
               }
             } @else {
-              <span class="storefront__out">Sin stock</span>
+              <syn-status-tag label="Sin stock" tone="inactive" />
             }
-            <button
-              type="button"
-              class="storefront__wish"
-              [class.is-active]="isWished(product.id)"
-              [attr.aria-pressed]="isWished(product.id)"
-              [attr.aria-label]="isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-              (click)="toggleWishlist(product)"
-            >
-              <svg class="storefront__wish-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-            </button>
-            <button
-              type="button"
+            <syn-icon-button
+              icon="heart"
+              variant="ghost"
+              size="sm"
+              [selected]="isWished(product.id)"
+              [ariaLabel]="isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              (pressed)="toggleWishlist(product)"
+            />
+            <syn-button
+              variant="outline"
+              size="sm"
               class="storefront__cmp"
-              [class.is-on]="inCompare(product.id)"
-              [attr.aria-pressed]="inCompare(product.id)"
-              (click)="toggleCompare(product)"
+              [selected]="inCompare(product.id)"
+              (pressed)="toggleCompare(product)"
             >
               {{ inCompare(product.id) ? 'Comparando' : 'Comparar' }}
-            </button>
+            </syn-button>
           </div>
         </div>
       </article>
@@ -363,19 +348,18 @@
         @if (pdp.variants.length > 0) {
           <div class="storefront__variants" role="group" aria-label="Variantes">
             @for (variant of pdp.variants; track variant.variantId) {
-              <button
-                type="button"
-                class="storefront__variant"
-                [class.is-active]="selectedVariant()?.variantId === variant.variantId"
+              <syn-button
+                variant="outline"
+                size="sm"
                 [disabled]="!variant.inStock"
-                [attr.aria-pressed]="selectedVariant()?.variantId === variant.variantId"
-                (click)="selectVariant(variant)"
+                [selected]="selectedVariant()?.variantId === variant.variantId"
+                (pressed)="selectVariant(variant)"
               >
                 {{ variant.label }}
                 @if (!variant.inStock) {
                   <span class="storefront__variant-out">agotado</span>
                 }
-              </button>
+              </syn-button>
             }
           </div>
         }
@@ -388,43 +372,39 @@
         </p>
 
         <div class="storefront__qty" role="group" aria-label="Cantidad">
-          <button
-            type="button"
-            class="storefront__qty-btn"
+          <syn-icon-button
+            icon="minus"
+            variant="outline"
+            size="sm"
+            ariaLabel="Disminuir cantidad"
             [disabled]="pdpQuantity() <= 1"
-            (click)="changeQuantity(-1)"
-            aria-label="Disminuir cantidad"
-          >−</button>
+            (pressed)="changeQuantity(-1)"
+          />
           <span class="storefront__qty-value" aria-live="polite">{{ pdpQuantity() }}</span>
-          <button
-            type="button"
-            class="storefront__qty-btn"
-            (click)="changeQuantity(1)"
-            aria-label="Aumentar cantidad"
-          >+</button>
+          <syn-icon-button
+            icon="plus"
+            variant="outline"
+            size="sm"
+            ariaLabel="Aumentar cantidad"
+            (pressed)="changeQuantity(1)"
+          />
         </div>
 
-        <button
-          type="button"
-          class="storefront__btn storefront__btn--primary storefront__btn--block"
-          [disabled]="!pdpInStock()"
-          (click)="addCurrentToCart()"
-        >
+        <syn-button block [disabled]="!pdpInStock()" (pressed)="addCurrentToCart()">
           {{ addFailedId() === pdp.product.id ? 'Reintentar' : 'Agregar al carrito' }}
-        </button>
+        </syn-button>
         @if (addFailedId() === pdp.product.id) {
           <p class="storefront__add-error">No se pudo agregar al carrito. Intenta de nuevo.</p>
         }
-        <button
-          type="button"
-          class="storefront__btn storefront__btn--ghost storefront__btn--block"
-          [class.is-active]="isWished(pdp.product.id)"
-          [attr.aria-pressed]="isWished(pdp.product.id)"
-          (click)="toggleWishlist(pdp.product)"
+        <syn-button
+          variant="outline"
+          block
+          [selected]="isWished(pdp.product.id)"
+          (pressed)="toggleWishlist(pdp.product)"
         >
-          <svg class="storefront__wish-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <syn-icon name="heart" />
           <span>{{ isWished(pdp.product.id) ? 'En favoritos' : 'Agregar a favoritos' }}</span>
-        </button>
+        </syn-button>
         @if (pdp.product.seller) {
           <p class="storefront__seller-note">Vendido por <strong>{{ pdp.product.seller }}</strong></p>
         }
@@ -479,23 +459,22 @@
           @for (product of related(); track product.id) {
             <li>
               <article class="storefront__card">
-                <button
-                  type="button"
+                <syn-button
+                  variant="plain"
+                  block
                   class="storefront__card-media"
-                  (click)="openProduct(product)"
-                  [attr.aria-label]="'Ver ' + product.title"
+                  [ariaLabel]="'Ver ' + product.title"
+                  (pressed)="openProduct(product)"
                 >
                   @if (hasImage(product)) {
                     <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
                   } @else {
                     <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
                   }
-                </button>
+                </syn-button>
                 <div class="storefront__card-body">
                   <h3 class="storefront__card-title">
-                    <button type="button" class="storefront__card-link" (click)="openProduct(product)">
-                      {{ product.title }}
-                    </button>
+                    <syn-link tone="neutral" [underline]="false" (activated)="openProduct(product)">{{ product.title }}</syn-link>
                   </h3>
                   <p class="storefront__card-price">
                     <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
@@ -558,7 +537,7 @@
       <div class="storefront__sesion">
         <h2 class="storefront__heading">{{ textosDeLaSesion().titulo }}</h2>
         <p class="storefront__sesion-texto">{{ textosDeLaSesion().texto }}</p>
-        <a class="storefront__btn storefront__btn--primary" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</a>
+        <syn-button [href]="loginUrl()">{{ textosDeLaSesion().boton }}</syn-button>
       </div>
     } @else {
       <syn-checkout-wizard
@@ -576,35 +555,52 @@
         @case ('datos') {
           <fieldset class="storefront__form">
             <legend class="storefront__heading">Datos de envío</legend>
-            <label class="storefront__field">
-              <span class="storefront__label">Nombre completo</span>
-              <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" [attr.aria-invalid]="customerName() && !customerNameValid() ? 'true' : null" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Correo electrónico</span>
-              <input class="storefront__input" type="email" [value]="customerEmail()" (input)="bind(customerEmail.set)($event)" [attr.aria-invalid]="customerEmail() && !customerEmailValid() ? 'true' : null" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Dirección</span>
-              <input class="storefront__input" type="text" [value]="customerAddress()" (input)="bind(customerAddress.set)($event)" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Ciudad</span>
-              <input class="storefront__input" type="text" [value]="customerCity()" (input)="bind(customerCity.set)($event)" />
-            </label>
+            <syn-input
+              label="Nombre completo"
+              autocomplete="name"
+              [value]="customerName()"
+              [invalid]="!!customerName() && !customerNameValid()"
+              (valueChange)="customerName.set($event)"
+            />
+            <syn-input
+              label="Correo electrónico"
+              type="email"
+              autocomplete="email"
+              [value]="customerEmail()"
+              [invalid]="!!customerEmail() && !customerEmailValid()"
+              (valueChange)="customerEmail.set($event)"
+            />
+            <syn-input
+              label="Dirección"
+              autocomplete="shipping street-address"
+              [value]="customerAddress()"
+              (valueChange)="customerAddress.set($event)"
+            />
+            <syn-input
+              label="Ciudad"
+              autocomplete="shipping address-level2"
+              [value]="customerCity()"
+              (valueChange)="customerCity.set($event)"
+            />
           </fieldset>
         }
         @case ('pago') {
           <fieldset class="storefront__form">
             <legend class="storefront__heading">Método de pago</legend>
-            <label class="storefront__radio">
-              <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
-              <span>Tarjeta de crédito / débito (hasta 36 cuotas)</span>
-            </label>
-            <label class="storefront__radio">
-              <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
-              <span>PSE — débito desde tu banco</span>
-            </label>
+            <syn-radio
+              [name]="fieldId + '-pago'"
+              value="card"
+              label="Tarjeta de crédito / débito (hasta 36 cuotas)"
+              [checked]="paymentMethod() === 'card'"
+              (selected)="setPaymentMethod('card')"
+            />
+            <syn-radio
+              [name]="fieldId + '-pago'"
+              value="pse"
+              label="PSE — débito desde tu banco"
+              [checked]="paymentMethod() === 'pse'"
+              (selected)="setPaymentMethod('pse')"
+            />
             <p class="storefront__notice">Demostración: no se realiza un cobro real.</p>
           </fieldset>
         }
@@ -681,7 +677,7 @@
     <ng-template #orderRow let-order>
       <span class="storefront__order-head">
         <span class="storefront__order-number">{{ order.orderNumber }}</span>
-        <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
+        <syn-status-tag [label]="orderStatusLabel(order.status)" [tone]="toneDelEstado(order.status)" />
       </span>
       <span class="storefront__order-date">{{ orderDateLabel(order) }} · {{ orderTotalLabel(order) }}</span>
     </ng-template>
@@ -690,7 +686,7 @@
       <div class="storefront__order-detail">
         <div class="storefront__order-head">
           <span class="storefront__order-number">{{ order.orderNumber }}</span>
-          <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
+          <syn-status-tag [label]="orderStatusLabel(order.status)" [tone]="toneDelEstado(order.status)" />
         </div>
         <!-- La devolución es POR LÍNEA (#32): el reclamo guarda su producto, su
              cantidad y su monto, y devolver «el pedido» de tres artículos porque
@@ -705,13 +701,7 @@
                   reclamo {{ claim.claimId }}
                 </span>
               } @else if (canReturnLine(order, line)) {
-                <button
-                  type="button"
-                  class="storefront__link"
-                  (click)="openReturn(order.orderNumber, line)"
-                >
-                  Devolver
-                </button>
+                <syn-link (activated)="openReturn(order.orderNumber, line)">Devolver</syn-link>
               } @else if (returnBlockedReason(order, line); as motivo) {
                 <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
                      (#32), o el servidor nombra el motivo (#34). Callarse deja a
@@ -736,38 +726,30 @@
               <fieldset class="storefront__return-reasons">
                 <legend class="storefront__return-legend">¿Qué pasó?</legend>
                 @for (reason of returnReasons; track reason) {
-                  <label class="storefront__return-reason">
-                    <input
-                      type="radio"
-                      name="return-reason"
-                      [checked]="draft.reason === reason"
-                      (change)="setReturnReason(reason)"
-                    />
-                    {{ returnReasonLabel(reason) }}
-                  </label>
+                  <syn-radio
+                    [name]="fieldId + '-motivo'"
+                    [value]="reason"
+                    [label]="returnReasonLabel(reason)"
+                    [checked]="draft.reason === reason"
+                    (selected)="setReturnReason(reason)"
+                  />
                 }
               </fieldset>
               @if (returnError(); as error) {
                 <p class="storefront__return-error" role="alert">{{ error }}</p>
               }
               <div class="storefront__return-actions">
-                <button
-                  type="submit"
-                  class="storefront__btn storefront__btn--primary storefront__btn--sm"
-                  [disabled]="returnSending()"
-                >
+                <syn-button type="submit" size="sm" [disabled]="returnSending()">
                   {{ returnSending() ? 'Enviando…' : 'Pedir devolución' }}
-                </button>
-                <button type="button" class="storefront__link" (click)="closeReturn()">Cancelar</button>
+                </syn-button>
+                <syn-link (activated)="closeReturn()">Cancelar</syn-link>
               </div>
             </form>
           }
         }
 
         <div class="storefront__order-actions">
-          <button type="button" class="storefront__link" (click)="goToAccount('mensajes')">
-            Contactar al vendedor
-          </button>
+          <syn-link (activated)="goToAccount('mensajes')">Contactar al vendedor</syn-link>
         </div>
       </div>
     </ng-template>
@@ -789,8 +771,8 @@
                   <p class="storefront__wish-title">{{ entry.title }}</p>
                   <p class="storefront__card-now">{{ wishlistPriceLabel(entry) }}</p>
                   <div class="storefront__actions">
-                    <button type="button" class="storefront__btn storefront__btn--sm storefront__btn--primary" (click)="openWishlistEntry(entry)">Ver</button>
-                    <button type="button" class="storefront__btn storefront__btn--sm storefront__btn--ghost" (click)="removeWishlistEntry(entry)">Quitar</button>
+                    <syn-button size="sm" (pressed)="openWishlistEntry(entry)">Ver</syn-button>
+                    <syn-button variant="ghost" size="sm" (pressed)="removeWishlistEntry(entry)">Quitar</syn-button>
                   </div>
                 </li>
               }
@@ -829,22 +811,10 @@
             } @else {
               <p class="storefront__notice">Estos datos prellenan el checkout.</p>
             }
-            <label class="storefront__field">
-              <span class="storefront__label">Nombre completo</span>
-              <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Correo electrónico</span>
-              <input class="storefront__input" type="email" [value]="customerEmail()" (input)="bind(customerEmail.set)($event)" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Dirección</span>
-              <input class="storefront__input" type="text" [value]="customerAddress()" (input)="bind(customerAddress.set)($event)" />
-            </label>
-            <label class="storefront__field">
-              <span class="storefront__label">Ciudad</span>
-              <input class="storefront__input" type="text" [value]="customerCity()" (input)="bind(customerCity.set)($event)" />
-            </label>
+            <syn-input label="Nombre completo" autocomplete="name" [value]="customerName()" (valueChange)="customerName.set($event)" />
+            <syn-input label="Correo electrónico" type="email" autocomplete="email" [value]="customerEmail()" (valueChange)="customerEmail.set($event)" />
+            <syn-input label="Dirección" autocomplete="street-address" [value]="customerAddress()" (valueChange)="customerAddress.set($event)" />
+            <syn-input label="Ciudad" autocomplete="address-level2" [value]="customerCity()" (valueChange)="customerCity.set($event)" />
           </fieldset>
         }
       }
@@ -913,16 +883,12 @@
           }
           @case ('sellerBuyer') { {{ row.buyer }} }
           @case ('sellerStatus') {
-            <span class="storefront__order-status" [attr.data-status]="row.status">
-              {{ orderStatusLabel(row.status) }}
-            </span>
+            <syn-status-tag [label]="orderStatusLabel(row.status)" [tone]="toneDelEstado(row.status)" />
           }
           @case ('sellerTotal') { {{ row.totalFormatted || '—' }} }
 
           @case ('returnStatus') {
-            <span class="storefront__order-status" [attr.data-status]="row.status">
-              {{ returnStatusLabel(row) }}
-            </span>
+            <syn-status-tag [label]="returnStatusLabel(row)" [tone]="toneDelEstado(row.status)" />
           }
           @case ('returnProduct') {
             <span class="storefront__cell-strong">{{ row.productName }}</span>
@@ -932,9 +898,7 @@
           @case ('returnAmount') { {{ row.refundAmountFormatted || '—' }} }
 
           @case ('modReason') {
-            <span class="storefront__order-status" [attr.data-status]="row.reason === 'reported' ? 'pending' : 'paid'">
-              {{ sellerModerationReasonLabel(row) }}
-            </span>
+            <syn-status-tag [label]="sellerModerationReasonLabel(row)" [tone]="row.reason === 'reported' ? 'pending' : 'neutral'" />
           }
           @case ('modAuthor') {
             <span class="storefront__cell-strong">{{ row.author }}</span>

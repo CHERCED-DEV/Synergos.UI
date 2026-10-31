@@ -1,5 +1,7 @@
 {
-  "obligatorias": [],
+  "obligatorias": [
+    "storefront"
+  ],
   "piso": {
     "academy": 40,
     "alquiler": 19,
@@ -11,7 +13,6 @@
     "realty": 55,
     "reserva": 9,
     "seller": 22,
-    "storefront": 43,
     "travel-shell": 36
   }
 }

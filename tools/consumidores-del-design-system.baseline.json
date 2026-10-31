@@ -1,5 +1,5 @@
 {
-  "medido": "2026-09-29",
+  "medido": "2026-10-31",
   "nota": "LÍNEA BASE, no objetivo. La deuda de #78: piezas del design system que no alcanza ningún elemento. Se vigila en los dos sentidos — una nueva rompe, y una que dejó de estarlo también, para que el commit que la retira o la cablea baje la línea aquí mismo.",
   "inalcanzables": [
     "ConfigurableFormComponent",
@@ -14,7 +14,6 @@
     "PanelComponent",
     "PricingCardComponent",
     "ProgressComponent",
-    "RadioComponent",
     "ReadMoreComponent",
     "SectionComponent",
     "SpinnerComponent",

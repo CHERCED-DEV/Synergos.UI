@@ -67,7 +67,15 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  BadgeComponent,
+  ButtonComponent,
+  IconButtonComponent,
+  IconComponent,
+  InputComponent,
+  LinkComponent,
   LiveAnnouncerService,
+  RadioComponent,
+  StatusTagComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   monogram as monogramOf,
@@ -77,6 +85,7 @@ import {
   type AppliedPromo,
   type PromoCodeConfig,
   type PromoRejection,
+  type StatusTagTone,
   SynSkeletonComponent,
   SynErrorStateComponent,
   SynStatusBannerComponent,
@@ -401,6 +410,14 @@ let storefrontInstanceId = 0;
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
+    BadgeComponent,
+    ButtonComponent,
+    IconButtonComponent,
+    IconComponent,
+    InputComponent,
+    LinkComponent,
+    RadioComponent,
+    StatusTagComponent,
   ],
   templateUrl: './storefront.html',
   styleUrl: './storefront.scss',
@@ -2626,6 +2643,24 @@ export class StorefrontElementComponent implements OnInit {
         return 'Entregado';
       case 'cancelled':
         return 'Cancelado';
+    }
+  }
+
+  /** El tono del design system para el estado de un pedido o de un reclamo (`syn-status-tag`). */
+  toneDelEstado(status: string): StatusTagTone {
+    switch (status) {
+      case 'delivered':
+      case 'resuelto':
+        return 'success';
+      case 'cancelled':
+      case 'rechazado':
+        return 'critical';
+      case 'pending':
+      case 'abierto':
+      case 'en-revision':
+        return 'pending';
+      default:
+        return 'neutral';
     }
   }
 

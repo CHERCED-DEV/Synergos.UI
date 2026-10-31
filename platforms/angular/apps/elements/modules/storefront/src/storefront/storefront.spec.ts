@@ -491,7 +491,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     component.navigate('plp');
 
     const botonDe = (tarjeta: Element) =>
-      tarjeta.querySelector('.storefront__card-actions .storefront__btn--primary') as HTMLButtonElement;
+      tarjeta.querySelector('.storefront__card-actions .storefront__card-add button') as HTMLButtonElement;
     const tarjetaConAgregar = (): Element | undefined =>
       Array.from(fixture.nativeElement.querySelectorAll('.storefront__card') as NodeListOf<Element>).find((t) => botonDe(t));
     await vi.waitFor(
@@ -1793,7 +1793,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   describe('comparar', () => {
     const botones = (): HTMLButtonElement[] =>
       Array.from(
-        (fixture.nativeElement as HTMLElement).querySelectorAll('.storefront__cmp'),
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.storefront__cmp button'),
       ) as HTMLButtonElement[];
 
     it('marca dos productos desde el catálogo y la ficha se alinea por atributo', async () => {
