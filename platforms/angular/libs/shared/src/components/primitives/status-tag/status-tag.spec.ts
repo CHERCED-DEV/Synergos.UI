@@ -33,4 +33,17 @@ describe(StatusTagComponent.name, () => {
     expect(tag.className).toContain('syn-status-tag--pending');
     expect(tag.className).toContain('syn-status-tag--filled');
   });
+
+  // 014-despiece-tienda: el estado de una fila no es un anuncio; la región viva va sólo cuando se pide.
+  it('is not a live region unless asked', () => {
+    const fixture = TestBed.createComponent(StatusTagComponent);
+    fixture.componentRef.setInput('label', 'En camino');
+    fixture.detectChanges();
+    const tag = fixture.nativeElement.querySelector('.syn-status-tag') as HTMLElement;
+    expect(tag.hasAttribute('role')).toBe(false);
+
+    fixture.componentRef.setInput('live', true);
+    fixture.detectChanges();
+    expect(tag.getAttribute('role')).toBe('status');
+  });
 });

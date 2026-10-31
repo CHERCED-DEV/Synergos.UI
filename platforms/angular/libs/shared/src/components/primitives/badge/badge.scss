@@ -48,3 +48,8 @@
   --syn-badge-color: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
   --syn-badge-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
 }
+
+// El nombre accesible que difiere del texto visible (un contador «2» que se lee «2 artículos»).
+.syn-badge__sr {
+  @include syn.visually-hidden;
+}

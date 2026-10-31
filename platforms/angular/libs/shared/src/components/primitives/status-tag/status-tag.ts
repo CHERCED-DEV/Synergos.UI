@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
 import {
   coerceStringEnumInput,
@@ -40,7 +40,7 @@ function sanitizeStatusTagConfig(value: Partial<StatusTagConfig>): Partial<Statu
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span class="syn-status-tag" [class]="tagClass()" role="status">
+    <span class="syn-status-tag" [class]="tagClass()" [attr.role]="live() ? 'status' : null">
       {{ label() }}
     </span>
   `,
@@ -53,6 +53,11 @@ export class StatusTagComponent {
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly toneInput = input<StatusTagTone | undefined>(undefined, { alias: 'tone' });
   readonly styleInput = input<StatusTagStyle | undefined>(undefined, { alias: 'style' });
+  /**
+   * Para un estado que cambia y TIENE que anunciarse: `role="status"`. Por defecto, una etiqueta callada: el estado de
+   * una fila de una tabla no es un anuncio (014-despiece-tienda).
+   */
+  readonly live = input(false, { transform: booleanAttribute });
 
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, ''),
