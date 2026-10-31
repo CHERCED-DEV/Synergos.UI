@@ -35,6 +35,12 @@ describe('analizarPlantilla', () => {
     expect(hallados.map((h) => h.texto)).toEqual(['Industria', 'Capacidades', 'Estado: ']);
   });
 
+  it('cuenta el nombre accesible que un átomo recibe por `ariaLabel`, como el `aria-label` de una etiqueta a mano', () => {
+    // 014-despiece-tienda: pasar `<button aria-label="Buscar">` a `<syn-icon-button ariaLabel="Buscar">` no traduce nada.
+    const hallados = analizarPlantilla('<syn-icon-button icon="search" ariaLabel="Buscar" /><syn-input ariaLabel="Buscar productos" />');
+    expect(hallados.map((h) => h.texto)).toEqual(['Buscar', 'Buscar productos']);
+  });
+
   it('no cuenta interpolaciones de señales ni atributos técnicos', () => {
     expect(analizarPlantilla('<p class="a b-c" role="status">{{ emptyLabel() }}</p>')).toEqual([]);
   });
