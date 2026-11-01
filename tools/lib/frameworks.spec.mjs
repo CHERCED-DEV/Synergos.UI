@@ -283,6 +283,10 @@ const CIEGAS_AL_FRAMEWORK = [
   // HTML (`<button>`, `<input>`…) en sus plantillas, que no tienen dueño de framework.
   'lib/atomos-en-apps.mjs',
   'atomos-en-apps.mjs',
+  // Y la de T012 del mismo piloto: recorre igual y mide líneas de TS y de plantilla; reconoce un componente por su
+  // decorador `@Component(`, que es el único dato de framework y lo lee como texto, sin importar nada.
+  'lib/tamano-de-componente.mjs',
+  'tamano-de-componente.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía
