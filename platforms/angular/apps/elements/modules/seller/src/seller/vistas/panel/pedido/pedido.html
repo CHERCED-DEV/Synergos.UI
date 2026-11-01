@@ -1,0 +1,68 @@
+<!-- El detalle de un pedido de la bandeja: a dónde va y con quién (013-seller-operaciones, T012). -->
+@if (estado.activeSection() === 'ventas' && despacho.detalle(); as abierto) {
+  <section class="seller__detalle" [attr.aria-label]="presentacion.textoDelDetalle(abierto.pedido.orderNumber)">
+    <header class="seller__detalle-head">
+      <h2 class="seller__detalle-title">{{ presentacion.textoDelDetalle(abierto.pedido.orderNumber) }}</h2>
+      <syn-button variant="outline" size="sm" (pressed)="despacho.cerrarDetalle()">{{ presentacion.textoCerrar }}</syn-button>
+    </header>
+    @if (abierto.estado === 'caida') {
+      <syn-error-state
+        [message]="presentacion.textoCaida"
+        [retryLabel]="presentacion.textoReintentar"
+        (retry)="despacho.abrirDetalle(abierto.pedido)"
+      />
+    } @else if (abierto.datos; as d) {
+      <p class="seller__detalle-resumen">{{ presentacion.resumenDelPedido(d) }}</p>
+      <dl class="seller__detalle-envio">
+        @if (d.envio?.destino; as destino) {
+          <div class="seller__detalle-dato">
+            <dt>{{ presentacion.textoDestino }}</dt>
+            <dd>{{ presentacion.destinoEnUnaLinea(destino) }}</dd>
+          </div>
+        }
+        @if (d.envio?.transportadora; as transportadora) {
+          <div class="seller__detalle-dato">
+            <dt>{{ presentacion.textoTransportadora }}</dt>
+            <dd>{{ transportadora }}</dd>
+          </div>
+        }
+      </dl>
+      @if (d.motivoSinEnvio) {
+        <p class="seller__hint">{{ presentacion.textoSinEnvioDe(d.motivoSinEnvio) }}</p>
+      }
+      @if (presentacion.textoSinActosDe(d.motivoSinActos); as sinActos) {
+        <p class="seller__hint">{{ sinActos }}</p>
+      }
+    } @else {
+      <p class="seller__hint">{{ presentacion.textoCargando }}</p>
+    }
+  </section>
+}
+
+<!-- Marcar enviado pide antes la guía, que es opcional (013-seller-operaciones, T021). -->
+@if (estado.activeSection() === 'ventas' && despacho.envioAbierto(); as aEnviar) {
+  <section class="seller__detalle" [attr.aria-label]="presentacion.textoDelEnvio(aEnviar.orderNumber)">
+    <header class="seller__detalle-head">
+      <h2 class="seller__detalle-title">{{ presentacion.textoDelEnvio(aEnviar.orderNumber) }}</h2>
+    </header>
+    <syn-input
+      class="seller__guia"
+      autocomplete="off"
+      [label]="presentacion.textoGuia"
+      [hint]="presentacion.textoAyudaDeLaGuia"
+      [maxlength]="presentacion.guiaMaxima"
+      [value]="despacho.guia()"
+      (valueChange)="despacho.guia.set($event)"
+    />
+    <div class="seller__envio-acciones">
+      <syn-button
+        class="seller__enviar"
+        [disabled]="despacho.actoEnVuelo() !== null"
+        (pressed)="despacho.actuar(aEnviar, 'enviar', despacho.guia())"
+      >
+        {{ despacho.actoEnVuelo() === aEnviar.orderRef ? despacho.accionEnVuelo.label : presentacion.accionDelActo.enviar.label }}
+      </syn-button>
+      <syn-button variant="outline" (pressed)="despacho.cerrarEnvio()">{{ presentacion.textoCancelar }}</syn-button>
+    </div>
+  </section>
+}

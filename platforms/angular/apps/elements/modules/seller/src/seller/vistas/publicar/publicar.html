@@ -1,0 +1,147 @@
+@if (publishReceipt(); as receipt) {
+  <div class="seller__receipt" role="status">
+    <p class="seller__receipt-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    </p>
+    <h2 class="seller__receipt-title">Publicación creada</h2>
+    <p class="seller__receipt-detail">
+      Referencia <strong>{{ receipt.productId }}</strong> · estado {{ receipt.status }}.
+    </p>
+    <div class="seller__receipt-actions">
+      <syn-button (pressed)="publishAnother()">Publicar otro producto</syn-button>
+      <syn-button variant="outline" (pressed)="estado.goTo('panel')">Ir al panel</syn-button>
+    </div>
+  </div>
+} @else {
+  <syn-authoring-wizard
+    [config]="wizardConfig"
+    [validity]="wizardValidity()"
+    [publishing]="publishing()"
+    [stepTemplate]="publishStep"
+    (draftchange)="onDraftChange($event)"
+    (published)="onPublish($event)"
+    (exit)="onWizardExit()"
+  />
+
+  <ng-template #publishStep let-step let-draft="draft" let-patch="patch">
+    @switch (step.id) {
+      <!-- Paso 1: datos del producto -->
+      @case ('datos') {
+        <div class="seller__form">
+          <syn-input label="Título de la publicación" [value]="draftString(draft, 'title')" (valueChange)="patchField(patch, 'title', $event)" />
+          <div class="seller__form-row">
+            <syn-input label="Marca" [value]="draftString(draft, 'brand')" (valueChange)="patchField(patch, 'brand', $event)" />
+            <syn-input label="Categoría" [value]="draftString(draft, 'category')" (valueChange)="patchField(patch, 'category', $event)" />
+          </div>
+          <syn-textarea
+            label="Descripción"
+            [rows]="4"
+            [value]="draftString(draft, 'description')"
+            (valueChange)="patchField(patch, 'description', $event)"
+          />
+        </div>
+      }
+      <!-- Paso 2: fotos por URL -->
+      @case ('media') {
+        <div class="seller__form">
+          <div class="seller__media-add">
+            <syn-input
+              class="seller__field--grow"
+              type="url"
+              label="URL de la imagen"
+              placeholder="https://…"
+              [value]="mediaUrl()"
+              (valueChange)="mediaUrl.set($event)"
+            />
+            <syn-button variant="outline" [disabled]="!mediaUrl().trim()" (pressed)="addImage(patch, draft)">
+              Agregar foto
+            </syn-button>
+          </div>
+          @if (draftImages(draft).length > 0) {
+            <ul class="seller__media-list">
+              @for (url of draftImages(draft); track url) {
+                <li class="seller__media-item">
+                  <span class="seller__media-url">{{ url }}</span>
+                  <syn-icon-button
+                    icon="x"
+                    variant="ghost"
+                    size="sm"
+                    [ariaLabel]="'Quitar ' + url"
+                    (pressed)="removeImage(patch, draft, url)"
+                  />
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="seller__hint">Sin fotos todavía — la publicación mostrará un marcador.</p>
+          }
+        </div>
+      }
+      <!-- Paso 3: precio, stock y condición -->
+      @case ('precio') {
+        <div class="seller__form">
+          <div class="seller__form-row">
+            <syn-input
+              type="number"
+              label="Precio ({{ estado.currency() }})"
+              [min]="0"
+              [value]="'' + (draftNumber(draft, 'amount') || '')"
+              (valueChange)="patchField(patch, 'amount', $event)"
+            />
+            <syn-input
+              type="number"
+              label="Stock disponible"
+              [min]="0"
+              [value]="'' + (draftNumber(draft, 'stock') || '')"
+              (valueChange)="patchField(patch, 'stock', $event)"
+            />
+          </div>
+          <syn-select
+            label="Condición"
+            [options]="condiciones"
+            [value]="draftCondition(draft)"
+            (valueChange)="patchField(patch, 'condition', $event)"
+          />
+        </div>
+      }
+      <!-- Paso 4: preview antes de publicar -->
+      @case ('preview') {
+        <div class="seller__preview">
+          <h3 class="seller__preview-title">
+            {{ draftString(draft, 'title') || 'Sin título' }}
+          </h3>
+          <p class="seller__preview-price">{{ draftPriceLabel(draft) }}</p>
+          <dl class="seller__preview-specs">
+            <div class="seller__preview-spec">
+              <dt>Marca</dt>
+              <dd>{{ draftString(draft, 'brand') || '—' }}</dd>
+            </div>
+            <div class="seller__preview-spec">
+              <dt>Categoría</dt>
+              <dd>{{ draftString(draft, 'category') || '—' }}</dd>
+            </div>
+            <div class="seller__preview-spec">
+              <dt>Condición</dt>
+              <dd>{{ conditionLabel(draftCondition(draft)) }}</dd>
+            </div>
+            <div class="seller__preview-spec">
+              <dt>Stock</dt>
+              <dd>{{ draftNumber(draft, 'stock') }}</dd>
+            </div>
+            <div class="seller__preview-spec">
+              <dt>Fotos</dt>
+              <dd>{{ draftImages(draft).length }}</dd>
+            </div>
+          </dl>
+          @if (draftString(draft, 'description')) {
+            <p class="seller__preview-desc">{{ draftString(draft, 'description') }}</p>
+          }
+          <p class="seller__hint">Revisa los datos: al publicar quedará visible en la tienda.</p>
+        </div>
+      }
+    }
+  </ng-template>
+}

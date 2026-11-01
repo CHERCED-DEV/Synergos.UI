@@ -1,0 +1,65 @@
+<!-- Sin hilos leídos no hay bandeja que pintar: «No tienes mensajes» sería otra respuesta. -->
+@if (estado.lecturas().mensajes === 'caida') {
+  <syn-error-state
+    [message]="presentacion.textoCaida"
+    [retryLabel]="presentacion.textoReintentar"
+    (retry)="estado.recargar('mensajes')"
+  />
+} @else {
+  <syn-message-center
+    [config]="messagesConfig"
+    [threads]="estado.threads()"
+    [activeThread]="activeThread()"
+    [loading]="estado.enVuelo('mensajes')"
+    [sending]="sending()"
+    [threadTemplate]="threadRow"
+    [detailTemplate]="threadDetail"
+    (threadselect)="onThreadSelect($event)"
+    (send)="onSendReply($event)"
+  />
+}
+
+<ng-template #threadRow let-thread>
+  <span class="seller__thread-row" [class.is-unread]="thread.unread">
+    <span class="seller__thread-subject">{{ thread.subject }}</span>
+    <span class="seller__thread-meta">
+      {{ thread.counterpart }}@if (thread.date) {<span> · {{ thread.date }}</span>}
+    </span>
+  </span>
+  @if (thread.unread) {
+    <span class="seller__thread-dot" aria-hidden="true"></span>
+  }
+</ng-template>
+
+<ng-template #threadDetail let-thread>
+  <header class="seller__thread-head">
+    <h2 class="seller__thread-title">{{ thread.subject }}</h2>
+    <p class="seller__thread-sub">{{ thread.counterpart }}</p>
+  </header>
+  <ul class="seller__msgs">
+    @for (message of thread.messages; track message.id) {
+      <li
+        class="seller__msg"
+        [class.seller__msg--own]="message.from === 'seller'"
+        [class.seller__msg--failed]="message.failed"
+      >
+        <p class="seller__msg-body">{{ message.body }}</p>
+        <!-- Una respuesta que no salió NO lleva fecha: sería el acuse que no existe.
+             Lleva su marca y su reintento, y el texto no se pierde (UI#92, regla 18). -->
+        @if (message.failed) {
+          <p class="seller__msg-failed">
+            No enviada
+            <syn-link class="seller__msg-retry" (activated)="retryReply(thread, message)">Reintentar</syn-link>
+          </p>
+        } @else {
+          <p class="seller__msg-meta">
+            {{ message.from === 'seller' ? 'Tú' : thread.counterpart }}
+            @if (message.date) {
+              <span> · {{ message.date }}</span>
+            }
+          </p>
+        }
+      </li>
+    }
+  </ul>
+</ng-template>

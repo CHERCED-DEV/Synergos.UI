@@ -1,0 +1,16 @@
+<!-- Reembolsar mueve plata: se confirma antes (013-seller-operaciones, T025). -->
+@if (estado.activeSection() === 'devoluciones' && reembolsos.reembolsoAbierto(); as aReembolsar) {
+  <section class="seller__detalle" [attr.aria-label]="presentacion.textoDelReembolso(aReembolsar)">
+    <p class="seller__detalle-resumen">{{ presentacion.textoDelReembolso(aReembolsar) }}</p>
+    <div class="seller__envio-acciones">
+      <syn-button
+        class="seller__reembolsar"
+        [disabled]="reembolsos.devolucionEnVuelo() !== null"
+        (pressed)="reembolsos.moverDevolucion(aReembolsar, 'refunded')"
+      >
+        {{ reembolsos.devolucionEnVuelo() === aReembolsar.rmaId ? despacho.accionEnVuelo.label : presentacion.textoConfirmarReembolso }}
+      </syn-button>
+      <syn-button variant="outline" (pressed)="reembolsos.cerrarReembolso()">{{ presentacion.textoCancelar }}</syn-button>
+    </div>
+  </section>
+}
