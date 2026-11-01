@@ -1,6 +1,11 @@
 import { type Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MUESTRAS_DE_LA_CONSOLA, SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
+import { BandejaDelPersonalApi } from './bandeja-api.client';
+import { DevolucionesDelPersonalApi } from './devoluciones-api.client';
+import { MUESTRAS_DE_LA_CONSOLA, type LecturaDeLaConsola } from './lecturas-de-la-consola';
+import { MensajesDelVendedorApi } from './mensajes-api.client';
+import { PublicacionesDelVendedorApi } from './publicaciones-api.client';
+import { ResumenDelVendedorApi } from './resumen-api.client';
 
 // ══ LAS LECTURAS DE LA CONSOLA NO INVENTAN (013-seller-operaciones, T006) ══════════════════════════════════════
 //
@@ -27,7 +32,7 @@ const HILO_DEL_CMS = {
   messageCount: 1,
 };
 
-type Lector = (cliente: SellerApiClient, apiBase: string) => Promise<LecturaDeLaConsola<unknown>>;
+type Lector = (cliente: ClienteDeLaConsola, apiBase: string) => Promise<LecturaDeLaConsola<unknown>>;
 
 /** Las lecturas de la consola. */
 const LECTURAS: ReadonlyArray<readonly [string, Lector]> = [
@@ -83,10 +88,35 @@ const CAIDAS: ReadonlyArray<readonly [string, () => void]> = [
   ['una forma que no se entiende', () => contestar(200, { error: 'x' })],
 ];
 
+/**
+ * Los cinco adaptadores de la consola con la forma del cliente único que estas pruebas leían (014-despiece-tienda,
+ * T009): cada método va al adaptador de su capacidad, y las pruebas siguen tal cual.
+ */
+function clienteDeLaConsola() {
+  const resumen = TestBed.inject(ResumenDelVendedorApi);
+  const bandeja = TestBed.inject(BandejaDelPersonalApi);
+  const publicaciones = TestBed.inject(PublicacionesDelVendedorApi);
+  const devoluciones = TestBed.inject(DevolucionesDelPersonalApi);
+  const mensajes = TestBed.inject(MensajesDelVendedorApi);
+  return {
+    summary: resumen.summary.bind(resumen),
+    pedidos: bandeja.pedidos.bind(bandeja),
+    pedido: bandeja.pedido.bind(bandeja),
+    avanzar: bandeja.avanzar.bind(bandeja),
+    listings: publicaciones.listings.bind(publicaciones),
+    publishProduct: publicaciones.publishProduct.bind(publicaciones),
+    devoluciones: devoluciones.devoluciones.bind(devoluciones),
+    moverDevolucion: devoluciones.moverDevolucion.bind(devoluciones),
+    threads: mensajes.threads.bind(mensajes),
+    reply: mensajes.reply.bind(mensajes),
+  };
+}
+type ClienteDeLaConsola = ReturnType<typeof clienteDeLaConsola>;
+
 describe('SellerApiClient — las lecturas de la consola no inventan (013-seller-operaciones, T006)', () => {
-  function crearCliente(extra: Provider[] = []): SellerApiClient {
-    TestBed.configureTestingModule({ providers: [SellerApiClient, ...extra] });
-    return TestBed.inject(SellerApiClient);
+  function crearCliente(extra: Provider[] = []): ClienteDeLaConsola {
+    TestBed.configureTestingModule({ providers: [...extra] });
+    return clienteDeLaConsola();
   }
 
   afterEach(() => {

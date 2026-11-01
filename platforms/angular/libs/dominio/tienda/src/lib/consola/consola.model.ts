@@ -12,12 +12,6 @@
  * Pure TS (no Angular imports) so it can be shared, serialised and unit-tested.
  */
 
-/** Top-level view of the seller console. */
-export type SellerView = 'panel' | 'publicar' | 'mensajes';
-
-/** Sections of the SH-5 console (dashboard). */
-export type SellerSectionId = 'ventas' | 'publicaciones' | 'devoluciones' | 'reputacion';
-
 // ─── Summary / KPIs ──────────────────────────────────────────────────────────
 
 /** How a raw KPI value should be formatted by the view (es-CO). */
@@ -67,14 +61,14 @@ export type SellerOrderStatus =
   | 'cancelled';
 
 /** One line inside a sale. */
-export interface SellerOrderLine {
+export interface LineaDeLaVenta {
   readonly title: string;
   readonly qty: number;
   readonly amount: number;
 }
 
 /** One sale from `GET /api/shop/orders` (seller view). */
-export interface SellerOrder {
+export interface VentaDelVendedor {
   readonly orderNumber: string;
   readonly date: string;
   readonly buyer: string;
@@ -82,7 +76,7 @@ export interface SellerOrder {
   /** Total in major units of `currency`. */
   readonly total: number;
   readonly currency: string;
-  readonly items: readonly SellerOrderLine[];
+  readonly items: readonly LineaDeLaVenta[];
 }
 
 /** The forward ladder the "avanzar envío" action walks. */

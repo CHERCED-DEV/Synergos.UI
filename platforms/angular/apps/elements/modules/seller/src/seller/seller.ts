@@ -45,7 +45,6 @@ import {
 } from '@synergos/shared';
 import type { SellerProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
-import { SellerApiClient, type LecturaDeLaConsola } from './seller-api.client';
 import { momentoDeLaConsola } from './fechas-de-la-consola';
 import {
   ACTOS_DEL_DESPACHO,
@@ -62,6 +61,7 @@ import {
   type PedidoDeLaTienda,
   type ResultadoDelActo,
   type ResultadoDelMovimiento,
+  etiquetaDelMotivo,
   type SellerKpiMetric,
   type SellerListing,
   type SellerMessage,
@@ -69,11 +69,15 @@ import {
   type SellerPublishReceipt,
   type SellerReputation,
   type SellerReturn,
-  type SellerSectionId,
   type SellerThread,
-  type SellerView,
-} from './seller.model';
-import { etiquetaDelMotivo } from '@synergos/dominio/tienda';
+  BandejaDelPersonalApi,
+  DevolucionesDelPersonalApi,
+  MensajesDelVendedorApi,
+  PublicacionesDelVendedorApi,
+  ResumenDelVendedorApi,
+  type LecturaDeLaConsola,
+} from '@synergos/dominio/tienda';
+import type { SellerSectionId, SellerView } from './vistas-de-la-consola';
 import { formatearImporte, t } from '@synergos/vitals-core';
 
 /**
@@ -243,7 +247,11 @@ let sellerInstanceId = 0;
   host: { class: 'sg-seller' },
 })
 export class SellerElementComponent implements OnInit {
-  readonly #api = inject(SellerApiClient);
+  readonly #resumen = inject(ResumenDelVendedorApi);
+  readonly #bandeja = inject(BandejaDelPersonalApi);
+  readonly #publicaciones = inject(PublicacionesDelVendedorApi);
+  readonly #devolucionesApi = inject(DevolucionesDelPersonalApi);
+  readonly #mensajes = inject(MensajesDelVendedorApi);
   readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
@@ -802,7 +810,7 @@ export class SellerElementComponent implements OnInit {
     this.actoEnVuelo.set(pedido.orderRef);
     this.actionError.set(null);
     try {
-      const resultado = await this.#api.avanzar(this.apiBase(), pedido.orderRef, acto, escrita || undefined);
+      const resultado = await this.#bandeja.avanzar(this.apiBase(), pedido.orderRef, acto, escrita || undefined);
       if (!resultado.hecho) {
         if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
           this.marcar('ventas', resultado.por);
@@ -874,7 +882,7 @@ export class SellerElementComponent implements OnInit {
     this.detalle.set({ pedido, estado: 'cargando', datos: null });
     let resultado: LecturaDeLaConsola<DetalleDelPedido>;
     try {
-      resultado = await this.#api.pedido(this.apiBase(), pedido.orderRef);
+      resultado = await this.#bandeja.pedido(this.apiBase(), pedido.orderRef);
     } catch {
       resultado = { tipo: 'caida' };
     }
@@ -941,7 +949,7 @@ export class SellerElementComponent implements OnInit {
     this.devolucionEnVuelo.set(devolucion.rmaId);
     this.actionError.set(null);
     try {
-      const resultado = await this.#api.moverDevolucion(this.apiBase(), devolucion.rmaId, movimiento);
+      const resultado = await this.#devolucionesApi.moverDevolucion(this.apiBase(), devolucion.rmaId, movimiento);
       if (!resultado.hecho) {
         if (resultado.por === 'sin-sesion' || resultado.por === 'sin-permiso') {
           this.marcar('devoluciones', resultado.por);
@@ -1102,7 +1110,7 @@ export class SellerElementComponent implements OnInit {
         currency: this.currency(),
         stock: Math.max(0, Math.trunc(this.draftNumber(draft, 'stock'))),
       };
-      const receipt = await this.#api.publishProduct(this.apiBase(), request);
+      const receipt = await this.#publicaciones.publishProduct(this.apiBase(), request);
       if (!receipt) {
         // No quedó publicado (#77). Las CUATRO cosas de abajo se saltan, y cada una era
         // daño por su cuenta: la pantalla de «Publicación creada» con una referencia
@@ -1254,7 +1262,7 @@ export class SellerElementComponent implements OnInit {
     this.sending.set(true);
     this.actionError.set(null);
     try {
-      const message = await this.#api.reply(this.apiBase(), event.thread.id, event.body);
+      const message = await this.#mensajes.reply(this.apiBase(), event.thread.id, event.body);
       if (!message) {
         // NO salió (UI#92). El compositor ya se vació al enviar, así que el texto se queda en
         // el hilo, MARCADO y sin fecha —una fecha sería el acuse que no existe—, con su
@@ -1288,7 +1296,7 @@ export class SellerElementComponent implements OnInit {
     this.sending.set(true);
     this.actionError.set(null);
     try {
-      const sent = await this.#api.reply(this.apiBase(), thread.id, message.body);
+      const sent = await this.#mensajes.reply(this.apiBase(), thread.id, message.body);
       if (!sent) {
         this.actionError.set('Tu respuesta sigue sin enviarse. Queda en el hilo.');
         return;
@@ -1314,7 +1322,7 @@ export class SellerElementComponent implements OnInit {
 
   // ─── Data loading ──────────────────────────────────────────────────────────
   private loadSummary(): Promise<void> {
-    return this.leer('resumen', () => this.#api.summary(this.apiBase()), (summary) => {
+    return this.leer('resumen', () => this.#resumen.summary(this.apiBase()), (summary) => {
       this.kpiMetrics.set(summary.kpis);
       this.reputation.set(summary.reputation);
     });
@@ -1333,7 +1341,7 @@ export class SellerElementComponent implements OnInit {
     this.marcar('ventas', 'cargando');
     let resultado: LecturaDeLaConsola<BandejaDeLaTienda>;
     try {
-      resultado = await this.#api.pedidos(this.apiBase(), etapa, this.paginaDeVentas());
+      resultado = await this.#bandeja.pedidos(this.apiBase(), etapa, this.paginaDeVentas());
     } catch {
       resultado = { tipo: 'caida' };
     }
@@ -1347,19 +1355,19 @@ export class SellerElementComponent implements OnInit {
   }
 
   private loadListings(): Promise<void> {
-    return this.leer('publicaciones', () => this.#api.listings(this.apiBase(), this.currency()), (listings) =>
+    return this.leer('publicaciones', () => this.#publicaciones.listings(this.apiBase(), this.currency()), (listings) =>
       this.listings.set(listings),
     );
   }
 
   private loadReturns(): Promise<void> {
-    return this.leer('devoluciones', () => this.#api.devoluciones(this.apiBase()), (devoluciones) =>
+    return this.leer('devoluciones', () => this.#devolucionesApi.devoluciones(this.apiBase()), (devoluciones) =>
       this.devoluciones.set(devoluciones),
     );
   }
 
   private loadThreads(): Promise<void> {
-    return this.leer('mensajes', () => this.#api.threads(this.apiBase()), (threads) => this.threads.set(threads));
+    return this.leer('mensajes', () => this.#mensajes.threads(this.apiBase()), (threads) => this.threads.set(threads));
   }
 
   /**

@@ -48,6 +48,16 @@ export { CarritoDeLaTienda, varianteEstandar, type ConexionDelCarrito } from './
 export { CompraDeLaTienda } from './lib/compra/compra';
 export { diaDeLaTienda, momentoDeLaTienda } from './lib/comun/fechas-de-la-tienda';
 
+// La consola del vendedor (`<synergos-seller>`): su modelo y sus adaptadores, uno por capacidad (T009). Su estado vive
+// en la app de la consola, con su diccionario.
+export * from './lib/consola/consola.model';
+export { LecturasDeLaConsola, MUESTRAS_DE_LA_CONSOLA, type LecturaDeLaConsola } from './lib/consola/lecturas-de-la-consola';
+export { BandejaDelPersonalApi } from './lib/consola/bandeja-api.client';
+export { DevolucionesDelPersonalApi } from './lib/consola/devoluciones-api.client';
+export { PublicacionesDelVendedorApi } from './lib/consola/publicaciones-api.client';
+export { ResumenDelVendedorApi } from './lib/consola/resumen-api.client';
+export { MensajesDelVendedorApi } from './lib/consola/mensajes-api.client';
+
 // La compra: la estrategia que el motor de transacciones usa para la tienda, y la compra por la puerta.
 export * from './lib/compra/shop-fulfillment.strategy';
 export * from './lib/compra/tienda-compra';

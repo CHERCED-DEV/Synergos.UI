@@ -1,5 +1,4 @@
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
-import { SellerApiClient } from './seller/seller-api.client';
 
 /**
  * Island bootstrap config for <c>&lt;synergos-seller&gt;</c>.
@@ -12,5 +11,5 @@ import { SellerApiClient } from './seller/seller-api.client';
  * which the shell provides at component level.
  */
 export const appConfig: ApplicationConfig = {
-  providers: [provideZonelessChangeDetection(), SellerApiClient],
+  providers: [provideZonelessChangeDetection()],
 };

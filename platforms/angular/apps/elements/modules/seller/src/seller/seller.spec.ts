@@ -2,7 +2,7 @@ import { type Provider, provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ConsoleShellComponent } from '@synergos/shells';
-import { MUESTRAS_DE_LA_CONSOLA, SellerApiClient } from './seller-api.client';
+import { MUESTRAS_DE_LA_CONSOLA } from '@synergos/dominio/tienda';
 import { SellerElementComponent } from './seller';
 import { asentar } from '../../../../../../tools/asentar';
 import { SELLER_SYNHOST } from '@synergos/contracts';
@@ -141,7 +141,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [SellerElementComponent],
-      providers: [provideZonelessChangeDetection(), SellerApiClient, ...extra],
+      providers: [provideZonelessChangeDetection(), ...extra],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SellerElementComponent);

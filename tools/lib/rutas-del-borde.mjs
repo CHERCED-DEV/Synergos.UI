@@ -43,11 +43,11 @@ export const SIN_BORDE = {
   'academy :: courses/{}/reviews': 'Lectura de reseñas de un curso; degrada a mock con cartel.',
   'academy :: moderation/{}/{}': 'Escritura HONESTA: devuelve `{ ok: false, reason }`, no fabrica.',
   'academy :: reviews/{}/reports': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
-  'seller :: order/{}/tracking/advance':
+  'tienda.bandeja :: order/{}/tracking/advance':
     'Escritura. Ya NO fabrica (#77): sin borde devuelve `null` y la consola deja el pedido ' +
     'quieto y lo dice. La ruta sigue ausente en el CMS — `order/{orderRef}/tracking` existe ' +
     'sólo como GET— así que el botón no puede funcionar hasta que exista.',
-  'seller :: seller/product':
+  'tienda.publicaciones :: seller/product':
     'Escritura. Ya NO fabrica (#77): sin borde devuelve `null`, el borrador sobrevive y no se ' +
     'emite `productpublished`. Publicar no funciona hasta que el CMS declare la ruta.',
   // Los de la tienda llevan su capacidad (014-despiece-tienda, T009): eran `shop :: …` cuando todo vivía en un cliente.
