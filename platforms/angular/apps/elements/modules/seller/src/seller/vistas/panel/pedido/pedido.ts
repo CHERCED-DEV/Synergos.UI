@@ -11,6 +11,7 @@ import { PresentacionDeLaConsola } from '../../../estado/presentacion';
   imports: [SynErrorStateComponent, ButtonComponent, InputComponent],
   templateUrl: './pedido.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'seller__vista' },
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ConsolaPedidoComponent {

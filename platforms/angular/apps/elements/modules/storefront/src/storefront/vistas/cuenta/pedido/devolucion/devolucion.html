@@ -1,0 +1,30 @@
+@if (pedido(); as order) {
+  @if (devoluciones.returnDraft(); as draft) {
+    @if (draft.orderRef === order.orderNumber) {
+      <form class="storefront__return-form" (submit)="$event.preventDefault(); devoluciones.submitReturn()">
+        <h4 class="storefront__return-title">Devolver «{{ draft.line.title }}»</h4>
+        <fieldset class="storefront__return-reasons">
+          <legend class="storefront__return-legend">¿Qué pasó?</legend>
+          @for (reason of returnReasons; track reason) {
+            <syn-radio
+              [name]="presentacion.fieldId + '-motivo'"
+              [value]="reason"
+              [label]="presentacion.returnReasonLabel(reason)"
+              [checked]="draft.reason === reason"
+              (selected)="devoluciones.setReturnReason(reason)"
+            />
+          }
+        </fieldset>
+        @if (devoluciones.returnError(); as error) {
+          <p class="storefront__return-error" role="alert">{{ error }}</p>
+        }
+        <div class="storefront__return-actions">
+          <syn-button type="submit" size="sm" [disabled]="devoluciones.returnSending()">
+            {{ devoluciones.returnSending() ? 'Enviando…' : 'Pedir devolución' }}
+          </syn-button>
+          <syn-link (activated)="devoluciones.closeReturn()">Cancelar</syn-link>
+        </div>
+      </form>
+    }
+  }
+}

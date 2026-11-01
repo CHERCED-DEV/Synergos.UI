@@ -41,6 +41,12 @@
   box-shadow: var(--sf-shadow);
   color: var(--sf-text);
 
+  // Las vistas y sus piezas (014-despiece-tienda, T010) no son una caja: lo que pintan sigue siendo hijo de esta
+  // columna —o de la ranura de su shell, como la compra de SH-2—, con su `gap`, igual que antes de partirla.
+  &__vista {
+    display: contents;
+  }
+
   // ─── Top bar ────────────────────────────────────────────────────────────
   &__bar {
     display: flex;

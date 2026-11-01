@@ -1,62 +1,42 @@
-import { ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
-import {
-  CompraDeLaTienda,
-  DeseosDeLaTienda,
-  DevolucionesDeLaTienda,
-  MensajesDeLaTienda,
-  MOTIVOS_DE_DEVOLUCION,
-  type OrderLine,
-  PedidosDeLaTienda,
-  type ShopOrder,
-  type WishlistEntry,
-} from '@synergos/dominio/tienda';
-import {
-  ButtonComponent,
-  InputComponent,
-  LinkComponent,
-  RadioComponent,
-  StatusTagComponent,
-  SynStatusBannerComponent,
-} from '@synergos/shared';
-import { AccountShellComponent, type AccountShellConfig, TrackingTimelineComponent } from '@synergos/shells';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { DeseosDeLaTienda, MensajesDeLaTienda, PedidosDeLaTienda } from '@synergos/dominio/tienda';
+import { StatusTagComponent } from '@synergos/shared';
+import { AccountShellComponent, type AccountShellConfig } from '@synergos/shells';
 import { t } from '@synergos/vitals-core';
 import { CompraEnLaPagina } from '../../estado/compra-en-la-pagina';
 import { NavegacionDeLaTienda } from '../../estado/navegacion';
 import { PresentacionDeLaTienda } from '../../estado/presentacion';
+import { TiendaCuentaFavoritosComponent } from './favoritos/favoritos';
+import { TiendaCuentaMensajesComponent } from './mensajes/mensajes';
+import { TiendaCuentaPedidoComponent } from './pedido/pedido';
+import { TiendaCuentaPerfilComponent } from './perfil/perfil';
 
 /**
- * Qué se le dice a quien compró según el motivo que dio el SERVIDOR (#34).
- *
- * `order-not-paid` y `order-not-found` se quedan en blanco a propósito: a quien
- * canceló o a quien mira un pedido que no existe no hay nada útil que contarle
- * sobre devoluciones. `line-not-in-order` tampoco — es un desajuste nuestro, no
- * algo que esa persona pueda resolver.
+ * «Mi cuenta» sobre SH-4: la bandeja de las compras y sus secciones. Cada parte es su pieza: la compra abierta con su
+ * seguimiento y sus devoluciones, los favoritos, los mensajes y el perfil.
  */
-const RETURN_BLOCK_LABELS: Readonly<Record<string, string>> = {
-  'already-open': 'Ya hay un reclamo abierto para este producto.',
-};
-
-/** «Mi cuenta» sobre SH-4: las compras con su seguimiento y sus devoluciones, los favoritos, los mensajes y el perfil. */
 @Component({
   selector: 'sg-tienda-cuenta',
   standalone: true,
-  imports: [AccountShellComponent, SynStatusBannerComponent, TrackingTimelineComponent, ButtonComponent, InputComponent, LinkComponent, RadioComponent, StatusTagComponent],
+  imports: [
+    AccountShellComponent,
+    StatusTagComponent,
+    TiendaCuentaPedidoComponent,
+    TiendaCuentaFavoritosComponent,
+    TiendaCuentaMensajesComponent,
+    TiendaCuentaPerfilComponent,
+  ],
   templateUrl: './cuenta.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // Embedded published custom elements (<synergos-rating-stars> …).
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  host: { class: 'storefront__vista' },
 })
 export class TiendaCuentaComponent {
-  protected readonly compra = inject(CompraDeLaTienda);
   protected readonly deseos = inject(DeseosDeLaTienda);
-  protected readonly devoluciones = inject(DevolucionesDeLaTienda);
   protected readonly mensajes = inject(MensajesDeLaTienda);
   protected readonly navegacion = inject(NavegacionDeLaTienda);
   protected readonly pagina = inject(CompraEnLaPagina);
   protected readonly pedidos = inject(PedidosDeLaTienda);
   protected readonly presentacion = inject(PresentacionDeLaTienda);
-
-  readonly returnReasons = MOTIVOS_DE_DEVOLUCION;
 
   readonly accountConfig = computed<AccountShellConfig>(() => ({
     heading: 'Mi cuenta',
@@ -93,47 +73,8 @@ export class TiendaCuentaComponent {
     }
   }
 
-  /**
-   * Lo que dice el seguimiento cuando no tiene etapas que pintar (004-tienda-compra, etapa 3): «Consultando…» mientras
-   * se lee, y «Seguimiento no disponible» si la lectura cayó o el pedido todavía no tiene ninguna. Antes una caída
-   * pintaba una línea de tiempo de ejemplo con fechas que nadie registró.
-   */
-  mensajeDelSeguimiento(order: ShopOrder): string {
-    return this.pedidos.seguimientoCaido().has(order.orderNumber) || this.pedidos.trackingByRef()[order.orderNumber]
-      ? t('Storefront.Purchase.TrackingUnavailable', 'Seguimiento no disponible')
-      : 'Consultando el seguimiento…';
-  }
-
-  /**
-   * Por qué no se ofrece devolver esta línea, cuando la razón le sirve a quien
-   * compró. Devuelve cadena vacía cuando no hay nada que explicar —un pedido
-   * cancelado no necesita que le cuenten que no se devuelve—.
-   */
-  returnBlockedReason(order: ShopOrder, line: OrderLine): string {
-    if (this.devoluciones.claimForLine(order.orderNumber, line) !== null) {
-      return '';
-    }
-    if (this.devoluciones.returnsUnknown(order)) {
-      return 'Consultando devoluciones…';
-    }
-    if (!line.canReturn) {
-      // El motivo lo NOMBRA el servidor (#34). Los que no le sirven a quien
-      // compró no se pintan: a quien canceló no hay que contarle que no puede
-      // devolver lo que nunca recibió.
-      return RETURN_BLOCK_LABELS[line.returnBlock ?? ''] ?? '';
-    }
-    return '';
-  }
-
   /** El reintento de «Mis compras» con la lectura caída (el botón del estado de error). */
   reintentarCompras(): void {
     void this.navegacion.loadOrders();
   }
-
-  openWishlistEntry(entry: WishlistEntry): void {
-    this.navegacion.navigate('pdp', entry.productId);
-  }
-
-  readonly openReturn = (orderRef: string, line: OrderLine): void =>
-    this.devoluciones.openReturn(orderRef, line, this.pedidos.orders());
 }

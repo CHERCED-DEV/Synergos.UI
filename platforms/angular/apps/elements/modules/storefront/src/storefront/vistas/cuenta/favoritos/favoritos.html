@@ -1,0 +1,21 @@
+@if (deseos.wishlist().length === 0) {
+  <p class="storefront__empty">Todavía no guardas productos. Toca el corazón en cualquier producto.</p>
+} @else {
+  <ul class="storefront__wish-grid">
+    @for (entry of deseos.wishlist(); track entry.productId) {
+      <li class="storefront__wish-card">
+        @if (entry.image) {
+          <img class="storefront__wish-img" [src]="entry.image" alt="" loading="lazy" />
+        } @else {
+          <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(entry.title) }}</span>
+        }
+        <p class="storefront__wish-title">{{ entry.title }}</p>
+        <p class="storefront__card-now">{{ presentacion.wishlistPriceLabel(entry) }}</p>
+        <div class="storefront__actions">
+          <syn-button size="sm" (pressed)="openWishlistEntry(entry)">Ver</syn-button>
+          <syn-button variant="ghost" size="sm" (pressed)="deseos.removeWishlistEntry(entry)">Quitar</syn-button>
+        </div>
+      </li>
+    }
+  </ul>
+}

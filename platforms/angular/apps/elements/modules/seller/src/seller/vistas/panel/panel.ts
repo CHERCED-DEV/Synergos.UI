@@ -43,6 +43,7 @@ import { ConsolaReembolsoComponent } from './reembolso/reembolso';
   imports: [ConsoleShellComponent, LiveRegionComponent, SynErrorStateComponent, StatusTagComponent, ConsolaPedidoComponent, ConsolaReembolsoComponent],
   templateUrl: './panel.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'seller__vista' },
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ConsolaPanelComponent {

@@ -40,6 +40,7 @@ const SORT_OPTIONS: readonly { key: SortKey; label: string }[] = [
   imports: [DiscoveryShellComponent, CompareTableComponent, BadgeComponent, ButtonComponent, IconButtonComponent, LinkComponent, StatusTagComponent],
   templateUrl: './catalogo.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'storefront__vista' },
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })

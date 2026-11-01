@@ -31,6 +31,7 @@ const DEFAULT_SELLER_GROUP = 'Synergos Market';
   imports: [CartShellComponent, PromoCodeComponent],
   templateUrl: './carrito.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'storefront__vista' },
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })

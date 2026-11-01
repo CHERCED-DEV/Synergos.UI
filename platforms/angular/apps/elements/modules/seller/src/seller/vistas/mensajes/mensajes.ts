@@ -12,6 +12,7 @@ import { PresentacionDeLaConsola } from '../../estado/presentacion';
   imports: [MessageCenterComponent, SynErrorStateComponent, LinkComponent],
   templateUrl: './mensajes.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'seller__vista' },
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ConsolaMensajesComponent {

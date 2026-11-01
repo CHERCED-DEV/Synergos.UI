@@ -28,6 +28,7 @@ const SELLER_SECTIONS: readonly SellerView[] = ['orders', 'returns', 'reviews', 
   imports: [ConsoleShellComponent, SynStatusBannerComponent, StatusTagComponent],
   templateUrl: './vendedor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'storefront__vista' },
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })

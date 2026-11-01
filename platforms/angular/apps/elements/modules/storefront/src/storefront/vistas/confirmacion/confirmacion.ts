@@ -16,6 +16,7 @@ import { NavegacionDeLaTienda } from '../../estado/navegacion';
   imports: [ConfirmationShellComponent],
   templateUrl: './confirmacion.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'storefront__vista' },
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })

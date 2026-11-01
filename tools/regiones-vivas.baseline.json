@@ -98,8 +98,8 @@
     "platforms/angular/apps/elements/modules/seller/src/seller/vistas/publicar/publicar.html · @if(publishReceipt(); as receipt) · div[role=status]",
     "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(avisos.errorMessage()) · p[role=alert]",
     "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/catalogo/catalogo.html · @if(compareMessage(); as aviso) · p[role=status]",
-    "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/cuenta/cuenta.html · @if(devoluciones.claimForLine(order.orderNumber, line); as claim) · span[role=status]",
-    "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/cuenta/cuenta.html · @if(devoluciones.returnError(); as error) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/cuenta/pedido/devolucion/devolucion.html · @if(devoluciones.returnError(); as error) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/cuenta/pedido/pedido.html · @if(devoluciones.claimForLine(order.orderNumber, line); as claim) · span[role=status]",
     "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/vendedor/vendedor.html · @if(escritorio.deskNotice(); as aviso) · p[role=[escritorio.deskFailed() ? 'alert' : 'status']]",
     "platforms/angular/apps/elements/modules/tab-group/src/tab-group/tab-group.html · @else · p[role=status]",
     "platforms/angular/apps/elements/modules/testimonial-carousel/src/testimonial-carousel/testimonial-carousel.html · @else · p[role=status]",
@@ -206,8 +206,8 @@
       "razon": "Coordenadas del pin en el paso «ubicación»: el @if va DENTRO de la región (lo dice su comentario) y cambian al mover el pin."
     },
     {
-      "clave": "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/ficha/ficha.html · ng-template · span[live=polite]",
-      "razon": "Cantidad de la ficha de producto: vive con la ficha y cambia con − y +."
+      "clave": "platforms/angular/apps/elements/modules/storefront/src/storefront/vistas/ficha/compra/compra.html · @if(catalogo.detail(); as pdp) · span[live=polite]",
+      "razon": "Cantidad de la ficha de producto: vive con la ficha y cambia con − y +. Desde T010 de 014 está en la pieza de la compra, cuyo @if es el de la ficha (el producto abierto), y no uno que nazca con el mensaje."
     },
     {
       "clave": "platforms/angular/apps/elements/modules/testimonial-carousel/src/testimonial-carousel/testimonial-carousel.html · @if(hasTestimonials()) · div[live=[isAutoplaying() ? 'off' : 'polite']]",

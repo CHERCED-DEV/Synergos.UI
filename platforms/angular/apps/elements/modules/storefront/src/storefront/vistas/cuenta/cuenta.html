@@ -19,140 +19,21 @@
   <span class="storefront__order-date">{{ presentacion.orderDateLabel(order) }} · {{ presentacion.orderTotalLabel(order) }}</span>
 </ng-template>
 
+<!-- Cada parte de «Mi cuenta» es su pieza (014-despiece-tienda, T010): la compra abierta, los favoritos, los mensajes y el perfil. -->
 <ng-template #orderDetail let-order>
-  <div class="storefront__order-detail">
-    <div class="storefront__order-head">
-      <span class="storefront__order-number">{{ order.orderNumber }}</span>
-      <syn-status-tag [label]="presentacion.orderStatusLabel(order.status)" [tone]="presentacion.toneDelEstado(order.status)" />
-    </div>
-    <!-- La devolución es POR LÍNEA (#32): el reclamo guarda su producto, su
-         cantidad y su monto, y devolver «el pedido» de tres artículos porque
-         llegó uno roto no es lo que nadie quiere. -->
-    <ul class="storefront__order-items">
-      @for (line of order.items; track line.productId + line.title) {
-        <li class="storefront__order-item">
-          <span class="storefront__order-item-name">{{ line.title }} × {{ line.qty }}</span>
-          @if (devoluciones.claimForLine(order.orderNumber, line); as claim) {
-            <span class="storefront__return-note" role="status">
-              {{ presentacion.returnStatusLabel(claim) }} · {{ presentacion.returnReasonLabel(claim.reason) }} ·
-              reclamo {{ claim.claimId }}
-            </span>
-          } @else if (devoluciones.canReturnLine(order, line)) {
-            <syn-link (activated)="openReturn(order.orderNumber, line)">Devolver</syn-link>
-          } @else if (returnBlockedReason(order, line); as motivo) {
-            <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
-                 (#32), o el servidor nombra el motivo (#34). Callarse deja a
-                 quien compró buscando un botón que no está. -->
-            <span class="storefront__order-item-note">{{ motivo }}</span>
-          }
-        </li>
-      }
-    </ul>
-    <p class="storefront__order-total">{{ presentacion.orderTotalLabel(order) }}</p>
-
-    <syn-tracking-timeline
-      heading="Seguimiento del envío"
-      [stages]="pedidos.trackingStages(order.orderNumber)"
-      [emptyMessage]="mensajeDelSeguimiento(order)"
-    />
-
-    @if (devoluciones.returnDraft(); as draft) {
-      @if (draft.orderRef === order.orderNumber) {
-        <form class="storefront__return-form" (submit)="$event.preventDefault(); devoluciones.submitReturn()">
-          <h4 class="storefront__return-title">Devolver «{{ draft.line.title }}»</h4>
-          <fieldset class="storefront__return-reasons">
-            <legend class="storefront__return-legend">¿Qué pasó?</legend>
-            @for (reason of returnReasons; track reason) {
-              <syn-radio
-                [name]="presentacion.fieldId + '-motivo'"
-                [value]="reason"
-                [label]="presentacion.returnReasonLabel(reason)"
-                [checked]="draft.reason === reason"
-                (selected)="devoluciones.setReturnReason(reason)"
-              />
-            }
-          </fieldset>
-          @if (devoluciones.returnError(); as error) {
-            <p class="storefront__return-error" role="alert">{{ error }}</p>
-          }
-          <div class="storefront__return-actions">
-            <syn-button type="submit" size="sm" [disabled]="devoluciones.returnSending()">
-              {{ devoluciones.returnSending() ? 'Enviando…' : 'Pedir devolución' }}
-            </syn-button>
-            <syn-link (activated)="devoluciones.closeReturn()">Cancelar</syn-link>
-          </div>
-        </form>
-      }
-    }
-
-    <div class="storefront__order-actions">
-      <syn-link (activated)="navegacion.goToAccount('mensajes')">Contactar al vendedor</syn-link>
-    </div>
-  </div>
+  <sg-tienda-cuenta-pedido [pedido]="order" />
 </ng-template>
 
 <ng-template #accountSectionTpl let-section>
   @switch (section.id) {
     @case ('favoritos') {
-      @if (deseos.wishlist().length === 0) {
-        <p class="storefront__empty">Todavía no guardas productos. Toca el corazón en cualquier producto.</p>
-      } @else {
-        <ul class="storefront__wish-grid">
-          @for (entry of deseos.wishlist(); track entry.productId) {
-            <li class="storefront__wish-card">
-              @if (entry.image) {
-                <img class="storefront__wish-img" [src]="entry.image" alt="" loading="lazy" />
-              } @else {
-                <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(entry.title) }}</span>
-              }
-              <p class="storefront__wish-title">{{ entry.title }}</p>
-              <p class="storefront__card-now">{{ presentacion.wishlistPriceLabel(entry) }}</p>
-              <div class="storefront__actions">
-                <syn-button size="sm" (pressed)="openWishlistEntry(entry)">Ver</syn-button>
-                <syn-button variant="ghost" size="sm" (pressed)="deseos.removeWishlistEntry(entry)">Quitar</syn-button>
-              </div>
-            </li>
-          }
-        </ul>
-      }
+      <sg-tienda-cuenta-favoritos />
     }
     @case ('mensajes') {
-      <div class="storefront__messages">
-        <syn-status-banner tone="info" message="Mensajería v1 — lectura de hilos; responder llega con la cara vendedor." />
-        @if (mensajes.threads().length === 0) {
-          <p class="storefront__empty">No tienes mensajes con vendedores.</p>
-        } @else {
-          <ul class="storefront__thread-list">
-            @for (thread of mensajes.threads(); track thread.id) {
-              <li class="storefront__thread" [class.is-unread]="thread.unread">
-                <p class="storefront__thread-head">
-                  <span class="storefront__thread-subject">{{ thread.subject }}</span>
-                  <span class="storefront__thread-date">{{ thread.date }}</span>
-                </p>
-                <p class="storefront__thread-meta">{{ thread.counterpart }}</p>
-                <p class="storefront__thread-last">{{ thread.lastMessage }}</p>
-              </li>
-            }
-          </ul>
-        }
-      </div>
+      <sg-tienda-cuenta-mensajes />
     }
     @case ('perfil') {
-      <fieldset class="storefront__form">
-        <legend class="storefront__heading">Mis datos</legend>
-        @if (compra.isAuthenticated()) {
-          <syn-status-banner
-            tone="info"
-            [message]="'Estos datos prellenan el checkout y puedes cambiarlos si compras para otra persona. Sesión iniciada como ' + compra.memberEmail() + '.'"
-          />
-        } @else {
-          <syn-status-banner tone="info" message="Estos datos prellenan el checkout." />
-        }
-        <syn-input label="Nombre completo" autocomplete="name" [value]="compra.customerName()" (valueChange)="compra.customerName.set($event)" />
-        <syn-input label="Correo electrónico" type="email" autocomplete="email" [value]="compra.customerEmail()" (valueChange)="compra.customerEmail.set($event)" />
-        <syn-input label="Dirección" autocomplete="street-address" [value]="compra.customerAddress()" (valueChange)="compra.customerAddress.set($event)" />
-        <syn-input label="Ciudad" autocomplete="address-level2" [value]="compra.customerCity()" (valueChange)="compra.customerCity.set($event)" />
-      </fieldset>
+      <sg-tienda-cuenta-perfil />
     }
   }
 </ng-template>

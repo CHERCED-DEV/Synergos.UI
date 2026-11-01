@@ -15,6 +15,7 @@ const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevan
   imports: [NgTemplateOutlet, BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent, LinkComponent],
   templateUrl: './inicio.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'storefront__vista' },
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })

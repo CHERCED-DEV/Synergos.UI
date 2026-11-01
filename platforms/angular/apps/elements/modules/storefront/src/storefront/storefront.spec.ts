@@ -2,16 +2,17 @@ import { provideZonelessChangeDetection, type Provider, type ProviderToken, type
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
-import { CheckoutWizardComponent } from '@synergos/shells';
+import { AccountShellComponent, CheckoutWizardComponent } from '@synergos/shells';
 import { MUESTRAS_DE_LA_CUENTA, ResenasApi, ShopFulfillmentStrategy } from '@synergos/dominio/tienda';
 import { ConfiguracionDeLaTienda, AvisosDeLaTienda, CatalogoDeLaTienda, ResenasDeLaTienda, DeseosDeLaTienda, MensajesDeLaTienda, PedidosDeLaTienda, DevolucionesDeLaTienda, EscritorioDeLaTienda, CarritoDeLaTienda, CompraDeLaTienda } from '@synergos/dominio/tienda';
 import { CompraEnLaPagina } from './estado/compra-en-la-pagina';
 import { NavegacionDeLaTienda } from './estado/navegacion';
 import { PresentacionDeLaTienda } from './estado/presentacion';
 import { TiendaCatalogoComponent } from './vistas/catalogo/catalogo';
-import { TiendaFichaComponent } from './vistas/ficha/ficha';
+import { TiendaFichaOpinionesComponent } from './vistas/ficha/opiniones/opiniones';
 import { TiendaCarritoComponent } from './vistas/carrito/carrito';
 import { TiendaCuentaComponent } from './vistas/cuenta/cuenta';
+import { TiendaCuentaPedidoComponent } from './vistas/cuenta/pedido/pedido';
 import { TiendaVendedorComponent } from './vistas/vendedor/vendedor';
 import { StorefrontElementComponent } from './storefront';
 import type { ShopOrder } from '@synergos/dominio/tienda';
@@ -213,6 +214,19 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return pintada.componentInstance as T;
       },
     };
+  }
+
+  /**
+   * Abre una compra de «Mis compras» como quien compra (014-despiece-tienda, T010): tocando su fila en la bandeja de
+   * SH-4, que la selecciona y avisa a la tienda. Así se pinta su detalle, que es la pieza que la muestra.
+   */
+  function abrirLaCompra(order: ShopOrder): void {
+    fixture.detectChanges();
+    const bandeja = fixture.debugElement.query(By.directive(AccountShellComponent));
+    if (!bandeja) {
+      throw new Error('«Mis compras» no está pintada');
+    }
+    (bandeja.componentInstance as AccountShellComponent<ShopOrder>).selectItem(tienda().pedidos.orders().indexOf(order));
   }
 
   async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: readonly Provider[] = []): Promise<void> {
@@ -826,7 +840,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(tienda().pedidos.orders().length).toBeGreaterThan(0);
 
     const order = tienda().pedidos.orders()[0];
-    tienda().pedidos.onOrderSelect(order);
+    abrirLaCompra(order);
     await flushMicrotasks();
 
     const stages = tienda().pedidos.trackingStages(order.orderNumber);
@@ -841,7 +855,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(tienda().devoluciones.returnsUnknown(order)).toBe(true);
     expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(false);
 
-    tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+    tienda().vista(TiendaCuentaPedidoComponent).openReturn(order.orderNumber, linea);
     await tienda().devoluciones.submitReturn();
     expect(tienda().devoluciones.claimForLine(order.orderNumber, linea)).toBeNull();
     expect(tienda().devoluciones.returnError()).not.toBe('');
@@ -968,7 +982,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       ) as HTMLButtonElement;
       expect(boton.disabled).toBe(true);
 
-      const panel = tienda().vista(TiendaFichaComponent).reviewPanel()!;
+      const panel = tienda().vista(TiendaFichaOpinionesComponent).reviewPanel()!;
       panel.draftRating.set(4);
       panel.draftBody.set('Cumple lo que promete.');
       fixture.detectChanges();
@@ -1049,13 +1063,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       abrirFicha(true);
 
       // El borrador vive en SH-13 desde #28; la regla de negocio no cambió.
-      const panel = tienda().vista(TiendaFichaComponent).reviewPanel();
+      const panel = tienda().vista(TiendaFichaOpinionesComponent).reviewPanel();
       expect(panel).toBeTruthy();
       panel!.draftRating.set(5);
       panel!.draftBody.set('Cumple lo que promete.');
       vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 } as Response)));
 
-      await tienda().vista(TiendaFichaComponent).submitReview({
+      await tienda().vista(TiendaFichaOpinionesComponent).submitReview({
         rating: 5,
         title: '',
         body: 'Cumple lo que promete.',
@@ -1087,7 +1101,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       expect(
         fixture.nativeElement.querySelectorAll('.syn-reviews__dist-row').length,
       ).toBe(5);
-      expect(tienda().vista(TiendaFichaComponent).reviewPanelSummary().distribution?.map((b) => b.stars)).toEqual([
+      expect(tienda().vista(TiendaFichaOpinionesComponent).reviewPanelSummary().distribution?.map((b) => b.stars)).toEqual([
         5, 4, 3, 2, 1,
       ]);
     });
@@ -1120,7 +1134,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      await tienda().vista(TiendaFichaComponent).submitReview({
+      await tienda().vista(TiendaFichaOpinionesComponent).submitReview({
         rating: 5,
         title: 'Muy bueno',
         body: 'Cumple lo que promete y llegó antes de lo previsto.',
@@ -1148,7 +1162,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      await tienda().vista(TiendaFichaComponent).submitReview({
+      await tienda().vista(TiendaFichaOpinionesComponent).submitReview({
         rating: 5,
         title: 'Muy bueno',
         body: 'Cumple lo que promete y llegó antes de lo previsto.',
@@ -1272,6 +1286,9 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       const linea = order.items[0];
       // Con la lectura en verde y sin reclamos, el botón SÍ se ofrece.
       expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(true);
+      // Devolver se pide desde la compra ABIERTA, como en la cuenta: es su detalle el que lo ofrece.
+      abrirLaCompra(order);
+      await flushMicrotasks();
 
       vi.stubGlobal(
         'fetch',
@@ -1281,7 +1298,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
           ),
         ),
       );
-      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+      tienda().vista(TiendaCuentaPedidoComponent).openReturn(order.orderNumber, linea);
       await tienda().devoluciones.submitReturn();
 
       // Ni reclamo inventado ni pantalla que diga que se abrió.
@@ -1297,6 +1314,9 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       );
       const order = tienda().pedidos.orders().find((o) => o.status === 'paid')!;
       const linea = order.items[0];
+      // Devolver se pide desde la compra ABIERTA, como en la cuenta: es su detalle el que lo ofrece.
+      abrirLaCompra(order);
+      await flushMicrotasks();
 
       const cuerpos: string[] = [];
       vi.stubGlobal(
@@ -1307,7 +1327,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+      tienda().vista(TiendaCuentaPedidoComponent).openReturn(order.orderNumber, linea);
       tienda().devoluciones.setReturnReason('not-as-described');
       await tienda().devoluciones.submitReturn();
 
@@ -1386,9 +1406,9 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
       const order = tienda().pedidos.orders()[0];
       expect(order.orderRef).toBe('pta-saga-1');
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(20);
-      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, order.items[0]);
+      tienda().vista(TiendaCuentaPedidoComponent).openReturn(order.orderNumber, order.items[0]);
       await tienda().devoluciones.submitReturn();
 
       const porPedido = urls.filter((u) => u.includes('/order/'));
@@ -1406,13 +1426,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
       const order = tienda().pedidos.orders()[0];
       expect(order.status).toBe('paid');
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(10);
 
       // Antes esto era FALSO siempre: el gate pedía `delivered|shipped`, que el
       // backend no emite nunca.
       expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(true);
-      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().vista(TiendaCuentaPedidoComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('EL caso: el seguimiento ya NO decide — sin entregar, con `canReturn`, se ofrece y no se explica nada (etapa 3)', async () => {
@@ -1425,12 +1445,12 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       });
 
       const order = tienda().pedidos.orders()[0];
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(10);
 
       expect(tienda().pedidos.isDelivered(order)).toBe(false);
       expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(true);
-      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().vista(TiendaCuentaPedidoComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('EL caso: si el SEGUIMIENTO no se pudo leer, se ofrece igual', async () => {
@@ -1460,7 +1480,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       });
 
       const order = tienda().pedidos.orders()[0];
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(10);
 
       expect(order.status).toBe('paid');
@@ -1492,10 +1512,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       });
 
       const order = tienda().pedidos.orders()[0];
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(10);
 
-      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toContain('reclamo abierto');
+      expect(tienda().vista(TiendaCuentaPedidoComponent).returnBlockedReason(order, order.items[0])).toContain('reclamo abierto');
     });
 
     it('un motivo que no le sirve a quien compró no se pinta', async () => {
@@ -1506,12 +1526,12 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       });
 
       const order = tienda().pedidos.orders()[0];
-      tienda().pedidos.onOrderSelect(order);
+      abrirLaCompra(order);
       await flushMicrotasks(10);
 
       // `order-not-paid`: a quien canceló no hay que contarle que no puede
       // devolver lo que nunca recibió.
-      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().vista(TiendaCuentaPedidoComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('un pedido sin pagar o cancelado no se devuelve: el servidor lo rechaza', async () => {
@@ -1523,13 +1543,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         });
 
         const order = tienda().pedidos.orders()[0];
-        tienda().pedidos.onOrderSelect(order);
+        abrirLaCompra(order);
         await flushMicrotasks(10);
 
         expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(false);
         // Y no se le explica nada: a quien canceló no hay que contarle que no
         // puede devolver lo que nunca recibió.
-        expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
+        expect(tienda().vista(TiendaCuentaPedidoComponent).returnBlockedReason(order, order.items[0])).toBe('');
         TestBed.resetTestingModule();
       }
     });

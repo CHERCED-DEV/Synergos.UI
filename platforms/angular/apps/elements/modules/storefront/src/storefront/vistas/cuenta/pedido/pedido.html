@@ -1,0 +1,44 @@
+@if (pedido(); as order) {
+  <div class="storefront__order-detail">
+    <div class="storefront__order-head">
+      <span class="storefront__order-number">{{ order.orderNumber }}</span>
+      <syn-status-tag [label]="presentacion.orderStatusLabel(order.status)" [tone]="presentacion.toneDelEstado(order.status)" />
+    </div>
+    <!-- La devolución es POR LÍNEA (#32): el reclamo guarda su producto, su
+         cantidad y su monto, y devolver «el pedido» de tres artículos porque
+         llegó uno roto no es lo que nadie quiere. -->
+    <ul class="storefront__order-items">
+      @for (line of order.items; track line.productId + line.title) {
+        <li class="storefront__order-item">
+          <span class="storefront__order-item-name">{{ line.title }} × {{ line.qty }}</span>
+          @if (devoluciones.claimForLine(order.orderNumber, line); as claim) {
+            <span class="storefront__return-note" role="status">
+              {{ presentacion.returnStatusLabel(claim) }} · {{ presentacion.returnReasonLabel(claim.reason) }} ·
+              reclamo {{ claim.claimId }}
+            </span>
+          } @else if (devoluciones.canReturnLine(order, line)) {
+            <syn-link (activated)="openReturn(order.orderNumber, line)">Devolver</syn-link>
+          } @else if (returnBlockedReason(order, line); as motivo) {
+            <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
+                 (#32), o el servidor nombra el motivo (#34). Callarse deja a
+                 quien compró buscando un botón que no está. -->
+            <span class="storefront__order-item-note">{{ motivo }}</span>
+          }
+        </li>
+      }
+    </ul>
+    <p class="storefront__order-total">{{ presentacion.orderTotalLabel(order) }}</p>
+
+    <syn-tracking-timeline
+      heading="Seguimiento del envío"
+      [stages]="pedidos.trackingStages(order.orderNumber)"
+      [emptyMessage]="mensajeDelSeguimiento(order)"
+    />
+
+    <sg-tienda-cuenta-devolucion [pedido]="order" />
+
+    <div class="storefront__order-actions">
+      <syn-link (activated)="navegacion.goToAccount('mensajes')">Contactar al vendedor</syn-link>
+    </div>
+  </div>
+}

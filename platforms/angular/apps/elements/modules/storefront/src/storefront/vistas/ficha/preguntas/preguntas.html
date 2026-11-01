@@ -1,0 +1,20 @@
+@if (catalogo.detail(); as pdp) {
+  <div class="storefront__qa">
+    @if (pdp.questions.length === 0) {
+      <p class="storefront__empty">Sé el primero en preguntar al vendedor.</p>
+    } @else {
+      <ul class="storefront__qa-list">
+        @for (question of pdp.questions; track question.id) {
+          <li class="storefront__qa-item">
+            <p class="storefront__qa-q"><span aria-hidden="true">P:</span> {{ question.question }}</p>
+            @if (question.answer) {
+              <p class="storefront__qa-a"><span aria-hidden="true">R:</span> {{ question.answer }}</p>
+            } @else {
+              <p class="storefront__qa-pending">Pregunta sin responder</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}

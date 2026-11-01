@@ -1,0 +1,19 @@
+<div class="storefront__messages">
+  <syn-status-banner tone="info" message="Mensajería v1 — lectura de hilos; responder llega con la cara vendedor." />
+  @if (mensajes.threads().length === 0) {
+    <p class="storefront__empty">No tienes mensajes con vendedores.</p>
+  } @else {
+    <ul class="storefront__thread-list">
+      @for (thread of mensajes.threads(); track thread.id) {
+        <li class="storefront__thread" [class.is-unread]="thread.unread">
+          <p class="storefront__thread-head">
+            <span class="storefront__thread-subject">{{ thread.subject }}</span>
+            <span class="storefront__thread-date">{{ thread.date }}</span>
+          </p>
+          <p class="storefront__thread-meta">{{ thread.counterpart }}</p>
+          <p class="storefront__thread-last">{{ thread.lastMessage }}</p>
+        </li>
+      }
+    </ul>
+  }
+</div>

@@ -12,6 +12,7 @@ import { ReembolsosDeLaConsola } from '../../../estado/reembolsos';
   imports: [ButtonComponent],
   templateUrl: './reembolso.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'seller__vista' },
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ConsolaReembolsoComponent {

@@ -31,6 +31,7 @@ const PUBLISH_STEPS = [
   imports: [AuthoringWizardComponent, ButtonComponent, IconButtonComponent, InputComponent, SelectComponent, TextareaComponent],
   templateUrl: './publicar.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'seller__vista' },
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ConsolaPublicarComponent {
