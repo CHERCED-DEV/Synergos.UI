@@ -58,15 +58,29 @@ function apps() {
   });
 }
 
+/**
+ * El SCSS y los consumidores de una app, **con sus subcarpetas**: una app partida en vistas
+ * (`storefront/vistas/<vista>/`, 014-despiece-tienda) emite desde ellas las clases que pinta la hoja
+ * del shell, y una vista con su propia hoja también se mide. Sin bajar, las clases del shell
+ * parecían huérfanas y la hoja de una vista no la miraba nadie.
+ */
 function fuentesDe(dir) {
-  const ficheros = readdirSync(dir);
+  const ficheros = [];
+  const recorrer = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const ruta = path.join(d, e.name);
+      if (e.isDirectory()) recorrer(ruta);
+      else ficheros.push(ruta);
+    }
+  };
+  recorrer(dir);
   const scss = ficheros
     .filter((f) => f.endsWith('.scss'))
-    .map((f) => readFileSync(path.join(dir, f), 'utf8'))
+    .map((f) => readFileSync(f, 'utf8'))
     .join('\n');
   const consumidores = ficheros
     .filter((f) => f.endsWith('.html') || f.endsWith('.ts'))
-    .map((f) => readFileSync(path.join(dir, f), 'utf8'));
+    .map((f) => readFileSync(f, 'utf8'));
   return { scss, consumidores };
 }
 

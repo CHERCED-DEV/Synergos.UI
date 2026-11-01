@@ -1,9 +1,18 @@
-import { provideZonelessChangeDetection, type Provider } from '@angular/core';
+import { provideZonelessChangeDetection, type Provider, type ProviderToken, type Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { MUESTRAS_DE_LA_CUENTA, ResenasApi, ShopFulfillmentStrategy } from '@synergos/dominio/tienda';
+import { ConfiguracionDeLaTienda, AvisosDeLaTienda, CatalogoDeLaTienda, ResenasDeLaTienda, DeseosDeLaTienda, MensajesDeLaTienda, PedidosDeLaTienda, DevolucionesDeLaTienda, EscritorioDeLaTienda, CarritoDeLaTienda, CompraDeLaTienda } from '@synergos/dominio/tienda';
+import { CompraEnLaPagina } from './estado/compra-en-la-pagina';
+import { NavegacionDeLaTienda } from './estado/navegacion';
+import { PresentacionDeLaTienda } from './estado/presentacion';
+import { TiendaCatalogoComponent } from './vistas/catalogo/catalogo';
+import { TiendaFichaComponent } from './vistas/ficha/ficha';
+import { TiendaCarritoComponent } from './vistas/carrito/carrito';
+import { TiendaCuentaComponent } from './vistas/cuenta/cuenta';
+import { TiendaVendedorComponent } from './vistas/vendedor/vendedor';
 import { StorefrontElementComponent } from './storefront';
 import type { ShopOrder } from '@synergos/dominio/tienda';
 import type { ShopProduct } from '@synergos/dominio/tienda';
@@ -174,6 +183,38 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<StorefrontElementComponent>;
   let component: StorefrontElementComponent;
 
+  /**
+   * La tienda montada, por capas (014-despiece-tienda): la fachada y los servicios de ESTE elemento (del inyector del
+   * shell, que los provee) y, para lo que vive en una vista, la vista pintada.
+   */
+  function tienda() {
+    const de = <T>(token: ProviderToken<T>): T => fixture.debugElement.injector.get(token);
+    return {
+      configuracion: de(ConfiguracionDeLaTienda),
+      avisos: de(AvisosDeLaTienda),
+      catalogo: de(CatalogoDeLaTienda),
+      resenas: de(ResenasDeLaTienda),
+      deseos: de(DeseosDeLaTienda),
+      mensajes: de(MensajesDeLaTienda),
+      pedidos: de(PedidosDeLaTienda),
+      devoluciones: de(DevolucionesDeLaTienda),
+      escritorio: de(EscritorioDeLaTienda),
+      carrito: de(CarritoDeLaTienda),
+      compra: de(CompraDeLaTienda),
+      navegacion: de(NavegacionDeLaTienda),
+      pagina: de(CompraEnLaPagina),
+      presentacion: de(PresentacionDeLaTienda),
+      vista: <T>(tipo: Type<T>): T => {
+        fixture.detectChanges();
+        const pintada = fixture.debugElement.query(By.directive(tipo));
+        if (!pintada) {
+          throw new Error(`${tipo.name} no está pintada`);
+        }
+        return pintada.componentInstance as T;
+      },
+    };
+  }
+
   async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: readonly Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [StorefrontElementComponent],
@@ -204,7 +245,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   // ── empty: pristine storefront, home view, cart empty ────────────────────────
   /** Deja un producto en el carrito para poder descontar sobre algo. */
   async function agregarAlCarrito(): Promise<void> {
-    component.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
     await flushMicrotasks();
     fixture.detectChanges();
   }
@@ -239,7 +280,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await createComponent({});
 
     expect(red).not.toHaveBeenCalled();
-    expect(component.products().length).toBeGreaterThan(0);
+    expect(tienda().catalogo.products().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
@@ -255,10 +296,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/plp');
     await flushMicrotasks();
     fixture.detectChanges();
-    expect(component.view()).toBe('plp');
+    expect(tienda().navegacion.view()).toBe('plp');
 
     // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
-    component.navigate('cart');
+    tienda().navegacion.navigate('cart');
     await flushMicrotasks();
     expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/carrito');
   });
@@ -269,21 +310,21 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await createComponent();
     await agregarAlCarrito();
 
-    const antes = component.cartTotalMinor();
+    const antes = tienda().carrito.cartTotalMinor();
     expect(antes).toBeGreaterThan(0);
 
     respuestaPromo({ code: 'BIENVENIDA10', amountMinor: 500_000, label: 'Cupón BIENVENIDA10' });
-    await component.applyPromo('BIENVENIDA10');
+    await tienda().carrito.applyPromo('BIENVENIDA10');
 
-    expect(component.promo()?.code).toBe('BIENVENIDA10');
+    expect(tienda().carrito.promo()?.code).toBe('BIENVENIDA10');
     // El backend mandó el descuento en POSITIVO; se fuerza el signo, porque
     // sumarlo se vería como un cargo sorpresa.
-    expect(component.promo()?.amountMinor).toBe(-500_000);
-    expect(component.cartTotalMinor()).toBe(antes - 500_000);
+    expect(tienda().carrito.promo()?.amountMinor).toBe(-500_000);
+    expect(tienda().carrito.cartTotalMinor()).toBe(antes - 500_000);
 
     // Y se VE: un total más bajo sin la línea que lo explica se lee como un error
     // de precio.
-    const filas = component.cartSummaryRows().map((f) => f.id);
+    const filas = tienda().vista(TiendaCarritoComponent).cartSummaryRows().map((f) => f.id);
     expect(filas).toEqual(['subtotal', 'promo', 'total']);
   });
 
@@ -292,16 +333,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
     await agregarAlCarrito();
-    const antes = component.cartTotalMinor();
+    const antes = tienda().carrito.cartTotalMinor();
 
     respuestaPromo({ code: 'X', amountMinor: 100_000, label: 'Cupón X' });
-    await component.applyPromo('X');
-    expect(component.cartTotalMinor()).toBe(antes - 100_000);
+    await tienda().carrito.applyPromo('X');
+    expect(tienda().carrito.cartTotalMinor()).toBe(antes - 100_000);
 
-    component.removePromo();
-    expect(component.promo()).toBeNull();
-    expect(component.cartTotalMinor()).toBe(antes);
-    expect(component.cartSummaryRows()).toEqual([]);
+    tienda().carrito.removePromo();
+    expect(tienda().carrito.promo()).toBeNull();
+    expect(tienda().carrito.cartTotalMinor()).toBe(antes);
+    expect(tienda().vista(TiendaCarritoComponent).cartSummaryRows()).toEqual([]);
   });
 
   it('un descuento mayor que el carrito NO deja el total bajo cero', async () => {
@@ -311,11 +352,11 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await agregarAlCarrito();
 
     respuestaPromo({ code: 'TODO', amountMinor: 999_999_999, label: 'Cupón TODO' });
-    await component.applyPromo('TODO');
+    await tienda().carrito.applyPromo('TODO');
 
     // Un carrito que se debe a sí mismo no es un carrito, y el checkout lo
     // cobraría como un importe negativo.
-    expect(component.cartTotalMinor()).toBe(0);
+    expect(tienda().carrito.cartTotalMinor()).toBe(0);
   });
 
   it('EL caso: un 200 sin descuento utilizable NO es un cupón aplicado', async () => {
@@ -323,16 +364,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
     await agregarAlCarrito();
-    const antes = component.cartTotalMinor();
+    const antes = tienda().carrito.cartTotalMinor();
 
     // El servidor contesta OK y no manda importe.
     respuestaPromo({ code: 'VACIO' });
-    await component.applyPromo('VACIO');
+    await tienda().carrito.applyPromo('VACIO');
 
     // Decir que sí dejaría el total igual y al comprador creyendo que ahorró.
-    expect(component.promo()).toBeNull();
-    expect(component.promoRejection()).toBe('unknown');
-    expect(component.cartTotalMinor()).toBe(antes);
+    expect(tienda().carrito.promo()).toBeNull();
+    expect(tienda().carrito.promoRejection()).toBe('unknown');
+    expect(tienda().carrito.cartTotalMinor()).toBe(antes);
   });
 
   it('el mínimo no alcanzado dice CUÁNTO falta', async () => {
@@ -342,11 +383,11 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await agregarAlCarrito();
 
     respuestaPromo({ reason: 'minimum-not-met', shortfallMinor: 1_200_000 }, 422);
-    await component.applyPromo('GRANDE');
+    await tienda().carrito.applyPromo('GRANDE');
 
-    expect(component.promoRejection()).toBe('minimum-not-met');
+    expect(tienda().carrito.promoRejection()).toBe('minimum-not-met');
     // Es lo único accionable de ese rechazo.
-    expect(component.promoDetail()).toContain('12.000');
+    expect(tienda().carrito.promoDetail()).toContain('12.000');
   });
 
   it('cada estado del servidor tiene su motivo', async () => {
@@ -364,8 +405,8 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     ];
     for (const [status, body, esperado] of casos) {
       respuestaPromo(body, status);
-      await component.applyPromo('X');
-      expect(component.promoRejection()).toBe(esperado);
+      await tienda().carrito.applyPromo('X');
+      expect(tienda().carrito.promoRejection()).toBe(esperado);
     }
   });
 
@@ -374,14 +415,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
     await agregarAlCarrito();
-    const antes = component.cartTotalMinor();
+    const antes = tienda().carrito.cartTotalMinor();
 
-    await component.applyPromo('LOQUESEA');
+    await tienda().carrito.applyPromo('LOQUESEA');
 
     // Un descuento fingido acá es una promesa de plata que el checkout rompe.
-    expect(component.promo()).toBeNull();
-    expect(component.promoRejection()).toBe('failed');
-    expect(component.cartTotalMinor()).toBe(antes);
+    expect(tienda().carrito.promo()).toBeNull();
+    expect(tienda().carrito.promoRejection()).toBe('failed');
+    expect(tienda().carrito.cartTotalMinor()).toBe(antes);
   });
 
   it('starts on the home with an empty cart and degraded mock rails (empty case)', async () => {
@@ -391,13 +432,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await createComponent();
 
     expect(component).toBeTruthy();
-    expect(component.view()).toBe('home');
-    expect(component.cartCount()).toBe(0);
-    expect(component.hasCart()).toBe(false);
+    expect(tienda().navegacion.view()).toBe('home');
+    expect(tienda().carrito.cartCount()).toBe(0);
+    expect(tienda().carrito.hasCart()).toBe(false);
     // Mock catalogue loaded → home rails present, degradation flagged.
-    expect(component.products().length).toBeGreaterThan(0);
-    expect(component.deals().length).toBeGreaterThan(0);
-    expect(component.homeCategories().length).toBeGreaterThan(0);
+    expect(tienda().catalogo.products().length).toBeGreaterThan(0);
+    expect(tienda().catalogo.deals().length).toBeGreaterThan(0);
+    expect(tienda().catalogo.homeCategories().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
@@ -449,7 +490,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
     await vi.waitFor(
       () =>
         expect(document.querySelector('[data-syn-live-announcer]')?.textContent).toBe(
@@ -457,7 +498,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         ),
       { timeout: 2000, interval: 20 },
     );
-    expect(component.cartOpen()).toBe(true);
+    expect(tienda().navegacion.cartOpen()).toBe(true);
   });
 
   it('si el motor no puede agregar, no abre el cajón y lo dice asertivo', async () => {
@@ -466,7 +507,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await createComponent();
     vi.spyOn(ShopFulfillmentStrategy.prototype, 'select').mockRejectedValue(new Error('sin cupo'));
 
-    component.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
     await vi.waitFor(
       () =>
         expect(document.querySelector('[data-syn-live-announcer]')?.textContent).toBe(
@@ -474,7 +515,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         ),
       { timeout: 2000, interval: 20 },
     );
-    expect(component.cartOpen()).toBe(false);
+    expect(tienda().navegacion.cartOpen()).toBe(false);
     expect(document.querySelector('[data-syn-live-announcer]')?.getAttribute('aria-live')).toBe('assertive');
   });
 
@@ -486,7 +527,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
     // El «Agregar» rápido vive en las tarjetas del PLP, no en las de la portada.
-    component.navigate('plp');
+    tienda().navegacion.navigate('plp');
 
     const botonDe = (tarjeta: Element) =>
       tarjeta.querySelector('.storefront__card-actions .storefront__card-add button') as HTMLButtonElement;
@@ -541,14 +582,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
   /** Carrito con A y B, datos de envío, y el asistente hasta el envío final. */
   async function comprarAyB(antesDeEnviar: (wizard: CheckoutWizardComponent) => void = () => undefined): Promise<void> {
-    component.quickAdd(PRODUCT_A);
-    component.quickAdd(PRODUCT_B);
+    tienda().carrito.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_B);
     await flushMicrotasks();
-    component.customerName.set('Ada Lovelace');
-    component.customerEmail.set('ada@example.com');
-    component.customerAddress.set('Calle 1 #2-3');
-    component.customerCity.set('Bogotá');
-    component.goToCheckout();
+    tienda().compra.customerName.set('Ada Lovelace');
+    tienda().compra.customerEmail.set('ada@example.com');
+    tienda().compra.customerAddress.set('Calle 1 #2-3');
+    tienda().compra.customerCity.set('Bogotá');
+    tienda().navegacion.goToCheckout();
     fixture.detectChanges();
     while (!asistente().isLastStep()) {
       asistente().next();
@@ -576,27 +617,27 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', bordeDeLaTienda().fetchDoble);
     await createComponent();
 
-    component.quickAdd(PRODUCT_A);
-    component.quickAdd(PRODUCT_B);
+    tienda().carrito.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_B);
     await flushMicrotasks();
 
-    expect(component.cartCount()).toBe(2);
-    expect(component.cartTotalMinor()).toBe((500_000 + 200_000) * 100);
+    expect(tienda().carrito.cartCount()).toBe(2);
+    expect(tienda().carrito.cartTotalMinor()).toBe((500_000 + 200_000) * 100);
     // Carrito agrupado por vendedor (multi-seller marketplace).
-    expect(component.cartGroups().map((group) => group.seller).sort()).toEqual([
+    expect(tienda().vista(TiendaCarritoComponent).cartGroups().map((group) => group.seller).sort()).toEqual([
       'PeriferiCO',
       'TecnoHub',
     ]);
 
-    component.customerName.set('Ada Lovelace');
-    component.customerEmail.set('ada@example.com');
-    component.customerAddress.set('Calle 1 #2-3');
-    component.customerCity.set('Bogotá');
-    expect(component.shippingValid()).toBe(true);
+    tienda().compra.customerName.set('Ada Lovelace');
+    tienda().compra.customerEmail.set('ada@example.com');
+    tienda().compra.customerAddress.set('Calle 1 #2-3');
+    tienda().compra.customerCity.set('Bogotá');
+    expect(tienda().compra.shippingValid()).toBe(true);
 
-    component.goToCheckout();
+    tienda().navegacion.goToCheckout();
     fixture.detectChanges();
-    expect(component.view()).toBe('checkout');
+    expect(tienda().navegacion.view()).toBe('checkout');
 
     const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
       .componentInstance as CheckoutWizardComponent;
@@ -613,16 +654,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks(30);
     fixture.detectChanges();
 
-    expect(component.view()).toBe('confirmation');
-    expect(component.orderRef()).toBe('ord_77');
-    expect(component.orderNumber()).toBe('SYN-77');
-    expect(component.confirmedItems().map((item) => item.title)).toEqual([
+    expect(tienda().navegacion.view()).toBe('confirmation');
+    expect(tienda().compra.orderRef()).toBe('ord_77');
+    expect(tienda().compra.orderNumber()).toBe('SYN-77');
+    expect(tienda().compra.confirmedItems().map((item) => item.title)).toEqual([
       'Audífonos Pro (servidor)',
       'Mouse Pro (servidor)',
     ]);
     expect(window.location.hash).toContain('/confirmacion');
     // Lo comprado ya no está por comprar (etapa 3): antes seguía en el carrito hasta «Seguir comprando».
-    expect(component.cartCount()).toBe(0);
+    expect(tienda().carrito.cartCount()).toBe(0);
   });
 
   // ── UI#92: sin orden abierta no hay pedido, ni cobro, ni anuncio ──────────────
@@ -640,12 +681,12 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     // La estrategia CONTESTA que no abrió la orden; no revienta.
     expect(fallos.motivos).toEqual(['checkout-not-opened']);
 
-    expect(component.view()).toBe('checkout');
-    expect(component.orderNumber()).toBe('');
+    expect(tienda().navegacion.view()).toBe('checkout');
+    expect(tienda().compra.orderNumber()).toBe('');
     expect(pedidos).toEqual([]);
     expect(borde.llamadas('POST /confirm')).toBe(0);
     // El carrito sigue ahí: nada se compró.
-    expect(component.cartCount()).toBe(2);
+    expect(tienda().carrito.cartCount()).toBe(2);
     expect(alertas()).toEqual([asistente().config().payFailedMessage]);
   });
 
@@ -660,8 +701,8 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await comprarAyB(fallos.escuchar);
 
     expect(fallos.motivos).toEqual(['order-not-placed']);
-    expect(component.view()).toBe('checkout');
-    expect(component.orderNumber()).toBe('');
+    expect(tienda().navegacion.view()).toBe('checkout');
+    expect(tienda().compra.orderNumber()).toBe('');
     expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'ord_77')]);
 
     borde.encender('POST /confirm');
@@ -669,8 +710,8 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks(30);
     fixture.detectChanges();
 
-    expect(component.view()).toBe('confirmation');
-    expect(component.orderNumber()).toBe('SYN-77');
+    expect(tienda().navegacion.view()).toBe('confirmation');
+    expect(tienda().compra.orderNumber()).toBe('SYN-77');
     expect(borde.llamadas('POST /checkout')).toBe(1);
     expect(borde.llamadas('POST /confirm')).toBe(2);
   });
@@ -681,19 +722,19 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.quickAdd(PRODUCT_A);
-    component.quickAdd(PRODUCT_B);
+    tienda().carrito.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_B);
     await flushMicrotasks();
-    expect(component.cartLineCount()).toBe(2);
+    expect(tienda().carrito.cartLineCount()).toBe(2);
 
-    const lineB = component.cartItems().find((item) => item.productRef === 'P-B')?.id ?? '';
-    component.removeFromCart(lineB);
+    const lineB = tienda().carrito.cartItems().find((item) => item.productRef === 'P-B')?.id ?? '';
+    tienda().carrito.removeFromCart(lineB);
     await flushMicrotasks();
 
-    const refs = component.cartItems().map((item) => item.productRef);
+    const refs = tienda().carrito.cartItems().map((item) => item.productRef);
     expect(refs).toEqual(['P-A']);
-    expect(component.cartTotalMinor()).toBe(500_000 * 100);
-    expect(component.cartGroups()).toHaveLength(1);
+    expect(tienda().carrito.cartTotalMinor()).toBe(500_000 * 100);
+    expect(tienda().vista(TiendaCarritoComponent).cartGroups()).toHaveLength(1);
   });
 
   // ── idempotent: re-adding the same product+variant accumulates qty, one line ──
@@ -702,15 +743,15 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.quickAdd(PRODUCT_A);
-    component.quickAdd(PRODUCT_A);
-    component.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
+    tienda().carrito.quickAdd(PRODUCT_A);
     await flushMicrotasks();
 
     // One line (deterministic id), qty accumulated to 3.
-    expect(component.cartLineCount()).toBe(1);
-    expect(component.cartCount()).toBe(3);
-    expect(component.cartTotalMinor()).toBe(500_000 * 3 * 100);
+    expect(tienda().carrito.cartLineCount()).toBe(1);
+    expect(tienda().carrito.cartCount()).toBe(3);
+    expect(tienda().carrito.cartTotalMinor()).toBe(500_000 * 3 * 100);
   });
 
   // ── PDP (SH-2): open product, switch variant, qty, add, wishlist toggle ──────
@@ -719,35 +760,35 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', bordeDeLaTienda().fetchDoble);
     await createComponent();
 
-    const first = component.products()[0];
-    component.openProduct(first);
+    const first = tienda().catalogo.products()[0];
+    tienda().navegacion.openProduct(first);
     await flushMicrotasks();
     fixture.detectChanges();
 
-    expect(component.view()).toBe('pdp');
-    expect(component.detail()).not.toBeNull();
-    expect(component.selectedVariant()).not.toBeNull();
+    expect(tienda().navegacion.view()).toBe('pdp');
+    expect(tienda().catalogo.detail()).not.toBeNull();
+    expect(tienda().catalogo.selectedVariant()).not.toBeNull();
     expect(window.location.hash).toContain(`/p/${first.id}`);
 
-    component.changeQuantity(1);
-    expect(component.pdpQuantity()).toBe(2);
+    tienda().catalogo.changeQuantity(1);
+    expect(tienda().catalogo.pdpQuantity()).toBe(2);
 
-    component.addCurrentToCart();
+    tienda().carrito.addCurrentToCart();
     await flushMicrotasks();
-    expect(component.cartCount()).toBe(2);
+    expect(tienda().carrito.cartCount()).toBe(2);
 
     // Wishlist: toggle on + toggle on the same product stays a single entry.
-    const product = component.detail()!.product;
-    component.toggleWishlist(product);
+    const product = tienda().catalogo.detail()!.product;
+    tienda().deseos.toggleWishlist(product);
     await flushMicrotasks();
-    expect(component.isWished(product.id)).toBe(true);
+    expect(tienda().deseos.isWished(product.id)).toBe(true);
     // La lista es la que devolvió el SERVIDOR, no la entrada que pintó el optimista.
-    expect(component.wishlist().map((line) => line.title)).toEqual(['Favorito guardado en el servidor']);
+    expect(tienda().deseos.wishlist().map((line) => line.title)).toEqual(['Favorito guardado en el servidor']);
 
-    component.toggleWishlist(product);
+    tienda().deseos.toggleWishlist(product);
     await flushMicrotasks();
-    expect(component.isWished(product.id)).toBe(false);
-    expect(component.wishlist()).toHaveLength(0);
+    expect(tienda().deseos.isWished(product.id)).toBe(false);
+    expect(tienda().deseos.wishlist()).toHaveLength(0);
   });
 
   // ── UI#92: un favorito que el servidor no guardó se revierte y se dice ────────
@@ -755,17 +796,17 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', bordeDeLaTienda({ caidas: ['POST /wishlist'] }).fetchDoble);
     await createComponent();
-    const product = component.products()[0];
+    const product = tienda().catalogo.products()[0];
 
-    component.toggleWishlist(product);
+    tienda().deseos.toggleWishlist(product);
     // El optimista se pinta…
-    expect(component.isWished(product.id)).toBe(true);
+    expect(tienda().deseos.isWished(product.id)).toBe(true);
     await flushMicrotasks();
     fixture.detectChanges();
 
     // …y el fallo lo revierte: nada quedó guardado.
-    expect(component.isWished(product.id)).toBe(false);
-    expect(component.wishlist()).toEqual([]);
+    expect(tienda().deseos.isWished(product.id)).toBe(false);
+    expect(tienda().deseos.wishlist()).toEqual([]);
     expect(alertas()).toEqual(['No pudimos guardar el cambio en tus favoritos. Intenta de nuevo.']);
   });
 
@@ -776,19 +817,19 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     // Los pedidos de ejemplo sólo los pinta una demo que lo escribe (etapa 3): el camino real ya no los inventa.
     await createComponent(NEGOCIO_DEL_CMS, [{ provide: MUESTRAS_DE_LA_CUENTA, useValue: true }]);
 
-    component.goToAccount();
+    tienda().navegacion.goToAccount();
     await flushMicrotasks();
     fixture.detectChanges();
 
-    expect(component.view()).toBe('account');
-    expect(component.accountSection()).toBe('compras');
-    expect(component.orders().length).toBeGreaterThan(0);
+    expect(tienda().navegacion.view()).toBe('account');
+    expect(tienda().navegacion.accountSection()).toBe('compras');
+    expect(tienda().pedidos.orders().length).toBeGreaterThan(0);
 
-    const order = component.orders()[0];
-    component.onOrderSelect(order);
+    const order = tienda().pedidos.orders()[0];
+    tienda().pedidos.onOrderSelect(order);
     await flushMicrotasks();
 
-    const stages = component.trackingStages(order.orderNumber);
+    const stages = tienda().pedidos.trackingStages(order.orderNumber);
     expect(stages.length).toBeGreaterThan(0);
     expect(stages.some((stage) => stage.state === 'current' || stage.state === 'done')).toBe(true);
 
@@ -797,18 +838,18 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     // como abierto. Con el servidor caído no hay reclamo, y por tanto tampoco se
     // ofrece el botón — no se sabe si la línea ya tiene uno.
     const linea = order.items[0];
-    expect(component.returnsUnknown(order)).toBe(true);
-    expect(component.canReturnLine(order, linea)).toBe(false);
+    expect(tienda().devoluciones.returnsUnknown(order)).toBe(true);
+    expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(false);
 
-    component.openReturn(order.orderNumber, linea);
-    await component.submitReturn();
-    expect(component.claimForLine(order.orderNumber, linea)).toBeNull();
-    expect(component.returnError()).not.toBe('');
+    tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+    await tienda().devoluciones.submitReturn();
+    expect(tienda().devoluciones.claimForLine(order.orderNumber, linea)).toBeNull();
+    expect(tienda().devoluciones.returnError()).not.toBe('');
 
     // Sección mensajes (v1): threads mock cargados al cambiar de sección.
-    component.onAccountSectionChange('mensajes');
+    tienda().navegacion.onAccountSectionChange('mensajes');
     await flushMicrotasks();
-    expect(component.threads().length).toBeGreaterThan(0);
+    expect(tienda().mensajes.threads().length).toBeGreaterThan(0);
   });
 
   // ── Hash router: deep-link a una vista ────────────────────────────────────────
@@ -817,16 +858,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.goToPlp();
+    tienda().navegacion.goToPlp();
     expect(window.location.hash).toBe('#/storefront/plp');
 
-    component.goToAccount('favoritos');
+    tienda().navegacion.goToAccount('favoritos');
     expect(window.location.hash).toBe('#/storefront/cuenta/favoritos');
-    expect(component.accountSection()).toBe('favoritos');
+    expect(tienda().navegacion.accountSection()).toBe('favoritos');
 
     // checkout sin carrito redirige a carrito.
-    component.navigate('checkout');
-    expect(component.view()).toBe('cart');
+    tienda().navegacion.navigate('checkout');
+    expect(tienda().navegacion.view()).toBe('cart');
   });
 
   // ── Reseñar (T10 Ola B): el formulario y el envío ───────────────────────────
@@ -848,7 +889,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
       // En modo degradado canReview es false por diseño: el backend que decide
       // quién puede es justo el que no responde.
-      expect(component.canReview()).toBe(false);
+      expect(tienda().resenas.canReview()).toBe(false);
     });
 
     it('un 403 NO se anuncia como publicado, y no invita a iniciar sesión', async () => {
@@ -927,7 +968,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       ) as HTMLButtonElement;
       expect(boton.disabled).toBe(true);
 
-      const panel = component.reviewPanel()!;
+      const panel = tienda().vista(TiendaFichaComponent).reviewPanel()!;
       panel.draftRating.set(4);
       panel.draftBody.set('Cumple lo que promete.');
       fixture.detectChanges();
@@ -958,7 +999,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     ];
 
     function abrirFicha(canReview: boolean, reviews = RESEÑAS): void {
-      component.detail.set({
+      tienda().catalogo.detail.set({
         product: { ...PRODUCT_A, id: 'SKU-1' },
         description: 'desc',
         variants: [],
@@ -966,7 +1007,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         questions: [],
         canReview,
       });
-      component.view.set('pdp');
+      tienda().navegacion.view.set('pdp');
       fixture.detectChanges();
     }
 
@@ -1008,31 +1049,35 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       abrirFicha(true);
 
       // El borrador vive en SH-13 desde #28; la regla de negocio no cambió.
-      const panel = component.reviewPanel();
+      const panel = tienda().vista(TiendaFichaComponent).reviewPanel();
       expect(panel).toBeTruthy();
       panel!.draftRating.set(5);
       panel!.draftBody.set('Cumple lo que promete.');
       vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 } as Response)));
 
-      await component.submitReview({
+      await tienda().vista(TiendaFichaComponent).submitReview({
         rating: 5,
         title: '',
         body: 'Cumple lo que promete.',
         criteria: {},
       });
 
-      expect(component.reviewFailed()).toBe(true);
-      expect(component.reviewNotice()).toContain('compró');
+      expect(tienda().resenas.reviewFailed()).toBe(true);
+      expect(tienda().resenas.reviewNotice()).toContain('compró');
       // Los dos fallos que importan: anunciar una escritura que no ocurrió…
-      expect(component.reviewNotice()).not.toContain('publicada');
+      expect(tienda().resenas.reviewNotice()).not.toContain('publicada');
       // …y mandar a iniciar sesión por un problema que no es de sesión.
-      expect(component.reviewNotice().toLowerCase()).not.toContain('inicia sesión');
+      expect(tienda().resenas.reviewNotice().toLowerCase()).not.toContain('inicia sesión');
       // El texto se conserva: perder lo escrito por un rechazo sería castigar dos
       // veces. Ahora lo custodia la pieza, que no se limpia sola al enviar.
       expect(panel!.draftBody()).toBe('Cumple lo que promete.');
     });
 
-    it('monta SH-13 y pinta la distribución que antes se calculaba sin usarse', () => {
+    it('monta SH-13 y pinta la distribución que antes se calculaba sin usarse', async () => {
+      // Monta su propia tienda: antes leía la que dejaba la prueba de arriba, ya destruida (014-despiece-tienda).
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
       abrirFicha(true);
 
       expect(fixture.nativeElement.querySelector('syn-review-panel')).not.toBeNull();
@@ -1042,7 +1087,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       expect(
         fixture.nativeElement.querySelectorAll('.syn-reviews__dist-row').length,
       ).toBe(5);
-      expect(component.reviewPanelSummary().distribution?.map((b) => b.stars)).toEqual([
+      expect(tienda().vista(TiendaFichaComponent).reviewPanelSummary().distribution?.map((b) => b.stars)).toEqual([
         5, 4, 3, 2, 1,
       ]);
     });
@@ -1055,14 +1100,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
-      component.openProduct(component.products()[0]);
+      tienda().navegacion.openProduct(tienda().catalogo.products()[0]);
       await flushMicrotasks();
       fixture.detectChanges();
     }
 
     it('EL caso: un 202 NO dice «publicada» y NO recarga la lista', async () => {
       await abrirFichaReseñable();
-      const sku = component.detail()!.product.id;
+      const sku = tienda().catalogo.detail()!.product.id;
 
       // Sólo el POST de la reseña contesta; cualquier recarga posterior se vería
       // como una llamada más a la ficha, que es justo lo que se comprueba.
@@ -1075,16 +1120,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      await component.submitReview({
+      await tienda().vista(TiendaFichaComponent).submitReview({
         rating: 5,
         title: 'Muy bueno',
         body: 'Cumple lo que promete y llegó antes de lo previsto.',
         criteria: {},
       });
 
-      expect(component.reviewNotice()).toContain('en revisión');
-      expect(component.reviewNotice()).not.toContain('publicada');
-      expect(component.reviewFailed()).toBe(false);
+      expect(tienda().resenas.reviewNotice()).toContain('en revisión');
+      expect(tienda().resenas.reviewNotice()).not.toContain('publicada');
+      expect(tienda().resenas.reviewFailed()).toBe(false);
       // Ni una sola recarga de la ficha: traería la lista SIN la reseña, o sea la
       // prueba de que el acuse miente, en la misma pantalla.
       expect(llamadas.filter((u) => u.includes(`/product/${sku}`))).toEqual([]);
@@ -1092,7 +1137,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
     it('un 201 sí dice publicada y sí recarga', async () => {
       await abrirFichaReseñable();
-      const sku = component.detail()!.product.id;
+      const sku = tienda().catalogo.detail()!.product.id;
 
       const llamadas: string[] = [];
       vi.stubGlobal(
@@ -1103,14 +1148,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      await component.submitReview({
+      await tienda().vista(TiendaFichaComponent).submitReview({
         rating: 5,
         title: 'Muy bueno',
         body: 'Cumple lo que promete y llegó antes de lo previsto.',
         criteria: {},
       });
 
-      expect(component.reviewNotice()).toContain('publicada');
+      expect(tienda().resenas.reviewNotice()).toContain('publicada');
       expect(llamadas.some((u) => u.includes(`/product/${sku}`))).toBe(true);
     });
 
@@ -1126,12 +1171,12 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      await component.reportReview('rev-1');
-      await component.reportReview('rev-1');
+      await tienda().resenas.reportReview('rev-1');
+      await tienda().resenas.reportReview('rev-1');
 
       expect(envios).toBe(1);
-      expect(component.reportedReviewIds()).toEqual(['rev-1']);
-      expect(component.reviewNotice()).toContain('Gracias por avisar');
+      expect(tienda().resenas.reportedReviewIds()).toEqual(['rev-1']);
+      expect(tienda().resenas.reviewNotice()).toContain('Gracias por avisar');
     });
 
     it('«ya reportada» se trata como éxito: reintentar no arregla nada', async () => {
@@ -1143,10 +1188,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         ),
       );
 
-      await component.reportReview('rev-9');
+      await tienda().resenas.reportReview('rev-9');
 
-      expect(component.reportedReviewIds()).toEqual(['rev-9']);
-      expect(component.reviewFailed()).toBe(false);
+      expect(tienda().resenas.reportedReviewIds()).toEqual(['rev-9']);
+      expect(tienda().resenas.reviewFailed()).toBe(false);
     });
   });
 
@@ -1174,7 +1219,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         ),
       );
       await createComponent();
-      component.goToAccount();
+      tienda().navegacion.goToAccount();
       await flushMicrotasks(20);
       fixture.detectChanges();
     }
@@ -1202,20 +1247,20 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         url.includes('/return') ? json({ returns: [RECLAMO] }) : json({}, 500),
       );
 
-      const order = component.orders().find((o) => o.orderNumber === 'ORD-2026-00481')!;
+      const order = tienda().pedidos.orders().find((o) => o.orderNumber === 'ORD-2026-00481')!;
       const linea = order.items[0];
 
-      expect(component.returnsUnknown(order)).toBe(false);
-      expect(component.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
-      expect(component.canReturnLine(order, linea)).toBe(false);
+      expect(tienda().devoluciones.returnsUnknown(order)).toBe(false);
+      expect(tienda().devoluciones.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
+      expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(false);
     });
 
     it('EL caso: si NO se pudo leer, tampoco se ofrece — no se sabe si ya hay uno', async () => {
       await abrirCuenta(() => json({}, 500));
 
-      const order = component.orders().find((o) => o.status === 'paid')!;
-      expect(component.returnsUnknown(order)).toBe(true);
-      expect(component.canReturnLine(order, order.items[0])).toBe(false);
+      const order = tienda().pedidos.orders().find((o) => o.status === 'paid')!;
+      expect(tienda().devoluciones.returnsUnknown(order)).toBe(true);
+      expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(false);
     });
 
     it('EL caso: un POST fallido NO da el reclamo por abierto', async () => {
@@ -1223,10 +1268,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         url.includes('/return') ? json({ returns: [] }) : json({}, 500),
       );
 
-      const order = component.orders().find((o) => o.status === 'paid')!;
+      const order = tienda().pedidos.orders().find((o) => o.status === 'paid')!;
       const linea = order.items[0];
       // Con la lectura en verde y sin reclamos, el botón SÍ se ofrece.
-      expect(component.canReturnLine(order, linea)).toBe(true);
+      expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(true);
 
       vi.stubGlobal(
         'fetch',
@@ -1236,21 +1281,21 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
           ),
         ),
       );
-      component.openReturn(order.orderNumber, linea);
-      await component.submitReturn();
+      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+      await tienda().devoluciones.submitReturn();
 
       // Ni reclamo inventado ni pantalla que diga que se abrió.
-      expect(component.claimForLine(order.orderNumber, linea)).toBeNull();
+      expect(tienda().devoluciones.claimForLine(order.orderNumber, linea)).toBeNull();
       // Y se enseña lo que dijo el servidor, no un genérico: lo escribió quien sabe.
-      expect(component.returnError()).toContain('orden pagada');
-      expect(component.canReturnLine(order, linea)).toBe(true);
+      expect(tienda().devoluciones.returnError()).toContain('orden pagada');
+      expect(tienda().devoluciones.canReturnLine(order, linea)).toBe(true);
     });
 
     it('manda lineId y el motivo ELEGIDO, no un literal fijo', async () => {
       await abrirCuenta((url) =>
         url.includes('/return') ? json({ returns: [] }) : json({}, 500),
       );
-      const order = component.orders().find((o) => o.status === 'paid')!;
+      const order = tienda().pedidos.orders().find((o) => o.status === 'paid')!;
       const linea = order.items[0];
 
       const cuerpos: string[] = [];
@@ -1262,16 +1307,16 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         }),
       );
 
-      component.openReturn(order.orderNumber, linea);
-      component.setReturnReason('not-as-described');
-      await component.submitReturn();
+      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, linea);
+      tienda().devoluciones.setReturnReason('not-as-described');
+      await tienda().devoluciones.submitReturn();
 
       const enviado = JSON.parse(cuerpos[0]) as { lineId: string; reason: string };
       // Sin `lineId` el borde contesta 400 — y contestaba 400 SIEMPRE, porque
       // este cuerpo no lo llevaba.
       expect(enviado.lineId).toBe('SONY-XM5');
       expect(enviado.reason).toBe('not-as-described');
-      expect(component.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
+      expect(tienda().devoluciones.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
     });
   });
 
@@ -1285,7 +1330,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
       await createComponent();
-      component.goToAccount();
+      tienda().navegacion.goToAccount();
       await flushMicrotasks(20);
       fixture.detectChanges();
     }
@@ -1339,12 +1384,12 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [{ ...pedido('paid'), orderRef: 'pta-saga-1', orderNumber: 'CEBFA4B7' }] });
       });
 
-      const order = component.orders()[0];
+      const order = tienda().pedidos.orders()[0];
       expect(order.orderRef).toBe('pta-saga-1');
-      component.onOrderSelect(order);
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(20);
-      component.openReturn(order.orderNumber, order.items[0]);
-      await component.submitReturn();
+      tienda().vista(TiendaCuentaComponent).openReturn(order.orderNumber, order.items[0]);
+      await tienda().devoluciones.submitReturn();
 
       const porPedido = urls.filter((u) => u.includes('/order/'));
       expect(porPedido.some((u) => u.includes('/order/pta-saga-1/tracking'))).toBe(true);
@@ -1359,15 +1404,15 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [pedido('paid')] });
       });
 
-      const order = component.orders()[0];
+      const order = tienda().pedidos.orders()[0];
       expect(order.status).toBe('paid');
-      component.onOrderSelect(order);
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(10);
 
       // Antes esto era FALSO siempre: el gate pedía `delivered|shipped`, que el
       // backend no emite nunca.
-      expect(component.canReturnLine(order, order.items[0])).toBe(true);
-      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(true);
+      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('EL caso: el seguimiento ya NO decide — sin entregar, con `canReturn`, se ofrece y no se explica nada (etapa 3)', async () => {
@@ -1379,13 +1424,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [pedido('paid')] });
       });
 
-      const order = component.orders()[0];
-      component.onOrderSelect(order);
+      const order = tienda().pedidos.orders()[0];
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(10);
 
-      expect(component.isDelivered(order)).toBe(false);
-      expect(component.canReturnLine(order, order.items[0])).toBe(true);
-      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().pedidos.isDelivered(order)).toBe(false);
+      expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(true);
+      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('EL caso: si el SEGUIMIENTO no se pudo leer, se ofrece igual', async () => {
@@ -1395,13 +1440,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [pedido('paid')] });
       });
 
-      const order = component.orders()[0];
+      const order = tienda().pedidos.orders()[0];
       // Sin pedir el seguimiento: no hay etapas que mirar.
-      expect(component.trackingStages(order.orderNumber)).toHaveLength(0);
+      expect(tienda().pedidos.trackingStages(order.orderNumber)).toHaveLength(0);
       // La condición del servidor se cumple, así que el botón NO va a rebotar.
       // Bloquear la devolución porque se cayó el seguimiento cambiaría un problema
       // de información por uno de negocio.
-      expect(component.canReturnLine(order, order.items[0])).toBe(true);
+      expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(true);
     });
 
     it('EL caso: manda el SERVIDOR — sin su permiso no se ofrece, aunque todo lo demás cuadre', async () => {
@@ -1414,13 +1459,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [pedido('paid', false)] });
       });
 
-      const order = component.orders()[0];
-      component.onOrderSelect(order);
+      const order = tienda().pedidos.orders()[0];
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(10);
 
       expect(order.status).toBe('paid');
-      expect(component.isDelivered(order)).toBe(true);
-      expect(component.canReturnLine(order, order.items[0])).toBe(false);
+      expect(tienda().pedidos.isDelivered(order)).toBe(true);
+      expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(false);
     });
 
     it('y el motivo lo NOMBRA el servidor: «ya hay un reclamo» se explica', async () => {
@@ -1446,11 +1491,11 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         });
       });
 
-      const order = component.orders()[0];
-      component.onOrderSelect(order);
+      const order = tienda().pedidos.orders()[0];
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(10);
 
-      expect(component.returnBlockedReason(order, order.items[0])).toContain('reclamo abierto');
+      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toContain('reclamo abierto');
     });
 
     it('un motivo que no le sirve a quien compró no se pinta', async () => {
@@ -1460,13 +1505,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({ orders: [pedido('cancelled', false)] });
       });
 
-      const order = component.orders()[0];
-      component.onOrderSelect(order);
+      const order = tienda().pedidos.orders()[0];
+      tienda().pedidos.onOrderSelect(order);
       await flushMicrotasks(10);
 
       // `order-not-paid`: a quien canceló no hay que contarle que no puede
       // devolver lo que nunca recibió.
-      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+      expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('un pedido sin pagar o cancelado no se devuelve: el servidor lo rechaza', async () => {
@@ -1477,14 +1522,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
           return json({ orders: [pedido(estado)] });
         });
 
-        const order = component.orders()[0];
-        component.onOrderSelect(order);
+        const order = tienda().pedidos.orders()[0];
+        tienda().pedidos.onOrderSelect(order);
         await flushMicrotasks(10);
 
-        expect(component.canReturnLine(order, order.items[0])).toBe(false);
+        expect(tienda().devoluciones.canReturnLine(order, order.items[0])).toBe(false);
         // Y no se le explica nada: a quien canceló no hay que contarle que no
         // puede devolver lo que nunca recibió.
-        expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+        expect(tienda().vista(TiendaCuentaComponent).returnBlockedReason(order, order.items[0])).toBe('');
         TestBed.resetTestingModule();
       }
     });
@@ -1523,7 +1568,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
       await createComponent(config);
-      component.goToAccount();
+      tienda().navegacion.goToAccount();
       await flushMicrotasks(20);
       fixture.detectChanges();
     }
@@ -1541,10 +1586,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     it('sin sesión (el servidor contestó 401) pide entrar, y no pinta ningún pedido de ejemplo', async () => {
       await cuenta((url) => (url.endsWith('/orders') ? json({ error: 'sin sesión' }, 401) : json({}, 404)));
 
-      expect(component.estadoDeLasCompras()).toBe('sin-sesion');
-      expect(component.orders()).toEqual([]);
-      expect(component.accountConfig().inboxEmptyTitle).toBe('Inicia sesión para ver tus compras');
-      expect(component.accountConfig().inboxEmptyActionHref).toContain('/account/login?returnUrl=');
+      expect(tienda().pedidos.estadoDeLasCompras()).toBe('sin-sesion');
+      expect(tienda().pedidos.orders()).toEqual([]);
+      expect(tienda().vista(TiendaCuentaComponent).accountConfig().inboxEmptyTitle).toBe('Inicia sesión para ver tus compras');
+      expect(tienda().vista(TiendaCuentaComponent).accountConfig().inboxEmptyActionHref).toContain('/account/login?returnUrl=');
       expect(texto()).toContain('Inicia sesión para ver tus compras');
       expect(texto()).toContain('Iniciar sesión');
       expect(texto()).not.toContain('ORD-2026');
@@ -1558,20 +1603,20 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         return json({}, 404);
       });
 
-      expect(component.estadoDeLasCompras()).toBe('caida');
-      expect(component.accountConfig().errorMessage).toBe('No pudimos cargar tus compras.');
+      expect(tienda().pedidos.estadoDeLasCompras()).toBe('caida');
+      expect(tienda().vista(TiendaCuentaComponent).accountConfig().errorMessage).toBe('No pudimos cargar tus compras.');
       expect(texto()).toContain('No pudimos cargar tus compras.');
       expect(texto()).not.toContain('ORD-2026');
-      expect(component.orders()).toEqual([]);
+      expect(tienda().pedidos.orders()).toEqual([]);
 
       caida = false;
-      component.reintentarCompras();
+      tienda().vista(TiendaCuentaComponent).reintentarCompras();
       await flushMicrotasks(20);
       fixture.detectChanges();
 
-      expect(component.estadoDeLasCompras()).toBe('leidas');
-      expect(component.accountConfig().errorMessage).toBeUndefined();
-      expect(component.orders().map((o) => o.orderNumber)).toEqual(['SYN-1']);
+      expect(tienda().pedidos.estadoDeLasCompras()).toBe('leidas');
+      expect(tienda().vista(TiendaCuentaComponent).accountConfig().errorMessage).toBeUndefined();
+      expect(tienda().pedidos.orders().map((o) => o.orderNumber)).toEqual(['SYN-1']);
     });
 
     it('el seguimiento caído dice «Seguimiento no disponible», sin una línea de tiempo inventada', async () => {
@@ -1591,7 +1636,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       const detalle = (fixture.nativeElement as HTMLElement).querySelector('.storefront__order-detail')!;
       expect(detalle.textContent).toContain('Seguimiento no disponible');
       expect(detalle.querySelectorAll('.syn-timeline__date')).toHaveLength(0);
-      expect(component.trackingStages('SYN-1')).toEqual([]);
+      expect(tienda().pedidos.trackingStages('SYN-1')).toEqual([]);
     });
 
     it('«Pedir devolución» se ofrece con `canReturn` en los DOS caminos, aunque el seguimiento siga en «pagado»', async () => {
@@ -1607,10 +1652,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
       for (const [indice, numero] of [[0, 'SYN-1'], [1, 'ABCD1234']] as const) {
         await abrirPedido(indice);
-        const pedido = component.orders()[indice];
+        const pedido = tienda().pedidos.orders()[indice];
         expect(pedido.orderNumber).toBe(numero);
-        expect(component.isDelivered(pedido)).toBe(false);
-        expect(component.canReturnLine(pedido, pedido.items[0])).toBe(true);
+        expect(tienda().pedidos.isDelivered(pedido)).toBe(false);
+        expect(tienda().devoluciones.canReturnLine(pedido, pedido.items[0])).toBe(true);
 
         const devolver = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
           '.storefront__order-item button',
@@ -1618,7 +1663,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         devolver.click();
         fixture.detectChanges();
         expect(texto()).toContain('Pedir devolución');
-        component.closeReturn();
+        tienda().devoluciones.closeReturn();
         fixture.detectChanges();
       }
     });
@@ -1660,14 +1705,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         ),
       );
       await createComponent();
-      component.openProduct(boli);
+      tienda().navegacion.openProduct(boli);
       await flushMicrotasks();
       fixture.detectChanges();
 
-      expect(component.detail()?.variants).toEqual([]);
-      expect(component.selectedVariant()).toBeNull();
-      expect(component.pdpInStock()).toBe(true);
-      component.changeQuantity(1);
+      expect(tienda().catalogo.detail()?.variants).toEqual([]);
+      expect(tienda().catalogo.selectedVariant()).toBeNull();
+      expect(tienda().catalogo.pdpInStock()).toBe(true);
+      tienda().catalogo.changeQuantity(1);
       fixture.detectChanges();
 
       const agregar = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')).find(
@@ -1678,10 +1723,10 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       await flushMicrotasks();
       fixture.detectChanges();
 
-      expect(component.cartLineCount()).toBe(1);
-      expect(component.cartCount()).toBe(2);
-      expect(component.cartTotalMinor()).toBe(38_000 * 2 * 100);
-      expect(component.addFailedId()).toBeNull();
+      expect(tienda().carrito.cartLineCount()).toBe(1);
+      expect(tienda().carrito.cartCount()).toBe(2);
+      expect(tienda().carrito.cartTotalMinor()).toBe(38_000 * 2 * 100);
+      expect(tienda().carrito.addFailedId()).toBeNull();
     });
   });
 
@@ -1698,9 +1743,9 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     it('la consola se monta y trae sus cuatro secciones', async () => {
       await abrirConsola();
 
-      expect(component.view()).toBe('seller');
+      expect(tienda().navegacion.view()).toBe('seller');
       expect(fixture.nativeElement.querySelector('syn-console-shell')).not.toBeNull();
-      expect(component.sellerConfig().sections.map((s) => s.id)).toEqual([
+      expect(tienda().vista(TiendaVendedorComponent).sellerConfig().sections.map((s) => s.id)).toEqual([
         'orders',
         'returns',
         'reviews',
@@ -1713,13 +1758,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
       // El escritorio de ejemplo llega con la de `en-revision` ANTES que la
       // `abierto`, así que esto sólo pasa si el orden se aplica de verdad.
-      expect(component.sellerReturns().map((c) => c.status)).toEqual(['abierto', 'en-revision']);
+      expect(tienda().escritorio.sellerReturns().map((c) => c.status)).toEqual(['abierto', 'en-revision']);
     });
 
     it('EL caso: las opiniones reportadas van primero, con conteo o sin él', async () => {
       await abrirConsola();
 
-      const cola = component.sellerModeration();
+      const cola = tienda().escritorio.sellerModeration();
       expect(cola.map((i) => i.reason)).toEqual(['reported', 'reported', 'pending']);
       // La segunda reportada llega SIN conteo: sin esta fila, ordenar sólo por
       // conteo daría el mismo resultado y la regla del motivo no se vigilaría
@@ -1729,7 +1774,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
 
     it('EL caso: un avance fallido NO cambia el estado del reclamo', async () => {
       await abrirConsola();
-      const antes = component.sellerReturns()[0];
+      const antes = tienda().escritorio.sellerReturns()[0];
 
       vi.stubGlobal(
         'fetch',
@@ -1741,18 +1786,18 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
           } as Response),
         ),
       );
-      await component.advanceReturn(antes.claimId, 'received');
+      await tienda().escritorio.advanceReturn(antes.claimId, 'received');
 
       // `refunded` mueve plata de verdad: pintar «Resuelto» sobre un POST que
       // falló diría que se devolvió algo que sigue donde estaba.
-      expect(component.sellerReturns()[0].status).toBe(antes.status);
-      expect(component.deskFailed()).toBe(true);
-      expect(component.deskNotice()).toContain('abierto a recibido');
+      expect(tienda().escritorio.sellerReturns()[0].status).toBe(antes.status);
+      expect(tienda().escritorio.deskFailed()).toBe(true);
+      expect(tienda().escritorio.deskNotice()).toContain('abierto a recibido');
     });
 
     it('un avance aceptado toma el estado QUE DEVUELVE el servidor', async () => {
       await abrirConsola();
-      const objetivo = component.sellerReturns()[0];
+      const objetivo = tienda().escritorio.sellerReturns()[0];
 
       vi.stubGlobal(
         'fetch',
@@ -1765,13 +1810,13 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
           } as Response),
         ),
       );
-      await component.advanceReturn(objetivo.claimId, 'approved');
+      await tienda().escritorio.advanceReturn(objetivo.claimId, 'approved');
 
-      const despues = component
-        .sellerReturns()
+      const despues = tienda()
+        .escritorio.sellerReturns()
         .find((c) => c.claimId === objetivo.claimId)!;
       expect(despues.status).toBe('en-revision');
-      expect(component.deskFailed()).toBe(false);
+      expect(tienda().escritorio.deskFailed()).toBe(false);
     });
 
     it('el escritorio de ejemplo se rotula: es una LECTURA degradada, no una mentira', async () => {
@@ -1798,7 +1843,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
       // El catálogo vive en la PLP, no en el inicio.
-      component.goToPlp();
+      tienda().navegacion.goToPlp();
       await flushMicrotasks();
       fixture.detectChanges();
 
@@ -1809,7 +1854,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       botones()[1].click();
       fixture.detectChanges();
 
-      expect(component.compare.count()).toBe(2);
+      expect(tienda().vista(TiendaCatalogoComponent).compare.count()).toBe(2);
       const filas = Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
       ).map((el) => el.textContent?.trim());
@@ -1821,14 +1866,14 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       installMemoryStorage();
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
-      component.goToPlp();
+      tienda().navegacion.goToPlp();
       await flushMicrotasks();
 
       // Se fuerzan los dos candidatos a «sin reseñas»: el catálogo sembrado trae
       // valoraciones, y lo que se prueba es que un 0 no se escriba como «0,0».
-      component.products.set(
-        component
-          .products()
+      tienda().catalogo.products.set(
+        tienda()
+          .catalogo.products()
           .slice(0, 2)
           .map((product) => ({ ...product, rating: 0, reviewCount: 0 })),
       );

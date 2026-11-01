@@ -1,6 +1,6 @@
 @use 'scss' as syn;
 
-:host {
+.sg-storefront {
   --sf-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --sf-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --sf-border: var(--syn-color-border-default, #{syn.$color-neutral-200});

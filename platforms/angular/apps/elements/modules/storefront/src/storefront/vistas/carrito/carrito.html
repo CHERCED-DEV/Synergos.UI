@@ -1,0 +1,49 @@
+@if (modo() === 'pagina') {
+    <syn-cart-shell
+      [config]="cartPageConfig()"
+      [lines]="cartLines()"
+      [groups]="cartGroupHeaders()"
+      [summary]="cartSummaryRows()"
+      [total]="presentacion.cartTotalLabel()"
+      [actions]="cartPageActions()"
+      [holdExpiresAt]="cartHoldExpiresAt()"
+      [footerTemplate]="promoSlot"
+      (remove)="carrito.removeFromCart($event)"
+      (quantitychange)="onCartQuantity($event)"
+      (action)="onCartAction($event)"
+      (holdexpired)="onCartHoldExpired()"
+    />
+  
+    <!-- El cupón vive DENTRO del panel del carrito, sobre el total: es donde la
+         gente lo busca, y donde el descuento se ve en la misma mirada (#29). -->
+    <ng-template #promoSlot>
+      <!-- El cupón sólo por la puerta (US 8): ahí lo calcula y lo cobra el servidor. La ruta directa no tiene
+           dónde validarlo (`shop :: promo` está en SIN_BORDE), así que no se ofrece. -->
+      @if (carrito.porLaPuerta()) {
+        <syn-promo-code
+          [config]="promoConfig()"
+          [applied]="appliedPromo()"
+          [busy]="carrito.promoBusy()"
+          [locked]="carrito.cuponFijado()"
+          [rejection]="carrito.promoRejection()"
+          [rejectionDetail]="carrito.promoDetail()"
+          (apply)="carrito.applyPromo($event)"
+          (remove)="carrito.removePromo()"
+        />
+      }
+    </ng-template>
+} @else {
+  <syn-cart-shell
+    [config]="cartDrawerConfig()"
+    [lines]="cartLines()"
+    [groups]="cartGroupHeaders()"
+    [total]="presentacion.cartTotalLabel()"
+    [actions]="cartDrawerActions()"
+    [holdExpiresAt]="cartHoldExpiresAt()"
+    (remove)="carrito.removeFromCart($event)"
+    (quantitychange)="onCartQuantity($event)"
+    (action)="onCartAction($event)"
+    (holdexpired)="onCartHoldExpired()"
+    (close)="navegacion.toggleCart()"
+  />
+}

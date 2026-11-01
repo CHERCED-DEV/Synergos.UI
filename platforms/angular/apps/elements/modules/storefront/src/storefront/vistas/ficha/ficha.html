@@ -1,0 +1,186 @@
+@if (catalogo.detail(); as pdp) {
+  <syn-detail-shell
+    [eyebrow]="pdpEyebrow()"
+    [title]="pdp.product.title"
+    [subtitle]="pdp.product.subtitle"
+    [media]="pdpMedia()"
+    [specs]="pdpSpecs()"
+    [config]="{
+      backLabel: 'Volver a resultados',
+      specsHeading: 'Ficha técnica',
+      reviewsLabel: 'Opiniones (' + pdp.reviews.length + ')',
+      qaLabel: 'Preguntas (' + pdp.questions.length + ')',
+      relatedHeading: 'Quienes vieron esto también miraron',
+      galleryLabel: 'Galería de ' + pdp.product.title,
+      mediaPlaceholder: '📦'
+    }"
+    [ctaTemplate]="pdpCta"
+    [bodyTemplate]="pdpBody"
+    [reviewsTemplate]="pdpReviews"
+    [qaTemplate]="pdpQa"
+    [relatedTemplate]="catalogo.related().length > 0 ? pdpRelated : null"
+    (back)="navegacion.backToResults()"
+  />
+
+  <ng-template #pdpBody>
+    <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
+    <p class="storefront__pdp-meta">
+      <synergos-rating-stars
+        [attr.value]="pdp.product.rating"
+        [attr.readonly]="'true'"
+      ></synergos-rating-stars>
+      <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
+    </p>
+  </ng-template>
+
+  <ng-template #pdpCta>
+    <p class="storefront__pdp-price">{{ pdpPriceLabel() }}</p>
+    @if (pdp.product.freeShipping) {
+      <p class="storefront__pdp-ship">Envío gratis a todo el país</p>
+    }
+
+    @if (pdp.variants.length > 0) {
+      <div class="storefront__variants" role="group" aria-label="Variantes">
+        @for (variant of pdp.variants; track variant.variantId) {
+          <syn-button
+            variant="outline"
+            size="sm"
+            [disabled]="!variant.inStock"
+            [selected]="catalogo.selectedVariant()?.variantId === variant.variantId"
+            (pressed)="catalogo.selectVariant(variant)"
+          >
+            {{ variant.label }}
+            @if (!variant.inStock) {
+              <span class="storefront__variant-out">agotado</span>
+            }
+          </syn-button>
+        }
+      </div>
+    }
+
+    <p class="storefront__pdp-stock" [class.is-out]="!catalogo.pdpInStock()">
+      {{ catalogo.pdpInStock() ? 'Disponible' : 'Sin stock' }}
+      @if (catalogo.pdpInStock() && catalogo.selectedVariant(); as variant) {
+        <span class="storefront__pdp-stock-n">({{ variant.stock }} unidades)</span>
+      }
+    </p>
+
+    <div class="storefront__qty" role="group" aria-label="Cantidad">
+      <syn-icon-button
+        icon="minus"
+        variant="outline"
+        size="sm"
+        ariaLabel="Disminuir cantidad"
+        [disabled]="catalogo.pdpQuantity() <= 1"
+        (pressed)="catalogo.changeQuantity(-1)"
+      />
+      <span class="storefront__qty-value" aria-live="polite">{{ catalogo.pdpQuantity() }}</span>
+      <syn-icon-button
+        icon="plus"
+        variant="outline"
+        size="sm"
+        ariaLabel="Aumentar cantidad"
+        (pressed)="catalogo.changeQuantity(1)"
+      />
+    </div>
+
+    <syn-button block [disabled]="!catalogo.pdpInStock()" (pressed)="carrito.addCurrentToCart()">
+      {{ carrito.addFailedId() === pdp.product.id ? 'Reintentar' : 'Agregar al carrito' }}
+    </syn-button>
+    @if (carrito.addFailedId() === pdp.product.id) {
+      <p class="storefront__add-error">No se pudo agregar al carrito. Intenta de nuevo.</p>
+    }
+    <syn-button
+      variant="outline"
+      block
+      [selected]="deseos.isWished(pdp.product.id)"
+      (pressed)="deseos.toggleWishlist(pdp.product)"
+    >
+      <syn-icon name="heart" />
+      <span>{{ deseos.isWished(pdp.product.id) ? 'En favoritos' : 'Agregar a favoritos' }}</span>
+    </syn-button>
+    @if (pdp.product.seller) {
+      <p class="storefront__seller-note">Vendido por <strong>{{ pdp.product.seller }}</strong></p>
+    }
+  </ng-template>
+
+  <ng-template #pdpReviews>
+    <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═════════════════════
+         El formulario a mano se fue; la regla de negocio se quedó igual —
+         `canReview` lo decide el servidor y el 403 no ofrece login (ADR 0112).
+         Lo que gana la Tienda es que la DISTRIBUCIÓN por fin se pinta: se
+         calculaba desde siempre y ninguna plantilla la usaba. -->
+    <syn-review-panel
+      [config]="reviewPanelConfig()"
+      [summary]="reviewPanelSummary()"
+      [entries]="reviewEntries()"
+      [canReview]="resenas.canReview()"
+      [blockedReason]="reviewBlockedReason()"
+      [notice]="resenas.reviewNotice()"
+      [noticeIsError]="resenas.reviewFailed()"
+      [sending]="resenas.reviewSending()"
+      [canReport]="resenas.canReportReview()"
+      [reportedIds]="resenas.reportedReviewIds()"
+      [reportingId]="resenas.reportingReviewId()"
+      (submitreview)="submitReview($event)"
+      (reportreview)="resenas.reportReview($event)"
+    />
+  </ng-template>
+
+  <ng-template #pdpQa>
+    <div class="storefront__qa">
+      @if (pdp.questions.length === 0) {
+        <p class="storefront__empty">Sé el primero en preguntar al vendedor.</p>
+      } @else {
+        <ul class="storefront__qa-list">
+          @for (question of pdp.questions; track question.id) {
+            <li class="storefront__qa-item">
+              <p class="storefront__qa-q"><span aria-hidden="true">P:</span> {{ question.question }}</p>
+              @if (question.answer) {
+                <p class="storefront__qa-a"><span aria-hidden="true">R:</span> {{ question.answer }}</p>
+              } @else {
+                <p class="storefront__qa-pending">Pregunta sin responder</p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </ng-template>
+
+  <ng-template #pdpRelated>
+    <ul class="storefront__home-grid">
+      @for (product of catalogo.related(); track product.id) {
+        <li>
+          <article class="storefront__card">
+            <syn-button
+              variant="plain"
+              block
+              class="storefront__card-media"
+              [ariaLabel]="'Ver ' + product.title"
+              (pressed)="navegacion.openProduct(product)"
+            >
+              @if (presentacion.hasImage(product)) {
+                <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="presentacion.onImageError(product.id)" />
+              } @else {
+                <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(product.title) }}</span>
+              }
+            </syn-button>
+            <div class="storefront__card-body">
+              <h3 class="storefront__card-title">
+                <syn-link tone="neutral" [underline]="false" (activated)="navegacion.openProduct(product)">{{ product.title }}</syn-link>
+              </h3>
+              <p class="storefront__card-price">
+                <span class="storefront__card-now">{{ presentacion.productPriceLabel(product) }}</span>
+              </p>
+            </div>
+          </article>
+        </li>
+      }
+    </ul>
+  </ng-template>
+} @else if (avisos.loading()) {
+  <syn-skeleton variant="card" [rows]="1" />
+} @else {
+  <syn-error-state [message]="avisos.errorMessage() || 'No pudimos cargar el producto.'" (retry)="catalogo.retryProduct()" />
+}

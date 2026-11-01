@@ -45,6 +45,7 @@ export { PedidosDeLaTienda } from './lib/pedidos/pedidos';
 export { DevolucionesDeLaTienda, lineRefOf, type BorradorDeDevolucion } from './lib/devoluciones/devoluciones';
 export { EscritorioDeLaTienda } from './lib/vendedor/escritorio';
 export { CarritoDeLaTienda, varianteEstandar, type ConexionDelCarrito } from './lib/carrito/carrito';
+export { CompraDeLaTienda } from './lib/compra/compra';
 export { diaDeLaTienda, momentoDeLaTienda } from './lib/comun/fechas-de-la-tienda';
 
 // La compra: la estrategia que el motor de transacciones usa para la tienda, y la compra por la puerta.

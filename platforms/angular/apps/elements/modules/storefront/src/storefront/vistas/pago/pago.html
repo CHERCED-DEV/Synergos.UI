@@ -1,0 +1,94 @@
+@if (pagina.pideSesion()) {
+  <!-- Por la puerta la compra es de miembros: la sesión se pide ANTES de pagar, y un 401 a mitad trae aquí. -->
+  <div class="storefront__sesion">
+    <h2 class="storefront__heading">{{ pagina.textosDeLaSesion().titulo }}</h2>
+    <p class="storefront__sesion-texto">{{ pagina.textosDeLaSesion().texto }}</p>
+    <syn-button [href]="pagina.loginUrl()">{{ pagina.textosDeLaSesion().boton }}</syn-button>
+  </div>
+} @else {
+  <syn-checkout-wizard
+    [config]="pagina.checkoutConfig()"
+    [stepTemplate]="checkoutStep"
+    [validity]="pagina.checkoutValidity()"
+    [instrument]="pagina.checkoutInstrument()"
+    (completed)="pagina.onCheckoutCompleted($event)"
+    (exit)="navegacion.goToCart()"
+  />
+}
+
+<ng-template #checkoutStep let-step>
+  @switch (step.id) {
+    @case ('datos') {
+      <fieldset class="storefront__form">
+        <legend class="storefront__heading">Datos de envío</legend>
+        <syn-input
+          label="Nombre completo"
+          autocomplete="name"
+          [value]="compra.customerName()"
+          [invalid]="!!compra.customerName() && !compra.customerNameValid()"
+          (valueChange)="compra.customerName.set($event)"
+        />
+        <syn-input
+          label="Correo electrónico"
+          type="email"
+          autocomplete="email"
+          [value]="compra.customerEmail()"
+          [invalid]="!!compra.customerEmail() && !compra.customerEmailValid()"
+          (valueChange)="compra.customerEmail.set($event)"
+        />
+        <syn-input
+          label="Dirección"
+          autocomplete="shipping street-address"
+          [value]="compra.customerAddress()"
+          (valueChange)="compra.customerAddress.set($event)"
+        />
+        <syn-input
+          label="Ciudad"
+          autocomplete="shipping address-level2"
+          [value]="compra.customerCity()"
+          (valueChange)="compra.customerCity.set($event)"
+        />
+      </fieldset>
+    }
+    @case ('pago') {
+      <fieldset class="storefront__form">
+        <legend class="storefront__heading">Método de pago</legend>
+        <syn-radio
+          [name]="presentacion.fieldId + '-pago'"
+          value="card"
+          label="Tarjeta de crédito / débito (hasta 36 cuotas)"
+          [checked]="compra.paymentMethod() === 'card'"
+          (selected)="compra.setPaymentMethod('card')"
+        />
+        <syn-radio
+          [name]="presentacion.fieldId + '-pago'"
+          value="pse"
+          label="PSE — débito desde tu banco"
+          [checked]="compra.paymentMethod() === 'pse'"
+          (selected)="compra.setPaymentMethod('pse')"
+        />
+        <syn-status-banner tone="info" message="Demostración: no se realiza un cobro real." />
+      </fieldset>
+    }
+    @case ('revisar') {
+      <div class="storefront__review-order">
+        <h2 class="storefront__heading">Revisa tu pedido</h2>
+        <dl class="storefront__summary">
+          @for (item of carrito.cartItems(); track item.id) {
+            <div class="storefront__summary-row">
+              <dt>{{ presentacion.itemLineLabel(item) }} × {{ item.quantity }}</dt>
+              <dd>{{ presentacion.itemLineTotalLabel(item) }}</dd>
+            </div>
+          }
+          <div class="storefront__summary-row storefront__summary-row--total">
+            <dt>Total</dt>
+            <dd>{{ presentacion.cartTotalLabel() }}</dd>
+          </div>
+        </dl>
+        <p class="storefront__ship-to">
+          Envío a: {{ compra.customerName() }} · {{ compra.customerAddress() }}, {{ compra.customerCity() }}
+        </p>
+      </div>
+    }
+  }
+</ng-template>

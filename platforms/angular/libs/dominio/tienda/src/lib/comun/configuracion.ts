@@ -9,6 +9,8 @@ export interface FuentesDeLaTienda {
   readonly zonaHoraria: Signal<string>;
   /** Por dónde compra la tienda, tal como lo declara el CMS (`purchasePath`); sin declarar, la ruta directa. */
   readonly purchasePath: Signal<string | undefined>;
+  /** El país al que despacha el sitio (ISO 3166-1 alfa-2): lo declara el CMS, el formulario no lo pregunta. */
+  readonly shippingCountry: Signal<string>;
 }
 
 /**
@@ -23,6 +25,7 @@ export class ConfiguracionDeLaTienda {
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
   readonly zonaHoraria = computed(() => this.#fuentes()?.zonaHoraria() ?? '');
   readonly purchasePath = computed(() => this.#fuentes()?.purchasePath());
+  readonly shippingCountry = computed(() => this.#fuentes()?.shippingCountry() ?? '');
 
   /**
    * El camino de la compra que declara el CMS en `purchasePath` (ADR 0140): la puerta o la ruta directa, la de
