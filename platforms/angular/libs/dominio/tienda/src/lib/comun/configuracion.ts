@@ -4,6 +4,8 @@ import { Injectable, computed, signal, type Signal } from '@angular/core';
 export interface FuentesDeLaTienda {
   /** Dónde vive la API, sin la barra final. */
   readonly apiBase: Signal<string>;
+  /** La zona horaria del sitio, en la que se leen las fechas de «Mis compras». */
+  readonly zonaHoraria: Signal<string>;
 }
 
 /**
@@ -16,6 +18,7 @@ export class ConfiguracionDeLaTienda {
   readonly #fuentes = signal<FuentesDeLaTienda | null>(null);
 
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
+  readonly zonaHoraria = computed(() => this.#fuentes()?.zonaHoraria() ?? '');
 
   conectar(fuentes: FuentesDeLaTienda): void {
     this.#fuentes.set(fuentes);

@@ -1,4 +1,8 @@
 import { InjectionToken } from '@angular/core';
+import type { ReturnAdvanceResult, ReturnCase, ReturnRequestResult } from '../devoluciones/devoluciones.model';
+
+/** Por qué no salió una escritura de devoluciones, en el vocabulario del adaptador. */
+type MotivoDelRechazo<R> = Extract<R, { readonly ok: false }> extends { readonly reason: infer M } ? M : never;
 
 /**
  * Lo que los casos de uso de la fachada le dicen a quien compra (014-despiece-tienda, T008).
@@ -19,6 +23,18 @@ export interface TextosDeLaTienda {
   readonly reporteRecibido: string;
   readonly reporteSinSesion: string;
   readonly reporteCaido: string;
+  readonly comprasCaidas: string;
+  /** Por qué no se abrió la devolución, cuando el servidor no lo explicó (#32). */
+  readonly devolucionNoAbierta: Readonly<Record<MotivoDelRechazo<ReturnRequestResult>, string>>;
+  /** Por qué el reclamo no se movió, cuando el servidor no lo explicó. */
+  readonly reclamoNoMovido: Readonly<Record<MotivoDelRechazo<ReturnAdvanceResult>, string>>;
+  /** El aviso del reclamo que el vendedor movió, con su estado nuevo. */
+  reclamoMovido(claim: ReturnCase): string;
+  readonly opinionAprobada: string;
+  readonly opinionRechazada: string;
+  readonly opinionYaAtendida: string;
+  readonly opinionAjena: string;
+  readonly opinionNoGuardada: string;
 }
 
 /** Los textos de la tienda. Sin factory a propósito: una app que monta la fachada sin decir qué se dice no arranca. */

@@ -41,6 +41,10 @@ export { CRITERIOS_LIMPIOS, CatalogoDeLaTienda, type CriteriosDelCatalogo } from
 export { ResenasDeLaTienda } from './lib/resenas/resenas';
 export { DeseosDeLaTienda } from './lib/deseos/deseos';
 export { MensajesDeLaTienda } from './lib/mensajes/mensajes';
+export { PedidosDeLaTienda } from './lib/pedidos/pedidos';
+export { DevolucionesDeLaTienda, lineRefOf, type BorradorDeDevolucion } from './lib/devoluciones/devoluciones';
+export { EscritorioDeLaTienda } from './lib/vendedor/escritorio';
+export { diaDeLaTienda, momentoDeLaTienda } from './lib/comun/fechas-de-la-tienda';
 
 // La compra: la estrategia que el motor de transacciones usa para la tienda, y la compra por la puerta.
 export * from './lib/compra/shop-fulfillment.strategy';
