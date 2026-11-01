@@ -1,8 +1,15 @@
-import { type Provider, provideZonelessChangeDetection } from '@angular/core';
+import { type Provider, type ProviderToken, provideZonelessChangeDetection, type Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ConsoleShellComponent } from '@synergos/shells';
-import { MUESTRAS_DE_LA_CONSOLA, SellerApiClient } from './seller-api.client';
+import { MUESTRAS_DE_LA_CONSOLA } from '@synergos/dominio/tienda';
+import { DespachoDeLaConsola } from './estado/despacho';
+import { EstadoDeLaConsola } from './estado/estado-de-la-consola';
+import { PresentacionDeLaConsola } from './estado/presentacion';
+import { ReembolsosDeLaConsola } from './estado/reembolsos';
+import { ConsolaPanelComponent } from './vistas/panel/panel';
+import { ConsolaPublicarComponent } from './vistas/publicar/publicar';
+import { ConsolaMensajesComponent } from './vistas/mensajes/mensajes';
 import { SellerElementComponent } from './seller';
 import { asentar } from '../../../../../../tools/asentar';
 import { SELLER_SYNHOST } from '@synergos/contracts';
@@ -138,10 +145,32 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   let fixture: ComponentFixture<SellerElementComponent>;
   let component: SellerElementComponent;
 
+  /**
+   * La consola montada, por capas (014-despiece-tienda, T011): el estado y los servicios de ESTE elemento (del
+   * inyector del shell, que los provee) y, para lo que vive en una vista, la vista pintada.
+   */
+  function consola() {
+    const de = <T>(token: ProviderToken<T>): T => fixture.debugElement.injector.get(token);
+    return {
+      estado: de(EstadoDeLaConsola),
+      despacho: de(DespachoDeLaConsola),
+      reembolsos: de(ReembolsosDeLaConsola),
+      presentacion: de(PresentacionDeLaConsola),
+      vista: <T>(tipo: Type<T>): T => {
+        fixture.detectChanges();
+        const pintada = fixture.debugElement.query(By.directive(tipo));
+        if (!pintada) {
+          throw new Error(`${tipo.name} no está pintada`);
+        }
+        return pintada.componentInstance as T;
+      },
+    };
+  }
+
   async function createComponent(config: object = NEGOCIO_DEL_CMS, extra: Provider[] = []): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [SellerElementComponent],
-      providers: [provideZonelessChangeDetection(), SellerApiClient, ...extra],
+      providers: [provideZonelessChangeDetection(), ...extra],
     }).compileComponents();
 
     fixture = TestBed.createComponent(SellerElementComponent);
@@ -217,9 +246,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     expect(red).not.toHaveBeenCalled();
     // Afirmaba `orders().length > 0` y `degraded()`: los pedidos de ejemplo como el camino normal (T006).
-    expect(component.pedidos()).toEqual([]);
-    expect(component.lecturas().ventas).toBe('caida');
-    expect(component.muestras()).toBe(false);
+    expect(consola().estado.pedidos()).toEqual([]);
+    expect(consola().estado.lecturas().ventas).toBe('caida');
+    expect(consola().estado.muestras()).toBe(false);
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelector('syn-console-shell syn-error-state')?.textContent).toContain(
       'No pudimos cargar esta sección.',
@@ -231,19 +260,19 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
-    expect(component.view()).toBe('panel');
-    expect(component.muestras()).toBe(true);
+    expect(consola().estado.view()).toBe('panel');
+    expect(consola().estado.muestras()).toBe(true);
     expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')?.textContent?.trim()).toBe(
       'Estás viendo datos de ejemplo, no los de la tienda.',
     );
 
     // En Ventas, la banda de indicadores son las cuentas de la bandeja (T012).
-    expect(component.consoleKpis().map((kpi) => kpi.id)).toEqual(['paid', 'preparing', 'shipped', 'delivered']);
+    expect(consola().vista(ConsolaPanelComponent).consoleKpis().map((kpi) => kpi.id)).toEqual(['paid', 'preparing', 'shipped', 'delivered']);
 
     // The console shell mounts with the four secciones.
     const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
     expect(shell).not.toBeNull();
-    expect(component.consoleConfig().sections.map((section) => section.id)).toEqual([
+    expect(consola().vista(ConsolaPanelComponent).consoleConfig().sections.map((section) => section.id)).toEqual([
       'ventas',
       'publicaciones',
       'devoluciones',
@@ -252,9 +281,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     // Ventas queue from the samples, with row actions.
     // Los pedidos de ejemplo no traen actos: sólo su detalle.
-    const paidRow = component.consoleRows().find((row) => row.pedido?.etapa === 'paid');
+    const paidRow = consola().vista(ConsolaPanelComponent).consoleRows().find((row) => row.pedido?.etapa === 'paid');
     expect(paidRow).toBeDefined();
-    expect(component.rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['detalle']);
+    expect(consola().vista(ConsolaPanelComponent).rowActionsFor(paidRow!).map((action) => action.id)).toEqual(['detalle']);
   });
 
   it('sin la marca, con el CMS de hoy, nada se inventa: la cola es la del servidor, sin indicadores ni cartel', async () => {
@@ -262,13 +291,13 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
-    expect(component.muestras()).toBe(false);
+    expect(consola().estado.muestras()).toBe(false);
     expect((fixture.nativeElement as HTMLElement).querySelector('.seller__notice--warn')).toBeNull();
     // `GET seller/summary` no existe en el CMS de hoy (404): sin indicadores, en vez de los de ejemplo.
-    expect(component.lecturas().resumen).toBe('caida');
+    expect(consola().estado.lecturas().resumen).toBe('caida');
     // En Ventas, los indicadores son las cuentas de la bandeja: las del servidor, no las de ejemplo.
-    expect(component.consoleKpis().map((kpi) => kpi.value)).toEqual(['1', '0', '0', '0']);
-    expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
+    expect(consola().vista(ConsolaPanelComponent).consoleKpis().map((kpi) => kpi.value)).toEqual(['1', '0', '0', '0']);
+    expect(consola().vista(ConsolaPanelComponent).consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
   });
 
   // Las devoluciones (la cola, sus acciones y el POST que no sale) están en «la cola de devoluciones (T025)», abajo.
@@ -280,25 +309,25 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms() });
     await createComponent();
 
-    const paid = component.pedidos().find((pedido) => pedido.etapa === 'paid');
+    const paid = consola().estado.pedidos().find((pedido) => pedido.etapa === 'paid');
     expect(paid).toBeDefined();
 
-    const row = component.consoleRows().find((entry) => entry.pedido?.orderRef === paid!.orderRef);
+    const row = consola().vista(ConsolaPanelComponent).consoleRows().find((entry) => entry.pedido?.orderRef === paid!.orderRef);
     // El servidor dice qué actos tiene (T021): preparar, y nada más.
-    expect(component.rowActionsFor(row!).map((a) => a.id)).toEqual(['acto:preparar', 'detalle']);
-    component.onRowAction({ actionId: 'acto:preparar', row: row!, sectionId: 'ventas' });
+    expect(consola().vista(ConsolaPanelComponent).rowActionsFor(row!).map((a) => a.id)).toEqual(['acto:preparar', 'detalle']);
+    consola().vista(ConsolaPanelComponent).onRowAction({ actionId: 'acto:preparar', row: row!, sectionId: 'ventas' });
     await flushMicrotasks();
 
     // Este test se llamaba «advances a shipment one status forward when the endpoint is
     // missing» y afirmaba `'preparing'` — el título decía el defecto. `POST
     // order/{ref}/tracking/advance` NO EXISTE en el CMS, así que eso pasaba el 100 % de las
     // veces y el pedido se pintaba en camino sin haber salido.
-    const advanced = component.pedidos().find((pedido) => pedido.orderRef === paid!.orderRef);
+    const advanced = consola().estado.pedidos().find((pedido) => pedido.orderRef === paid!.orderRef);
     expect(advanced?.etapa).toBe('paid');
-    expect(component.actionError()).toContain('Por preparar');
-    expect(component.actionError()).toContain(paid!.orderNumber);
+    expect(consola().estado.actionError()).toContain('Por preparar');
+    expect(consola().estado.actionError()).toContain(paid!.orderNumber);
     // Una escritura caída no es «datos de ejemplo»: ese cartel es de las lecturas, y sólo con la marca.
-    expect(component.muestras()).toBe(false);
+    expect(consola().estado.muestras()).toBe(false);
   });
 
   // ── publicar (SH-6): sin borde no hay recibo, y el borrador SOBREVIVE ────────
@@ -307,11 +336,11 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.goTo('publicar');
+    consola().estado.goTo('publicar');
     fixture.detectChanges();
 
     // Empty draft gates the first step; a filled draft opens the way.
-    expect(component.wizardValidity()['datos']).toBe(false);
+    expect(consola().vista(ConsolaPublicarComponent).wizardValidity()['datos']).toBe(false);
     const draft = {
       title: 'Teclado mecánico compacto 65%',
       brand: 'Synergos',
@@ -322,24 +351,24 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       amount: 259000,
       stock: 8,
     };
-    component.onDraftChange(draft);
-    expect(component.wizardValidity()['datos']).toBe(true);
-    expect(component.wizardValidity()['precio']).toBe(true);
+    consola().vista(ConsolaPublicarComponent).onDraftChange(draft);
+    expect(consola().vista(ConsolaPublicarComponent).wizardValidity()['datos']).toBe(true);
+    expect(consola().vista(ConsolaPublicarComponent).wizardValidity()['precio']).toBe(true);
 
     const emitidos: unknown[] = [];
     component.productpublished.subscribe((r) => emitidos.push(r));
 
-    await component.onPublish(draft);
+    await consola().vista(ConsolaPublicarComponent).onPublish(draft);
     fixture.detectChanges();
 
     // Las CUATRO cosas que hacía el defecto, una por una (#77).
-    expect(component.publishReceipt()).toBeNull();          // no hay «Publicación creada»
+    expect(consola().vista(ConsolaPublicarComponent).publishReceipt()).toBeNull();          // no hay «Publicación creada»
     expect(emitidos).toHaveLength(0);                       // ni evento al host con un id fantasma
-    expect(component.listings().some((l) => l.title === draft.title)).toBe(false);
-    expect(component.draft()['title']).toBe(draft.title);   // …y el borrador NO se borró
-    expect(component.actionError()).toContain('borrador');
-    expect(component.publishing()).toBe(false);
-    expect(component.muestras()).toBe(false);
+    expect(consola().estado.listings().some((l) => l.title === draft.title)).toBe(false);
+    expect(consola().vista(ConsolaPublicarComponent).draft()['title']).toBe(draft.title);   // …y el borrador NO se borró
+    expect(consola().estado.actionError()).toContain('borrador');
+    expect(consola().vista(ConsolaPublicarComponent).publishing()).toBe(false);
+    expect(consola().estado.muestras()).toBe(false);
   });
 
   // ── publicar: con el borde VIVO, la referencia es la del servidor ────────────
@@ -352,7 +381,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     });
     await createComponent();
 
-    component.goTo('publicar');
+    consola().estado.goTo('publicar');
     fixture.detectChanges();
     const draft = {
       title: 'Teclado mecánico compacto 65%',
@@ -364,15 +393,15 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       amount: 259000,
       stock: 8,
     };
-    component.onDraftChange(draft);
-    await component.onPublish(draft);
+    consola().vista(ConsolaPublicarComponent).onDraftChange(draft);
+    await consola().vista(ConsolaPublicarComponent).onPublish(draft);
     fixture.detectChanges();
 
-    const receipt = component.publishReceipt();
+    const receipt = consola().vista(ConsolaPublicarComponent).publishReceipt();
     expect(receipt?.productId).toBe('SKU-778899');
     expect(receipt?.status).toBe('en revisión');
     expect(receipt!.productId).not.toMatch(/^PUB-/);
-    expect(component.actionError()).toBeNull();
+    expect(consola().estado.actionError()).toBeNull();
   });
 
   // ── mensajes (SH-7): hilos degradados + responder agrega el mensaje ─────────
@@ -399,19 +428,19 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
    * RESPUESTA, que va al servidor.
    */
   async function abrirHiloSinLeer(): Promise<number> {
-    component.goTo('mensajes');
+    consola().estado.goTo('mensajes');
     await flushMicrotasks();
     fixture.detectChanges();
 
-    expect(component.threads().length).toBeGreaterThan(0);
+    expect(consola().estado.threads().length).toBeGreaterThan(0);
 
-    const unread = component.threads().find((thread) => thread.unread);
+    const unread = consola().estado.threads().find((thread) => thread.unread);
     expect(unread).toBeDefined();
-    component.onThreadSelect(unread!);
-    expect(component.activeThread()?.id).toBe(unread!.id);
+    consola().vista(ConsolaMensajesComponent).onThreadSelect(unread!);
+    expect(consola().vista(ConsolaMensajesComponent).activeThread()?.id).toBe(unread!.id);
     // Opening the thread clears its unread flag.
-    expect(component.threads().find((thread) => thread.id === unread!.id)?.unread).toBe(false);
-    return component.activeThread()!.messages.length;
+    expect(consola().estado.threads().find((thread) => thread.id === unread!.id)?.unread).toBe(false);
+    return consola().vista(ConsolaMensajesComponent).activeThread()!.messages.length;
   }
 
   it('loads buyer threads and appends the seller reply to the active thread', async () => {
@@ -420,12 +449,12 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
-    await component.onSendReply({
-      thread: component.activeThread()!,
+    await consola().vista(ConsolaMensajesComponent).onSendReply({
+      thread: consola().vista(ConsolaMensajesComponent).activeThread()!,
       body: 'Sí, tiene garantía de 12 meses.',
     });
 
-    const active = component.activeThread()!;
+    const active = consola().vista(ConsolaMensajesComponent).activeThread()!;
     expect(active.messages.length).toBe(before + 1);
     // La respuesta que guardó el SERVIDOR: su id y su fecha, del final del hilo que devolvió.
     expect(active.messages.at(-1)).toEqual({
@@ -434,8 +463,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       body: 'Sí, tiene garantía de 12 meses.',
       date: '2026-09-30',
     });
-    expect(component.actionError()).toBeNull();
-    expect(component.sending()).toBe(false);
+    expect(consola().estado.actionError()).toBeNull();
+    expect(consola().vista(ConsolaMensajesComponent).sending()).toBe(false);
   });
 
   // ── UI#92: una respuesta que no salió se queda MARCADA, no con cara de enviada ─
@@ -445,14 +474,14 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
     const before = await abrirHiloSinLeer();
 
-    await component.onSendReply({
-      thread: component.activeThread()!,
+    await consola().vista(ConsolaMensajesComponent).onSendReply({
+      thread: consola().vista(ConsolaMensajesComponent).activeThread()!,
       body: 'Sí, tiene garantía de 12 meses.',
     });
     fixture.detectChanges();
 
-    const marcada = component.activeThread()!.messages.at(-1)!;
-    expect(component.activeThread()!.messages.length).toBe(before + 1);
+    const marcada = consola().vista(ConsolaMensajesComponent).activeThread()!.messages.at(-1)!;
+    expect(consola().vista(ConsolaMensajesComponent).activeThread()!.messages.length).toBe(before + 1);
     // El texto no se pierde, pero no lleva fecha: sería el acuse que no existe.
     expect(marcada).toMatchObject({ from: 'seller', body: 'Sí, tiene garantía de 12 meses.', date: '', failed: true });
     const host = fixture.nativeElement as HTMLElement;
@@ -462,9 +491,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     // Reintentar desde el hilo, ya con el borde arriba: la marcada se vuelve LA del servidor.
     installFakeServer({ 'POST /reply': HILO_RESPONDIDO });
-    await component.retryReply(component.activeThread()!, marcada);
+    await consola().vista(ConsolaMensajesComponent).retryReply(consola().vista(ConsolaMensajesComponent).activeThread()!, marcada);
 
-    const active = component.activeThread()!;
+    const active = consola().vista(ConsolaMensajesComponent).activeThread()!;
     expect(active.messages.length).toBe(before + 1);
     expect(active.messages.at(-1)).toEqual({
       id: 'msg_77',
@@ -472,7 +501,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       body: 'Sí, tiene garantía de 12 meses.',
       date: '2026-09-30',
     });
-    expect(component.actionError()).toBeNull();
+    expect(consola().estado.actionError()).toBeNull();
   });
 
   // ── reputación cargando: esqueleto CON forma + aviso audible ────────────────
@@ -482,7 +511,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})));
     await createComponent();
 
-    expect(component.reputation()).toBeNull();
+    expect(consola().estado.reputation()).toBeNull();
 
     const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
     expect(shell).not.toBeNull();
@@ -495,7 +524,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     // 1) The mould is the real grid: hero card + exactly three metric cards,
     //    reusing `seller__rep` / `seller__rep-card` so chrome and padding match.
     expect(host.querySelectorAll('.seller__rep-card--skeleton').length).toBe(
-      component.repSkeletonCards.length + 1,
+      consola().vista(ConsolaPanelComponent).repSkeletonCards.length + 1,
     );
     expect(
       host.querySelectorAll('.seller__rep-card--hero.seller__rep-card--skeleton').length,
@@ -538,7 +567,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
         expect(host().querySelector('syn-console-shell')).toBeNull();
         expect(host().querySelector('.seller__notice--warn')).toBeNull();
-        expect(component.pedidos()).toEqual([]);
+        expect(consola().estado.pedidos()).toEqual([]);
       } finally {
         window.history.replaceState(null, '', antes);
       }
@@ -553,7 +582,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       expect(host().querySelector('syn-console-shell')).toBeNull();
 
       // Tampoco por las otras vistas: el acceso es de la consola entera.
-      component.goTo('mensajes');
+      consola().estado.goTo('mensajes');
       await flushMicrotasks();
       fixture.detectChanges();
       expect(host().querySelector('syn-message-center')).toBeNull();
@@ -573,9 +602,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       await flushMicrotasks();
       fixture.detectChanges();
 
-      expect(component.lecturas().ventas).toBe('leidas');
+      expect(consola().estado.lecturas().ventas).toBe('leidas');
       expect(host().querySelector('syn-console-shell syn-error-state')).toBeNull();
-      expect(component.consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows().map((row) => row.id)).toEqual(['saga-7f3a']);
     });
 
     it('Reputación sin resumen dice que no se pudo —no un esqueleto para siempre— y su «Reintentar» vuelve a pedirlo', async () => {
@@ -604,11 +633,11 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     it('Mensajes que no se pueden leer lo dicen —no «No tienes mensajes»—, también con la forma de hoy de GET messages', async () => {
       installFakeServer({ 'GET /api/shop/messages': { threads: [HILO_DEL_CMS] } });
       await createComponent();
-      component.goTo('mensajes');
+      consola().estado.goTo('mensajes');
       await flushMicrotasks();
       fixture.detectChanges();
 
-      expect(component.lecturas().mensajes).toBe('caida');
+      expect(consola().estado.lecturas().mensajes).toBe('caida');
       expect(host().querySelector('syn-message-center')).toBeNull();
       expect(host().querySelector('syn-error-state')?.textContent).toContain('No pudimos cargar esta sección.');
     });
@@ -617,8 +646,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       installFakeServer({ 'GET /api/shop/seller/orders': bandejaDelCms([]) });
       await createComponent(NEGOCIO_DEL_CMS, CON_MUESTRAS_DE_LA_CONSOLA);
 
-      expect(component.lecturas().ventas).toBe('vacia');
-      expect(component.pedidos()).toEqual([]);
+      expect(consola().estado.lecturas().ventas).toBe('vacia');
+      expect(consola().estado.pedidos()).toEqual([]);
       expect(host().querySelector('syn-console-shell syn-empty-state')?.textContent).toContain(
         'No hay pedidos pagados en esta etapa.',
       );
@@ -690,7 +719,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       await asentarYPintar();
 
       expect(pedidas).toEqual(['?pagina=1', '?etapa=shipped&pagina=1']);
-      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
       expect(indicadores()).toEqual(['5', '2', '1', '9']);
       expect(chips().find((c) => c.getAttribute('aria-pressed') === 'true')?.textContent?.trim()).toBe('En camino');
     });
@@ -707,7 +736,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       await asentarYPintar();
 
       expect(pedidas).toEqual(['?pagina=1', '?pagina=2']);
-      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-2']);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows().map((row) => row.id)).toEqual(['pta-2']);
     });
 
     it('el detalle dice a dónde va y con quién; sin dirección, lo dice; y se cierra', async () => {
@@ -750,12 +779,12 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
       await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'Europe/Madrid' });
       // En Madrid ya es el 21 a la 01:30 (CEST); en Bogotá serían las 18:30 del 20.
-      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^21 .*2026, 01:30$/);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows()[0].cells['fecha']).toMatch(/^21 .*2026, 01:30$/);
 
       TestBed.resetTestingModule();
       servidor(() => bandejaDelCms([pedido('pta-1', 'paid', { fecha: '2026-10-20T23:30:00Z' })]));
       await createComponent({ ...NEGOCIO_DEL_CMS, zonaHoraria: 'America/Bogota' });
-      expect(component.consoleRows()[0].cells['fecha']).toMatch(/^20 .*2026, 18:30$/);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows()[0].cells['fecha']).toMatch(/^20 .*2026, 18:30$/);
     });
 
     it('las compras que el servidor no alcanzó a confirmar se dicen', async () => {
@@ -780,14 +809,14 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       );
       await createComponent();
 
-      component.onFilterChange('preparing');
-      component.onFilterChange('shipped');
+      consola().estado.onFilterChange('preparing');
+      consola().estado.onFilterChange('shipped');
       pendientes.get('shipped')!(json(200, bandejaDelCms([pedido('pta-enviado', 'shipped')])));
       await asentarYPintar();
       pendientes.get('preparing')!(json(200, bandejaDelCms([pedido('pta-preparando', 'preparing')])));
       await asentarYPintar();
 
-      expect(component.consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
+      expect(consola().vista(ConsolaPanelComponent).consoleRows().map((row) => row.id)).toEqual(['pta-enviado']);
     });
   });
 
@@ -852,11 +881,11 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       return s;
     }
 
-    const fila = (orderRef: string) => component.consoleRows().find((row) => row.id === orderRef)!;
-    const acciones = (orderRef: string): string[] => component.rowActionsFor(fila(orderRef)).map((a) => a.id);
-    const etapaDe = (orderRef: string) => component.pedidos().find((p) => p.orderRef === orderRef)?.etapa;
+    const fila = (orderRef: string) => consola().vista(ConsolaPanelComponent).consoleRows().find((row) => row.id === orderRef)!;
+    const acciones = (orderRef: string): string[] => consola().vista(ConsolaPanelComponent).rowActionsFor(fila(orderRef)).map((a) => a.id);
+    const etapaDe = (orderRef: string) => consola().estado.pedidos().find((p) => p.orderRef === orderRef)?.etapa;
     const pedir = (orderRef: string, acto: string): void =>
-      component.onRowAction({ actionId: `acto:${acto}`, row: fila(orderRef), sectionId: 'ventas' });
+      consola().vista(ConsolaPanelComponent).onRowAction({ actionId: `acto:${acto}`, row: fila(orderRef), sectionId: 'ventas' });
 
     async function asentarYPintar(): Promise<void> {
       await flushMicrotasks();
@@ -877,10 +906,10 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       expect(acciones('pta-entregado')).toEqual(['detalle']);
       expect(acciones('pta-cerrada')).toEqual(['detalle']);
 
-      await component.abrirDetalle(fila('pta-cerrada').pedido!);
+      await consola().despacho.abrirDetalle(fila('pta-cerrada').pedido!);
       fixture.detectChanges();
       expect(host().querySelector('.seller__detalle')?.textContent).toContain('Los pedidos de la puerta no se despachan desde este sitio.');
-      await component.abrirDetalle(fila('pta-entregado').pedido!);
+      await consola().despacho.abrirDetalle(fila('pta-entregado').pedido!);
       fixture.detectChanges();
       expect(host().querySelector('.seller__detalle')?.textContent).toContain('Este pedido ya se entregó.');
     });
@@ -907,7 +936,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
       expect(etapaDe('pta-1')).toBe('preparing');
       expect(acciones('pta-1')).toEqual(['acto:enviar', 'detalle']);
-      expect(component.actionError()).toBeNull();
+      expect(consola().estado.actionError()).toBeNull();
     });
 
     it('un rechazo no mueve la fila: dice por qué, por su código, y en qué etapa sigue', async () => {
@@ -922,7 +951,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
       expect(etapaDe('pta-1')).toBe('shipped');
       expect(s.lecturas).toBe(lecturas);
-      expect(component.actionError()).toBe('Primero márcalo enviado. El pedido sigue en «En camino».');
+      expect(consola().estado.actionError()).toBe('Primero márcalo enviado. El pedido sigue en «En camino».');
       expect(host().querySelector('[role="alert"]')?.textContent).toContain('Primero márcalo enviado.');
       expect(acciones('pta-1')).toEqual(['acto:entregar', 'detalle']);
     });
@@ -934,12 +963,12 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
       pedir('pta-1', 'preparar');
       await asentarYPintar();
-      expect(component.actionError()).toBe('Ese paso ya no le toca a este pedido. El pedido sigue en «En camino».');
+      expect(consola().estado.actionError()).toBe('Ese paso ya no le toca a este pedido. El pedido sigue en «En camino».');
 
       s.responde = () => json(503, { code: 'fulfillment.unreachable', error: 'No respondió.', transient: true });
       pedir('pta-1', 'preparar');
       await asentarYPintar();
-      expect(component.actionError()).toBe(
+      expect(consola().estado.actionError()).toBe(
         'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo. El pedido sigue en «Por preparar».',
       );
       expect(etapaDe('pta-1')).toBe('paid');
@@ -959,7 +988,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       host().querySelector<HTMLButtonElement>('.seller__enviar button')!.click();
       await asentarYPintar();
       expect(s.actos).toEqual([]);
-      expect(component.actionError()).toBe('La guía: hasta 80 caracteres, en una línea.');
+      expect(consola().estado.actionError()).toBe('La guía: hasta 80 caracteres, en una línea.');
 
       campo.value = `  ${'G'.repeat(80)}  `;
       campo.dispatchEvent(new Event('input'));
@@ -978,8 +1007,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       pedir('pta-1', 'preparar');
       await asentarYPintar();
 
-      expect(component.acceso()).toBe('sin-sesion');
-      expect(component.actionError()).toBeNull();
+      expect(consola().estado.acceso()).toBe('sin-sesion');
+      expect(consola().estado.actionError()).toBeNull();
     });
   });
 
@@ -996,14 +1025,14 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     };
 
     /** Una devolución como la emite el CMS (`VendedorDeLaTiendaController.DevolucionDto`, T024). */
-    const devolucionDelCms = (rmaId: string, estado: string): Record<string, unknown> => ({
+    const devolucionDelCms = (rmaId: string, estado: string, motivo = 'Llegó con teclas flojas'): Record<string, unknown> => ({
       rmaId,
       orderRef: `ord-${rmaId}`,
       orderNumber: `N-${rmaId}`,
       camino: 'puerta',
       producto: 'Teclado mecánico compacto 65%',
       cantidad: 1,
-      motivo: 'Llegó con teclas flojas',
+      motivo,
       monto: 259000,
       montoFormatted: '$ 259.000',
       moneda: 'COP',
@@ -1020,8 +1049,8 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     }
 
     /** El borde con la forma del CMS: la cola de lo que hay, y el movimiento que la cambia. */
-    function servidor(inicial: Record<string, string>): Servidor {
-      const estado = new Map(Object.entries(inicial).map(([rma, e]) => [rma, devolucionDelCms(rma, e)]));
+    function servidor(inicial: Record<string, string>, motivos: Record<string, string> = {}): Servidor {
+      const estado = new Map(Object.entries(inicial).map(([rma, e]) => [rma, devolucionDelCms(rma, e, motivos[rma])]));
       const s: Servidor = { movimientos: [], responde: null };
       vi.stubGlobal(
         'fetch',
@@ -1045,15 +1074,15 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       return s;
     }
 
-    const fila = (rmaId: string) => component.consoleRows().find((row) => row.id === rmaId)!;
-    const acciones = (rmaId: string): string[] => component.rowActionsFor(fila(rmaId)).map((a) => a.id);
-    const estadoDe = (rmaId: string) => component.devoluciones().find((d) => d.rmaId === rmaId)?.estado;
+    const fila = (rmaId: string) => consola().vista(ConsolaPanelComponent).consoleRows().find((row) => row.id === rmaId)!;
+    const acciones = (rmaId: string): string[] => consola().vista(ConsolaPanelComponent).rowActionsFor(fila(rmaId)).map((a) => a.id);
+    const estadoDe = (rmaId: string) => consola().estado.devoluciones().find((d) => d.rmaId === rmaId)?.estado;
     const mover = (rmaId: string, movimiento: string): void =>
-      component.onRowAction({ actionId: `devolucion:${movimiento}`, row: fila(rmaId), sectionId: 'devoluciones' });
+      consola().vista(ConsolaPanelComponent).onRowAction({ actionId: `devolucion:${movimiento}`, row: fila(rmaId), sectionId: 'devoluciones' });
 
     async function abrirLaCola(): Promise<void> {
       await createComponent();
-      component.onSectionChange('devoluciones');
+      consola().estado.onSectionChange('devoluciones');
       await flushMicrotasks();
       fixture.detectChanges();
     }
@@ -1079,7 +1108,17 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
         'Reembolsada',
         'Rechazada',
       ]);
-      expect(component.openReturnsCount()).toBe(3);
+      expect(consola().estado.openReturnsCount()).toBe(3);
+    });
+
+    it('el motivo se lee con su texto, el mismo que eligió quien compra; un texto libre de antes, tal cual', async () => {
+      servidor({ 'RMA-1': 'Requested', 'RMA-2': 'Approved' }, { 'RMA-1': 'damaged' });
+      await abrirLaCola();
+
+      expect(fila('RMA-1').cells['motivo']).toBe('Llegó dañado');
+      expect(fila('RMA-2').cells['motivo']).toBe('Llegó con teclas flojas');
+      expect(host().textContent).toContain('Llegó dañado');
+      expect(host().textContent).not.toContain('damaged');
     });
 
     it('aprobar manda { status: approved } y la cola se vuelve a leer con lo que dice el servidor', async () => {
@@ -1092,7 +1131,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       expect(s.movimientos).toEqual([{ rmaId: 'RMA-1', cuerpo: { status: 'approved', note: null } }]);
       expect(estadoDe('RMA-1')).toBe('Approved');
       expect(acciones('RMA-1')).toEqual(['devolucion:received']);
-      expect(component.actionError()).toBeNull();
+      expect(consola().estado.actionError()).toBeNull();
     });
 
     it('reembolsar pide confirmarlo: sin confirmar no sale nada; confirmado, manda { status: refunded }', async () => {
@@ -1125,7 +1164,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       await asentarYPintar();
 
       expect(estadoDe('RMA-3')).toBe('Received');
-      expect(component.actionError()).toBe(
+      expect(consola().estado.actionError()).toBe(
         'El orquestador no pudo devolver la plata: payments.refund_over_captured. La devolución sigue en «Recibida».',
       );
       expect(acciones('RMA-3')).toEqual(['devolucion:refunded']);
@@ -1140,7 +1179,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       mover('RMA-1', 'approved');
       await asentarYPintar();
       expect(estadoDe('RMA-1')).toBe('Requested');
-      expect(component.actionError()).toBe(
+      expect(consola().estado.actionError()).toBe(
         'No pudimos hacerlo ahora y nada cambió: vuelve a intentarlo. La devolución sigue en «Pedida».',
       );
       expect(acciones('RMA-1')).toEqual(['devolucion:approved', 'devolucion:rejected']);

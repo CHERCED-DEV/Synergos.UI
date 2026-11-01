@@ -1,0 +1,39 @@
+<syn-account-shell
+  [config]="accountConfig()"
+  [items]="pedidos.orders()"
+  [loading]="pedidos.ordersLoading()"
+  [section]="navegacion.accountSection()"
+  [itemTemplate]="orderRow"
+  [detailTemplate]="orderDetail"
+  [sectionTemplate]="accountSectionTpl"
+  (sectionchange)="navegacion.onAccountSectionChange($event)"
+  (itemselect)="pedidos.onOrderSelect($event)"
+  (retry)="reintentarCompras()"
+/>
+
+<ng-template #orderRow let-order>
+  <span class="storefront__order-head">
+    <span class="storefront__order-number">{{ order.orderNumber }}</span>
+    <syn-status-tag [label]="presentacion.orderStatusLabel(order.status)" [tone]="presentacion.toneDelEstado(order.status)" />
+  </span>
+  <span class="storefront__order-date">{{ presentacion.orderDateLabel(order) }} · {{ presentacion.orderTotalLabel(order) }}</span>
+</ng-template>
+
+<!-- Cada parte de «Mi cuenta» es su pieza (014-despiece-tienda, T010): la compra abierta, los favoritos, los mensajes y el perfil. -->
+<ng-template #orderDetail let-order>
+  <sg-tienda-cuenta-pedido [pedido]="order" />
+</ng-template>
+
+<ng-template #accountSectionTpl let-section>
+  @switch (section.id) {
+    @case ('favoritos') {
+      <sg-tienda-cuenta-favoritos />
+    }
+    @case ('mensajes') {
+      <sg-tienda-cuenta-mensajes />
+    }
+    @case ('perfil') {
+      <sg-tienda-cuenta-perfil />
+    }
+  }
+</ng-template>

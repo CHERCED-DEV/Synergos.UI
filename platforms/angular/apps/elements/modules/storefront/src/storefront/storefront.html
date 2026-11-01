@@ -1,15 +1,15 @@
 <section class="storefront" aria-label="Tienda Synergos">
   <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
   <header class="storefront__bar">
-    <syn-button variant="ghost" class="storefront__brand" (pressed)="goHome()">
+    <syn-button variant="ghost" class="storefront__brand" (pressed)="navegacion.goHome()">
       <span class="storefront__brand-mark" aria-hidden="true">◈</span>
       <span class="storefront__brand-text">Synergos Market</span>
     </syn-button>
 
     <nav class="storefront__nav" aria-label="Navegación de la tienda">
-      <syn-button variant="ghost" size="sm" [current]="view() === 'home'" (pressed)="goHome()">Inicio</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="view() === 'plp'" (pressed)="goToPlp()">Tienda</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="view() === 'account'" (pressed)="goToAccount()">Mi cuenta</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'home'" (pressed)="navegacion.goHome()">Inicio</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'plp'" (pressed)="navegacion.goToPlp()">Tienda</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'account'" (pressed)="navegacion.goToAccount()">Mi cuenta</syn-button>
       <!-- La cara B (#32). Tienda era el único de los tres dominios con consola
            que no la tenía, y por eso la cola de moderación de #31 se quedó sin
            sitio y el `advance` de las devoluciones sin consumidor. -->
@@ -25,40 +25,40 @@
         variant="outline"
         size="sm"
         class="storefront__cart-toggle"
-        [expanded]="cartOpen()"
-        [controls]="fieldId + '-cart'"
-        (pressed)="toggleCart()"
+        [expanded]="navegacion.cartOpen()"
+        [controls]="presentacion.fieldId + '-cart'"
+        (pressed)="navegacion.toggleCart()"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
         <span>Carrito</span>
-        @if (cartCount() > 0) {
-          <syn-badge tone="brand" [text]="'' + cartCount()" [ariaLabel]="cartCount() + ' artículos'" />
+        @if (carrito.cartCount() > 0) {
+          <syn-badge tone="brand" [text]="'' + carrito.cartCount()" [ariaLabel]="carrito.cartCount() + ' artículos'" />
         }
       </syn-button>
     </nav>
   </header>
 
   <!-- ─── La compra por la puerta: la pendiente y el enlace del aviso (004-tienda-compra) ─── -->
-  @if (avisoDePendiente() || comprasSinResolver().length > 0) {
+  @if (carrito.avisoDePendiente() || pagina.comprasSinResolver().length > 0) {
     <div class="storefront__aviso-de-compra">
-      <syn-status-banner tone="info" [message]="textosDeLaPendiente().texto" />
+      <syn-status-banner tone="info" [message]="pagina.textosDeLaPendiente().texto" />
       <div class="storefront__aviso-de-compra-acciones">
-        @if (compraSinTerminar()) {
-          <syn-button size="sm" [disabled]="resolviendo()" (pressed)="terminarPendiente()">{{ textosDeLaPendiente().terminar }}</syn-button>
-          <syn-button variant="ghost" size="sm" [disabled]="resolviendo()" (pressed)="cancelarPendiente()">{{ textosDeLaPendiente().cancelar }}</syn-button>
+        @if (carrito.compraSinTerminar()) {
+          <syn-button size="sm" [disabled]="pagina.resolviendo()" (pressed)="pagina.terminarPendiente()">{{ pagina.textosDeLaPendiente().terminar }}</syn-button>
+          <syn-button variant="ghost" size="sm" [disabled]="pagina.resolviendo()" (pressed)="pagina.cancelarPendiente()">{{ pagina.textosDeLaPendiente().cancelar }}</syn-button>
         }
-        @for (compra of comprasSinResolver(); track compra.id) {
-          <syn-button variant="ghost" size="sm" [disabled]="resolviendo()" (pressed)="cancelarCompraSinResolver(compra.id)">{{ textosDeLaPendiente().cancelar }} · {{ compra.numero }}</syn-button>
+        @for (compra of pagina.comprasSinResolver(); track compra.id) {
+          <syn-button variant="ghost" size="sm" [disabled]="pagina.resolviendo()" (pressed)="pagina.cancelarCompraSinResolver(compra.id)">{{ pagina.textosDeLaPendiente().cancelar }} · {{ compra.numero }}</syn-button>
         }
       </div>
     </div>
   }
-  @if (avisoDelEnlace()) {
+  @if (pagina.avisoDelEnlace()) {
     <div class="storefront__aviso-de-compra">
-      <syn-status-banner tone="info" [message]="avisoDelEnlace()" />
-      @if (enlacePideSesion()) {
+      <syn-status-banner tone="info" [message]="pagina.avisoDelEnlace()" />
+      @if (pagina.enlacePideSesion()) {
         <div class="storefront__aviso-de-compra-acciones">
-          <syn-button size="sm" [href]="loginUrl()">{{ textosDeLaSesion().boton }}</syn-button>
+          <syn-button size="sm" [href]="pagina.loginUrl()">{{ pagina.textosDeLaSesion().boton }}</syn-button>
         </div>
       }
     </div>
@@ -75,856 +75,44 @@
   }
 
   <!-- Global error live region -->
-  @if (errorMessage()) {
-    <p class="storefront__error" role="alert">{{ errorMessage() }}</p>
+  @if (avisos.errorMessage()) {
+    <p class="storefront__error" role="alert">{{ avisos.errorMessage() }}</p>
   }
 
-  <!-- ═══ HOME: hero search + ofertas + categorías destacadas ══════════════ -->
-  @if (view() === 'home') {
-    <div class="storefront__home">
-      <div class="storefront__hero">
-        <h1 class="storefront__hero-title">{{ heading() }}</h1>
-        <p class="storefront__hero-sub">{{ subheading() }}</p>
-        <form class="storefront__searchbar storefront__searchbar--hero" role="search" (submit)="$event.preventDefault(); submitHomeSearch()">
-          <syn-input
-            class="storefront__searchbar-input"
-            type="search"
-            [id]="fieldId + '-hq'"
-            ariaLabel="Buscar productos"
-            placeholder="Buscar productos, marcas y más…"
-            [value]="homeTerm()"
-            (valueChange)="homeTerm.set($event)"
-          />
-          <syn-icon-button icon="search" type="submit" size="lg" ariaLabel="Buscar" />
-        </form>
-      </div>
-
-      @if (homeCategories().length > 0) {
-        <section class="storefront__home-section" aria-label="Categorías destacadas">
-          <h2 class="storefront__heading">Categorías destacadas</h2>
-          <ul class="storefront__cat-rail">
-            @for (category of homeCategories(); track category.value) {
-              <li>
-                <syn-button variant="outline" size="sm" (pressed)="openCategory(category.value)">
-                  {{ category.label }}
-                  @if (category.count !== undefined) {
-                    <syn-badge [text]="'' + category.count" />
-                  }
-                </syn-button>
-              </li>
-            }
-          </ul>
-        </section>
-      }
-
-      @if (deals().length > 0) {
-        <section class="storefront__home-section" aria-label="Ofertas del día">
-          <h2 class="storefront__heading">Ofertas del día</h2>
-          <ul class="storefront__home-grid">
-            @for (product of deals(); track product.id) {
-              <li>
-                <ng-container
-                  [ngTemplateOutlet]="homeCard"
-                  [ngTemplateOutletContext]="{ $implicit: product }"
-                />
-              </li>
-            }
-          </ul>
-        </section>
-      }
-
-      @if (topRated().length > 0) {
-        <section class="storefront__home-section" aria-label="Más vendidos">
-          <h2 class="storefront__heading">Más vendidos</h2>
-          <ul class="storefront__home-grid">
-            @for (product of topRated(); track product.id) {
-              <li>
-                <ng-container
-                  [ngTemplateOutlet]="homeCard"
-                  [ngTemplateOutletContext]="{ $implicit: product }"
-                />
-              </li>
-            }
-          </ul>
-        </section>
-      }
-
-      <ng-template #homeCard let-product>
-        <article class="storefront__card">
-          <syn-button
-            variant="plain"
-            block
-            class="storefront__card-media"
-            [ariaLabel]="'Ver ' + product.title"
-            (pressed)="openProduct(product)"
-          >
-            @if (hasImage(product)) {
-              <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
-            } @else {
-              <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
-            }
-          </syn-button>
-          <div class="storefront__card-body">
-            <h3 class="storefront__card-title">
-              <syn-link tone="neutral" [underline]="false" (activated)="openProduct(product)">{{ product.title }}</syn-link>
-            </h3>
-            <p class="storefront__card-price">
-              @if (productListPriceLabel(product)) {
-                <span class="storefront__card-list">{{ productListPriceLabel(product) }}</span>
-              }
-              <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
-            </p>
-          </div>
-        </article>
-      </ng-template>
-    </div>
-  }
-
-  <!-- ═══ PLP: SH-1 discovery-shell (búsqueda facetada real) ═══════════════ -->
-  @if (view() === 'plp') {
-    <syn-discovery-shell
-      [items]="products()"
-      [facets]="discoveryFacets()"
-      [total]="total()"
-      [sortOptions]="sortOptions"
-      [loading]="loading()"
-      [initialCriteria]="criteria()"
-      [config]="{
-        searchLabel: 'Buscar productos',
-        searchPlaceholder: 'Buscar productos, marcas y más…',
-        filtersHeading: 'Filtros',
-        clearLabel: 'Limpiar',
-        sortLabel: 'Ordenar por',
-        emptyMessage: 'No encontramos productos. Ajusta la búsqueda o limpia los filtros.',
-        loadingMessage: 'Cargando productos…',
-        resultsNoun: { one: 'resultado', many: 'resultados' },
-        pageSize: 12
-      }"
-      [itemTemplate]="productCard"
-      (criteriachange)="onCriteriaChange($event)"
-      (itemselect)="openProduct($event)"
-    />
-
-    <ng-template #productCard let-product let-select="select">
-      <article class="storefront__card">
-        <syn-button
-          variant="plain"
-          block
-          class="storefront__card-media"
-          [ariaLabel]="'Ver ' + product.title"
-          (pressed)="select()"
-        >
-          @if (hasImage(product)) {
-            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
-          } @else {
-            <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
-          }
-        </syn-button>
-        <div class="storefront__card-body">
-          <h3 class="storefront__card-title">
-            <syn-link tone="neutral" [underline]="false" (activated)="select()">{{ product.title }}</syn-link>
-          </h3>
-          <p class="storefront__card-sub">{{ product.subtitle }}</p>
-          <p class="storefront__card-price">
-            @if (productListPriceLabel(product)) {
-              <span class="storefront__card-list">{{ productListPriceLabel(product) }}</span>
-            }
-            <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
-          </p>
-          <p class="storefront__card-meta">
-            <synergos-rating-stars
-              [attr.value]="product.rating"
-              [attr.readonly]="'true'"
-            ></synergos-rating-stars>
-            <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
-          </p>
-          @if (product.badges.length > 0) {
-            <ul class="storefront__card-badges">
-              @for (badge of product.badges; track badge) {
-                <li><syn-badge [text]="badge" /></li>
-              }
-            </ul>
-          }
-          <div class="storefront__card-actions">
-            @if (product.inStock) {
-              <syn-button size="sm" class="storefront__card-add" (pressed)="quickAdd(product)">
-                {{ addFailedId() === product.id ? 'Reintentar' : 'Agregar' }}
-              </syn-button>
-              @if (addFailedId() === product.id) {
-                <p class="storefront__add-error">No se pudo agregar al carrito.</p>
-              }
-            } @else {
-              <syn-status-tag label="Sin stock" tone="inactive" />
-            }
-            <syn-icon-button
-              icon="heart"
-              variant="ghost"
-              size="sm"
-              [selected]="isWished(product.id)"
-              [ariaLabel]="isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-              (pressed)="toggleWishlist(product)"
-            />
-            <syn-button
-              variant="outline"
-              size="sm"
-              class="storefront__cmp"
-              [selected]="inCompare(product.id)"
-              (pressed)="toggleCompare(product)"
-            >
-              {{ inCompare(product.id) ? 'Comparando' : 'Comparar' }}
-            </syn-button>
-          </div>
-        </div>
-      </article>
-    </ng-template>
-
-    <!-- SH-14 (#30): la ficha técnica alineada, que es como se decide entre dos
-         televisores. El eje lo declara este dominio; la pieza no sabe qué es una
-         marca. -->
-    @if (compare.count() > 0) {
-      <syn-compare-table
-        class="storefront__compare"
-        [config]="compareConfig"
-        [candidates]="compare.items()"
-        [attributes]="compareAttributes"
-        [limit]="compare.limit"
-        (removecandidate)="removeFromCompare($event)"
-        (opencandidate)="openCompared($event)"
-        (clearall)="clearCompare()"
-      />
-      @if (compareMessage(); as aviso) {
-        <p class="storefront__compare-msg" role="status">{{ aviso }}</p>
-      }
+  <!-- ═══ Una vista a la vez (014-despiece-tienda, T010): cada una es su componente, con su parte de la plantilla. ═══ -->
+  @switch (navegacion.view()) {
+    @case ('home') {
+      <sg-tienda-inicio [heading]="heading()" [subheading]="subheading()" />
     }
-  }
-
-  <!-- ═══ PDP: SH-2 detail-shell (galería + specs + reviews/Q&A + CTA) ═════ -->
-  @if (view() === 'pdp') {
-    @if (detail(); as pdp) {
-      <syn-detail-shell
-        [eyebrow]="pdpEyebrow()"
-        [title]="pdp.product.title"
-        [subtitle]="pdp.product.subtitle"
-        [media]="pdpMedia()"
-        [specs]="pdpSpecs()"
-        [config]="{
-          backLabel: 'Volver a resultados',
-          specsHeading: 'Ficha técnica',
-          reviewsLabel: 'Opiniones (' + pdp.reviews.length + ')',
-          qaLabel: 'Preguntas (' + pdp.questions.length + ')',
-          relatedHeading: 'Quienes vieron esto también miraron',
-          galleryLabel: 'Galería de ' + pdp.product.title,
-          mediaPlaceholder: '📦'
-        }"
-        [ctaTemplate]="pdpCta"
-        [bodyTemplate]="pdpBody"
-        [reviewsTemplate]="pdpReviews"
-        [qaTemplate]="pdpQa"
-        [relatedTemplate]="related().length > 0 ? pdpRelated : null"
-        (back)="backToResults()"
-      />
-
-      <ng-template #pdpBody>
-        <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
-        <p class="storefront__pdp-meta">
-          <synergos-rating-stars
-            [attr.value]="pdp.product.rating"
-            [attr.readonly]="'true'"
-          ></synergos-rating-stars>
-          <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
-        </p>
-      </ng-template>
-
-      <ng-template #pdpCta>
-        <p class="storefront__pdp-price">{{ pdpPriceLabel() }}</p>
-        @if (pdp.product.freeShipping) {
-          <p class="storefront__pdp-ship">Envío gratis a todo el país</p>
-        }
-
-        @if (pdp.variants.length > 0) {
-          <div class="storefront__variants" role="group" aria-label="Variantes">
-            @for (variant of pdp.variants; track variant.variantId) {
-              <syn-button
-                variant="outline"
-                size="sm"
-                [disabled]="!variant.inStock"
-                [selected]="selectedVariant()?.variantId === variant.variantId"
-                (pressed)="selectVariant(variant)"
-              >
-                {{ variant.label }}
-                @if (!variant.inStock) {
-                  <span class="storefront__variant-out">agotado</span>
-                }
-              </syn-button>
-            }
-          </div>
-        }
-
-        <p class="storefront__pdp-stock" [class.is-out]="!pdpInStock()">
-          {{ pdpInStock() ? 'Disponible' : 'Sin stock' }}
-          @if (pdpInStock() && selectedVariant(); as variant) {
-            <span class="storefront__pdp-stock-n">({{ variant.stock }} unidades)</span>
-          }
-        </p>
-
-        <div class="storefront__qty" role="group" aria-label="Cantidad">
-          <syn-icon-button
-            icon="minus"
-            variant="outline"
-            size="sm"
-            ariaLabel="Disminuir cantidad"
-            [disabled]="pdpQuantity() <= 1"
-            (pressed)="changeQuantity(-1)"
-          />
-          <span class="storefront__qty-value" aria-live="polite">{{ pdpQuantity() }}</span>
-          <syn-icon-button
-            icon="plus"
-            variant="outline"
-            size="sm"
-            ariaLabel="Aumentar cantidad"
-            (pressed)="changeQuantity(1)"
-          />
-        </div>
-
-        <syn-button block [disabled]="!pdpInStock()" (pressed)="addCurrentToCart()">
-          {{ addFailedId() === pdp.product.id ? 'Reintentar' : 'Agregar al carrito' }}
-        </syn-button>
-        @if (addFailedId() === pdp.product.id) {
-          <p class="storefront__add-error">No se pudo agregar al carrito. Intenta de nuevo.</p>
-        }
-        <syn-button
-          variant="outline"
-          block
-          [selected]="isWished(pdp.product.id)"
-          (pressed)="toggleWishlist(pdp.product)"
-        >
-          <syn-icon name="heart" />
-          <span>{{ isWished(pdp.product.id) ? 'En favoritos' : 'Agregar a favoritos' }}</span>
-        </syn-button>
-        @if (pdp.product.seller) {
-          <p class="storefront__seller-note">Vendido por <strong>{{ pdp.product.seller }}</strong></p>
-        }
-      </ng-template>
-
-      <ng-template #pdpReviews>
-        <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═════════════════════
-             El formulario a mano se fue; la regla de negocio se quedó igual —
-             `canReview` lo decide el servidor y el 403 no ofrece login (ADR 0112).
-             Lo que gana la Tienda es que la DISTRIBUCIÓN por fin se pinta: se
-             calculaba desde siempre y ninguna plantilla la usaba. -->
-        <syn-review-panel
-          [config]="reviewPanelConfig()"
-          [summary]="reviewPanelSummary()"
-          [entries]="reviewEntries()"
-          [canReview]="canReview()"
-          [blockedReason]="reviewBlockedReason()"
-          [notice]="reviewNotice()"
-          [noticeIsError]="reviewFailed()"
-          [sending]="reviewSending()"
-          [canReport]="canReportReview()"
-          [reportedIds]="reportedReviewIds()"
-          [reportingId]="reportingReviewId()"
-          (submitreview)="submitReview($event)"
-          (reportreview)="reportReview($event)"
-        />
-      </ng-template>
-
-      <ng-template #pdpQa>
-        <div class="storefront__qa">
-          @if (pdp.questions.length === 0) {
-            <p class="storefront__empty">Sé el primero en preguntar al vendedor.</p>
-          } @else {
-            <ul class="storefront__qa-list">
-              @for (question of pdp.questions; track question.id) {
-                <li class="storefront__qa-item">
-                  <p class="storefront__qa-q"><span aria-hidden="true">P:</span> {{ question.question }}</p>
-                  @if (question.answer) {
-                    <p class="storefront__qa-a"><span aria-hidden="true">R:</span> {{ question.answer }}</p>
-                  } @else {
-                    <p class="storefront__qa-pending">Pregunta sin responder</p>
-                  }
-                </li>
-              }
-            </ul>
-          }
-        </div>
-      </ng-template>
-
-      <ng-template #pdpRelated>
-        <ul class="storefront__home-grid">
-          @for (product of related(); track product.id) {
-            <li>
-              <article class="storefront__card">
-                <syn-button
-                  variant="plain"
-                  block
-                  class="storefront__card-media"
-                  [ariaLabel]="'Ver ' + product.title"
-                  (pressed)="openProduct(product)"
-                >
-                  @if (hasImage(product)) {
-                    <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
-                  } @else {
-                    <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
-                  }
-                </syn-button>
-                <div class="storefront__card-body">
-                  <h3 class="storefront__card-title">
-                    <syn-link tone="neutral" [underline]="false" (activated)="openProduct(product)">{{ product.title }}</syn-link>
-                  </h3>
-                  <p class="storefront__card-price">
-                    <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
-                  </p>
-                </div>
-              </article>
-            </li>
-          }
-        </ul>
-      </ng-template>
-    } @else if (loading()) {
-      <syn-skeleton variant="card" [rows]="1" />
-    } @else {
-      <syn-error-state [message]="errorMessage() || 'No pudimos cargar el producto.'" (retry)="retryProduct()" />
+    @case ('plp') {
+      <sg-tienda-catalogo />
     }
-  }
-
-  <!-- ═══ CART: agrupado por vendedor ══════════════════════════════════════ -->
-  <!-- ═══ CARRITO: SH-12 syn-cart-shell (#22) ═════════════════════════════ -->
-  @if (view() === 'cart') {
-    <syn-cart-shell
-      [config]="cartPageConfig()"
-      [lines]="cartLines()"
-      [groups]="cartGroupHeaders()"
-      [summary]="cartSummaryRows()"
-      [total]="cartTotalLabel()"
-      [actions]="cartPageActions()"
-      [holdExpiresAt]="cartHoldExpiresAt()"
-      [footerTemplate]="promoSlot"
-      (remove)="removeFromCart($event)"
-      (quantitychange)="onCartQuantity($event)"
-      (action)="onCartAction($event)"
-      (holdexpired)="onCartHoldExpired()"
-    />
-
-    <!-- El cupón vive DENTRO del panel del carrito, sobre el total: es donde la
-         gente lo busca, y donde el descuento se ve en la misma mirada (#29). -->
-    <ng-template #promoSlot>
-      <!-- El cupón sólo por la puerta (US 8): ahí lo calcula y lo cobra el servidor. La ruta directa no tiene
-           dónde validarlo (`shop :: promo` está en SIN_BORDE), así que no se ofrece. -->
-      @if (porLaPuerta()) {
-        <syn-promo-code
-          [config]="promoConfig()"
-          [applied]="appliedPromo()"
-          [busy]="promoBusy()"
-          [locked]="cuponFijado()"
-          [rejection]="promoRejection()"
-          [rejectionDetail]="promoDetail()"
-          (apply)="applyPromo($event)"
-          (remove)="removePromo()"
-        />
-      }
-    </ng-template>
-  }
-
-  <!-- ═══ CHECKOUT: SH-3 checkout-wizard sobre el engine ═══════════════════ -->
-  @if (view() === 'checkout') {
-    @if (pideSesion()) {
-      <!-- Por la puerta la compra es de miembros: la sesión se pide ANTES de pagar, y un 401 a mitad trae aquí. -->
-      <div class="storefront__sesion">
-        <h2 class="storefront__heading">{{ textosDeLaSesion().titulo }}</h2>
-        <p class="storefront__sesion-texto">{{ textosDeLaSesion().texto }}</p>
-        <syn-button [href]="loginUrl()">{{ textosDeLaSesion().boton }}</syn-button>
-      </div>
-    } @else {
-      <syn-checkout-wizard
-        [config]="checkoutConfig()"
-        [stepTemplate]="checkoutStep"
-        [validity]="checkoutValidity()"
-        [instrument]="checkoutInstrument()"
-        (completed)="onCheckoutCompleted($event)"
-        (exit)="goToCart()"
-      />
+    @case ('pdp') {
+      <sg-tienda-ficha />
     }
-
-    <ng-template #checkoutStep let-step>
-      @switch (step.id) {
-        @case ('datos') {
-          <fieldset class="storefront__form">
-            <legend class="storefront__heading">Datos de envío</legend>
-            <syn-input
-              label="Nombre completo"
-              autocomplete="name"
-              [value]="customerName()"
-              [invalid]="!!customerName() && !customerNameValid()"
-              (valueChange)="customerName.set($event)"
-            />
-            <syn-input
-              label="Correo electrónico"
-              type="email"
-              autocomplete="email"
-              [value]="customerEmail()"
-              [invalid]="!!customerEmail() && !customerEmailValid()"
-              (valueChange)="customerEmail.set($event)"
-            />
-            <syn-input
-              label="Dirección"
-              autocomplete="shipping street-address"
-              [value]="customerAddress()"
-              (valueChange)="customerAddress.set($event)"
-            />
-            <syn-input
-              label="Ciudad"
-              autocomplete="shipping address-level2"
-              [value]="customerCity()"
-              (valueChange)="customerCity.set($event)"
-            />
-          </fieldset>
-        }
-        @case ('pago') {
-          <fieldset class="storefront__form">
-            <legend class="storefront__heading">Método de pago</legend>
-            <syn-radio
-              [name]="fieldId + '-pago'"
-              value="card"
-              label="Tarjeta de crédito / débito (hasta 36 cuotas)"
-              [checked]="paymentMethod() === 'card'"
-              (selected)="setPaymentMethod('card')"
-            />
-            <syn-radio
-              [name]="fieldId + '-pago'"
-              value="pse"
-              label="PSE — débito desde tu banco"
-              [checked]="paymentMethod() === 'pse'"
-              (selected)="setPaymentMethod('pse')"
-            />
-            <syn-status-banner tone="info" message="Demostración: no se realiza un cobro real." />
-          </fieldset>
-        }
-        @case ('revisar') {
-          <div class="storefront__review-order">
-            <h2 class="storefront__heading">Revisa tu pedido</h2>
-            <dl class="storefront__summary">
-              @for (item of cartItems(); track item.id) {
-                <div class="storefront__summary-row">
-                  <dt>{{ itemLineLabel(item) }} × {{ item.quantity }}</dt>
-                  <dd>{{ itemLineTotalLabel(item) }}</dd>
-                </div>
-              }
-              <div class="storefront__summary-row storefront__summary-row--total">
-                <dt>Total</dt>
-                <dd>{{ cartTotalLabel() }}</dd>
-              </div>
-            </dl>
-            <p class="storefront__ship-to">
-              Envío a: {{ customerName() }} · {{ customerAddress() }}, {{ customerCity() }}
-            </p>
-          </div>
-        }
-      }
-    </ng-template>
-  }
-
-  <!-- ═══ CONFIRMATION ═════════════════════════════════════════════════════ -->
-  @if (view() === 'confirmation') {
-    <!-- SH-11 (#19). Los vales por línea son del dominio —un pedido de marketplace
-         trae una referencia por vendedor— así que entran por el template del
-         artefacto; el número del pedido y los pasos los pone la pieza. -->
-    <ng-template #vales>
-      @if (confirmedItems().length > 0) {
-        <ul class="storefront__vouchers">
-          <!-- Una referencia igual al número del pedido no se repite en cada línea: ya la pone la pieza
-               arriba (la puerta da una sola; la directa, una por vendedor). -->
-          @for (voucher of confirmedItems(); track $index) {
-            <li class="storefront__voucher">
-              <span class="storefront__voucher-title">{{ voucher.title }} × {{ voucher.qty }}</span>
-              @if (voucher.reference && voucher.reference !== orderNumber()) {
-                <span class="storefront__voucher-ref">{{ voucher.reference }}</span>
-              }
-            </li>
-          }
-        </ul>
-      }
-    </ng-template>
-    <syn-confirmation-shell
-      [config]="confirmationConfig()"
-      [reference]="orderNumber()"
-      [steps]="confirmationSteps"
-      [actions]="confirmationActions"
-      [artifactTemplate]="confirmedItems().length > 0 ? vales : null"
-      (action)="onConfirmationAction($event)"
-    />
-  }
-
-  <!-- ═══ ACCOUNT: SH-4 account-shell (compras + tracking + wishlist + msgs) ═ -->
-  @if (view() === 'account') {
-    <syn-account-shell
-      [config]="accountConfig()"
-      [items]="orders()"
-      [loading]="ordersLoading()"
-      [section]="accountSection()"
-      [itemTemplate]="orderRow"
-      [detailTemplate]="orderDetail"
-      [sectionTemplate]="accountSectionTpl"
-      (sectionchange)="onAccountSectionChange($event)"
-      (itemselect)="onOrderSelect($event)"
-      (retry)="reintentarCompras()"
-    />
-
-    <ng-template #orderRow let-order>
-      <span class="storefront__order-head">
-        <span class="storefront__order-number">{{ order.orderNumber }}</span>
-        <syn-status-tag [label]="orderStatusLabel(order.status)" [tone]="toneDelEstado(order.status)" />
-      </span>
-      <span class="storefront__order-date">{{ orderDateLabel(order) }} · {{ orderTotalLabel(order) }}</span>
-    </ng-template>
-
-    <ng-template #orderDetail let-order>
-      <div class="storefront__order-detail">
-        <div class="storefront__order-head">
-          <span class="storefront__order-number">{{ order.orderNumber }}</span>
-          <syn-status-tag [label]="orderStatusLabel(order.status)" [tone]="toneDelEstado(order.status)" />
-        </div>
-        <!-- La devolución es POR LÍNEA (#32): el reclamo guarda su producto, su
-             cantidad y su monto, y devolver «el pedido» de tres artículos porque
-             llegó uno roto no es lo que nadie quiere. -->
-        <ul class="storefront__order-items">
-          @for (line of order.items; track line.productId + line.title) {
-            <li class="storefront__order-item">
-              <span class="storefront__order-item-name">{{ line.title }} × {{ line.qty }}</span>
-              @if (claimForLine(order.orderNumber, line); as claim) {
-                <span class="storefront__return-note" role="status">
-                  {{ returnStatusLabel(claim) }} · {{ returnReasonLabel(claim.reason) }} ·
-                  reclamo {{ claim.claimId }}
-                </span>
-              } @else if (canReturnLine(order, line)) {
-                <syn-link (activated)="openReturn(order.orderNumber, line)">Devolver</syn-link>
-              } @else if (returnBlockedReason(order, line); as motivo) {
-                <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
-                     (#32), o el servidor nombra el motivo (#34). Callarse deja a
-                     quien compró buscando un botón que no está. -->
-                <span class="storefront__order-item-note">{{ motivo }}</span>
-              }
-            </li>
-          }
-        </ul>
-        <p class="storefront__order-total">{{ orderTotalLabel(order) }}</p>
-
-        <syn-tracking-timeline
-          heading="Seguimiento del envío"
-          [stages]="trackingStages(order.orderNumber)"
-          [emptyMessage]="mensajeDelSeguimiento(order)"
-        />
-
-        @if (returnDraft(); as draft) {
-          @if (draft.orderRef === order.orderNumber) {
-            <form class="storefront__return-form" (submit)="$event.preventDefault(); submitReturn()">
-              <h4 class="storefront__return-title">Devolver «{{ draft.line.title }}»</h4>
-              <fieldset class="storefront__return-reasons">
-                <legend class="storefront__return-legend">¿Qué pasó?</legend>
-                @for (reason of returnReasons; track reason) {
-                  <syn-radio
-                    [name]="fieldId + '-motivo'"
-                    [value]="reason"
-                    [label]="returnReasonLabel(reason)"
-                    [checked]="draft.reason === reason"
-                    (selected)="setReturnReason(reason)"
-                  />
-                }
-              </fieldset>
-              @if (returnError(); as error) {
-                <p class="storefront__return-error" role="alert">{{ error }}</p>
-              }
-              <div class="storefront__return-actions">
-                <syn-button type="submit" size="sm" [disabled]="returnSending()">
-                  {{ returnSending() ? 'Enviando…' : 'Pedir devolución' }}
-                </syn-button>
-                <syn-link (activated)="closeReturn()">Cancelar</syn-link>
-              </div>
-            </form>
-          }
-        }
-
-        <div class="storefront__order-actions">
-          <syn-link (activated)="goToAccount('mensajes')">Contactar al vendedor</syn-link>
-        </div>
-      </div>
-    </ng-template>
-
-    <ng-template #accountSectionTpl let-section>
-      @switch (section.id) {
-        @case ('favoritos') {
-          @if (wishlist().length === 0) {
-            <p class="storefront__empty">Todavía no guardas productos. Toca el corazón en cualquier producto.</p>
-          } @else {
-            <ul class="storefront__wish-grid">
-              @for (entry of wishlist(); track entry.productId) {
-                <li class="storefront__wish-card">
-                  @if (entry.image) {
-                    <img class="storefront__wish-img" [src]="entry.image" alt="" loading="lazy" />
-                  } @else {
-                    <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(entry.title) }}</span>
-                  }
-                  <p class="storefront__wish-title">{{ entry.title }}</p>
-                  <p class="storefront__card-now">{{ wishlistPriceLabel(entry) }}</p>
-                  <div class="storefront__actions">
-                    <syn-button size="sm" (pressed)="openWishlistEntry(entry)">Ver</syn-button>
-                    <syn-button variant="ghost" size="sm" (pressed)="removeWishlistEntry(entry)">Quitar</syn-button>
-                  </div>
-                </li>
-              }
-            </ul>
-          }
-        }
-        @case ('mensajes') {
-          <div class="storefront__messages">
-            <syn-status-banner tone="info" message="Mensajería v1 — lectura de hilos; responder llega con la cara vendedor." />
-            @if (threads().length === 0) {
-              <p class="storefront__empty">No tienes mensajes con vendedores.</p>
-            } @else {
-              <ul class="storefront__thread-list">
-                @for (thread of threads(); track thread.id) {
-                  <li class="storefront__thread" [class.is-unread]="thread.unread">
-                    <p class="storefront__thread-head">
-                      <span class="storefront__thread-subject">{{ thread.subject }}</span>
-                      <span class="storefront__thread-date">{{ thread.date }}</span>
-                    </p>
-                    <p class="storefront__thread-meta">{{ thread.counterpart }}</p>
-                    <p class="storefront__thread-last">{{ thread.lastMessage }}</p>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-        @case ('perfil') {
-          <fieldset class="storefront__form">
-            <legend class="storefront__heading">Mis datos</legend>
-            @if (isAuthenticated()) {
-              <syn-status-banner
-                tone="info"
-                [message]="'Estos datos prellenan el checkout y puedes cambiarlos si compras para otra persona. Sesión iniciada como ' + memberEmail() + '.'"
-              />
-            } @else {
-              <syn-status-banner tone="info" message="Estos datos prellenan el checkout." />
-            }
-            <syn-input label="Nombre completo" autocomplete="name" [value]="customerName()" (valueChange)="customerName.set($event)" />
-            <syn-input label="Correo electrónico" type="email" autocomplete="email" [value]="customerEmail()" (valueChange)="customerEmail.set($event)" />
-            <syn-input label="Dirección" autocomplete="street-address" [value]="customerAddress()" (valueChange)="customerAddress.set($event)" />
-            <syn-input label="Ciudad" autocomplete="address-level2" [value]="customerCity()" (valueChange)="customerCity.set($event)" />
-          </fieldset>
-        }
-      }
-    </ng-template>
+    @case ('cart') {
+      <sg-tienda-carrito modo="pagina" />
+    }
+    @case ('checkout') {
+      <sg-tienda-pago />
+    }
+    @case ('confirmation') {
+      <sg-tienda-confirmacion />
+    }
+    @case ('account') {
+      <sg-tienda-cuenta />
+    }
+    @case ('seller') {
+      <sg-tienda-vendedor [degraded]="degraded()" />
+    }
   }
 
   <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->
   <!-- El cajón es la MISMA pieza en densidad `drawer`: tenerlo aparte es lo que
        hacía que dijera «Total» donde la página decía otra cosa. -->
-  @if (cartOpen()) {
-    <div class="storefront__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Carrito de compras">
-      <syn-cart-shell
-        [config]="cartDrawerConfig()"
-        [lines]="cartLines()"
-        [groups]="cartGroupHeaders()"
-        [total]="cartTotalLabel()"
-        [actions]="cartDrawerActions()"
-        [holdExpiresAt]="cartHoldExpiresAt()"
-        (remove)="removeFromCart($event)"
-        (quantitychange)="onCartQuantity($event)"
-        (action)="onCartAction($event)"
-        (holdexpired)="onCartHoldExpired()"
-        (close)="toggleCart()"
-      />
+  @if (navegacion.cartOpen()) {
+    <div class="storefront__drawer" [id]="presentacion.fieldId + '-cart'" role="dialog" aria-label="Carrito de compras">
+      <sg-tienda-carrito modo="cajon" />
     </div>
-  }
-
-  <!-- ═══ CARA B: SH-5 console-shell — la consola del vendedor (#32) ═══════ -->
-  @if (view() === 'seller') {
-    <section class="storefront__seller">
-      @if (degraded()) {
-        <syn-status-banner
-          tone="degraded"
-          message="Estás viendo un escritorio de ejemplo: no pudimos consultar tu tienda."
-        />
-      }
-
-      <syn-console-shell
-        [config]="sellerConfig()"
-        [kpis]="sellerKpis()"
-        [rows]="sellerRows()"
-        [columns]="sellerColumns()"
-        [actions]="sellerActions()"
-        [section]="sellerView()"
-        [cellTemplate]="sellerCell"
-        [sectionTemplate]="sellerSection"
-        (sectionchange)="onSellerSectionChange($event)"
-        (rowaction)="onSellerAction($event)"
-      />
-
-      @if (deskNotice(); as aviso) {
-        <p
-          class="storefront__desk-notice"
-          [class.is-error]="deskFailed()"
-          [attr.role]="deskFailed() ? 'alert' : 'status'"
-        >
-          {{ aviso }}
-        </p>
-      }
-
-      <ng-template #sellerCell let-row let-column="column">
-        @switch (column.key) {
-          @case ('sellerOrder') {
-            <span class="storefront__cell-strong">{{ row.orderNumber }}</span>
-            <span class="storefront__cell-sub">{{ row.date }} · {{ row.itemCount }} artículos</span>
-          }
-          @case ('sellerBuyer') { {{ row.buyer }} }
-          @case ('sellerStatus') {
-            <syn-status-tag [label]="orderStatusLabel(row.status)" [tone]="toneDelEstado(row.status)" />
-          }
-          @case ('sellerTotal') { {{ row.totalFormatted || '—' }} }
-
-          @case ('returnStatus') {
-            <syn-status-tag [label]="returnStatusLabel(row)" [tone]="toneDelEstado(row.status)" />
-          }
-          @case ('returnProduct') {
-            <span class="storefront__cell-strong">{{ row.productName }}</span>
-            <span class="storefront__cell-sub">{{ row.orderRef }} · × {{ row.quantity }}</span>
-          }
-          @case ('returnReason') { {{ returnReasonLabel(row.reason) }} }
-          @case ('returnAmount') { {{ row.refundAmountFormatted || '—' }} }
-
-          @case ('modReason') {
-            <syn-status-tag [label]="sellerModerationReasonLabel(row)" [tone]="row.reason === 'reported' ? 'pending' : 'neutral'" />
-          }
-          @case ('modAuthor') {
-            <span class="storefront__cell-strong">{{ row.author }}</span>
-            <span class="storefront__cell-sub">{{ row.productTitle }} · {{ row.rating }}★</span>
-          }
-          @case ('modBody') { <span class="storefront__cell-clamp">{{ row.body }}</span> }
-        }
-      </ng-template>
-
-      <ng-template #sellerSection let-section>
-        @if (section.id === 'messages') {
-          <div class="storefront__seller-messages">
-            <h2 class="storefront__section-title">Mensajes con compradores</h2>
-            <!-- Los mismos hilos de la cara A: el vendedor es la contraparte. -->
-            @if (threads().length === 0) {
-              <p class="storefront__empty">No hay hilos abiertos.</p>
-            } @else {
-              <ul class="storefront__thread-list">
-                @for (thread of threads(); track thread.id) {
-                  <li class="storefront__thread-row">
-                    <span class="storefront__cell-strong">{{ thread.subject }}</span>
-                    <span class="storefront__cell-sub">{{ thread.counterpart }} · {{ thread.date }}</span>
-                    <span class="storefront__cell-clamp">{{ thread.lastMessage }}</span>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-      </ng-template>
-    </section>
   }
 </section>

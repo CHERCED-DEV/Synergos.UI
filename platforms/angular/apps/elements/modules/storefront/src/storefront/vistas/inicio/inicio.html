@@ -1,0 +1,97 @@
+<div class="storefront__home">
+  <div class="storefront__hero">
+    <h1 class="storefront__hero-title">{{ heading() }}</h1>
+    <p class="storefront__hero-sub">{{ subheading() }}</p>
+    <form class="storefront__searchbar storefront__searchbar--hero" role="search" (submit)="$event.preventDefault(); submitHomeSearch()">
+      <syn-input
+        class="storefront__searchbar-input"
+        type="search"
+        [id]="presentacion.fieldId + '-hq'"
+        ariaLabel="Buscar productos"
+        placeholder="Buscar productos, marcas y más…"
+        [value]="homeTerm()"
+        (valueChange)="homeTerm.set($event)"
+      />
+      <syn-icon-button icon="search" type="submit" size="lg" ariaLabel="Buscar" />
+    </form>
+  </div>
+
+  @if (catalogo.homeCategories().length > 0) {
+    <section class="storefront__home-section" aria-label="Categorías destacadas">
+      <h2 class="storefront__heading">Categorías destacadas</h2>
+      <ul class="storefront__cat-rail">
+        @for (category of catalogo.homeCategories(); track category.value) {
+          <li>
+            <syn-button variant="outline" size="sm" (pressed)="openCategory(category.value)">
+              {{ category.label }}
+              @if (category.count !== undefined) {
+                <syn-badge [text]="'' + category.count" />
+              }
+            </syn-button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (catalogo.deals().length > 0) {
+    <section class="storefront__home-section" aria-label="Ofertas del día">
+      <h2 class="storefront__heading">Ofertas del día</h2>
+      <ul class="storefront__home-grid">
+        @for (product of catalogo.deals(); track product.id) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="homeCard"
+              [ngTemplateOutletContext]="{ $implicit: product }"
+            />
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (catalogo.topRated().length > 0) {
+    <section class="storefront__home-section" aria-label="Más vendidos">
+      <h2 class="storefront__heading">Más vendidos</h2>
+      <ul class="storefront__home-grid">
+        @for (product of catalogo.topRated(); track product.id) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="homeCard"
+              [ngTemplateOutletContext]="{ $implicit: product }"
+            />
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <ng-template #homeCard let-product>
+    <article class="storefront__card">
+      <syn-button
+        variant="plain"
+        block
+        class="storefront__card-media"
+        [ariaLabel]="'Ver ' + product.title"
+        (pressed)="navegacion.openProduct(product)"
+      >
+        @if (presentacion.hasImage(product)) {
+          <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="presentacion.onImageError(product.id)" />
+        } @else {
+          <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(product.title) }}</span>
+        }
+      </syn-button>
+      <div class="storefront__card-body">
+        <h3 class="storefront__card-title">
+          <syn-link tone="neutral" [underline]="false" (activated)="navegacion.openProduct(product)">{{ product.title }}</syn-link>
+        </h3>
+        <p class="storefront__card-price">
+          @if (presentacion.productListPriceLabel(product)) {
+            <span class="storefront__card-list">{{ presentacion.productListPriceLabel(product) }}</span>
+          }
+          <span class="storefront__card-now">{{ presentacion.productPriceLabel(product) }}</span>
+        </p>
+      </div>
+    </article>
+  </ng-template>
+</div>

@@ -1,0 +1,18 @@
+{
+  "obligatorias": [
+    "seller",
+    "storefront"
+  ],
+  "piso": {
+    "academy": 1,
+    "alquiler": 1,
+    "blogs": 1,
+    "booking-wizard": 1,
+    "ehr": 1,
+    "eventos": 1,
+    "gov": 1,
+    "realty": 1,
+    "reserva": 1,
+    "travel-shell": 1
+  }
+}

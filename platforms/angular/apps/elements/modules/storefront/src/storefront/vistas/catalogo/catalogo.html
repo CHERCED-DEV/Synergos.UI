@@ -1,0 +1,114 @@
+<syn-discovery-shell
+  [items]="catalogo.products()"
+  [facets]="catalogo.discoveryFacets()"
+  [total]="catalogo.total()"
+  [sortOptions]="sortOptions"
+  [loading]="avisos.loading()"
+  [initialCriteria]="catalogo.criteria()"
+  [config]="{
+    searchLabel: 'Buscar productos',
+    searchPlaceholder: 'Buscar productos, marcas y más…',
+    filtersHeading: 'Filtros',
+    clearLabel: 'Limpiar',
+    sortLabel: 'Ordenar por',
+    emptyMessage: 'No encontramos productos. Ajusta la búsqueda o limpia los filtros.',
+    loadingMessage: 'Cargando productos…',
+    resultsNoun: { one: 'resultado', many: 'resultados' },
+    pageSize: 12
+  }"
+  [itemTemplate]="productCard"
+  (criteriachange)="catalogo.onCriteriaChange($event)"
+  (itemselect)="navegacion.openProduct($event)"
+/>
+
+<ng-template #productCard let-product let-select="select">
+  <article class="storefront__card">
+    <syn-button
+      variant="plain"
+      block
+      class="storefront__card-media"
+      [ariaLabel]="'Ver ' + product.title"
+      (pressed)="select()"
+    >
+      @if (presentacion.hasImage(product)) {
+        <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="presentacion.onImageError(product.id)" />
+      } @else {
+        <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(product.title) }}</span>
+      }
+    </syn-button>
+    <div class="storefront__card-body">
+      <h3 class="storefront__card-title">
+        <syn-link tone="neutral" [underline]="false" (activated)="select()">{{ product.title }}</syn-link>
+      </h3>
+      <p class="storefront__card-sub">{{ product.subtitle }}</p>
+      <p class="storefront__card-price">
+        @if (presentacion.productListPriceLabel(product)) {
+          <span class="storefront__card-list">{{ presentacion.productListPriceLabel(product) }}</span>
+        }
+        <span class="storefront__card-now">{{ presentacion.productPriceLabel(product) }}</span>
+      </p>
+      <p class="storefront__card-meta">
+        <synergos-rating-stars
+          [attr.value]="product.rating"
+          [attr.readonly]="'true'"
+        ></synergos-rating-stars>
+        <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
+      </p>
+      @if (product.badges.length > 0) {
+        <ul class="storefront__card-badges">
+          @for (badge of product.badges; track badge) {
+            <li><syn-badge [text]="badge" /></li>
+          }
+        </ul>
+      }
+      <div class="storefront__card-actions">
+        @if (product.inStock) {
+          <syn-button size="sm" class="storefront__card-add" (pressed)="carrito.quickAdd(product)">
+            {{ carrito.addFailedId() === product.id ? 'Reintentar' : 'Agregar' }}
+          </syn-button>
+          @if (carrito.addFailedId() === product.id) {
+            <p class="storefront__add-error">No se pudo agregar al carrito.</p>
+          }
+        } @else {
+          <syn-status-tag label="Sin stock" tone="inactive" />
+        }
+        <syn-icon-button
+          icon="heart"
+          variant="ghost"
+          size="sm"
+          [selected]="deseos.isWished(product.id)"
+          [ariaLabel]="deseos.isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+          (pressed)="deseos.toggleWishlist(product)"
+        />
+        <syn-button
+          variant="outline"
+          size="sm"
+          class="storefront__cmp"
+          [selected]="inCompare(product.id)"
+          (pressed)="toggleCompare(product)"
+        >
+          {{ inCompare(product.id) ? 'Comparando' : 'Comparar' }}
+        </syn-button>
+      </div>
+    </div>
+  </article>
+</ng-template>
+
+<!-- SH-14 (#30): la ficha técnica alineada, que es como se decide entre dos
+     televisores. El eje lo declara este dominio; la pieza no sabe qué es una
+     marca. -->
+@if (compare.count() > 0) {
+  <syn-compare-table
+    class="storefront__compare"
+    [config]="compareConfig"
+    [candidates]="compare.items()"
+    [attributes]="compareAttributes"
+    [limit]="compare.limit"
+    (removecandidate)="removeFromCompare($event)"
+    (opencandidate)="openCompared($event)"
+    (clearall)="clearCompare()"
+  />
+  @if (compareMessage(); as aviso) {
+    <p class="storefront__compare-msg" role="status">{{ aviso }}</p>
+  }
+}

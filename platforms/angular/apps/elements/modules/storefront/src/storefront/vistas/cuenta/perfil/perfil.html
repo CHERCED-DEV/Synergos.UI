@@ -1,0 +1,15 @@
+<fieldset class="storefront__form">
+  <legend class="storefront__heading">Mis datos</legend>
+  @if (compra.isAuthenticated()) {
+    <syn-status-banner
+      tone="info"
+      [message]="'Estos datos prellenan el checkout y puedes cambiarlos si compras para otra persona. Sesión iniciada como ' + compra.memberEmail() + '.'"
+    />
+  } @else {
+    <syn-status-banner tone="info" message="Estos datos prellenan el checkout." />
+  }
+  <syn-input label="Nombre completo" autocomplete="name" [value]="compra.customerName()" (valueChange)="compra.customerName.set($event)" />
+  <syn-input label="Correo electrónico" type="email" autocomplete="email" [value]="compra.customerEmail()" (valueChange)="compra.customerEmail.set($event)" />
+  <syn-input label="Dirección" autocomplete="street-address" [value]="compra.customerAddress()" (valueChange)="compra.customerAddress.set($event)" />
+  <syn-input label="Ciudad" autocomplete="address-level2" [value]="compra.customerCity()" (valueChange)="compra.customerCity.set($event)" />
+</fieldset>

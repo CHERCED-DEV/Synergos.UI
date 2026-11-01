@@ -1,0 +1,27 @@
+<!-- SH-11 (#19). Los vales por línea son del dominio —un pedido de marketplace
+     trae una referencia por vendedor— así que entran por el template del
+     artefacto; el número del pedido y los pasos los pone la pieza. -->
+<ng-template #vales>
+  @if (compra.confirmedItems().length > 0) {
+    <ul class="storefront__vouchers">
+      <!-- Una referencia igual al número del pedido no se repite en cada línea: ya la pone la pieza
+           arriba (la puerta da una sola; la directa, una por vendedor). -->
+      @for (voucher of compra.confirmedItems(); track $index) {
+        <li class="storefront__voucher">
+          <span class="storefront__voucher-title">{{ voucher.title }} × {{ voucher.qty }}</span>
+          @if (voucher.reference && voucher.reference !== compra.orderNumber()) {
+            <span class="storefront__voucher-ref">{{ voucher.reference }}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+</ng-template>
+<syn-confirmation-shell
+  [config]="confirmationConfig()"
+  [reference]="compra.orderNumber()"
+  [steps]="confirmationSteps"
+  [actions]="confirmationActions"
+  [artifactTemplate]="compra.confirmedItems().length > 0 ? vales : null"
+  (action)="onConfirmationAction($event)"
+/>

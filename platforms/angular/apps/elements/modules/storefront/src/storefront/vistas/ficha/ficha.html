@@ -1,0 +1,56 @@
+@if (catalogo.detail(); as pdp) {
+  <syn-detail-shell
+    [eyebrow]="pdpEyebrow()"
+    [title]="pdp.product.title"
+    [subtitle]="pdp.product.subtitle"
+    [media]="pdpMedia()"
+    [specs]="pdpSpecs()"
+    [config]="{
+      backLabel: 'Volver a resultados',
+      specsHeading: 'Ficha técnica',
+      reviewsLabel: 'Opiniones (' + pdp.reviews.length + ')',
+      qaLabel: 'Preguntas (' + pdp.questions.length + ')',
+      relatedHeading: 'Quienes vieron esto también miraron',
+      galleryLabel: 'Galería de ' + pdp.product.title,
+      mediaPlaceholder: '📦'
+    }"
+    [ctaTemplate]="pdpCta"
+    [bodyTemplate]="pdpBody"
+    [reviewsTemplate]="pdpReviews"
+    [qaTemplate]="pdpQa"
+    [relatedTemplate]="catalogo.related().length > 0 ? pdpRelated : null"
+    (back)="navegacion.backToResults()"
+  />
+
+  <ng-template #pdpBody>
+    <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
+    <p class="storefront__pdp-meta">
+      <synergos-rating-stars
+        [attr.value]="pdp.product.rating"
+        [attr.readonly]="'true'"
+      ></synergos-rating-stars>
+      <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
+    </p>
+  </ng-template>
+
+  <!-- Cada ranura de SH-2 es su pieza (014-despiece-tienda, T010): la compra, las opiniones, las preguntas y lo relacionado. -->
+  <ng-template #pdpCta>
+    <sg-tienda-ficha-compra />
+  </ng-template>
+
+  <ng-template #pdpReviews>
+    <sg-tienda-ficha-opiniones />
+  </ng-template>
+
+  <ng-template #pdpQa>
+    <sg-tienda-ficha-preguntas />
+  </ng-template>
+
+  <ng-template #pdpRelated>
+    <sg-tienda-ficha-relacionados />
+  </ng-template>
+} @else if (avisos.loading()) {
+  <syn-skeleton variant="card" [rows]="1" />
+} @else {
+  <syn-error-state [message]="avisos.errorMessage() || 'No pudimos cargar el producto.'" (retry)="catalogo.retryProduct()" />
+}

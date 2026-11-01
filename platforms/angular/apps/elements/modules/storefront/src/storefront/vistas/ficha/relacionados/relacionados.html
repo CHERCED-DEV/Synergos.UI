@@ -1,0 +1,29 @@
+<ul class="storefront__home-grid">
+  @for (product of catalogo.related(); track product.id) {
+    <li>
+      <article class="storefront__card">
+        <syn-button
+          variant="plain"
+          block
+          class="storefront__card-media"
+          [ariaLabel]="'Ver ' + product.title"
+          (pressed)="navegacion.openProduct(product)"
+        >
+          @if (presentacion.hasImage(product)) {
+            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="presentacion.onImageError(product.id)" />
+          } @else {
+            <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(product.title) }}</span>
+          }
+        </syn-button>
+        <div class="storefront__card-body">
+          <h3 class="storefront__card-title">
+            <syn-link tone="neutral" [underline]="false" (activated)="navegacion.openProduct(product)">{{ product.title }}</syn-link>
+          </h3>
+          <p class="storefront__card-price">
+            <span class="storefront__card-now">{{ presentacion.productPriceLabel(product) }}</span>
+          </p>
+        </div>
+      </article>
+    </li>
+  }
+</ul>

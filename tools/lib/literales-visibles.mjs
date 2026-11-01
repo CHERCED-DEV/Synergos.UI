@@ -154,6 +154,18 @@ export function analizarPlantilla(src, base = 1) {
 const LLAMADAS_TECNICAS = /^(querySelector(All)?|closest|matches|getAttribute|removeAttribute|hasAttribute|addEventListener|removeEventListener|fetch|getItem|setItem|removeItem|parse|RegExp|createElement|define|inject|includes|startsWith|endsWith|split|indexOf|lastIndexOf|replace|replaceAll|match|test|toLocaleString|toLocaleDateString|toLocaleTimeString|NumberFormat|DateTimeFormat|setProperty|getPropertyValue|toggle|contains|postMessage|require|Symbol|InjectionToken|HttpParams|log|warn|debug|info|trace|groupCollapsed|group|assert|localeCompare|padStart|padEnd|toFixed|t)$/;
 const PROPIEDADES_DEL_DECORADOR = ['selector', 'templateUrl', 'styleUrl', 'styleUrls', 'styles', 'encapsulation', 'changeDetection'];
 
+/** Si la llamada está dentro de una clase que extiende algo llamado `…Error` (su `super(mensaje)`). */
+function esSubclaseDeError(ts, nodo) {
+  for (let p = nodo.parent; p; p = p.parent) {
+    if (ts.isClassDeclaration(p) || ts.isClassExpression(p)) {
+      return (p.heritageClauses ?? []).some(
+        (h) => h.token === ts.SyntaxKind.ExtendsKeyword && h.types.some((t) => /Error$/.test(t.expression.getText())),
+      );
+    }
+  }
+  return false;
+}
+
 /**
  * Los textos humanos de un `.ts`: literales de cadena (y la plantilla en línea), sin contar los
  * técnicos. `t(…)` es una llamada «técnica» para este detector: su clave y su respaldo NO cuentan.
@@ -195,6 +207,9 @@ export function analizarCodigo(ts, ruta, src) {
     if (ts.isCallExpression(n) || ts.isNewExpression(n)) {
       const nom = ts.isCallExpression(n) ? nombreLlamada(n) : n.expression.getText();
       if (ts.isNewExpression(n) && /Error|CustomEvent|RegExp|URL|InjectionToken|HttpParams|Intl\./.test(nom)) return;
+      // El mensaje que una subclase de Error pasa a `super` es el mismo caso que `new XError(…)`: no se pinta
+      // (014-despiece-tienda: `ShopWriteFailedError` salió de un `-api.client` y su mensaje empezó a contar).
+      if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.SuperKeyword && esSubclaseDeError(ts, n)) return;
       if (ts.isCallExpression(n) && LLAMADAS_TECNICAS.test(nom)) return;
       if (ts.isCallExpression(n) && nom === 'setAttribute') {
         const [a, b] = n.arguments;

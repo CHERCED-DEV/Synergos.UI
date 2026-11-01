@@ -68,6 +68,18 @@ describe('analizarCodigo', () => {
     const src = "@Component({ selector: 'sg-x', templateUrl: './x.html' })\nclass X { f() { return s === 'Algo raro'; } }";
     expect(analizarCodigo(ts, 'x.ts', src)).toEqual([]);
   });
+
+  it('el mensaje de un error no es interfaz: ni el de `new XError(…)` ni el que una subclase de Error pasa a `super`', () => {
+    const src =
+      "throwIt(new ShopError('No se guardó el pedido'));\n" +
+      'class EscrituraFallida extends Error {\n  constructor(readonly ruta: string) {\n    super(`La escritura ${ruta} no llegó al servidor.`);\n  }\n}';
+    expect(analizarCodigo(ts, 'x.ts', src)).toEqual([]);
+  });
+
+  it('…pero el `super` de una clase que no es un error sí cuenta', () => {
+    const src = "class Aviso extends Base {\n  constructor() {\n    super('Tu compra quedó lista');\n  }\n}";
+    expect(analizarCodigo(ts, 'x.ts', src).map((h) => h.texto)).toEqual(['Tu compra quedó lista']);
+  });
 });
 
 describe('esFicheroDeInterfaz', () => {

@@ -83,6 +83,38 @@ function descubrir() {
     }
   }
 
+  // Los adaptadores de las libs de dominio (014-despiece-tienda). Su vecindario es la lib entera —el estado de una
+  // capacidad puede llamar al adaptador de otra—, con el mismo criterio: quien lo importa por su ruta. Y una app lo
+  // importa por el barril del dominio (`@synergos/dominio/<nombre>`), no por su ruta: también es un llamador.
+  const esFuente = (v) => /\.tsx?$/.test(v) && !v.endsWith('.spec.ts') && !v.endsWith('.spec.tsx');
+  const importa = (fuente, especificador) => fuente.includes(`${especificador}'`) || fuente.includes(`${especificador}"`);
+  for (const plataforma of PLATAFORMAS) {
+    const dominios = join(RAIZ, plataforma.dominios);
+    let nombres;
+    try {
+      nombres = readdirSync(dominios, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    } catch {
+      continue;
+    }
+    const deLasApps = ficheros(join(RAIZ, plataforma.apps))
+      .filter(esFuente)
+      .map((v) => ({ ruta: v, fuente: readFileSync(v, 'utf8') }));
+
+    for (const nombre of nombres) {
+      const raiz = join(dominios, nombre);
+      const deLaLib = ficheros(raiz).filter(esFuente).map((v) => ({ ruta: v, fuente: readFileSync(v, 'utf8') }));
+      const porElBarril = deLasApps.filter((v) => importa(v.fuente, `'@synergos/dominio/${nombre}`) || importa(v.fuente, `"@synergos/dominio/${nombre}`));
+
+      for (const ruta of ficheros(raiz)) {
+        if (!ruta.endsWith(SUFIJO_CLIENTE)) continue;
+        const modulo = ruta.slice(0, -'.ts'.length).split(/[\\/]/).pop();
+        const capacidad = ruta.slice(0, -SUFIJO_CLIENTE.length).split(/[\\/]/).pop();
+        const vecinos = [...deLaLib.filter((v) => v.ruta !== ruta && importa(v.fuente, modulo)), ...porElBarril];
+        clientes.push({ vertical: `${nombre}.${capacidad}`, cliente: ruta, fuente: readFileSync(ruta, 'utf8'), vecinos });
+      }
+    }
+  }
+
   return clientes;
 }
 

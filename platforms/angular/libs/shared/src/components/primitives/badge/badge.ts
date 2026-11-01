@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, booleanAttribute, computed, input } from '@angular/core';
 import {
   coerceStringEnumInput,
   coerceTrimmedStringInput,
@@ -33,10 +33,18 @@ function sanitizeBadgeConfig(value: Partial<BadgeConfig>): Partial<BadgeConfig> 
       [class.syn-badge--neutral]="tone() === 'neutral'"
       [class.syn-badge--brand]="tone() === 'brand'"
       [class.syn-badge--inverse]="tone() === 'inverse'"
-      role="status"
-      [attr.aria-label]="ariaLabel() || text()"
+      [attr.role]="live() ? 'status' : null"
     >
-      {{ text() }}
+      <!--
+        Una insignia es una etiqueta, no un anuncio: la región viva va sólo con «live» (014-despiece-tienda). Sin rol,
+        el aria-label de un <span> no lo lee nadie, así que el nombre que difiere del texto va escrito y oculto a la vista.
+      -->
+      @if (ariaLabel() && ariaLabel() !== text()) {
+        <span aria-hidden="true">{{ text() }}</span>
+        <span class="syn-badge__sr">{{ ariaLabel() }}</span>
+      } @else {
+        {{ text() }}
+      }
     </span>
   `,
   styleUrl: './badge.scss',
@@ -48,6 +56,8 @@ export class BadgeComponent {
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
   readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });
   readonly toneInput = input<BadgeTone | undefined>(undefined, { alias: 'tone' });
+  /** Para un contador que cambia y TIENE que anunciarse: `role="status"`. Por defecto, una etiqueta callada. */
+  readonly live = input(false, { transform: booleanAttribute });
 
   readonly text = computed(() =>
     resolveConfigValue(this.textInput(), this.config()?.text, ''),

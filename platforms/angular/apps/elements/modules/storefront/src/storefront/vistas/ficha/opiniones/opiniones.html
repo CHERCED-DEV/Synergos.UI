@@ -1,0 +1,20 @@
+<!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═════════════════════
+     El formulario a mano se fue; la regla de negocio se quedó igual —
+     `canReview` lo decide el servidor y el 403 no ofrece login (ADR 0112).
+     Lo que gana la Tienda es que la DISTRIBUCIÓN por fin se pinta: se
+     calculaba desde siempre y ninguna plantilla la usaba. -->
+<syn-review-panel
+  [config]="reviewPanelConfig()"
+  [summary]="reviewPanelSummary()"
+  [entries]="reviewEntries()"
+  [canReview]="resenas.canReview()"
+  [blockedReason]="reviewBlockedReason()"
+  [notice]="resenas.reviewNotice()"
+  [noticeIsError]="resenas.reviewFailed()"
+  [sending]="resenas.reviewSending()"
+  [canReport]="resenas.canReportReview()"
+  [reportedIds]="resenas.reportedReviewIds()"
+  [reportingId]="resenas.reportingReviewId()"
+  (submitreview)="submitReview($event)"
+  (reportreview)="resenas.reportReview($event)"
+/>

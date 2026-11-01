@@ -56,6 +56,10 @@ import { PLATFORMS } from './synergos-config.mjs';
 export const PLATAFORMAS = PLATFORMS.map((p) => ({
   framework: p.name,
   apps: `platforms/${p.name}/apps`,
+  // Las libs de dominio de una vertical (014-despiece-tienda): lo que comparten sus apps —modelos, adaptadores,
+  // estado— y su vocabulario. No son hojas del design system, así que los gates que miden a los elementos las miden
+  // también, cada una como su propia unidad (`dominio/<nombre>`).
+  dominios: `platforms/${p.name}/libs/dominio`,
   // La declara la plataforma (ver `PLATFORMS`).
   //
   // ⚠ NO lleva `?? 'src/main.ts'`, y la razón NO es la que escribí primero.

@@ -1,0 +1,86 @@
+<section class="storefront__seller">
+  @if (degraded()) {
+    <syn-status-banner
+      tone="degraded"
+      message="Estás viendo un escritorio de ejemplo: no pudimos consultar tu tienda."
+    />
+  }
+
+  <syn-console-shell
+    [config]="sellerConfig()"
+    [kpis]="sellerKpis()"
+    [rows]="sellerRows()"
+    [columns]="sellerColumns()"
+    [actions]="sellerActions()"
+    [section]="sellerView()"
+    [cellTemplate]="sellerCell"
+    [sectionTemplate]="sellerSection"
+    (sectionchange)="onSellerSectionChange($event)"
+    (rowaction)="onSellerAction($event)"
+  />
+
+  @if (escritorio.deskNotice(); as aviso) {
+    <p
+      class="storefront__desk-notice"
+      [class.is-error]="escritorio.deskFailed()"
+      [attr.role]="escritorio.deskFailed() ? 'alert' : 'status'"
+    >
+      {{ aviso }}
+    </p>
+  }
+
+  <ng-template #sellerCell let-row let-column="column">
+    @switch (column.key) {
+      @case ('sellerOrder') {
+        <span class="storefront__cell-strong">{{ row.orderNumber }}</span>
+        <span class="storefront__cell-sub">{{ row.date }} · {{ row.itemCount }} artículos</span>
+      }
+      @case ('sellerBuyer') { {{ row.buyer }} }
+      @case ('sellerStatus') {
+        <syn-status-tag [label]="presentacion.orderStatusLabel(row.status)" [tone]="presentacion.toneDelEstado(row.status)" />
+      }
+      @case ('sellerTotal') { {{ row.totalFormatted || '—' }} }
+
+      @case ('returnStatus') {
+        <syn-status-tag [label]="presentacion.returnStatusLabel(row)" [tone]="presentacion.toneDelEstado(row.status)" />
+      }
+      @case ('returnProduct') {
+        <span class="storefront__cell-strong">{{ row.productName }}</span>
+        <span class="storefront__cell-sub">{{ row.orderRef }} · × {{ row.quantity }}</span>
+      }
+      @case ('returnReason') { {{ presentacion.returnReasonLabel(row.reason) }} }
+      @case ('returnAmount') { {{ row.refundAmountFormatted || '—' }} }
+
+      @case ('modReason') {
+        <syn-status-tag [label]="sellerModerationReasonLabel(row)" [tone]="row.reason === 'reported' ? 'pending' : 'neutral'" />
+      }
+      @case ('modAuthor') {
+        <span class="storefront__cell-strong">{{ row.author }}</span>
+        <span class="storefront__cell-sub">{{ row.productTitle }} · {{ row.rating }}★</span>
+      }
+      @case ('modBody') { <span class="storefront__cell-clamp">{{ row.body }}</span> }
+    }
+  </ng-template>
+
+  <ng-template #sellerSection let-section>
+    @if (section.id === 'messages') {
+      <div class="storefront__seller-messages">
+        <h2 class="storefront__section-title">Mensajes con compradores</h2>
+        <!-- Los mismos hilos de la cara A: el vendedor es la contraparte. -->
+        @if (mensajes.threads().length === 0) {
+          <p class="storefront__empty">No hay hilos abiertos.</p>
+        } @else {
+          <ul class="storefront__thread-list">
+            @for (thread of mensajes.threads(); track thread.id) {
+              <li class="storefront__thread-row">
+                <span class="storefront__cell-strong">{{ thread.subject }}</span>
+                <span class="storefront__cell-sub">{{ thread.counterpart }} · {{ thread.date }}</span>
+                <span class="storefront__cell-clamp">{{ thread.lastMessage }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </ng-template>
+</section>

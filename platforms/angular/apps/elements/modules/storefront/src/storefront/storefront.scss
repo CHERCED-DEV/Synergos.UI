@@ -1,6 +1,6 @@
 @use 'scss' as syn;
 
-:host {
+.sg-storefront {
   --sf-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --sf-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --sf-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
@@ -40,6 +40,12 @@
   background: var(--sf-surface);
   box-shadow: var(--sf-shadow);
   color: var(--sf-text);
+
+  // Las vistas y sus piezas (014-despiece-tienda, T010) no son una caja: lo que pintan sigue siendo hijo de esta
+  // columna —o de la ranura de su shell, como la compra de SH-2—, con su `gap`, igual que antes de partirla.
+  &__vista {
+    display: contents;
+  }
 
   // ─── Top bar ────────────────────────────────────────────────────────────
   &__bar {

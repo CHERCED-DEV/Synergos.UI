@@ -1,5 +1,6 @@
-import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { provideZonelessChangeDetection, signal, type ProviderToken, type Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { HostIdentityService } from '@synergos/core';
 import { FULFILLMENT_STRATEGIES, SessionStore } from '@synergos/transaction-engine';
 import {
@@ -11,10 +12,13 @@ import {
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
 import { asentar } from '../../../../../../tools/asentar';
-import { ShopApiClient } from './shop-api.client';
-import { ShopFulfillmentStrategy, llaveRetenida } from './shop-fulfillment.strategy';
+import { ShopFulfillmentStrategy, llaveRetenida } from '@synergos/dominio/tienda';
+import { ConfiguracionDeLaTienda, AvisosDeLaTienda, CatalogoDeLaTienda, ResenasDeLaTienda, DeseosDeLaTienda, MensajesDeLaTienda, PedidosDeLaTienda, DevolucionesDeLaTienda, EscritorioDeLaTienda, CarritoDeLaTienda, CompraDeLaTienda } from '@synergos/dominio/tienda';
+import { CompraEnLaPagina } from './estado/compra-en-la-pagina';
+import { NavegacionDeLaTienda } from './estado/navegacion';
+import { PresentacionDeLaTienda } from './estado/presentacion';
 import { StorefrontElementComponent } from './storefront';
-import type { ShopProduct } from './shop.model';
+import type { ShopProduct } from '@synergos/dominio/tienda';
 
 /**
  * El storefront por la puerta (004-tienda-compra: T021, T025, T030, T036, T043): lo que el ELEMENTO hace con
@@ -102,6 +106,38 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
 
   let fixture: ComponentFixture<StorefrontElementComponent>;
   let component: StorefrontElementComponent;
+
+  /**
+   * La tienda montada, por capas (014-despiece-tienda): la fachada y los servicios de ESTE elemento (del inyector del
+   * shell, que los provee) y, para lo que vive en una vista, la vista pintada.
+   */
+  function tienda() {
+    const de = <T>(token: ProviderToken<T>): T => fixture.debugElement.injector.get(token);
+    return {
+      configuracion: de(ConfiguracionDeLaTienda),
+      avisos: de(AvisosDeLaTienda),
+      catalogo: de(CatalogoDeLaTienda),
+      resenas: de(ResenasDeLaTienda),
+      deseos: de(DeseosDeLaTienda),
+      mensajes: de(MensajesDeLaTienda),
+      pedidos: de(PedidosDeLaTienda),
+      devoluciones: de(DevolucionesDeLaTienda),
+      escritorio: de(EscritorioDeLaTienda),
+      carrito: de(CarritoDeLaTienda),
+      compra: de(CompraDeLaTienda),
+      navegacion: de(NavegacionDeLaTienda),
+      pagina: de(CompraEnLaPagina),
+      presentacion: de(PresentacionDeLaTienda),
+      vista: <T>(tipo: Type<T>): T => {
+        fixture.detectChanges();
+        const pintada = fixture.debugElement.query(By.directive(tipo));
+        if (!pintada) {
+          throw new Error(`${tipo.name} no está pintada`);
+        }
+        return pintada.componentInstance as T;
+      },
+    };
+  }
   let flujo: CoordinadorDelFlujo;
   const pedidos: Peticion[] = [];
   let responder: (p: Peticion) => ResultadoDelFlujo<unknown> = () => mal('puerta.flujo_no_disponible', 503);
@@ -113,7 +149,6 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
       imports: [StorefrontElementComponent],
       providers: [
         provideZonelessChangeDetection(),
-        ShopApiClient,
         { provide: FULFILLMENT_STRATEGIES, useClass: ShopFulfillmentStrategy, multi: true },
         {
           provide: HostIdentityService,
@@ -175,10 +210,10 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     registro(() => ({ status: 404, body: {} }));
     autenticado.set(false);
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
 
-    component.goToCheckout();
+    tienda().navegacion.goToCheckout();
     fixture.detectChanges();
 
     const raiz = fixture.nativeElement as HTMLElement;
@@ -195,10 +230,10 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     registro(() => ({ status: 404, body: {} }));
     autenticado.set(false);
     await crear(DIRECTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
 
-    component.goToCheckout();
+    tienda().navegacion.goToCheckout();
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('syn-checkout-wizard')).not.toBeNull();
@@ -209,7 +244,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('los fallos de la compra por la puerta se dicen por su código, y un 401 vuelve al panel de sesión', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    const decir = component.checkoutConfig().mensajeDeFallo!;
+    const decir = tienda().pagina.checkoutConfig().mensajeDeFallo!;
 
     expect(decir('tienda.cobro_devuelto', '')).toContain('te devolvimos el cobro');
     expect(decir('payments.payment_declined', '')).toContain('otro medio de pago');
@@ -219,17 +254,17 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     // Lo que no es de la persona cae a los avisos del asistente, que nombran lo que QUEDÓ.
     expect(decir('puerta.respuesta_invalida', '')).toBeNull();
 
-    expect(component.sesionRequerida()).toBe(false);
+    expect(tienda().pagina.sesionRequerida()).toBe(false);
     expect(decir('puerta.sesion_requerida', '')).toContain('Tu sesión terminó');
-    expect(component.sesionRequerida()).toBe(true);
-    expect(component.pideSesion()).toBe(true);
+    expect(tienda().pagina.sesionRequerida()).toBe(true);
+    expect(tienda().pagina.pideSesion()).toBe(true);
   });
 
   it('por la ruta directa el asistente usa sus avisos de un cobro, sin los de la puerta', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(DIRECTA);
 
-    expect(component.checkoutConfig().mensajeDeFallo).toBeUndefined();
+    expect(tienda().pagina.checkoutConfig().mensajeDeFallo).toBeUndefined();
   });
 
   // ── El cupón: lo cotiza el servidor (T043) ────────────────────────────────────────────────
@@ -237,18 +272,18 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('por la directa el cupón no se pinta; por la puerta sí', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(DIRECTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
-    component.goToCart();
+    tienda().navegacion.goToCart();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('syn-promo-code')).toBeNull();
 
     TestBed.resetTestingModule();
     flujo.remove();
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
-    component.goToCart();
+    tienda().navegacion.goToCart();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('syn-promo-code')).not.toBeNull();
   });
@@ -256,7 +291,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('por la puerta el cupón lo cotiza el SERVIDOR: viaja sólo el código, sin llave, y el descuento es el suyo', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
     responder = () =>
       bien({
@@ -272,7 +307,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
         },
       });
 
-    await component.applyPromo(' diez ');
+    await tienda().carrito.applyPromo(' diez ');
 
     expect(pedidos[0]!.url).toBe('/api/flujos/tienda.compra/cotizar');
     expect(pedidos[0]!.cabeceras['Idempotency-Key']).toBeUndefined();
@@ -280,23 +315,23 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
       lineas: [{ producto: { kind: 'tienda.producto', id: 'TAZA-001' }, cantidad: 1 }],
       promocion: 'DIEZ',
     });
-    expect(component.promo()).toMatchObject({ code: 'DIEZ', amountMinor: -aMenores(2_000, 'COP') });
+    expect(tienda().carrito.promo()).toMatchObject({ code: 'DIEZ', amountMinor: -aMenores(2_000, 'COP') });
   });
 
   it('un código que no existe o con demasiados intentos se dice por su motivo, y no se aplica nada', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
 
     responder = () => mal('pricing.promotion_not_found', 404);
-    await component.applyPromo('NOPE');
-    expect(component.promoRejection()).toBe('unknown');
+    await tienda().carrito.applyPromo('NOPE');
+    expect(tienda().carrito.promoRejection()).toBe('unknown');
 
     responder = () => mal('tienda.demasiados_codigos', 409);
-    await component.applyPromo('DIEZ');
-    expect(component.promoRejection()).toBe('too-many-attempts');
-    expect(component.promo()).toBeNull();
+    await tienda().carrito.applyPromo('DIEZ');
+    expect(tienda().carrito.promoRejection()).toBe('too-many-attempts');
+    expect(tienda().carrito.promo()).toBeNull();
   });
 
   // ── La compra pendiente (T024, T036) ──────────────────────────────────────────────────────
@@ -304,19 +339,19 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('con una compra por la puerta sin terminar, el carrito y el cupón no cambian y el aviso ofrece terminar o cancelar', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
     compraAbierta();
 
-    component.quickAdd(CAMISETA);
-    await component.applyPromo('DIEZ');
+    tienda().carrito.quickAdd(CAMISETA);
+    await tienda().carrito.applyPromo('DIEZ');
     await asentado();
 
     const store = TestBed.inject(SessionStore);
     expect(store.items().map((i) => i.productRef)).toEqual(['TAZA-001']);
     expect(pedidos).toHaveLength(0);
-    expect(component.avisoDePendiente()).toBe(true);
-    expect(component.cuponFijado()).toBe(true);
+    expect(tienda().carrito.avisoDePendiente()).toBe(true);
+    expect(tienda().carrito.cuponFijado()).toBe(true);
     const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.storefront__aviso-de-compra button')).map(
       (b) => b.textContent?.trim(),
     );
@@ -326,7 +361,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('cancelar la pendiente la deshace en el orquestador y deja el carrito libre', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
     compraAbierta();
     responder = () =>
@@ -341,12 +376,12 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
         deshaciendo: false,
       });
 
-    await component.cancelarPendiente();
+    await tienda().pagina.cancelarPendiente();
 
     expect(pedidos.map((p) => p.url)).toEqual(['/api/flujos/tienda.compra/cancelar?id=saga-1']);
     expect(llaveRetenida(TestBed.inject(SessionStore).getValidSession())).toBeNull();
-    expect(component.compraSinTerminar()).toBeNull();
-    expect(component.avisoDePendiente()).toBe(false);
+    expect(tienda().carrito.compraSinTerminar()).toBeNull();
+    expect(tienda().carrito.avisoDePendiente()).toBe(false);
   });
 
   // ── Tras confirmar (etapa 3) ──────────────────────────────────────────────────────────────
@@ -354,8 +389,8 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('al confirmar por la puerta el carrito queda vacío, y el comprobante dice el número una vez', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(PUERTA);
-    component.quickAdd(TAZA);
-    component.quickAdd(CAMISETA);
+    tienda().carrito.quickAdd(TAZA);
+    tienda().carrito.quickAdd(CAMISETA);
     await asentado();
     expect(TestBed.inject(SessionStore).items()).toHaveLength(2);
 
@@ -366,13 +401,13 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
       status: 'Paid',
       detail: { title: titulo, qty: 1, orderNumber: 'COMPRA01' },
     });
-    component.onCheckoutCompleted({ reference: 'saga-1', vouchers: [vale('Taza'), vale('Camiseta')] });
+    tienda().pagina.onCheckoutCompleted({ reference: 'saga-1', vouchers: [vale('Taza'), vale('Camiseta')] });
     await asentado();
 
-    expect(component.view()).toBe('confirmation');
-    expect(component.orderNumber()).toBe('COMPRA01');
+    expect(tienda().navegacion.view()).toBe('confirmation');
+    expect(tienda().compra.orderNumber()).toBe('COMPRA01');
     expect(TestBed.inject(SessionStore).items()).toEqual([]);
-    expect(component.cartCount()).toBe(0);
+    expect(tienda().carrito.cartCount()).toBe(0);
     const comprobante = fixture.nativeElement as HTMLElement;
     expect(comprobante.querySelectorAll('.storefront__voucher')).toHaveLength(2);
     expect(comprobante.querySelectorAll('.storefront__voucher-ref')).toHaveLength(0);
@@ -381,10 +416,10 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
   it('por la directa la referencia de cada vendedor SÍ se dice, porque no es la del pedido', async () => {
     registro(() => ({ status: 404, body: {} }));
     await crear(DIRECTA);
-    component.quickAdd(TAZA);
+    tienda().carrito.quickAdd(TAZA);
     await asentado();
 
-    component.onCheckoutCompleted({
+    tienda().pagina.onCheckoutCompleted({
       reference: 'ord_9',
       vouchers: [
         { itemId: 'a', reference: 'VEND-A-1', status: 'Paid', detail: { title: 'Taza', qty: 1, orderNumber: 'SYN-9' } },
@@ -393,7 +428,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     });
     await asentado();
 
-    expect(component.cartCount()).toBe(0);
+    expect(tienda().carrito.cartCount()).toBe(0);
     const refs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.storefront__voucher-ref')).map((r) =>
       r.textContent?.trim(),
     );
@@ -410,9 +445,9 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     await asentado();
 
     expect(vistas).toContain('GET /api/shop/compras/saga-1');
-    expect(component.view()).toBe('confirmation');
-    expect(component.orderNumber()).toBe('COMPRA01');
-    expect(component.confirmedItems()).toEqual([{ title: 'Taza', qty: 2, reference: 'COMPRA01' }]);
+    expect(tienda().navegacion.view()).toBe('confirmation');
+    expect(tienda().compra.orderNumber()).toBe('COMPRA01');
+    expect(tienda().compra.confirmedItems()).toEqual([{ title: 'Taza', qty: 2, reference: 'COMPRA01' }]);
     expect(window.location.search).toBe('?utm=correo');
     // El comprobante no repite el número del pedido en cada línea: ya lo pone la pieza arriba (etapa 3).
     fixture.detectChanges();
@@ -425,7 +460,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     flujo.remove();
     await crear(PUERTA);
     await asentado();
-    expect(component.view()).not.toBe('confirmation');
+    expect(tienda().navegacion.view()).not.toBe('confirmation');
   });
 
   it('el enlace sin sesión pide entrar «para ver tu compra», y el login vuelve CON la compra', async () => {
@@ -437,8 +472,8 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     await asentado();
 
     expect(vistas.filter((v) => v.includes('/compras/'))).toEqual([]);
-    expect(component.avisoDelEnlace()).toContain('Inicia sesión para ver tu compra');
-    expect(decodeURIComponent(component.loginUrl())).toContain('/tienda/?compra=saga-1');
+    expect(tienda().pagina.avisoDelEnlace()).toContain('Inicia sesión para ver tu compra');
+    expect(decodeURIComponent(tienda().pagina.loginUrl())).toContain('/tienda/?compra=saga-1');
   });
 
   it('una compra ajena o que no existe es «no la encontramos», sin pintar ninguna confirmación', async () => {
@@ -448,7 +483,7 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
     await crear(PUERTA);
     await asentado();
 
-    expect(component.avisoDelEnlace()).toContain('No encontramos esta compra');
-    expect(component.view()).not.toBe('confirmation');
+    expect(tienda().pagina.avisoDelEnlace()).toContain('No encontramos esta compra');
+    expect(tienda().navegacion.view()).not.toBe('confirmation');
   });
 });

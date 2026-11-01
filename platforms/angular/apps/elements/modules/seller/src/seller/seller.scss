@@ -1,6 +1,6 @@
 @use 'scss' as syn;
 
-:host {
+.sg-seller {
   --sl-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --sl-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --sl-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
@@ -35,6 +35,12 @@
   background: var(--sl-surface);
   box-shadow: var(--sl-shadow);
   color: var(--sl-text);
+
+  // Las vistas de la consola (014-despiece-tienda, T011) no son una caja: lo que pintan sigue siendo hijo de esta
+  // columna, con su `gap`, igual que antes de partirla.
+  &__vista {
+    display: contents;
+  }
 
   // ─── Top bar ────────────────────────────────────────────────────────────
   &__bar {

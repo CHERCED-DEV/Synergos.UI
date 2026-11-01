@@ -1,0 +1,94 @@
+<!-- Las compras que el servidor no alcanzó a confirmar en esta lectura (FR-004): se leen y se anuncian. -->
+@if (estado.activeSection() === 'ventas' && estado.avisoSinConciliar(); as aviso) {
+  <p class="seller__notice seller__notice--warn">{{ aviso }}</p>
+  <syn-live-region [message]="aviso" announceInitial />
+}
+
+<!-- `[section]`: la sección la lleva la consola. Sin atarla, el shell vuelve a la primera
+     cada vez que cambia su `config` (un badge que carga, una cola que se cae). La bandeja
+     pagina en el servidor: `page` y `total` son los suyos. -->
+<syn-console-shell
+  [config]="consoleConfig()"
+  [section]="estado.activeSection()"
+  [pageSize]="estado.activeSection() === 'ventas' ? (estado.bandeja()?.porPagina ?? 0) : 0"
+  [page]="estado.paginaDeVentas()"
+  pageMode="server"
+  [total]="estado.totalDeLaBandeja()"
+  (pagechange)="estado.onPageChange($event)"
+  [kpis]="consoleKpis()"
+  [rows]="consoleRows()"
+  [columns]="consoleColumns()"
+  [filters]="consoleFilters()"
+  [actionsFor]="rowActionsFor"
+  [loading]="sectionLoading()"
+  [cellTemplate]="sellerCell"
+  [sectionTemplate]="sellerSection"
+  (sectionchange)="estado.onSectionChange($event)"
+  (filterchange)="estado.onFilterChange($event)"
+  (rowaction)="onRowAction($event)"
+  (retry)="estado.recargar(estado.lecturaActiva())"
+/>
+
+<!-- One cell renderer for every queue: text cells + a status chip. -->
+<ng-template #sellerCell let-row let-column="column">
+  @if (column.key === 'estado') {
+    <syn-status-tag [label]="row.cells[column.key]" [tone]="presentacion.toneDeLaFila(row.tone)" />
+  } @else {
+    <span
+      class="seller__cell"
+      [class.seller__cell--strong]="column.key === consoleColumns()[0].key"
+    >
+      {{ row.cells[column.key] }}
+    </span>
+  }
+</ng-template>
+
+<!-- Reputación: custom section fed by GET /seller/summary. Sin resumen, lo dice: un esqueleto
+     sobre una lectura caída sería «cargando» para siempre. -->
+<ng-template #sellerSection>
+  @if (estado.lecturas().resumen === 'caida') {
+    <syn-error-state
+      [message]="presentacion.textoCaida"
+      [retryLabel]="presentacion.textoReintentar"
+      (retry)="estado.recargar('resumen')"
+    />
+  } @else if (estado.reputation(); as rep) {
+    <div class="seller__rep" aria-label="Reputación del vendedor">
+      <article class="seller__rep-card seller__rep-card--hero">
+        <p class="seller__rep-score">{{ presentacion.formatRating(rep.score) }}</p>
+        @if (rep.level) {
+          <p class="seller__rep-level">{{ rep.level }}</p>
+        }
+      </article>
+      <article class="seller__rep-card">
+        <p class="seller__rep-value">{{ presentacion.formatPercent(rep.onTimeRate) }}</p>
+        <p class="seller__rep-label">Entregas a tiempo</p>
+      </article>
+      <article class="seller__rep-card">
+        <p class="seller__rep-value">{{ presentacion.formatPercent(rep.claimRate) }}</p>
+        <p class="seller__rep-label">Órdenes con reclamo</p>
+      </article>
+      <article class="seller__rep-card">
+        <p class="seller__rep-value">{{ presentacion.formatPercent(rep.responseRate) }}</p>
+        <p class="seller__rep-label">Preguntas respondidas</p>
+      </article>
+    </div>
+  } @else {
+    <div class="seller__rep" aria-hidden="true">
+      <article class="seller__rep-card seller__rep-card--hero seller__rep-card--skeleton">
+        <span class="seller__bone seller__bone--score"></span>
+        <span class="seller__bone seller__bone--level"></span>
+      </article>
+      @for (placeholder of repSkeletonCards; track placeholder) {
+        <article class="seller__rep-card seller__rep-card--skeleton">
+          <span class="seller__bone seller__bone--value"></span>
+          <span class="seller__bone seller__bone--label"></span>
+        </article>
+      }
+    </div>
+    <p class="seller__sr" role="status">Cargando reputación…</p>
+  }
+</ng-template>
+
+<sg-consola-pedido />
+<sg-consola-reembolso />
