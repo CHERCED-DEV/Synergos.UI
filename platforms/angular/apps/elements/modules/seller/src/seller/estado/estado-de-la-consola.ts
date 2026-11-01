@@ -44,6 +44,8 @@ const SECTION_IDS: readonly SellerSectionId[] = [
  */
 export interface ConexionDeLaConsola {
   apiBase(): string;
+  /** Dónde viven las lecturas genéricas (014-despiece-tienda, I4); vacía, la consola lee las interinas de `apiBase`. */
+  lecturasBase(): string;
   zonaHoraria(): string;
   publicado(recibo: SellerPublishReceipt): void;
   vista(): SellerView;
@@ -68,6 +70,10 @@ export class EstadoDeLaConsola {
 
   apiBase(): string {
     return this.#conexion?.apiBase() ?? '';
+  }
+
+  lecturasBase(): string {
+    return this.#conexion?.lecturasBase() ?? '';
   }
 
   zonaHoraria(): string {
@@ -269,7 +275,7 @@ export class EstadoDeLaConsola {
   }
 
   loadThreads(): Promise<void> {
-    return this.leer('mensajes', () => this.#mensajes.threads(this.apiBase()), (threads) => this.threads.set(threads));
+    return this.leer('mensajes', () => this.#mensajes.threads(this.apiBase(), this.lecturasBase()), (threads) => this.threads.set(threads));
   }
 
   /**

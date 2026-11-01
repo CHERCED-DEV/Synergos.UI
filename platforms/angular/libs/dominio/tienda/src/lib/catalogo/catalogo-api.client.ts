@@ -23,11 +23,19 @@ export class CatalogoApi {
 
   // ─── Search (faceted) ────────────────────────────────────────────────────────
 
+  /**
+   * El listado del catálogo. Con `lecturasBase`, el genérico (`GET {lecturasBase}/catalogo`, 014-despiece-tienda, I4);
+   * sin ella, la ruta interina de siempre.
+   */
   async search(
     apiBase: string,
     criteria: SearchCriteria,
     currency: string,
+    lecturasBase = '',
   ): Promise<SearchResult> {
+    if (lecturasBase) {
+      return this.#listado(lecturasBase, criteria, currency);
+    }
     const query = this.toSearchQuery(criteria);
     const url = `${apiBase}/search${query ? `?${query}` : ''}`;
     try {
@@ -46,7 +54,14 @@ export class CatalogoApi {
 
   // ─── Product detail ──────────────────────────────────────────────────────────
 
-  async product(apiBase: string, id: string, currency: string): Promise<ProductDetail> {
+  /**
+   * La ficha del producto. Con `lecturasBase`, la genérica y sus reseñas (`GET {lecturasBase}/catalogo/{id}` y
+   * `…/resenas`, 014-despiece-tienda, I4); sin ella, la ruta interina de siempre.
+   */
+  async product(apiBase: string, id: string, currency: string, lecturasBase = ''): Promise<ProductDetail> {
+    if (lecturasBase) {
+      return this.#ficha(lecturasBase, id, currency);
+    }
     const url = `${apiBase}/product/${encodeURIComponent(id)}`;
     try {
       const data = await leerJsonDelBorde(apiBase, url);
@@ -57,6 +72,48 @@ export class CatalogoApi {
       throw new Error('product-shape');
     } catch (error) {
       this.#lecturas.markDegraded('GET /api/shop/product/{id}', error);
+      return mockDetail(id, currency);
+    }
+  }
+
+  async #listado(lecturasBase: string, criteria: SearchCriteria, currency: string): Promise<SearchResult> {
+    const query = consultaDelListado(criteria);
+    try {
+      const resultado = leerListado(
+        await leerJsonDelBorde(lecturasBase, `${lecturasBase}/catalogo${query ? `?${query}` : ''}`),
+        currency,
+      );
+      if (resultado) {
+        return resultado;
+      }
+      throw new Error('catalogo-shape');
+    } catch (error) {
+      this.#lecturas.markDegraded('GET /api/lecturas/{vertical}/catalogo', error);
+      return mockSearch(criteria, currency);
+    }
+  }
+
+  /**
+   * La ficha y sus reseñas, a la vez. Si las reseñas no llegan, la ficha se muestra sin ellas y sin el formulario
+   * (el fallo seguro de `canReview`), y se dice en el log: no hay muestra que poner en su lugar.
+   */
+  async #ficha(lecturasBase: string, id: string, currency: string): Promise<ProductDetail> {
+    const ref = encodeURIComponent(id);
+    try {
+      const [ficha, resenas] = await Promise.all([
+        leerJsonDelBorde(lecturasBase, `${lecturasBase}/catalogo/${ref}`),
+        leerJsonDelBorde(lecturasBase, `${lecturasBase}/catalogo/${ref}/resenas`).catch((error: unknown) => {
+          this.#lecturas.readFailed('GET /api/lecturas/{vertical}/catalogo/{id}/resenas', error);
+          return null;
+        }),
+      ]);
+      const detalle = leerFicha(ficha, resenas, currency);
+      if (detalle) {
+        return detalle;
+      }
+      throw new Error('ficha-shape');
+    } catch (error) {
+      this.#lecturas.markDegraded('GET /api/lecturas/{vertical}/catalogo/{id}', error);
       return mockDetail(id, currency);
     }
   }
@@ -269,6 +326,209 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): ProductDetai
     // Ausente ⇒ false. Un backend que no lo emita deja el formulario OCULTO, que es el
     // fallo seguro: lo contrario ofrecería escribir a quien va a recibir un 403.
     canReview: value['canReview'] === true,
+  };
+}
+
+// ─── La lectura genérica del catálogo (014-despiece-tienda, I4) ────────────────
+//
+// La forma es neutra de vertical: un `elemento` con su `precio`, su `calificacion` y sus `atributos` (la tienda manda
+// `marca` y `categoria`). Se lee a los MISMOS tipos de la tienda, así que las pantallas no cambian.
+
+/** La query del listado genérico: cada faceta va por su campo, `filtro.{campo}`, con sus valores separados por coma. */
+function consultaDelListado(criteria: SearchCriteria): string {
+  const params = new URLSearchParams();
+  if (criteria.q) {
+    params.set('texto', criteria.q);
+  }
+  if (criteria.category) {
+    params.set('filtro.category', criteria.category);
+  }
+  if (criteria.sort && criteria.sort !== 'relevance') {
+    params.set('orden', criteria.sort);
+  }
+  if (criteria.page > 1) {
+    params.set('pagina', String(criteria.page));
+  }
+  for (const [campo, valores] of Object.entries(criteria.facets)) {
+    if (valores.length > 0) {
+      params.set(`filtro.${campo}`, valores.join(','));
+    }
+  }
+  return params.toString();
+}
+
+function leerRegistro(value: unknown): Record<string, unknown> {
+  return esRegistro(value) ? value : {};
+}
+
+function leerElemento(value: unknown, monedaPorDefecto: string): ShopProduct | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const id = leerTexto(value['id']).trim();
+  const title = leerTexto(value['titulo']).trim();
+  if (!id || !title) {
+    return null;
+  }
+  const precio = leerRegistro(value['precio']);
+  const calificacion = leerRegistro(value['calificacion']);
+  const atributos = leerRegistro(value['atributos']);
+  const imagen = leerTexto(value['imagen']).trim();
+  const disponibles = value['disponibles'];
+  return {
+    id,
+    title,
+    subtitle: '',
+    amount: leerNumero(precio['monto']),
+    listAmount: undefined,
+    currency: leerTexto(precio['moneda']).trim() || monedaPorDefecto,
+    brand: leerTexto(atributos['marca']).trim(),
+    category: leerTexto(atributos['categoria']).trim(),
+    seller: undefined,
+    condition: 'new',
+    freeShipping: false,
+    rating: leerNumero(calificacion['promedio']),
+    reviewCount: Math.trunc(leerNumero(calificacion['cantidad'])),
+    inStock: typeof disponibles === 'number' ? disponibles > 0 : true,
+    images: imagen ? [imagen] : [],
+    badges: [],
+  };
+}
+
+function leerValorDeFaceta(value: unknown): Facet['values'][number] | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const raw = leerTexto(value['valor']).trim();
+  if (!raw) {
+    return null;
+  }
+  return { value: raw, label: leerTexto(value['etiqueta']).trim() || raw, count: Math.trunc(leerNumero(value['cantidad'])) };
+}
+
+function leerFacetas(value: unknown): readonly Facet[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): Facet | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const key = leerTexto(entry['campo']).trim();
+      if (!key) {
+        return null;
+      }
+      const valores = Array.isArray(entry['valores']) ? entry['valores'] : [];
+      return {
+        key,
+        label: leerTexto(entry['titulo']).trim() || key,
+        kind: leerTexto(entry['tipo']).trim() || 'MultiSelect',
+        values: valores
+          .map((valor) => leerValorDeFaceta(valor))
+          .filter((valor): valor is Facet['values'][number] => valor !== null),
+      };
+    })
+    .filter((facet): facet is Facet => facet !== null);
+}
+
+function leerListado(value: unknown, monedaPorDefecto: string): SearchResult | null {
+  if (!esRegistro(value) || !Array.isArray(value['elementos'])) {
+    return null;
+  }
+  const products = value['elementos']
+    .map((entry) => leerElemento(entry, monedaPorDefecto))
+    .filter((product): product is ShopProduct => product !== null);
+  return {
+    products,
+    facets: leerFacetas(value['facetas']),
+    total: leerNumero(value['total']) || products.length,
+  };
+}
+
+function leerOpcion(value: unknown, montoPorDefecto: number): ProductVariant | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const variantId = leerTexto(value['id']).trim();
+  if (!variantId) {
+    return null;
+  }
+  const stock = Math.trunc(leerNumero(value['disponibles']));
+  return {
+    variantId,
+    label: leerTexto(value['titulo']).trim() || variantId,
+    attributes: {},
+    amount: leerNumero(leerRegistro(value['precio'])['monto']) || montoPorDefecto,
+    inStock: stock > 0,
+    stock,
+  };
+}
+
+function leerResena(value: unknown, indice: number): ProductReview | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const body = leerTexto(value['texto']).trim();
+  if (!body) {
+    return null;
+  }
+  return {
+    id: `res-${indice + 1}`,
+    author: leerTexto(value['autor']).trim() || 'Anónimo',
+    rating: leerNumero(value['calificacion']),
+    title: leerTexto(value['titulo']).trim(),
+    body,
+    date: leerTexto(value['fecha']).trim(),
+  };
+}
+
+function leerPregunta(value: unknown, indice: number): ProductQuestion | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const question = leerTexto(value['pregunta']).trim();
+  if (!question) {
+    return null;
+  }
+  return {
+    id: `pre-${indice + 1}`,
+    author: leerTexto(value['autor']).trim() || 'Comprador',
+    question,
+    answer: leerTexto(value['respuesta']).trim() || undefined,
+    date: leerTexto(value['fecha']).trim(),
+  };
+}
+
+function leerFicha(value: unknown, resenas: unknown, monedaPorDefecto: string): ProductDetail | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const elemento = leerElemento(value['elemento'], monedaPorDefecto);
+  if (!elemento) {
+    return null;
+  }
+  const descripcion = leerTexto(value['descripcion']).trim();
+  const imagenes = leerTextos(value['imagenes']);
+  const product: ShopProduct = { ...elemento, subtitle: descripcion, images: imagenes.length > 0 ? imagenes : elemento.images };
+  const opciones = Array.isArray(value['opciones']) ? value['opciones'] : [];
+  const preguntas = Array.isArray(value['preguntas']) ? value['preguntas'] : [];
+  const deLasResenas = leerRegistro(resenas);
+  const lista = Array.isArray(deLasResenas['resenas']) ? deLasResenas['resenas'] : [];
+  return {
+    product,
+    description: descripcion,
+    variants: opciones
+      .map((entry) => leerOpcion(entry, product.amount))
+      .filter((variant): variant is ProductVariant => variant !== null),
+    reviews: lista
+      .map((entry, indice) => leerResena(entry, indice))
+      .filter((review): review is ProductReview => review !== null),
+    questions: preguntas
+      .map((entry, indice) => leerPregunta(entry, indice))
+      .filter((question): question is ProductQuestion => question !== null),
+    // Ausente ⇒ false, como en la interina: sin la lectura de las reseñas el formulario queda oculto.
+    canReview: deLasResenas['puedeResenar'] === true,
   };
 }
 

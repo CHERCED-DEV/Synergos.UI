@@ -29,22 +29,26 @@ export class PedidosApi {
    * pedidos de nadie sin ella— y cualquier otro fallo, o una forma que no se entiende, es la lectura caída. Los
    * pedidos de ejemplo sólo salen con {@link MUESTRAS_DE_LA_CUENTA}, y entonces con su cartel.
    */
-  async orders(apiBase: string, customer: string, currency: string): Promise<LecturaDeCompras> {
+  async orders(apiBase: string, customer: string, currency: string, lecturasBase = ''): Promise<LecturaDeCompras> {
     const query = customer ? `?customer=${encodeURIComponent(customer)}` : '';
     const url = `${apiBase}/orders${query}`;
+    // Con `lecturasBase`, la lectura genérica (014-despiece-tienda, I4): la identidad es la de la sesión y la query no
+    // lleva a nadie. Sin ella, la ruta interina de siempre.
+    const endpoint = lecturasBase ? 'GET /api/lecturas/{vertical}/pedidos' : 'GET /api/shop/orders';
     try {
-      const data = await leerJsonDelBorde(apiBase, url);
-      const orders = normalizeOrders(data, currency);
+      const orders = lecturasBase
+        ? leerPedidos(await leerJsonDelBorde(lecturasBase, `${lecturasBase}/pedidos`), currency)
+        : normalizeOrders(await leerJsonDelBorde(apiBase, url), currency);
       if (orders) {
         return { estado: 'leidas', pedidos: orders };
       }
       throw new Error('orders-shape');
     } catch (error) {
       if (this.#muestrasDeLaCuenta) {
-        this.#lecturas.markDegraded('GET /api/shop/orders', error);
+        this.#lecturas.markDegraded(endpoint, error);
         return { estado: 'leidas', pedidos: mockOrders(currency) };
       }
-      this.#lecturas.readFailed('GET /api/shop/orders', error);
+      this.#lecturas.readFailed(endpoint, error);
       return error instanceof LecturaRechazada && error.estado === 401 ? { estado: 'sin-sesion' } : { estado: 'caida' };
     }
   }
@@ -56,24 +60,120 @@ export class PedidosApi {
    * «Seguimiento no disponible» en vez de pintar una línea de tiempo con fechas que nadie registró. La de ejemplo
    * sólo sale con {@link MUESTRAS_DE_LA_CUENTA}.
    */
-  async tracking(apiBase: string, orderRef: string, status: string): Promise<OrderTracking | null> {
-    const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking`;
+  async tracking(apiBase: string, orderRef: string, status: string, lecturasBase = ''): Promise<OrderTracking | null> {
+    const ref = encodeURIComponent(orderRef);
+    const endpoint = lecturasBase
+      ? 'GET /api/lecturas/{vertical}/pedidos/{ref}/seguimiento'
+      : 'GET /api/shop/order/{ref}/tracking';
     try {
-      const data = await leerJsonDelBorde(apiBase, url);
-      const tracking = normalizeTracking(data, orderRef);
+      const tracking = lecturasBase
+        ? leerSeguimiento(await leerJsonDelBorde(lecturasBase, `${lecturasBase}/pedidos/${ref}/seguimiento`), orderRef)
+        : normalizeTracking(await leerJsonDelBorde(apiBase, `${apiBase}/order/${ref}/tracking`), orderRef);
       if (tracking) {
         return tracking;
       }
       throw new Error('tracking-shape');
     } catch (error) {
       if (this.#muestrasDeLaCuenta) {
-        this.#lecturas.markDegraded('GET /api/shop/order/{ref}/tracking', error);
+        this.#lecturas.markDegraded(endpoint, error);
         return mockTracking(orderRef, status);
       }
-      this.#lecturas.readFailed('GET /api/shop/order/{ref}/tracking', error);
+      this.#lecturas.readFailed(endpoint, error);
       return null;
     }
   }
+}
+
+// ─── La lectura genérica de los pedidos (014-despiece-tienda, I4) ──────────────
+
+/** Por qué una línea no se devuelve: el vocabulario de la lectura, al de la tienda (`pedido.ts` los dice). */
+const MOTIVO_SIN_DEVOLUCION: Readonly<Record<string, string>> = {
+  'pedido-inexistente': 'order-not-found',
+  'pedido-sin-pagar': 'order-not-paid',
+  'linea-ajena': 'line-not-in-order',
+  'ya-abierta': 'already-open',
+};
+
+function leerRegistro(value: unknown): Record<string, unknown> {
+  return esRegistro(value) ? value : {};
+}
+
+function leerLineaDelPedido(linea: Record<string, unknown>): ShopOrder['items'][number] {
+  const motivo = leerTexto(linea['motivoSinDevolucion']).trim();
+  return {
+    title: leerTexto(linea['titulo']).trim(),
+    qty: Math.max(1, Math.trunc(leerNumero(linea['cantidad']))),
+    amount: leerNumero(leerRegistro(linea['total'])['monto']),
+    productId: leerTexto(linea['elementoId']).trim(),
+    variantId: leerTexto(linea['opcionId']).trim() || undefined,
+    canReturn: linea['puedeDevolverse'] === true,
+    returnBlock: (MOTIVO_SIN_DEVOLUCION[motivo] ?? motivo) || undefined,
+  };
+}
+
+function leerPedidos(value: unknown, monedaPorDefecto: string): readonly ShopOrder[] | null {
+  if (!esRegistro(value) || !Array.isArray(value['pedidos'])) {
+    return null;
+  }
+  return value['pedidos']
+    .map((entry): ShopOrder | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const orderNumber = leerTexto(entry['numero']).trim();
+      const orderRef = leerTexto(entry['referencia']).trim();
+      if (!orderNumber || !orderRef) {
+        return null;
+      }
+      const total = leerRegistro(entry['total']);
+      const lineas = Array.isArray(entry['lineas']) ? entry['lineas'] : [];
+      return {
+        orderNumber,
+        orderRef,
+        date: leerTexto(entry['fecha']).trim(),
+        status: readOrderStatus(entry['estado']),
+        total: leerNumero(total['monto']),
+        currency: leerTexto(total['moneda']).trim() || monedaPorDefecto,
+        items: lineas.filter((linea) => esRegistro(linea)).map((linea) => leerLineaDelPedido(leerRegistro(linea))),
+      };
+    })
+    .filter((order): order is ShopOrder => order !== null);
+}
+
+const ESTADO_DE_LA_ETAPA: Readonly<Record<string, ShipmentStage['state']>> = {
+  hecha: 'done',
+  actual: 'current',
+  pendiente: 'pending',
+};
+
+function leerSeguimiento(value: unknown, orderRef: string): OrderTracking | null {
+  if (!esRegistro(value) || !Array.isArray(value['etapas'])) {
+    return null;
+  }
+  const stages = value['etapas']
+    .map((entry): ShipmentStage | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const label = leerTexto(entry['titulo']).trim();
+      if (!label) {
+        return null;
+      }
+      const date = leerTexto(entry['fecha']).trim();
+      const description = leerTexto(entry['nota']).trim();
+      return {
+        id: leerTexto(entry['clave']).trim() || label,
+        label,
+        date: date || undefined,
+        description: description || undefined,
+        state: ESTADO_DE_LA_ETAPA[leerTexto(entry['estado']).trim()] ?? 'pending',
+      };
+    })
+    .filter((stage): stage is ShipmentStage => stage !== null);
+  if (stages.length === 0) {
+    return null;
+  }
+  return { orderRef: leerTexto(value['referencia']).trim() || orderRef, carrier: undefined, stages };
 }
 
 function normalizeOrders(value: unknown, fallbackCurrency: string): readonly ShopOrder[] | null {

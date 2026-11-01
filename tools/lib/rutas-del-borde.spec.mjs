@@ -7,6 +7,11 @@ describe('rutasQuePide', () => {
     expect(rutasQuePide('const url = `${apiBase}/seller/summary`;')).toEqual(['seller/summary']);
   });
 
+  it('ve también las rutas de las lecturas genéricas, armadas con `${lecturasBase}` (014, I4)', () => {
+    const src = 'const a = `${apiBase}/orders`; const b = `${lecturasBase}/pedidos/${ref}/seguimiento`;';
+    expect(rutasQuePide(src)).toEqual(['orders', 'pedidos/{}/seguimiento']);
+  });
+
   it('convierte un segmento interpolado en `{}`', () => {
     const src = 'const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking/advance`;';
     expect(rutasQuePide(src)).toEqual(['order/{}/tracking/advance']);

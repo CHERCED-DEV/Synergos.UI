@@ -69,6 +69,7 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
     purchasePath: coerceTrimmedStringInput(value.purchasePath),
     shippingCountry: coerceTrimmedStringInput(value.shippingCountry),
     zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
@@ -177,6 +178,12 @@ export class StorefrontElementComponent implements OnInit {
     ),
   );
 
+  /**
+   * Dónde viven las lecturas genéricas (014-despiece-tienda, I4). La declara el CMS; sin ella, cada lectura va a su
+   * ruta interina de `apiBase`.
+   */
+  readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').replace(/\/+$/, ''));
+
   readonly scope = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.scopeInput()),
@@ -276,6 +283,7 @@ export class StorefrontElementComponent implements OnInit {
   constructor() {
     this.configuracion.conectar({
       apiBase: this.apiBase,
+      lecturasBase: this.lecturasBase,
       zonaHoraria: this.zonaHoraria,
       purchasePath: computed(() => this.config()?.purchasePath),
       shippingCountry: this.shippingCountry,

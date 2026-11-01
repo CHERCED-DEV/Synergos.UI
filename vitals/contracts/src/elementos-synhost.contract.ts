@@ -687,6 +687,8 @@ export interface SellerProps {
   /** negocio */
   readonly apiBase: string;
   /** negocio */
+  readonly lecturasBase: string;
+  /** negocio */
   readonly zonaHoraria: string;
   /** decision */
   readonly vista?: string;
@@ -726,6 +728,8 @@ export interface StorefrontProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly lecturasBase: string;
   /** negocio */
   readonly purchasePath: string;
   /** negocio */
@@ -2403,7 +2407,7 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   record: "SellerProps",
   diccionario: ["Seller.Operaciones"],
   claves: ["Seller.Operaciones.ActDeliver","Seller.Operaciones.ActFailed","Seller.Operaciones.ActInFlight","Seller.Operaciones.ActPrepare","Seller.Operaciones.ActShip","Seller.Operaciones.Cancel","Seller.Operaciones.CantDispatch","Seller.Operaciones.Carrier","Seller.Operaciones.Close","Seller.Operaciones.Delivered","Seller.Operaciones.Destination","Seller.Operaciones.DispatchUnavailable","Seller.Operaciones.LoadFailed","Seller.Operaciones.Loading","Seller.Operaciones.NoAddress","Seller.Operaciones.NoShipment","Seller.Operaciones.OrderDetail","Seller.Operaciones.OrdersEmpty","Seller.Operaciones.OutOfOrder","Seller.Operaciones.RefundConfirm","Seller.Operaciones.RefundConfirmAction","Seller.Operaciones.Retry","Seller.Operaciones.ReturnApprove","Seller.Operaciones.ReturnApproved","Seller.Operaciones.ReturnFailed","Seller.Operaciones.ReturnReceive","Seller.Operaciones.ReturnReceived","Seller.Operaciones.ReturnRefund","Seller.Operaciones.ReturnRefunded","Seller.Operaciones.ReturnReject","Seller.Operaciones.ReturnRejected","Seller.Operaciones.ReturnRequested","Seller.Operaciones.ReturnStillIn","Seller.Operaciones.ReturnsAll","Seller.Operaciones.ReturnsClosed","Seller.Operaciones.ReturnsOpen","Seller.Operaciones.Samples","Seller.Operaciones.ShipFirst","Seller.Operaciones.ShipOrder","Seller.Operaciones.ShipmentClosed","Seller.Operaciones.ShipmentUnavailable","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly","Seller.Operaciones.StageAll","Seller.Operaciones.StageDelivered","Seller.Operaciones.StagePaid","Seller.Operaciones.StagePreparing","Seller.Operaciones.StageShipped","Seller.Operaciones.StillIn","Seller.Operaciones.Tracking","Seller.Operaciones.TrackingHint","Seller.Operaciones.TrackingInvalid","Seller.Operaciones.TrackingNumber","Seller.Operaciones.TryAgain","Seller.Operaciones.Unreconciled","Seller.Operaciones.ViewDetail"],
-  campos: ["heading","subheading","apiBase","zonaHoraria","vista","rutas"],
+  campos: ["heading","subheading","apiBase","lecturasBase","zonaHoraria","vista","rutas"],
   listas: {"rutas":["vista","url"]},
   selectores: [
     {
@@ -2432,6 +2436,7 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
     "heading": "Tu negocio, en un solo panel",
     "subheading": "Ventas, publicaciones, mensajes y devoluciones",
     "apiBase": "/api/shop",
+    "lecturasBase": "/api/lecturas/tienda",
     "zonaHoraria": "America/Bogota",
     "vista": "publicar",
     "rutas": [
@@ -2587,7 +2592,7 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   record: "StorefrontProps",
   diccionario: ["Storefront.Purchase"],
   claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
-  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry","zonaHoraria","vista","rutas"],
+  campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","rutas"],
   listas: {"rutas":["vista","url"]},
   selectores: [
     {
@@ -2636,6 +2641,7 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
     "heading": "Compra en nuestra tienda online",
     "subheading": "Catálogo, carrito y checkout",
     "apiBase": "/api/shop",
+    "lecturasBase": "/api/lecturas/tienda",
     "purchasePath": "directa",
     "shippingCountry": "CO",
     "zonaHoraria": "America/Bogota",

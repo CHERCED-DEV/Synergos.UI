@@ -4,23 +4,63 @@ import { LecturasDeLaTienda } from '../comun/lecturas';
 import type { WishlistEntry } from './deseos.model';
 
 /** La lista de deseos de quien compra (`GET` y `POST /wishlist`). */
+/**
+ * La colección genérica (014-despiece-tienda, I4). Lo que el catálogo ya no tiene sale con su id y sin precio, como
+ * en la interina: se muestra que estaba, no se inventa.
+ */
+function leerColeccion(value: unknown, monedaPorDefecto: string): readonly WishlistEntry[] | null {
+  if (!esRegistro(value) || !Array.isArray(value['elementos'])) {
+    return null;
+  }
+  return value['elementos']
+    .map((entry): WishlistEntry | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const productId = leerTexto(entry['id']).trim();
+      if (!productId) {
+        return null;
+      }
+      const elemento = esRegistro(entry['elemento']) ? entry['elemento'] : {};
+      const precio = esRegistro(elemento['precio']) ? elemento['precio'] : {};
+      const image = leerTexto(elemento['imagen']).trim();
+      return {
+        productId,
+        title: leerTexto(elemento['titulo']).trim() || productId,
+        amount: leerNumero(precio['monto']),
+        currency: leerTexto(precio['moneda']).trim() || monedaPorDefecto,
+        image: image || undefined,
+      };
+    })
+    .filter((entry): entry is WishlistEntry => entry !== null);
+}
+
+/** La colección de la tienda que es la lista de deseos (la de `IUserCollection`). */
+const COLECCION_DE_DESEOS = 'wishlist';
+
 @Injectable({ providedIn: 'root' })
 export class DeseosApi {
   readonly #lecturas: LecturasDeLaTienda = inject(LecturasDeLaTienda);
 
   // ─── Wishlist (favoritos / listas) ───────────────────────────────────────────
 
-  async wishlist(apiBase: string, currency: string): Promise<readonly WishlistEntry[]> {
+  /**
+   * La lista de deseos. Con `lecturasBase`, la colección genérica (`GET {lecturasBase}/colecciones/wishlist`,
+   * 014-despiece-tienda, I4), con cada producto del catálogo; sin ella, la ruta interina de siempre.
+   */
+  async wishlist(apiBase: string, currency: string, lecturasBase = ''): Promise<readonly WishlistEntry[]> {
     const url = `${apiBase}/wishlist`;
+    const endpoint = lecturasBase ? 'GET /api/lecturas/{vertical}/colecciones/{coleccion}' : 'GET /api/shop/wishlist';
     try {
-      const data = await leerJsonDelBorde(apiBase, url);
-      const entries = normalizeWishlist(data, currency);
+      const entries = lecturasBase
+        ? leerColeccion(await leerJsonDelBorde(lecturasBase, `${lecturasBase}/colecciones/${COLECCION_DE_DESEOS}`), currency)
+        : normalizeWishlist(await leerJsonDelBorde(apiBase, url), currency);
       if (entries) {
         return entries;
       }
       throw new Error('wishlist-shape');
     } catch (error) {
-      this.#lecturas.markDegraded('GET /api/shop/wishlist', error);
+      this.#lecturas.markDegraded(endpoint, error);
       return this.#localWishlist;
     }
   }
