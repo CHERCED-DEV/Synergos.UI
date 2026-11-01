@@ -5,6 +5,12 @@ import { caminoDeLaCompra, type CaminoDeCompra } from '../compra/compra.model';
 export interface FuentesDeLaTienda {
   /** Dónde vive la API, sin la barra final. */
   readonly apiBase: Signal<string>;
+  /**
+   * Dónde viven las lecturas genéricas, sin la barra final (014-despiece-tienda, I4): el catálogo, los pedidos, las
+   * devoluciones, la lista de deseos, los mensajes y las reseñas con forma neutra de vertical. Vacía, cada lectura va a
+   * su ruta interina de `apiBase`, como antes.
+   */
+  readonly lecturasBase: Signal<string>;
   /** La zona horaria del sitio, en la que se leen las fechas de «Mis compras». */
   readonly zonaHoraria: Signal<string>;
   /** Por dónde compra la tienda, tal como lo declara el CMS (`purchasePath`); sin declarar, la ruta directa. */
@@ -23,6 +29,7 @@ export class ConfiguracionDeLaTienda {
   readonly #fuentes = signal<FuentesDeLaTienda | null>(null);
 
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
+  readonly lecturasBase = computed(() => this.#fuentes()?.lecturasBase() ?? '');
   readonly zonaHoraria = computed(() => this.#fuentes()?.zonaHoraria() ?? '');
   readonly purchasePath = computed(() => this.#fuentes()?.purchasePath());
   readonly shippingCountry = computed(() => this.#fuentes()?.shippingCountry() ?? '');

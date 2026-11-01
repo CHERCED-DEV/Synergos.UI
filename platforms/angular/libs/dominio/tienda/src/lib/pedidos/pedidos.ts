@@ -43,7 +43,7 @@ export class PedidosDeLaTienda {
       return;
     }
     void this.#api
-      .tracking(this.#config.apiBase(), order.orderRef, order.status)
+      .tracking(this.#config.apiBase(), order.orderRef, order.status, this.#config.lecturasBase())
       .then((tracking) => {
         if (tracking === null) {
           this.seguimientoCaido.update((caidos) => new Set(caidos).add(order.orderNumber));
@@ -82,7 +82,12 @@ export class PedidosDeLaTienda {
   async loadOrders(customer: string): Promise<void> {
     this.ordersLoading.set(true);
     try {
-      const lectura = await this.#api.orders(this.#config.apiBase(), customer.trim(), this.#catalogo.currency());
+      const lectura = await this.#api.orders(
+        this.#config.apiBase(),
+        customer.trim(),
+        this.#catalogo.currency(),
+        this.#config.lecturasBase(),
+      );
       this.estadoDeLasCompras.set(lectura.estado);
       if (lectura.estado !== 'leidas') {
         // Sin lista no hay pedidos que pintar: ni los de ejemplo ni los de una lectura anterior (etapa 3).

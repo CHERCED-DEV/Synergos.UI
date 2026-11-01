@@ -73,8 +73,12 @@ export class DevolucionesApi {
    * «Iniciar devolución» sobre un pedido que ya tiene una abierta, y el comprador
    * abriría un segundo reclamo. Es el defecto que esta HU vino a cerrar.
    */
-  async orderReturns(apiBase: string, orderRef: string): Promise<readonly ReturnCase[] | null> {
-    const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
+  async orderReturns(apiBase: string, orderRef: string, lecturasBase = ''): Promise<readonly ReturnCase[] | null> {
+    const ref = encodeURIComponent(orderRef);
+    if (lecturasBase) {
+      return this.#devolucionesDelPedido(lecturasBase, ref, orderRef);
+    }
+    const url = `${apiBase}/order/${ref}/return`;
     try {
       const data = await leerJsonDelBorde(apiBase, url);
       const raw = esRegistro(data) && Array.isArray(data['returns']) ? data['returns'] : [];
@@ -83,6 +87,24 @@ export class DevolucionesApi {
         .filter((entry): entry is ReturnCase => entry !== null);
     } catch (error) {
       this.#lecturas.markDegraded('GET /api/shop/order/{ref}/return', error);
+      return null;
+    }
+  }
+
+  /**
+   * La lectura genérica (014-despiece-tienda, I4), con los cinco estados de la devolución leídos a los cuatro de la
+   * pantalla. Como la interina, `null` es «no se pudo leer», no «no hay ninguna».
+   */
+  async #devolucionesDelPedido(lecturasBase: string, ref: string, orderRef: string): Promise<readonly ReturnCase[] | null> {
+    try {
+      const data = await leerJsonDelBorde(lecturasBase, `${lecturasBase}/pedidos/${ref}/devoluciones`);
+      const referencia = (esRegistro(data) ? leerTexto(data['referencia']).trim() : '') || orderRef;
+      const raw = esRegistro(data) && Array.isArray(data['devoluciones']) ? data['devoluciones'] : [];
+      return raw
+        .map((entry) => leerDevolucion(entry, referencia))
+        .filter((entry): entry is ReturnCase => entry !== null);
+    } catch (error) {
+      this.#lecturas.markDegraded('GET /api/lecturas/{vertical}/pedidos/{ref}/devoluciones', error);
       return null;
     }
   }
@@ -158,6 +180,43 @@ const RETURN_STATUSES: readonly ReturnStatus[] = [
   'resuelto',
   'rechazado',
 ];
+
+/**
+ * Los estados de la lectura genérica (la máquina: solicitada → aprobada/rechazada → recibida → reembolsada) en los
+ * cuatro de la pantalla, con el mismo reparto que hacía el borde de la tienda.
+ */
+const ESTADO_DEL_RECLAMO: Readonly<Record<string, ReturnStatus>> = {
+  solicitada: 'abierto',
+  aprobada: 'en-revision',
+  recibida: 'en-revision',
+  reembolsada: 'resuelto',
+  rechazada: 'rechazado',
+};
+
+function leerDevolucion(value: unknown, orderRef: string): ReturnCase | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const claimId = leerTexto(value['id']).trim();
+  if (!claimId) {
+    return null;
+  }
+  const monto = esRegistro(value['monto']) ? value['monto'] : {};
+  return {
+    claimId,
+    orderRef,
+    lineRef: leerTexto(value['linea']).trim(),
+    productName: leerTexto(value['titulo']).trim() || 'Producto',
+    quantity: Math.max(1, Math.trunc(leerNumero(value['cantidad'])) || 1),
+    refundAmountFormatted: leerTexto(monto['texto']).trim(),
+    reason: leerTexto(value['motivo']).trim(),
+    // Un estado desconocido cae a `abierto`, el conservador, como en la interina.
+    status: ESTADO_DEL_RECLAMO[leerTexto(value['estado']).trim()] ?? 'abierto',
+    requestedAt: leerTexto(value['solicitada']).trim(),
+    updatedAt: leerTexto(value['actualizada']).trim(),
+    note: leerTexto(value['nota']).trim() || undefined,
+  };
+}
 
 export function normalizeReturnCase(value: unknown): ReturnCase | null {
   if (!esRegistro(value)) {

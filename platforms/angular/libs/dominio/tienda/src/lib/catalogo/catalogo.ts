@@ -107,7 +107,7 @@ export class CatalogoDeLaTienda {
     const requestId = `search:${JSON.stringify(criteria)}`;
     try {
       const result = await this.#orchestrator.callApi(requestId, () =>
-        this.#api.search(this.#config.apiBase(), criteria, this.currency()),
+        this.#api.search(this.#config.apiBase(), criteria, this.currency(), this.#config.lecturasBase()),
       );
       this.products.set(result.products);
       this.total.set(result.total);
@@ -162,7 +162,7 @@ export class CatalogoDeLaTienda {
     this.#avisos.errorMessage.set('');
     try {
       const detail = await this.#orchestrator.callApi(`product:${id}`, () =>
-        this.#api.product(this.#config.apiBase(), id, this.currency()),
+        this.#api.product(this.#config.apiBase(), id, this.currency(), this.#config.lecturasBase()),
       );
       this.detail.set(detail);
       const firstInStock =

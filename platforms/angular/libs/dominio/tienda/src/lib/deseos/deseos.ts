@@ -77,7 +77,7 @@ export class DeseosDeLaTienda {
     if (this.wishlistLoaded()) {
       return;
     }
-    void this.#api.wishlist(this.#config.apiBase(), this.#catalogo.currency()).then((list) => {
+    void this.#api.wishlist(this.#config.apiBase(), this.#catalogo.currency(), this.#config.lecturasBase()).then((list) => {
       this.wishlist.set(list);
       this.wishlistLoaded.set(true);
     });

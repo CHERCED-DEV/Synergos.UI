@@ -50,6 +50,7 @@ export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
     zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
     vista: coerceStringEnumInput(value.vista, VISTAS_DE_LA_CONSOLA),
     rutas: coerceRutasDeLasVistas(value.rutas),
@@ -100,6 +101,12 @@ export class SellerElementComponent implements OnInit {
   );
 
   /**
+   * Dónde viven las lecturas genéricas (014-despiece-tienda, I4). La declara el CMS; sin ella, la bandeja va a su ruta
+   * interina de `apiBase`.
+   */
+  readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').replace(/\/+$/, ''));
+
+  /**
    * Quién atiende la consola: el miembro de la SESIÓN (CMS#197). Era `sellerName`, que sólo
    * entraba por el JSON libre del editor —un nombre escrito a mano en la página, el mismo para
    * todo vendedor que la abriera—. Sin host o sin sesión, vacío: el chip no se pinta, como
@@ -142,6 +149,7 @@ export class SellerElementComponent implements OnInit {
   constructor() {
     this.estado.conectar({
       apiBase: () => this.apiBase(),
+      lecturasBase: () => this.lecturasBase(),
       zonaHoraria: () => this.zonaHoraria(),
       vista: () => this.vista(),
       rutas: () => this.rutas(),

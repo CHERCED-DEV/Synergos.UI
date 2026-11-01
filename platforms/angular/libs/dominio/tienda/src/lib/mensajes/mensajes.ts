@@ -17,7 +17,7 @@ export class MensajesDeLaTienda {
     if (this.threadsLoaded()) {
       return;
     }
-    void this.#api.messages(this.#config.apiBase()).then((threads) => {
+    void this.#api.messages(this.#config.apiBase(), this.#config.lecturasBase()).then((threads) => {
       this.threads.set(threads);
       this.threadsLoaded.set(true);
     });

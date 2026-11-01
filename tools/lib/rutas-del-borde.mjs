@@ -67,10 +67,22 @@ export const SIN_BORDE = {
  * llevar dentro otro —`${qs ? `?${qs}` : ''}`— y un regex no cruza anidamiento: la primera
  * versión de esto dio **31** y la segunda **115 de 115**, las dos por eso y por el separador.
  * Es el mismo punto ciego que `ComposeStackTests` del repo hermano pagó con un `\\s*`.
+ *
+ * **Y con las dos bases**: `${apiBase}` y `${lecturasBase}`, la de las lecturas genéricas `api/lecturas/{vertical}`
+ * (014-despiece-tienda, I4). Sin la segunda, las rutas que un adaptador pide a la lectura genérica no las vería nadie.
  */
 export function rutasQuePide(fuente) {
   const salida = [];
-  const marca = '${apiBase}';
+  for (const marca of MARCAS_DE_BASE) {
+    rutasTrasLaMarca(fuente, marca, salida);
+  }
+  return salida;
+}
+
+/** Las bases con que un cliente arma sus rutas. */
+export const MARCAS_DE_BASE = ['${apiBase}', '${lecturasBase}'];
+
+function rutasTrasLaMarca(fuente, marca, salida) {
   let i = 0;
 
   while ((i = fuente.indexOf(marca, i)) !== -1) {
@@ -104,8 +116,6 @@ export function rutasQuePide(fuente) {
     if (limpia && !salida.includes(limpia)) salida.push(limpia);
     i = j;
   }
-
-  return salida;
 }
 
 /**

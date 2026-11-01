@@ -14,8 +14,14 @@ export class MensajesDelVendedorApi {
 
   // ─── Mensajes / preguntas ────────────────────────────────────────────────────
 
-  threads(apiBase: string): Promise<LecturaDeLaConsola<readonly SellerThread[]>> {
-    return this.#lecturas.leer(apiBase, `${apiBase}/messages`, 'GET /api/shop/messages', normalizeThreads, mockThreads);
+  /**
+   * La bandeja del personal. Con `lecturasBase`, la genérica (`GET {lecturasBase}/mensajes`, 014-despiece-tienda, I4),
+   * con los mensajes de cada hilo; sin ella, la interina, que manda `threadId` sin asunto y se lee como caída.
+   */
+  threads(apiBase: string, lecturasBase = ''): Promise<LecturaDeLaConsola<readonly SellerThread[]>> {
+    return lecturasBase
+      ? this.#lecturas.leer(lecturasBase, `${lecturasBase}/mensajes`, 'GET /api/lecturas/{vertical}/mensajes', leerHilos, mockThreads)
+      : this.#lecturas.leer(apiBase, `${apiBase}/messages`, 'GET /api/shop/messages', normalizeThreads, mockThreads);
   }
 
   /**
@@ -92,6 +98,47 @@ function normalizeReply(value: unknown): SellerMessage | null {
     body,
     date: (leerTexto(last['sentAt']).trim() || leerTexto(last['date']).trim()).slice(0, 10),
   };
+}
+
+/** Un mensaje del hilo genérico: lo escribió el personal si es de quien lee (`mio`), y si no, quien compra. */
+function leerMensaje(value: unknown): SellerMessage | null {
+  if (!esRegistro(value)) {
+    return null;
+  }
+  const id = leerTexto(value['id']).trim();
+  const body = leerTexto(value['texto']).trim();
+  if (!id || !body) {
+    return null;
+  }
+  return { id, from: value['mio'] === true ? 'seller' : 'buyer', body, date: leerTexto(value['fecha']).trim().slice(0, 10) };
+}
+
+function leerHilos(value: unknown): readonly SellerThread[] | null {
+  const list = readList(value, 'hilos');
+  if (!list) {
+    return null;
+  }
+  const threads = list
+    .map((entry): SellerThread | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const id = leerTexto(entry['id']).trim();
+      const subject = leerTexto(entry['asunto']).trim();
+      if (!id || !subject) {
+        return null;
+      }
+      const date = leerTexto(entry['fecha']).trim().slice(0, 10);
+      const leidos = (Array.isArray(entry['mensajes']) ? entry['mensajes'] : [])
+        .map((mensaje) => leerMensaje(mensaje))
+        .filter((mensaje): mensaje is SellerMessage => mensaje !== null);
+      const ultimo = leerTexto(entry['ultimo']).trim();
+      const messages: readonly SellerMessage[] =
+        leidos.length === 0 && ultimo ? [{ id: `${id}-ultimo`, from: 'buyer', body: ultimo, date }] : leidos;
+      return { id, subject, counterpart: leerTexto(entry['contraparte']).trim(), date, unread: false, messages };
+    })
+    .filter((thread): thread is SellerThread => thread !== null);
+  return legibles(list, threads);
 }
 
 function normalizeThreads(value: unknown): readonly SellerThread[] | null {

@@ -169,7 +169,7 @@ export class DevolucionesDeLaTienda {
     const resultados = await Promise.all(
       orders.map(async (order) => ({
         ref: order.orderNumber,
-        claims: await this.#api.orderReturns(this.#config.apiBase(), order.orderRef),
+        claims: await this.#api.orderReturns(this.#config.apiBase(), order.orderRef, this.#config.lecturasBase()),
       })),
     );
     const mapa: Record<string, readonly ReturnCase[]> = { ...this.returnsByRef() };

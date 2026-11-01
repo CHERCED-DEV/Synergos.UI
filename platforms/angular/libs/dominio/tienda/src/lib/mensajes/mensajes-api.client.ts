@@ -10,20 +10,54 @@ export class MensajesApi {
 
   // ─── Messages (mensajería v1) ────────────────────────────────────────────────
 
-  async messages(apiBase: string): Promise<readonly MessageThread[]> {
+  /**
+   * La bandeja. Con `lecturasBase`, la genérica (`GET {lecturasBase}/mensajes`, 014-despiece-tienda, I4): sólo los
+   * hilos de la tienda, cada uno con su asunto. La interina manda `threadId` y ningún asunto, así que con ella esta
+   * lectura descarta todos los hilos y pinta una bandeja vacía.
+   */
+  async messages(apiBase: string, lecturasBase = ''): Promise<readonly MessageThread[]> {
     const url = `${apiBase}/messages`;
+    const endpoint = lecturasBase ? 'GET /api/lecturas/{vertical}/mensajes' : 'GET /api/shop/messages';
     try {
-      const data = await leerJsonDelBorde(apiBase, url);
-      const threads = normalizeThreads(data);
+      const threads = lecturasBase
+        ? leerHilos(await leerJsonDelBorde(lecturasBase, `${lecturasBase}/mensajes`))
+        : normalizeThreads(await leerJsonDelBorde(apiBase, url));
       if (threads) {
         return threads;
       }
       throw new Error('messages-shape');
     } catch (error) {
-      this.#lecturas.markDegraded('GET /api/shop/messages', error);
+      this.#lecturas.markDegraded(endpoint, error);
       return mockThreads();
     }
   }
+}
+
+/** Los hilos de la bandeja genérica. Sin acuses de lectura en la mensajería v1: ninguno sale como «sin leer». */
+function leerHilos(value: unknown): readonly MessageThread[] | null {
+  if (!esRegistro(value) || !Array.isArray(value['hilos'])) {
+    return null;
+  }
+  return value['hilos']
+    .map((entry): MessageThread | null => {
+      if (!esRegistro(entry)) {
+        return null;
+      }
+      const id = leerTexto(entry['id']).trim();
+      const subject = leerTexto(entry['asunto']).trim();
+      if (!id || !subject) {
+        return null;
+      }
+      return {
+        id,
+        subject,
+        counterpart: leerTexto(entry['contraparte']).trim(),
+        lastMessage: leerTexto(entry['ultimo']).trim(),
+        date: leerTexto(entry['fecha']).trim().slice(0, 10),
+        unread: false,
+      };
+    })
+    .filter((thread): thread is MessageThread => thread !== null);
 }
 
 function normalizeThreads(value: unknown): readonly MessageThread[] | null {
