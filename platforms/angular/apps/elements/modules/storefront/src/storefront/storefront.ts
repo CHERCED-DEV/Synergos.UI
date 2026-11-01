@@ -94,6 +94,7 @@ import {
 } from '@synergos/shared';
 import type { StorefrontProps } from '@synergos/contracts';
 import { diaDeLaTienda, momentoDeLaTienda } from './fechas-de-la-tienda';
+import { TEXTOS_DE_ESTA_TIENDA } from './textos-de-la-tienda';
 import {
   CODIGO_COBRO_DEVUELTO,
   CODIGO_COMPRA_SIN_RESOLVER,
@@ -114,16 +115,19 @@ import {
   cotizarCompraDeTienda,
   cuerpoDeLaCompra,
   direccionDeEnvio,
-  CatalogoApi,
+  AvisosDeLaTienda,
+  CatalogoDeLaTienda,
+  ConfiguracionDeLaTienda,
+  DeseosDeLaTienda,
+  MensajesDeLaTienda,
+  ResenasDeLaTienda,
+  TEXTOS_DE_LA_TIENDA,
   CompraApi,
   CuponApi,
-  DeseosApi,
   DevolucionesApi,
   EscritorioApi,
   LecturasDeLaTienda,
-  MensajesApi,
   PedidosApi,
-  ResenasApi,
   STOREFRONT_FLOW,
   caminoDeLaCompra,
   type CaminoDeCompra,
@@ -416,6 +420,16 @@ let storefrontInstanceId = 0;
   // Embedded published custom elements (<synergos-rating-stars> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-storefront' },
+  // La fachada de la tienda, una por elemento: cada tienda de la página tiene su catálogo, su ficha y su cuenta.
+  providers: [
+    ConfiguracionDeLaTienda,
+    AvisosDeLaTienda,
+    CatalogoDeLaTienda,
+    ResenasDeLaTienda,
+    DeseosDeLaTienda,
+    MensajesDeLaTienda,
+    { provide: TEXTOS_DE_LA_TIENDA, useValue: TEXTOS_DE_ESTA_TIENDA },
+  ],
 })
 export class StorefrontElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -424,19 +438,75 @@ export class StorefrontElementComponent implements OnInit {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<StorefrontBus>>(TransactionEventBusService);
   readonly #lecturas = inject(LecturasDeLaTienda);
-  readonly #catalogo = inject(CatalogoApi);
   readonly #cupon = inject(CuponApi);
   readonly #compra = inject(CompraApi);
   readonly #pedidos = inject(PedidosApi);
   readonly #devoluciones = inject(DevolucionesApi);
-  readonly #deseos = inject(DeseosApi);
-  readonly #mensajes = inject(MensajesApi);
-  readonly #resenas = inject(ResenasApi);
   readonly #escritorio = inject(EscritorioApi);
   readonly #identity = inject(HostIdentityService);
   readonly #announcer = inject(LiveAnnouncerService);
   /** El `<synergos-storefront>` de ESTA compra: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
   readonly #host: HTMLElement = inject(ElementRef<HTMLElement>).nativeElement;
+
+  // ─── La fachada (014-despiece-tienda, T008) ──────────────────────────────────
+  // El estado de la tienda vive en @synergos/dominio/tienda, uno por caso de uso y uno por elemento (`providers`). El
+  // elemento lo expone con los mismos nombres mientras sus vistas se separan (T010).
+  readonly #configuracion = inject(ConfiguracionDeLaTienda);
+  readonly #avisos = inject(AvisosDeLaTienda);
+  readonly #catalogo = inject(CatalogoDeLaTienda);
+  readonly #resenas = inject(ResenasDeLaTienda);
+  readonly #deseos = inject(DeseosDeLaTienda);
+  readonly #mensajes = inject(MensajesDeLaTienda);
+
+  readonly loading = this.#avisos.loading;
+  readonly errorMessage = this.#avisos.errorMessage;
+
+  readonly criteria = this.#catalogo.criteria;
+  readonly products = this.#catalogo.products;
+  readonly total = this.#catalogo.total;
+  readonly discoveryFacets = this.#catalogo.discoveryFacets;
+  readonly searched = this.#catalogo.searched;
+  readonly deals = this.#catalogo.deals;
+  readonly topRated = this.#catalogo.topRated;
+  readonly homeCategories = this.#catalogo.homeCategories;
+  readonly detail = this.#catalogo.detail;
+  readonly selectedVariantId = this.#catalogo.selectedVariantId;
+  readonly pdpQuantity = this.#catalogo.pdpQuantity;
+  readonly related = this.#catalogo.related;
+  readonly selectedVariant = this.#catalogo.selectedVariant;
+  readonly pdpInStock = this.#catalogo.pdpInStock;
+  readonly currency = this.#catalogo.currency;
+  readonly onCriteriaChange = (criteria: DiscoveryCriteria): void => this.#catalogo.onCriteriaChange(criteria);
+  private readonly runSearch = (): Promise<void> => this.#catalogo.runSearch();
+  readonly selectVariant = (variant: ProductVariant): void => this.#catalogo.selectVariant(variant);
+  readonly changeQuantity = (delta: number): void => this.#catalogo.changeQuantity(delta);
+  readonly retryProduct = (): void => this.#catalogo.retryProduct();
+  private readonly loadProduct = (id: string): Promise<void> => this.#catalogo.loadProduct(id);
+
+  readonly reviewSending = this.#resenas.reviewSending;
+  readonly reviewNotice = this.#resenas.reviewNotice;
+  readonly reviewFailed = this.#resenas.reviewFailed;
+  readonly canReview = this.#resenas.canReview;
+  readonly reviewSummary = this.#resenas.reviewSummary;
+  readonly reportedReviewIds = this.#resenas.reportedReviewIds;
+  readonly reportingReviewId = this.#resenas.reportingReviewId;
+  readonly canReportReview = this.#resenas.canReportReview;
+  readonly submitReview = (draft: ReviewDraft): Promise<void> =>
+    this.#resenas.submitReview(draft, () => this.reviewPanel()?.reset());
+  readonly reportReview = (reviewId: string): Promise<void> => this.#resenas.reportReview(reviewId);
+
+  readonly wishlist = this.#deseos.wishlist;
+  readonly wishlistLoaded = this.#deseos.wishlistLoaded;
+  readonly wishedIds = this.#deseos.wishedIds;
+  readonly isWished = (productId: string): boolean => this.#deseos.isWished(productId);
+  readonly toggleWishlist = (product: ShopProduct): void => this.#deseos.toggleWishlist(product);
+  readonly removeWishlistEntry = (entry: WishlistEntry): void => this.#deseos.removeWishlistEntry(entry);
+  private readonly loadWishlist = (): void => this.#deseos.loadWishlist();
+
+  readonly threads = this.#mensajes.threads;
+  readonly threadsLoaded = this.#mensajes.threadsLoaded;
+  readonly unreadCount = this.#mensajes.unreadCount;
+  private readonly loadThreads = (): void => this.#mensajes.loadThreads();
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<StorefrontConfig | undefined, unknown>(undefined, {
@@ -457,12 +527,6 @@ export class StorefrontElementComponent implements OnInit {
       '',
     ),
   );
-  /**
-   * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería
-   * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
-   * número solo).
-   */
-  readonly currency = computed(() => this.detail()?.product.currency || this.products()[0]?.currency || '');
   readonly scope = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.scopeInput()),
@@ -495,36 +559,10 @@ export class StorefrontElementComponent implements OnInit {
 
   // ─── Router (signals + hash deep-links) ─────────────────────────────────────
   readonly view = signal<StorefrontView>('home');
-  readonly loading = signal(false);
-  readonly errorMessage = signal('');
   readonly cartOpen = signal(false);
   #suppressedHash = '';
 
-  // ─── Search / PLP (SH-1 inputs) ─────────────────────────────────────────────
-  readonly criteria = signal<DiscoveryCriteria>(CLEAN_CRITERIA);
-  readonly products = signal<readonly ShopProduct[]>([]);
-  /**
-   * Total matches across all pages — feeds the shell's `[total]`, which is what turns
-   * `pageCount` into something other than 1 once the backend starts paginating.
-   */
-  readonly total = signal(0);
-  readonly discoveryFacets = signal<readonly DiscoveryFacet[]>([]);
-  readonly searched = signal(false);
   readonly homeTerm = signal('');
-
-  // ─── Home (derived rails) ────────────────────────────────────────────────────
-  readonly deals = computed(() => this.products().filter((product) => product.listAmount).slice(0, 4));
-  readonly topRated = computed(() =>
-    [...this.products()].sort((a, b) => b.rating - a.rating).slice(0, 4),
-  );
-  readonly homeCategories = computed(
-    () => this.discoveryFacets().find((facet) => facet.key === 'category')?.values ?? [],
-  );
-
-  // ─── PDP (SH-2 inputs) ──────────────────────────────────────────────────────
-  readonly detail = signal<ProductDetail | null>(null);
-  readonly selectedVariantId = signal('');
-  readonly pdpQuantity = signal(1);
 
   readonly pdpMedia = computed<readonly DetailMedia[]>(() => {
     const detail = this.detail();
@@ -566,20 +604,6 @@ export class StorefrontElementComponent implements OnInit {
     return specs;
   });
 
-  readonly related = computed(() => {
-    const current = this.detail()?.product.id;
-    return this.products().filter((product) => product.id !== current).slice(0, 4);
-  });
-
-  readonly selectedVariant = computed<ProductVariant | null>(() => {
-    const detail = this.detail();
-    if (!detail) {
-      return null;
-    }
-    const id = this.selectedVariantId();
-    return detail.variants.find((variant) => variant.variantId === id) ?? detail.variants[0] ?? null;
-  });
-
   readonly pdpPriceLabel = computed(() => {
     const detail = this.detail();
     if (!detail) {
@@ -588,33 +612,6 @@ export class StorefrontElementComponent implements OnInit {
     const variant = this.selectedVariant();
     const amount = variant ? variant.amount : detail.product.amount;
     return this.formatPrice(amount, detail.product.currency || this.currency());
-  });
-
-  readonly pdpInStock = computed(() => {
-    const variant = this.selectedVariant();
-    if (variant) {
-      return variant.inStock && variant.stock > 0;
-    }
-    return this.detail()?.product.inStock ?? false;
-  });
-
-  readonly reviewSummary = computed(() => {
-    const reviews = this.detail()?.reviews ?? [];
-    if (reviews.length === 0) {
-      return { average: 0, count: 0, distribution: [0, 0, 0, 0, 0] };
-    }
-    const distribution = [0, 0, 0, 0, 0];
-    let total = 0;
-    for (const review of reviews) {
-      const star = Math.min(5, Math.max(1, Math.round(review.rating)));
-      distribution[star - 1] += 1;
-      total += review.rating;
-    }
-    return {
-      average: Math.round((total / reviews.length) * 10) / 10,
-      count: reviews.length,
-      distribution: distribution.reverse(),
-    };
   });
 
   // ─── Cart (engine) ──────────────────────────────────────────────────────────
@@ -954,10 +951,6 @@ export class StorefrontElementComponent implements OnInit {
   readonly orders = signal<readonly ShopOrder[]>([]);
   readonly ordersLoaded = signal(false);
   readonly ordersLoading = signal(false);
-  readonly wishlist = signal<readonly WishlistEntry[]>([]);
-  readonly wishlistLoaded = signal(false);
-  readonly threads = signal<readonly MessageThread[]>([]);
-  readonly threadsLoaded = signal(false);
   readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
   /** Por qué «Mis compras» no tiene lista: sin sesión, o con la lectura caída (004-tienda-compra, etapa 3). */
   readonly estadoDeLasCompras = signal<LecturaDeCompras['estado']>('leidas');
@@ -978,9 +971,6 @@ export class StorefrontElementComponent implements OnInit {
   readonly returnDraft = signal<ReturnDraft | null>(null);
   readonly returnSending = signal(false);
   readonly returnError = signal('');
-
-  readonly wishedIds = computed(() => new Set(this.wishlist().map((entry) => entry.productId)));
-  readonly unreadCount = computed(() => this.threads().filter((thread) => thread.unread).length);
 
   readonly accountConfig = computed<AccountShellConfig>(() => ({
     heading: 'Mi cuenta',
@@ -1018,6 +1008,7 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   constructor() {
+    this.#configuracion.conectar({ apiBase: this.apiBase });
     // Bind the unified cart to this origin and rehydrate any live session.
     this.#store.init({
       scope: `storefront.${this.instanceId}`,
@@ -1423,56 +1414,6 @@ export class StorefrontElementComponent implements OnInit {
     void this.runSearch();
   }
 
-  // ─── Search / PLP (SH-1 wiring) ──────────────────────────────────────────────
-  onCriteriaChange(criteria: DiscoveryCriteria): void {
-    this.criteria.set(criteria);
-    void this.runSearch();
-  }
-
-  private async runSearch(): Promise<void> {
-    const active = this.criteria();
-    const sort =
-      SORT_OPTIONS.find((option) => option.key === active.sort)?.key ?? 'relevance';
-    const criteria: SearchCriteria = {
-      q: active.term,
-      category: '',
-      facets: active.facets,
-      sort,
-      page: active.page,
-    };
-    this.loading.set(true);
-    this.errorMessage.set('');
-    // Dedup concurrent identical searches via the orchestrator.
-    const requestId = `search:${JSON.stringify(criteria)}`;
-    try {
-      const result = await this.#orchestrator.callApi(requestId, () =>
-        this.#catalogo.search(this.apiBase(), criteria, this.currency()),
-      );
-      this.products.set(result.products);
-      this.total.set(result.total);
-      this.discoveryFacets.set(
-        result.facets.map((facet) => ({
-          key: facet.key,
-          label: facet.label,
-          // El kind VIAJA: es lo que hace que `minRating` se pinte como radio (un umbral es
-          // un piso, no una suma). Sin él, el shell cae a MultiSelect y vuelve el checkbox.
-          kind: facet.kind,
-          values: facet.values.map((value) => ({
-            value: value.value,
-            label: value.label,
-            count: value.count,
-          })),
-        })),
-      );
-      this.searched.set(true);
-    } catch (error) {
-      this.errorMessage.set('No pudimos cargar los productos. Intenta de nuevo.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
   productPriceLabel(product: ShopProduct): string {
     return this.formatPrice(product.amount, product.currency || this.currency());
   }
@@ -1516,60 +1457,6 @@ export class StorefrontElementComponent implements OnInit {
     this.navigate('plp');
   }
 
-  selectVariant(variant: ProductVariant): void {
-    this.selectedVariantId.set(variant.variantId);
-  }
-
-  changeQuantity(delta: number): void {
-    this.pdpQuantity.update((qty) => {
-      const max = this.selectedVariant()?.stock ?? 99;
-      return Math.min(Math.max(1, qty + delta), Math.max(1, max));
-    });
-  }
-
-  /** Último id de producto solicitado, para reintentar desde el error-state del PDP. */
-  #pendingProductId = '';
-
-  /** Reintenta cargar el PDP tras un error (lo invoca el (retry) de syn-error-state). */
-  retryProduct(): void {
-    if (this.#pendingProductId) {
-      void this.loadProduct(this.#pendingProductId);
-    }
-  }
-
-  private async loadProduct(id: string): Promise<void> {
-    this.#pendingProductId = id;
-    this.loading.set(true);
-    this.errorMessage.set('');
-    try {
-      const detail = await this.#orchestrator.callApi(`product:${id}`, () =>
-        this.#catalogo.product(this.apiBase(), id, this.currency()),
-      );
-      this.detail.set(detail);
-      const firstInStock =
-        detail.variants.find((variant) => variant.inStock) ?? detail.variants[0] ?? null;
-      this.selectedVariantId.set(firstInStock?.variantId ?? '');
-      this.pdpQuantity.set(1);
-    } catch (error) {
-      this.errorMessage.set('No pudimos abrir el producto. Intenta de nuevo.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  // ─── Reseñar (T10 Ola B) ─────────────────────────────────────────────────────
-  //
-  // El formulario solo existe si el SERVIDOR dice que este visitante puede reseñar
-  // (`detail.canReview`: autenticado + orden pagada de este producto). No se deduce aquí:
-  // deducirlo sería ofrecer un formulario que rebota con 403.
-
-  readonly reviewSending = signal(false);
-  /** Mensaje al comprador tras enviar. Vacío = no se ha enviado nada aún. */
-  readonly reviewNotice = signal('');
-  readonly reviewFailed = signal(false);
-
-  readonly canReview = computed(() => this.detail()?.canReview === true);
   /** Sin nota y sin texto no hay reseña que enviar. */
   // ─── SH-13 `syn-review-panel` (#28) ─────────────────────────────────────────
   //
@@ -1628,75 +1515,6 @@ export class StorefrontElementComponent implements OnInit {
       'Solo quien compró este producto puede opinar sobre él.',
     emptyMessage: 'Todavía no hay opiniones de este producto.',
   }));
-
-
-  /** La estrella elegida llega por el CustomEvent `ratingchange` de `synergos-rating-stars`. */
-
-
-
-  /**
-   * Publica la opinión. El borrador llega de SH-13 (#28); la regla de negocio no
-   * cambió ni una línea — sólo el sitio desde donde llega el texto.
-   */
-  async submitReview(draft: ReviewDraft): Promise<void> {
-    const product = this.detail()?.product;
-    if (!product || this.reviewSending()) {
-      return;
-    }
-
-    this.reviewSending.set(true);
-    this.reviewNotice.set('');
-    this.reviewFailed.set(false);
-
-    const result = await this.#resenas.submitReview(this.apiBase(), product.id, {
-      rating: draft.rating,
-      title: draft.title,
-      body: draft.body,
-    });
-
-    this.reviewSending.set(false);
-
-    if (result.ok) {
-      // La pieza NO se limpia sola al enviar, a propósito: sólo acá se sabe que el
-      // servidor aceptó. Borrar antes sería el defecto #26 con otro disfraz. Y se
-      // limpia en LOS DOS casos: encolada también es aceptada, y dejar el texto
-      // puesto invita a mandarlo otra vez.
-      this.reviewPanel()?.reset();
-
-      if (result.pending) {
-        // **Ni «publicada» ni recarga** (#31). Recargar traería una lista donde la
-        // reseña no está, o sea la prueba de que el acuse miente, en la misma
-        // pantalla y en el mismo segundo.
-        this.reviewNotice.set(
-          'Gracias. Tu opinión quedó en revisión y se publicará cuando la aprueben.',
-        );
-        return;
-      }
-
-      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
-      // Se recarga la ficha para que la nota y la lista salgan del SERVIDOR y no de una
-      // suposición del cliente: si el envío editó una reseña previa, el conteo NO sube.
-      await this.loadProduct(product.id);
-      return;
-    }
-
-    this.reviewFailed.set(true);
-    // Cada motivo dice la verdad. En particular el 403 NO ofrece volver a entrar: la sesión
-    // no es el problema, y sugerirlo manda al comprador a dar vueltas (ADR 0112).
-    switch (result.reason) {
-      case 'unauthenticated':
-        this.reviewNotice.set('Inicia sesión para dejar tu opinión.');
-        break;
-      case 'not-buyer':
-        this.reviewNotice.set('Solo quien compró este producto puede opinar sobre él.');
-        break;
-      case 'invalid':
-        this.reviewNotice.set('Revisa la calificación y el texto de tu opinión.');
-        break;
-      default:
-        this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
-    }
-  }
 
   // ═══ Consola del vendedor — SH-5 (#32) ═══════════════════════════════════════
   //
@@ -1982,47 +1800,6 @@ export class StorefrontElementComponent implements OnInit {
       : 'Sin publicar';
   }
 
-  // ─── Reportar una reseña (#31) ───────────────────────────────────────────────
-  //
-  // `Api.Moderation` lleva meses construida con un campo `Reporter` y CERO
-  // consumidores. Esto es el primero por el lado de quien lee.
-  readonly reportedReviewIds = signal<readonly string[]>([]);
-  readonly reportingReviewId = signal<string | null>(null);
-
-  /**
-   * **Quien no tiene sesión no reporta.** Un reporte anónimo no se puede atender
-   * —no hay a quién volver— ni deduplicar, así que ofrecer el botón sería ofrecer
-   * uno que va a rebotar con 401: el mismo criterio de `canReview` (ADR 0112).
-   */
-  readonly canReportReview = computed(() => this.isAuthenticated());
-
-  async reportReview(reviewId: string): Promise<void> {
-    if (this.reportingReviewId() !== null || this.reportedReviewIds().includes(reviewId)) {
-      return;
-    }
-    this.reportingReviewId.set(reviewId);
-    this.reviewFailed.set(false);
-
-    const result = await this.#resenas.reportReview(this.apiBase(), reviewId);
-    this.reportingReviewId.set(null);
-
-    // `already-reported` se trata como éxito a propósito: el servidor deduplica, así
-    // que «ya lo habíamos recibido» es exactamente lo que la persona necesita saber
-    // y decirle «falló» la haría reintentar algo que ya está hecho.
-    if (result.ok || result.reason === 'already-reported') {
-      this.reportedReviewIds.update((ids) => [...ids, reviewId]);
-      this.reviewNotice.set('Gracias por avisar. Vamos a revisarla.');
-      return;
-    }
-
-    this.reviewFailed.set(true);
-    this.reviewNotice.set(
-      result.reason === 'unauthenticated'
-        ? 'Inicia sesión para reportar una opinión.'
-        : 'No pudimos registrar el reporte. Intenta de nuevo.',
-    );
-  }
-
   // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
   //
   // En una tienda el eje es la FICHA TÉCNICA, no el precio: quien compara dos
@@ -2117,73 +1894,12 @@ export class StorefrontElementComponent implements OnInit {
     };
   }
 
-  // ─── Wishlist (favoritos) ────────────────────────────────────────────────────
-  isWished(productId: string): boolean {
-    return this.wishedIds().has(productId);
-  }
-
-  toggleWishlist(product: ShopProduct): void {
-    const entry: WishlistEntry = {
-      productId: product.id,
-      title: product.title,
-      amount: product.amount,
-      currency: product.currency || this.currency(),
-      image: product.images[0],
-    };
-    const action = this.isWished(product.id) ? 'remove' : 'add';
-    const before = this.wishlist().find((line) => line.productId === product.id) ?? null;
-    // Optimistic update; the server's list reconciles after — or the failure reverts it.
-    this.wishlist.update((list) => {
-      const without = list.filter((line) => line.productId !== product.id);
-      return action === 'add' ? [...without, entry] : without;
-    });
-    this.wishlistLoaded.set(true);
-    this.errorMessage.set('');
-    void this.#deseos
-      .wishlistMutate(this.apiBase(), entry, action)
-      .then((list) => this.wishlist.set(list))
-      .catch(() => this.revertWish(product.id, before));
-  }
-
-  removeWishlistEntry(entry: WishlistEntry): void {
-    const before = this.wishlist().find((line) => line.productId === entry.productId) ?? null;
-    this.wishlist.update((list) => list.filter((line) => line.productId !== entry.productId));
-    this.errorMessage.set('');
-    void this.#deseos
-      .wishlistMutate(this.apiBase(), entry, 'remove')
-      .then((list) => this.wishlist.set(list))
-      .catch(() => this.revertWish(entry.productId, before));
-  }
-
-  /**
-   * El servidor no guardó el cambio (UI#92): ESE producto vuelve a como estaba —sin tocar
-   * los demás, que pudieron cambiar entretanto— y se dice. Antes el cliente devolvía su
-   * «lista local» como si fuera la guardada, y el favorito desaparecía al volver otro día.
-   */
-  private revertWish(productId: string, before: WishlistEntry | null): void {
-    this.wishlist.update((list) => {
-      const without = list.filter((line) => line.productId !== productId);
-      return before ? [...without, before] : without;
-    });
-    this.errorMessage.set('No pudimos guardar el cambio en tus favoritos. Intenta de nuevo.');
-  }
-
   openWishlistEntry(entry: WishlistEntry): void {
     this.navigate('pdp', entry.productId);
   }
 
   wishlistPriceLabel(entry: WishlistEntry): string {
     return this.formatPrice(entry.amount, entry.currency || this.currency());
-  }
-
-  private loadWishlist(): void {
-    if (this.wishlistLoaded()) {
-      return;
-    }
-    void this.#deseos.wishlist(this.apiBase(), this.currency()).then((list) => {
-      this.wishlist.set(list);
-      this.wishlistLoaded.set(true);
-    });
   }
 
   // ─── Cart (engine wiring) ────────────────────────────────────────────────────
@@ -2624,16 +2340,6 @@ export class StorefrontElementComponent implements OnInit {
   /** El reintento de «Mis compras» con la lectura caída (el botón del estado de error). */
   reintentarCompras(): void {
     void this.loadOrders();
-  }
-
-  private loadThreads(): void {
-    if (this.threadsLoaded()) {
-      return;
-    }
-    void this.#mensajes.messages(this.apiBase()).then((threads) => {
-      this.threads.set(threads);
-      this.threadsLoaded.set(true);
-    });
   }
 
   orderTotalLabel(order: ShopOrder): string {

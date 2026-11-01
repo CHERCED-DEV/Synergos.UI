@@ -32,6 +32,16 @@ export { MensajesApi } from './lib/mensajes/mensajes-api.client';
 export { ResenasApi } from './lib/resenas/resenas-api.client';
 export { EscritorioApi } from './lib/vendedor/escritorio-api.client';
 
+// La fachada: el estado de la tienda por caso de uso (T008). Se provee por elemento —cada tienda de la página tiene el
+// suyo— y la app le da sus textos (`TEXTOS_DE_LA_TIENDA`); los adaptadores, en cambio, son de la app entera.
+export { ConfiguracionDeLaTienda, type FuentesDeLaTienda } from './lib/comun/configuracion';
+export { AvisosDeLaTienda } from './lib/comun/avisos';
+export { TEXTOS_DE_LA_TIENDA, type TextosDeLaTienda } from './lib/comun/textos';
+export { CRITERIOS_LIMPIOS, CatalogoDeLaTienda, type CriteriosDelCatalogo } from './lib/catalogo/catalogo';
+export { ResenasDeLaTienda } from './lib/resenas/resenas';
+export { DeseosDeLaTienda } from './lib/deseos/deseos';
+export { MensajesDeLaTienda } from './lib/mensajes/mensajes';
+
 // La compra: la estrategia que el motor de transacciones usa para la tienda, y la compra por la puerta.
 export * from './lib/compra/shop-fulfillment.strategy';
 export * from './lib/compra/tienda-compra';
