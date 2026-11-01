@@ -13,10 +13,11 @@ import {
   type SessionItem,
 } from '@synergos/transaction-engine';
 import type { BffTienda } from '@synergos/contracts';
-import { ShopApiClient } from './shop-api.client';
+import { CatalogoApi } from '../catalogo/catalogo-api.client';
+import { CompraApi } from './compra-api.client';
+import { STOREFRONT_FLOW, STOREFRONT_KIND } from '../carrito/carrito.model';
+import type { SearchCriteria, ShopProduct } from '../catalogo/catalogo.model';
 import {
-  STOREFRONT_FLOW,
-  STOREFRONT_KIND,
   caminoDeLaCompra,
   type CaminoDeCompra,
   type CheckoutLine,
@@ -24,10 +25,8 @@ import {
   type CheckoutResult,
   type OrdenDeLaPuerta,
   type OrderConfirmation,
-  type SearchCriteria,
   type ShopCustomer,
-  type ShopProduct,
-} from '@synergos/dominio/tienda';
+} from './compra.model';
 import {
   abrirCompraDeTienda,
   cerrarCompraDeTienda,
@@ -108,7 +107,8 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
   readonly id = STOREFRONT_FLOW;
   protected readonly flow = STOREFRONT_FLOW;
 
-  readonly #api = inject(ShopApiClient);
+  readonly #catalogo = inject(CatalogoApi);
+  readonly #compra = inject(CompraApi);
   readonly #store = inject(SessionStore);
 
   /** Step 1 — faceted catalogue search. */
@@ -122,7 +122,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
       sort: 'relevance',
       page: 1,
     };
-    const result = await this.#api.search(apiBase, searchCriteria, query.currency ?? '');
+    const result = await this.#catalogo.search(apiBase, searchCriteria, query.currency ?? '');
     // The storefront needs the facets too; carry them on the first product's meta is
     // wrong — instead we expose facets via a sentinel product. Keep it simple: the
     // shell reads facets from the client directly. Here we only map products.
@@ -234,7 +234,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
     if (compra.estado !== 'Completed') {
       // Para «Mis compras»: la compra en curso queda como orden pendiente del miembro. Si no llega, la
       // orden se anota pagada al leerla tras cerrar; no se frena la compra por esto.
-      await this.#api.anotarCompra(apiBase, compra.id);
+      await this.#compra.anotarCompra(apiBase, compra.id);
     }
     return { accepted: true, reference: compra.id };
   }
@@ -288,7 +288,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
 
     // Leer la orden es lo que la pasa a pagada en el CMS («Mis compras», seguimiento, ventas). Sin ella la
     // compra igual quedó cobrada y despachada: se confirma con lo que dijo el orquestador.
-    const orden = await this.#api.compraDeLaPuerta(datos.apiBase ?? apiBaseOf(session), id);
+    const orden = await this.#compra.compraDeLaPuerta(datos.apiBase ?? apiBaseOf(session), id);
     return aLaConfirmacion(compra, orden.ok ? orden.valor : null, session);
   }
 
@@ -312,7 +312,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
 
     let checkout: CheckoutResult;
     try {
-      checkout = await this.#api.checkout(apiBase, lines, customer, currency);
+      checkout = await this.#compra.checkout(apiBase, lines, customer, currency);
     } catch (error) {
       void error;
       return { accepted: false, reason: 'checkout-not-opened' };
@@ -334,7 +334,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
     let confirmation: OrderConfirmation;
     try {
-      confirmation = await this.#api.confirm(apiBaseOf(session), orderRef);
+      confirmation = await this.#compra.confirm(apiBaseOf(session), orderRef);
     } catch (error) {
       void error;
       return { confirmed: false, reason: 'order-not-placed', vouchers: [] };
@@ -363,7 +363,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
    * por AUSENCIA: no se sabe de ninguna, y se abre como siempre.
    */
   private async hayComprasSinResolver(apiBase: string, session: SessionData): Promise<boolean> {
-    const pendientes = await this.#api.comprasPendientes(apiBase);
+    const pendientes = await this.#compra.comprasPendientes(apiBase);
     const propia = raizDeLaSaga(compraDeLaSesion(session));
     return pendientes.ok && pendientes.valor.some((c) => raizDeLaSaga(c.id) !== propia);
   }

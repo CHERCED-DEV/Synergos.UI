@@ -93,7 +93,6 @@ import {
   SynStatusBannerComponent,
 } from '@synergos/shared';
 import type { StorefrontProps } from '@synergos/contracts';
-import { ShopApiClient } from './shop-api.client';
 import { diaDeLaTienda, momentoDeLaTienda } from './fechas-de-la-tienda';
 import {
   CODIGO_COBRO_DEVUELTO,
@@ -109,16 +108,22 @@ import {
   llaveRetenida,
   sinCompraPendiente,
   type ShopSelectionPayload,
-} from './shop-fulfillment.strategy';
-import {
   FLUJO_DE_LA_COMPRA,
   abrirCompraDeTienda,
   cancelarCompraDeTienda,
   cotizarCompraDeTienda,
   cuerpoDeLaCompra,
   direccionDeEnvio,
-} from './tienda-compra';
-import {
+  CatalogoApi,
+  CompraApi,
+  CuponApi,
+  DeseosApi,
+  DevolucionesApi,
+  EscritorioApi,
+  LecturasDeLaTienda,
+  MensajesApi,
+  PedidosApi,
+  ResenasApi,
   STOREFRONT_FLOW,
   caminoDeLaCompra,
   type CaminoDeCompra,
@@ -418,7 +423,16 @@ export class StorefrontElementComponent implements OnInit {
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<StorefrontBus>>(TransactionEventBusService);
-  readonly #api = inject(ShopApiClient);
+  readonly #lecturas = inject(LecturasDeLaTienda);
+  readonly #catalogo = inject(CatalogoApi);
+  readonly #cupon = inject(CuponApi);
+  readonly #compra = inject(CompraApi);
+  readonly #pedidos = inject(PedidosApi);
+  readonly #devoluciones = inject(DevolucionesApi);
+  readonly #deseos = inject(DeseosApi);
+  readonly #mensajes = inject(MensajesApi);
+  readonly #resenas = inject(ResenasApi);
+  readonly #escritorio = inject(EscritorioApi);
   readonly #identity = inject(HostIdentityService);
   readonly #announcer = inject(LiveAnnouncerService);
   /** El `<synergos-storefront>` de ESTA compra: desde él se encuentra, por ancestro, su `<synergos-flujo>`. */
@@ -625,7 +639,7 @@ export class StorefrontElementComponent implements OnInit {
     void this.detail();
     void this.orders();
     void this.wishlist();
-    return this.#api.degraded;
+    return this.#lecturas.degraded;
   });
 
   /** Carrito agrupado por vendedor (marketplace multi-seller). */
@@ -1086,7 +1100,7 @@ export class StorefrontElementComponent implements OnInit {
       this.avisoDelEnlace.set(t('Storefront.Purchase.LinkSignIn', 'Inicia sesión para ver tu compra.'));
       return;
     }
-    const r = await this.#api.compraDeLaPuerta(this.apiBase(), id);
+    const r = await this.#compra.compraDeLaPuerta(this.apiBase(), id);
     if (!r.ok) {
       const clase = claseDelMotivo(r.rechazo.code);
       this.enlacePideSesion.set(clase === 'sesion');
@@ -1220,7 +1234,7 @@ export class StorefrontElementComponent implements OnInit {
       this.sesionRequerida.set(true);
       return false;
     }
-    const orden = await this.#api.compraDeLaPuerta(this.apiBase(), id);
+    const orden = await this.#compra.compraDeLaPuerta(this.apiBase(), id);
     if (orden.ok && orden.valor.status.toLowerCase() === 'paid') {
       this.#store.setStatus('confirmed');
       this.avisoDePendiente.set(false);
@@ -1236,7 +1250,7 @@ export class StorefrontElementComponent implements OnInit {
 
   /** Las compras sin resolver que conoce el servidor (otro dispositivo, datos del sitio borrados), sin la de esta sesión. */
   async cargarComprasSinResolver(): Promise<void> {
-    const r = await this.#api.comprasPendientes(this.apiBase());
+    const r = await this.#compra.comprasPendientes(this.apiBase());
     const propia = compraDeLaSesion(this.#store.getValidSession())?.split('#')[0] ?? null;
     this.comprasSinResolver.set(r.ok ? r.valor.filter((c) => c.id.split('#')[0] !== propia) : []);
   }
@@ -1432,7 +1446,7 @@ export class StorefrontElementComponent implements OnInit {
     const requestId = `search:${JSON.stringify(criteria)}`;
     try {
       const result = await this.#orchestrator.callApi(requestId, () =>
-        this.#api.search(this.apiBase(), criteria, this.currency()),
+        this.#catalogo.search(this.apiBase(), criteria, this.currency()),
       );
       this.products.set(result.products);
       this.total.set(result.total);
@@ -1529,7 +1543,7 @@ export class StorefrontElementComponent implements OnInit {
     this.errorMessage.set('');
     try {
       const detail = await this.#orchestrator.callApi(`product:${id}`, () =>
-        this.#api.product(this.apiBase(), id, this.currency()),
+        this.#catalogo.product(this.apiBase(), id, this.currency()),
       );
       this.detail.set(detail);
       const firstInStock =
@@ -1634,7 +1648,7 @@ export class StorefrontElementComponent implements OnInit {
     this.reviewNotice.set('');
     this.reviewFailed.set(false);
 
-    const result = await this.#api.submitReview(this.apiBase(), product.id, {
+    const result = await this.#resenas.submitReview(this.apiBase(), product.id, {
       rating: draft.rating,
       title: draft.title,
       body: draft.body,
@@ -1720,7 +1734,7 @@ export class StorefrontElementComponent implements OnInit {
     if (this.deskLoaded()) {
       return;
     }
-    this.desk.set(await this.#api.sellerDesk(this.apiBase()));
+    this.desk.set(await this.#escritorio.sellerDesk(this.apiBase()));
     this.deskLoaded.set(true);
   }
 
@@ -1905,7 +1919,7 @@ export class StorefrontElementComponent implements OnInit {
     this.deskFailed.set(false);
     this.deskNotice.set('');
 
-    const result = await this.#api.advanceReturn(this.apiBase(), claimId, status);
+    const result = await this.#devoluciones.advanceReturn(this.apiBase(), claimId, status);
     this.deskBusyId.set(null);
 
     if (result.ok) {
@@ -1934,7 +1948,7 @@ export class StorefrontElementComponent implements OnInit {
     this.deskFailed.set(false);
     this.deskNotice.set('');
 
-    const result = await this.#api.decideShopModeration(this.apiBase(), reviewId, decision);
+    const result = await this.#escritorio.decideShopModeration(this.apiBase(), reviewId, decision);
     this.deskBusyId.set(null);
 
     // `already-decided` sale de la cola igual: otra persona la atendió.
@@ -1989,7 +2003,7 @@ export class StorefrontElementComponent implements OnInit {
     this.reportingReviewId.set(reviewId);
     this.reviewFailed.set(false);
 
-    const result = await this.#api.reportReview(this.apiBase(), reviewId);
+    const result = await this.#resenas.reportReview(this.apiBase(), reviewId);
     this.reportingReviewId.set(null);
 
     // `already-reported` se trata como éxito a propósito: el servidor deduplica, así
@@ -2125,7 +2139,7 @@ export class StorefrontElementComponent implements OnInit {
     });
     this.wishlistLoaded.set(true);
     this.errorMessage.set('');
-    void this.#api
+    void this.#deseos
       .wishlistMutate(this.apiBase(), entry, action)
       .then((list) => this.wishlist.set(list))
       .catch(() => this.revertWish(product.id, before));
@@ -2135,7 +2149,7 @@ export class StorefrontElementComponent implements OnInit {
     const before = this.wishlist().find((line) => line.productId === entry.productId) ?? null;
     this.wishlist.update((list) => list.filter((line) => line.productId !== entry.productId));
     this.errorMessage.set('');
-    void this.#api
+    void this.#deseos
       .wishlistMutate(this.apiBase(), entry, 'remove')
       .then((list) => this.wishlist.set(list))
       .catch(() => this.revertWish(entry.productId, before));
@@ -2166,7 +2180,7 @@ export class StorefrontElementComponent implements OnInit {
     if (this.wishlistLoaded()) {
       return;
     }
-    void this.#api.wishlist(this.apiBase(), this.currency()).then((list) => {
+    void this.#deseos.wishlist(this.apiBase(), this.currency()).then((list) => {
       this.wishlist.set(list);
       this.wishlistLoaded.set(true);
     });
@@ -2358,7 +2372,7 @@ export class StorefrontElementComponent implements OnInit {
     if (this.trackingByRef()[order.orderNumber]) {
       return;
     }
-    void this.#api
+    void this.#pedidos
       .tracking(this.apiBase(), order.orderRef, order.status)
       .then((tracking) => {
         if (tracking === null) {
@@ -2516,7 +2530,7 @@ export class StorefrontElementComponent implements OnInit {
     this.returnSending.set(true);
     this.returnError.set('');
 
-    const result = await this.#api.requestReturn(
+    const result = await this.#devoluciones.requestReturn(
       this.apiBase(),
       draft.apiRef,
       lineRefOf(draft.line),
@@ -2560,7 +2574,7 @@ export class StorefrontElementComponent implements OnInit {
     this.ordersLoading.set(true);
     try {
       const customer = this.customerEmail().trim();
-      const lectura = await this.#api.orders(this.apiBase(), customer, this.currency());
+      const lectura = await this.#pedidos.orders(this.apiBase(), customer, this.currency());
       this.estadoDeLasCompras.set(lectura.estado);
       if (lectura.estado !== 'leidas') {
         // Sin lista no hay pedidos que pintar: ni los de ejemplo ni los de una lectura anterior (etapa 3).
@@ -2591,7 +2605,7 @@ export class StorefrontElementComponent implements OnInit {
     const resultados = await Promise.all(
       orders.map(async (order) => ({
         ref: order.orderNumber,
-        claims: await this.#api.orderReturns(this.apiBase(), order.orderRef),
+        claims: await this.#devoluciones.orderReturns(this.apiBase(), order.orderRef),
       })),
     );
     const mapa: Record<string, readonly ReturnCase[]> = { ...this.returnsByRef() };
@@ -2616,7 +2630,7 @@ export class StorefrontElementComponent implements OnInit {
     if (this.threadsLoaded()) {
       return;
     }
-    void this.#api.messages(this.apiBase()).then((threads) => {
+    void this.#mensajes.messages(this.apiBase()).then((threads) => {
       this.threads.set(threads);
       this.threadsLoaded.set(true);
     });
@@ -2751,7 +2765,7 @@ export class StorefrontElementComponent implements OnInit {
     const subtotal = this.#store
       .items()
       .reduce((sum, item) => sum + item.amount * item.quantity, 0);
-    const result = await this.#api.applyPromo(this.apiBase(), code, subtotal);
+    const result = await this.#cupon.applyPromo(this.apiBase(), code, subtotal);
 
     this.promoBusy.set(false);
 

@@ -9,7 +9,8 @@ import {
   type RechazoDelFlujo,
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
-import { ShopApiClient } from './shop-api.client';
+import { CatalogoApi } from '../catalogo/catalogo-api.client';
+import { CompraApi } from './compra-api.client';
 import {
   CODIGO_COBRO_DEVUELTO,
   CODIGO_COMPRA_SIN_RESOLVER,
@@ -19,7 +20,7 @@ import {
   llaveDeLaIntencion,
   llaveRetenida,
 } from './shop-fulfillment.strategy';
-import type { CompraPendienteDelServidor, OrdenDeLaPuerta } from '@synergos/dominio/tienda';
+import type { CompraPendienteDelServidor, OrdenDeLaPuerta } from './compra.model';
 
 /**
  * La estrategia de la tienda por los dos caminos (004-tienda-compra, T020, T024, T027): lo que viaja a la
@@ -137,7 +138,7 @@ describe('ShopFulfillmentStrategy: la compra por los dos caminos', () => {
   beforeEach(() => {
     localStorage.clear();
     api = new ApiFalsa();
-    TestBed.configureTestingModule({ providers: [ShopFulfillmentStrategy, { provide: ShopApiClient, useValue: api }] });
+    TestBed.configureTestingModule({ providers: [ShopFulfillmentStrategy, { provide: CatalogoApi, useValue: api }, { provide: CompraApi, useValue: api }] });
     estrategia = TestBed.inject(ShopFulfillmentStrategy);
     store = TestBed.inject(SessionStore);
     store.init({ scope: `storefront.spec.${Math.random()}`, flow: 'storefront', ttlMs: 30 * 60 * 1000 });

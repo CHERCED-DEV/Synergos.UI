@@ -75,6 +75,20 @@ for (const plataforma of PLATAFORMAS) {
   }
 }
 
+// Y los de las libs de dominio (014-despiece-tienda): una vertical tiene ahí sus adaptadores, uno por capacidad. En el
+// censo llevan el dominio delante —`tienda.cupon :: promo`—, porque «cupon» solo no dice de qué tienda es.
+for (const plataforma of PLATAFORMAS) {
+  const dominios = join(RAIZ_UI, plataforma.dominios);
+  if (!existsSync(dominios)) continue;
+  for (const dominio of readdirSync(dominios, { withFileTypes: true }).filter((d) => d.isDirectory())) {
+    for (const f of ficheros(join(dominios, dominio.name))) {
+      if (!f.endsWith(SUFIJO_CLIENTE)) continue;
+      const capacidad = f.slice(0, -SUFIJO_CLIENTE.length).split(/[\\/]/).pop();
+      clientes.push({ vertical: `${dominio.name}.${capacidad}`, rutas: rutasQuePide(desnuda(readFileSync(f, 'utf8'))) });
+    }
+  }
+}
+
 // ── lo que el borde declara ─────────────────────────────────────────────────
 const declaradas = [];
 const bases = [];

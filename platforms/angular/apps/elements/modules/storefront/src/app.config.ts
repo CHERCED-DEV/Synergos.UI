@@ -1,7 +1,6 @@
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
-import { ShopApiClient } from './storefront/shop-api.client';
-import { ShopFulfillmentStrategy } from './storefront/shop-fulfillment.strategy';
+import { ShopFulfillmentStrategy } from '@synergos/dominio/tienda';
 
 /**
  * Island bootstrap config for <c>&lt;synergos-storefront&gt;</c>.
@@ -15,8 +14,6 @@ import { ShopFulfillmentStrategy } from './storefront/shop-fulfillment.strategy'
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
-    // Single shared instance: the strategy and the shell read the same `degraded` flag.
-    ShopApiClient,
     { provide: FULFILLMENT_STRATEGIES, useClass: ShopFulfillmentStrategy, multi: true },
   ],
 };

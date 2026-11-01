@@ -50,10 +50,11 @@ export const SIN_BORDE = {
   'seller :: seller/product':
     'Escritura. Ya NO fabrica (#77): sin borde devuelve `null`, el borrador sobrevive y no se ' +
     'emite `productpublished`. Publicar no funciona hasta que el CMS declare la ruta.',
-  'shop :: moderation/{}/{}': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
-  'shop :: promo': 'Validación de un código promocional; sin borde no aplica descuento.',
-  'shop :: reviews/{}/reports': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
-  'shop :: seller/desk': 'Lectura del escritorio del vendedor; degrada a mock con cartel.',
+  // Los de la tienda llevan su capacidad (014-despiece-tienda, T009): eran `shop :: …` cuando todo vivía en un cliente.
+  'tienda.cupon :: promo': 'Validación de un código promocional; sin borde no aplica descuento.',
+  'tienda.escritorio :: moderation/{}/{}': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
+  'tienda.escritorio :: seller/desk': 'Lectura del escritorio del vendedor; degrada a mock con cartel.',
+  'tienda.resenas :: reviews/{}/reports': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
   'travel :: reviews/{}/reports': 'Escritura HONESTA: devuelve `{ ok: false, reason }`.',
   'travel :: search/{}{}': 'Búsqueda por destino; degrada a mock con cartel.',
   'travel :: stays/{}/reviews': 'Lectura de reseñas de un alojamiento; degrada a mock.',

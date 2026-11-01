@@ -18,3 +18,20 @@ export * from './lib/deseos/deseos.model';
 export * from './lib/mensajes/mensajes.model';
 export * from './lib/resenas/resenas.model';
 export * from './lib/vendedor/escritorio.model';
+
+// Los adaptadores, uno por capacidad (T009): cada uno habla con su parte del borde del CMS. La fontanería común
+// (llamar sólo con la base de la API, pedir JSON, leer sin confiar en la forma) vive en @synergos/core.
+export { LecturasDeLaTienda, ShopWriteFailedError } from './lib/comun/lecturas';
+export { CatalogoApi } from './lib/catalogo/catalogo-api.client';
+export { CuponApi } from './lib/carrito/cupon-api.client';
+export { CompraApi } from './lib/compra/compra-api.client';
+export { MUESTRAS_DE_LA_CUENTA, PedidosApi } from './lib/pedidos/pedidos-api.client';
+export { DevolucionesApi } from './lib/devoluciones/devoluciones-api.client';
+export { DeseosApi } from './lib/deseos/deseos-api.client';
+export { MensajesApi } from './lib/mensajes/mensajes-api.client';
+export { ResenasApi } from './lib/resenas/resenas-api.client';
+export { EscritorioApi } from './lib/vendedor/escritorio-api.client';
+
+// La compra: la estrategia que el motor de transacciones usa para la tienda, y la compra por la puerta.
+export * from './lib/compra/shop-fulfillment.strategy';
+export * from './lib/compra/tienda-compra';

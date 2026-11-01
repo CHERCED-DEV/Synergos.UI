@@ -11,8 +11,7 @@ import {
   type ResultadoDelFlujo,
 } from '@synergos/vitals-core';
 import { asentar } from '../../../../../../tools/asentar';
-import { ShopApiClient } from './shop-api.client';
-import { ShopFulfillmentStrategy, llaveRetenida } from './shop-fulfillment.strategy';
+import { ShopFulfillmentStrategy, llaveRetenida } from '@synergos/dominio/tienda';
 import { StorefrontElementComponent } from './storefront';
 import type { ShopProduct } from '@synergos/dominio/tienda';
 
@@ -113,7 +112,6 @@ describe('StorefrontElementComponent por la puerta (004-tienda-compra)', () => {
       imports: [StorefrontElementComponent],
       providers: [
         provideZonelessChangeDetection(),
-        ShopApiClient,
         { provide: FULFILLMENT_STRATEGIES, useClass: ShopFulfillmentStrategy, multi: true },
         {
           provide: HostIdentityService,
