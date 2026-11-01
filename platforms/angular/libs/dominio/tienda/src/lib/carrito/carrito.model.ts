@@ -49,3 +49,15 @@ export type ShopPromoResult =
         | 'failed';
       readonly shortfallMinor?: number;
     };
+
+/**
+ * Por qué no se aplicó un cupón: lo que dijo el servidor por la ruta directa, o, por la puerta, que se probaron
+ * demasiados códigos que no sirven.
+ */
+export type MotivoDelCupon = Extract<ShopPromoResult, { readonly ok: false }>['reason'] | 'too-many-attempts';
+
+/** Typed event map for the transaction bus (storefront ↔ cart ↔ checkout ↔ IA). */
+export interface BusDeLaTienda extends Record<string, unknown> {
+  readonly cartUpdated: { readonly count: number; readonly total: number };
+  readonly orderconfirmed: { readonly orderRef: string; readonly orderNumber: string };
+}

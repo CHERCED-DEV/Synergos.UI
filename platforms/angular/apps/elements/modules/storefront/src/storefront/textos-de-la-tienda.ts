@@ -55,4 +55,8 @@ export const TEXTOS_DE_ESTA_TIENDA: TextosDeLaTienda = {
   opinionYaAtendida: 'Otra persona ya la había atendido.',
   opinionAjena: 'No puedes moderar las opiniones de este producto.',
   opinionNoGuardada: 'No pudimos guardar la decisión. La opinión sigue como estaba.',
+  varianteEstandar: 'Estándar',
+  agregadoAlCarrito: (titulo) => `${titulo} agregado al carrito.`,
+  noSeAgregoAlCarrito: (titulo) => `No se pudo agregar ${titulo} al carrito.`,
+  faltaParaElCupon: (importe) => `Te faltan ${importe}.`,
 };

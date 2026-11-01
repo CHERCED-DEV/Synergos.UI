@@ -1,4 +1,5 @@
 import { Injectable, computed, signal, type Signal } from '@angular/core';
+import { caminoDeLaCompra, type CaminoDeCompra } from '../compra/compra.model';
 
 /** Lo que el elemento lee del bloque del CMS y la fachada necesita. */
 export interface FuentesDeLaTienda {
@@ -6,6 +7,8 @@ export interface FuentesDeLaTienda {
   readonly apiBase: Signal<string>;
   /** La zona horaria del sitio, en la que se leen las fechas de «Mis compras». */
   readonly zonaHoraria: Signal<string>;
+  /** Por dónde compra la tienda, tal como lo declara el CMS (`purchasePath`); sin declarar, la ruta directa. */
+  readonly purchasePath: Signal<string | undefined>;
 }
 
 /**
@@ -19,6 +22,13 @@ export class ConfiguracionDeLaTienda {
 
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
   readonly zonaHoraria = computed(() => this.#fuentes()?.zonaHoraria() ?? '');
+  readonly purchasePath = computed(() => this.#fuentes()?.purchasePath());
+
+  /**
+   * El camino de la compra que declara el CMS en `purchasePath` (ADR 0140): la puerta o la ruta directa, la de
+   * siempre. Sin declaración, la directa.
+   */
+  readonly caminoDeCompra = computed<CaminoDeCompra>(() => caminoDeLaCompra(this.purchasePath()));
 
   conectar(fuentes: FuentesDeLaTienda): void {
     this.#fuentes.set(fuentes);

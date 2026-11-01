@@ -65,7 +65,6 @@ import {
   type DetailMedia,
   type DetailSpec,
   type DiscoveryCriteria,
-  type DiscoveryFacet,
   type TrackingStage,
 } from '@synergos/shells';
 import {
@@ -86,7 +85,6 @@ import {
   PromoCodeComponent,
   type AppliedPromo,
   type PromoCodeConfig,
-  type PromoRejection,
   type StatusTagTone,
   SynSkeletonComponent,
   SynErrorStateComponent,
@@ -99,19 +97,13 @@ import {
   CODIGO_COMPRA_SIN_RESOLVER,
   CODIGO_DEMASIADOS_CODIGOS,
   CODIGO_SIN_SABER,
-  PREFIJO_DEL_CUPON,
-  caminoDeLaCompraEnCurso,
-  caminoDeLaPendiente,
   compraDeLaSesion,
-  compraPendiente,
   cuponDeLaSesion,
   llaveRetenida,
   sinCompraPendiente,
-  type ShopSelectionPayload,
   FLUJO_DE_LA_COMPRA,
   abrirCompraDeTienda,
   cancelarCompraDeTienda,
-  cotizarCompraDeTienda,
   cuerpoDeLaCompra,
   direccionDeEnvio,
   AvisosDeLaTienda,
@@ -122,48 +114,36 @@ import {
   ResenasDeLaTienda,
   TEXTOS_DE_LA_TIENDA,
   CompraApi,
-  CuponApi,
+  CarritoDeLaTienda,
+  type BusDeLaTienda,
   DevolucionesDeLaTienda,
   EscritorioDeLaTienda,
   LecturasDeLaTienda,
   PedidosDeLaTienda,
   diaDeLaTienda,
   STOREFRONT_FLOW,
-  caminoDeLaCompra,
-  type CaminoDeCompra,
   type CompraPendienteDelServidor,
-  type LecturaDeCompras,
-  type MessageThread,
   type ProductCondition,
-  type ProductDetail,
   type ProductVariant,
   type OrderLine,
   type ReturnAdvance,
   type ReturnCase,
   type ReturnReason,
-  type ReturnStatus,
-  type SellerDeskResult,
   type SellerOrder,
   type ShopModerationItem,
-  type SearchCriteria,
   type ShopCustomer,
   type ShopOrder,
   type ShopProduct,
-  type ShopPromo,
   type SortKey,
   type WishlistEntry,
   MOTIVOS_DE_DEVOLUCION,
   etiquetaDelMotivo,
-  varianteSintetica,
 } from '@synergos/dominio/tienda';
 import type { AccountSectionId, SellerView, ShopRole, StorefrontView } from './vistas';
 import {
   AVISOS_GENERADOS,
-  aMenores,
   baseDeRuta,
   clasificarRechazo,
-  desdeMenores,
-  formatearImporte,
   mismaRuta,
   segmentosDeRuta,
   t,
@@ -181,12 +161,6 @@ import {
  * `ShopFulfillmentStrategy` — the shells stay domain-free (contrato D3).
  */
 export type StorefrontConfig = Partial<StorefrontProps>;
-
-/** Typed event map for the transaction bus (storefront ↔ cart ↔ checkout ↔ IA). */
-interface StorefrontBus extends Record<string, unknown> {
-  readonly cartUpdated: { readonly count: number; readonly total: number };
-  readonly orderconfirmed: { readonly orderRef: string; readonly orderNumber: string };
-}
 
 /** One seller group of cart lines (carrito agrupado por vendedor). */
 interface CartSellerGroup {
@@ -221,21 +195,6 @@ const SELLER_SECTIONS: readonly SellerView[] = ['orders', 'returns', 'reviews', 
 const RETURN_BLOCK_LABELS: Readonly<Record<string, string>> = {
   'already-open': 'Ya hay un reclamo abierto para este producto.',
 };
-
-/**
- * La variante de un producto que no trae ninguna: él mismo, «Estándar». La usan el agregado rápido del catálogo y la
- * ficha (004-tienda-compra, etapa 3): los productos del CMS llegan con `variants: []`, y la ficha no agregaba nada.
- */
-function varianteEstandar(product: ShopProduct): ProductVariant {
-  return {
-    variantId: varianteSintetica(product.id),
-    label: 'Estándar',
-    attributes: {},
-    amount: product.amount,
-    inStock: true,
-    stock: 99,
-  };
-}
 
 /**
  * El rótulo de la condición, en UN sitio.
@@ -305,22 +264,6 @@ function olvidarLaCompraDelEnlace(): void {
   window.history.replaceState(window.history.state, '', `${window.location.pathname}${consultaSinLaCompra()}${window.location.hash}`);
 }
 
-/** El motivo del control del cupón por el `code` con que `cotizar` lo rechazó. */
-function motivoDelCupon(code: string): PromoRejection {
-  switch (code) {
-    case 'pricing.promotion_not_found':
-      return 'unknown';
-    case 'pricing.promotion_expired':
-      return 'expired';
-    case 'pricing.promotion_currency_mismatch':
-      return 'not-applicable';
-    case CODIGO_DEMASIADOS_CODIGOS:
-      return 'too-many-attempts';
-    default:
-      return 'failed';
-  }
-}
-
 /** La clase de un motivo de la estrategia (sólo hay su `code`). */
 function claseDelMotivo(motivo: string): ReturnType<typeof clasificarRechazo> {
   return clasificarRechazo({ code: motivo, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} });
@@ -373,6 +316,7 @@ let storefrontInstanceId = 0;
     PedidosDeLaTienda,
     DevolucionesDeLaTienda,
     EscritorioDeLaTienda,
+    CarritoDeLaTienda,
     { provide: TEXTOS_DE_LA_TIENDA, useValue: TEXTOS_DE_ESTA_TIENDA },
   ],
 })
@@ -381,9 +325,8 @@ export class StorefrontElementComponent implements OnInit {
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
-  readonly #bus = inject<TransactionEventBusService<StorefrontBus>>(TransactionEventBusService);
+  readonly #bus = inject<TransactionEventBusService<BusDeLaTienda>>(TransactionEventBusService);
   readonly #lecturas = inject(LecturasDeLaTienda);
-  readonly #cupon = inject(CuponApi);
   readonly #compra = inject(CompraApi);
   readonly #identity = inject(HostIdentityService);
   readonly #announcer = inject(LiveAnnouncerService);
@@ -496,6 +439,37 @@ export class StorefrontElementComponent implements OnInit {
   readonly decideSellerReview = (reviewId: string, decision: 'approve' | 'reject'): Promise<void> =>
     this.#escritorio.decideSellerReview(reviewId, decision);
 
+  readonly #carrito = inject(CarritoDeLaTienda);
+
+  readonly cartItems = this.#carrito.cartItems;
+  readonly cartCount = this.#carrito.cartCount;
+  readonly cartLineCount = this.#carrito.cartLineCount;
+  readonly hasCart = this.#carrito.hasCart;
+  readonly cartTotalMinor = this.#carrito.cartTotalMinor;
+  readonly caminoDeCompra = this.#configuracion.caminoDeCompra;
+  readonly porLaPuerta = this.#carrito.porLaPuerta;
+  readonly compraSinTerminar = this.#carrito.compraSinTerminar;
+  readonly avisoDePendiente = this.#carrito.avisoDePendiente;
+  private readonly carritoFijado = (): boolean => this.#carrito.carritoFijado();
+  readonly addFailedId = this.#carrito.addFailedId;
+  readonly addCurrentToCart = (): void => this.#carrito.addCurrentToCart();
+  readonly quickAdd = (product: ShopProduct): void => this.#carrito.quickAdd(product);
+  private readonly setLineQuantity = (item: SessionItem, quantity: number): void =>
+    this.#carrito.setLineQuantity(item, quantity);
+  readonly removeFromCart = (itemId: string): void => this.#carrito.removeFromCart(itemId);
+  readonly promo = this.#carrito.promo;
+  readonly promoBusy = this.#carrito.promoBusy;
+  readonly promoRejection = this.#carrito.promoRejection;
+  readonly promoDetail = this.#carrito.promoDetail;
+  readonly cuponFijado = this.#carrito.cuponFijado;
+  readonly applyPromo = (code: string): Promise<void> => this.#carrito.applyPromo(code);
+  private readonly quitarElCupon = (): void => this.#carrito.quitarElCupon();
+  readonly removePromo = (): void => this.#carrito.removePromo();
+  private readonly reprice = (): void => this.#carrito.reprice();
+  private readonly emitCartUpdate = (): void => this.#carrito.emitCartUpdate();
+  private readonly formatPrice = (amount: number, currency: string): string => this.#carrito.formatPrice(amount, currency);
+  private readonly formatMinor = (minor: number): string => this.#carrito.formatMinor(minor);
+
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<StorefrontConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<StorefrontProps>(sanitizeStorefrontConfig),
@@ -602,14 +576,6 @@ export class StorefrontElementComponent implements OnInit {
     return this.formatPrice(amount, detail.product.currency || this.currency());
   });
 
-  // ─── Cart (engine) ──────────────────────────────────────────────────────────
-  readonly cartItems = this.#store.items;
-  readonly cartCount = computed(() =>
-    this.#store.items().reduce((sum, item) => sum + item.quantity, 0),
-  );
-  readonly cartLineCount = this.#store.itemCount;
-  readonly hasCart = this.#store.hasItems;
-  readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
   readonly cartTotalLabel = computed(() =>
     this.formatMinor(this.cartTotalMinor()),
   );
@@ -790,21 +756,6 @@ export class StorefrontElementComponent implements OnInit {
       this.customerCity().trim().length > 1,
   );
 
-  // ─── El camino de compra (ADR 0140, 004-tienda-compra) ──────────────────────
-  /**
-   * Por dónde compra, como lo DECLARA el CMS en `purchasePath`: la puerta (`tienda.compra`) o la ruta
-   * directa, la de siempre. Sin declaración, la directa.
-   */
-  readonly caminoDeCompra = computed<CaminoDeCompra>(() => caminoDeLaCompra(this.config()?.purchasePath));
-
-  /**
-   * Si ESTA compra va por la puerta: la que ya salió, por el camino por el que salió (su saga sólo existe
-   * de ese lado); sin ninguna en curso, la que declara el CMS. Nunca se cae de un camino al otro.
-   */
-  readonly porLaPuerta = computed(
-    () => caminoDeLaCompraEnCurso(this.#store.session(), this.config()?.purchasePath) === 'puerta',
-  );
-
   /** El país al que despacha el sitio (ISO 3166-1 alfa-2): lo declara el CMS, el formulario no lo pregunta. */
   readonly shippingCountry = computed(() => coerceTrimmedStringInput(this.config()?.shippingCountry) ?? '');
 
@@ -974,7 +925,17 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   constructor() {
-    this.#configuracion.conectar({ apiBase: this.apiBase, zonaHoraria: this.zonaHoraria });
+    this.#configuracion.conectar({
+      apiBase: this.apiBase,
+      zonaHoraria: this.zonaHoraria,
+      purchasePath: computed(() => this.config()?.purchasePath),
+    });
+    this.#carrito.conectar({
+      alCambiar: (count) => this.cartchange.emit(count),
+      abrir: () => this.cartOpen.set(true),
+      anunciar: (texto, cortesia) => this.#announcer.announce(texto, cortesia),
+      limpiarCupon: () => this.promoControl()?.clear(),
+    });
     // Bind the unified cart to this origin and rehydrate any live session.
     this.#store.init({
       scope: `storefront.${this.instanceId}`,
@@ -1105,15 +1066,6 @@ export class StorefrontElementComponent implements OnInit {
     return `/account/login?returnUrl=${encodeURIComponent(aqui)}`;
   }
 
-  /** La compra por la puerta que esta sesión dejó sin terminar (abierta y sin cerrar), si la hay. */
-  readonly compraSinTerminar = computed(() => {
-    const sesion = this.#store.session();
-    return caminoDeLaPendiente(sesion) === 'puerta' ? compraPendiente(sesion) : null;
-  });
-
-  /** Se intentó cambiar el carrito con una compra sin terminar: se pinta el aviso con sus dos salidas. */
-  readonly avisoDePendiente = signal(false);
-
   /** Las compras de la puerta del miembro sin resolver que el servidor conoce y esta sesión no. */
   readonly comprasSinResolver = signal<readonly CompraPendienteDelServidor[]>([]);
 
@@ -1126,18 +1078,6 @@ export class StorefrontElementComponent implements OnInit {
     terminar: t('Storefront.Purchase.PendingResume', 'Terminar mi compra'),
     cancelar: t('Storefront.Purchase.PendingCancel', 'Cancelar esa compra'),
   }));
-
-  /**
-   * El carrito no cambia mientras una compra por la puerta pueda cobrar: lo que se abrió es lo que se
-   * cierra, y otra llave sería otra saga que aparta y autoriza al lado. Elegir otra vez la resuelve primero.
-   */
-  private carritoFijado(): boolean {
-    if (this.compraSinTerminar() === null) {
-      return false;
-    }
-    this.avisoDePendiente.set(true);
-    return true;
-  }
 
   /** Terminar la compra pendiente: el asistente repite lo que falta con la MISMA llave y la misma compra. */
   terminarPendiente(): void {
@@ -1750,110 +1690,6 @@ export class StorefrontElementComponent implements OnInit {
     return this.formatPrice(entry.amount, entry.currency || this.currency());
   }
 
-  // ─── Cart (engine wiring) ────────────────────────────────────────────────────
-  /**
-   * Agrega lo que muestra la ficha. **Un producto sin variantes se agrega como tal** (004-tienda-compra, etapa 3): los
-   * del CMS llegan con `variants: []`, `selectedVariant` quedaba en `null` y el botón volvía en silencio. Lo único que
-   * frena aquí es no tener existencias, y entonces el botón está deshabilitado y la ficha dice «Sin stock».
-   */
-  addCurrentToCart(): void {
-    const detail = this.detail();
-    if (!detail || !this.pdpInStock()) {
-      return;
-    }
-    this.addToCart(detail.product, this.selectedVariant() ?? varianteEstandar(detail.product), this.pdpQuantity());
-  }
-
-  quickAdd(product: ShopProduct): void {
-    if (!product.inStock) {
-      return;
-    }
-    // El agregado rápido del catálogo no elige variante: la del producto mismo.
-    this.addToCart(product, varianteEstandar(product), 1);
-  }
-
-  /**
-   * El producto cuyo último «agregar» FALLÓ, para que se VEA junto al botón que se pulsó
-   * (#87). Desde el #82 el fallo se oía —el anunciador, asertivo— y no se veía nada: quien
-   * mira la pantalla pulsaba, el cajón no se abría y no había ningún porqué. No es una
-   * región viva: el anuncio ya lo hace el anunciador, y una segunda región lo diría dos veces.
-   */
-  readonly addFailedId = signal<string | null>(null);
-
-  private addToCart(product: ShopProduct, variant: ProductVariant, quantity: number): void {
-    this.addFailedId.set(null);
-    if (this.carritoFijado()) {
-      return;
-    }
-    const session = this.#store.getValidSession();
-    const payload: ShopSelectionPayload = {
-      productId: product.id,
-      variantId: variant.variantId,
-      variantLabel: variant.label,
-      title: product.title,
-      unitAmount: variant.amount,
-      currency: product.currency || this.currency(),
-      quantity,
-      image: product.images[0] ?? '',
-      seller: product.seller,
-      // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
-      apiBase: this.apiBase(),
-    };
-    void this.#fulfillment
-      .select(
-        {
-          productRef: product.id,
-          kind: 'product',
-          label: product.title,
-          amount: variant.amount,
-          selection: payload as unknown as Readonly<Record<string, unknown>>,
-        },
-        session,
-      )
-      .then((selection) => {
-        // Merge the delta qty against the live store line at apply time so
-        // concurrent quick-adds accumulate (the engine's addItem is replace-by-id).
-        const existing = this.#store.items().find((item) => item.id === selection.item.id);
-        const merged = existing
-          ? { ...selection.item, quantity: existing.quantity + selection.item.quantity }
-          : selection.item;
-        this.#store.addItem(merged);
-        this.reprice();
-        this.cartOpen.set(true);
-        this.emitCartUpdate();
-        // Abrir el cajón se VE; sin esto, agregar al carrito no se oía (#82).
-        this.#announcer.announce(`${product.title} agregado al carrito.`);
-      })
-      .catch(() => {
-        // Antes el `.then` no tenía `catch`: el fallo era un rechazo sin manejar, mudo para
-        // todos. Desde el #82 se oye, y desde el #87 también se VE, junto al botón.
-        this.#announcer.announce(`No se pudo agregar ${product.title} al carrito.`, 'assertive');
-        this.addFailedId.set(product.id);
-      });
-  }
-
-  private setLineQuantity(item: SessionItem, quantity: number): void {
-    if (this.carritoFijado()) {
-      return;
-    }
-    if (quantity < 1) {
-      this.removeFromCart(item.id);
-      return;
-    }
-    this.#store.addItem({ ...item, quantity });
-    this.reprice();
-    this.emitCartUpdate();
-  }
-
-  removeFromCart(itemId: string): void {
-    if (this.carritoFijado()) {
-      return;
-    }
-    this.#store.removeItem(itemId);
-    this.reprice();
-    this.emitCartUpdate();
-  }
-
   toggleCart(): void {
     this.cartOpen.update((open) => !open);
   }
@@ -2042,10 +1878,6 @@ export class StorefrontElementComponent implements OnInit {
   // emitía una línea negativa; lo único que existía era `listPrice`, un precio
   // tachado que nadie podía obtener.
   readonly promoControl = viewChild(PromoCodeComponent);
-  readonly promo = signal<ShopPromo | null>(null);
-  readonly promoBusy = signal(false);
-  readonly promoRejection = signal<PromoRejection | null>(null);
-  readonly promoDetail = signal('');
 
   readonly appliedPromo = computed<AppliedPromo | null>(() => {
     const promo = this.promo();
@@ -2090,77 +1922,6 @@ export class StorefrontElementComponent implements OnInit {
     ];
   });
 
-  /**
-   * Valida el cupón contra el servidor. **No lo da por aplicado sin confirmación**:
-   * un descuento fingido acá es una promesa de plata que el checkout rompe.
-   */
-  async applyPromo(code: string): Promise<void> {
-    if (this.promoBusy() || this.cuponFijado()) {
-      return;
-    }
-    this.promoBusy.set(true);
-    this.promoRejection.set(null);
-    this.promoDetail.set('');
-
-    if (this.porLaPuerta()) {
-      await this.cotizarConCupon(code);
-      this.promoBusy.set(false);
-      return;
-    }
-
-    const subtotal = this.#store
-      .items()
-      .reduce((sum, item) => sum + item.amount * item.quantity, 0);
-    const result = await this.#cupon.applyPromo(this.apiBase(), code, subtotal);
-
-    this.promoBusy.set(false);
-
-    if (result.ok) {
-      this.promo.set(result.promo);
-      this.promoControl()?.clear();
-      this.reprice();
-      this.emitCartUpdate();
-      return;
-    }
-
-    this.promoRejection.set(result.reason);
-    if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
-      // CUÁNTO falta es lo único accionable de este rechazo.
-      this.promoDetail.set(
-        `Te faltan ${this.formatMinor(result.shortfallMinor)}.`,
-      );
-    }
-  }
-
-  /**
-   * Por la puerta, el cupón lo calcula el SERVIDOR (US 8): `cotizar` corre la fase que abre hasta antes de
-   * apartar, con el código, y del navegador sólo viaja el código. Lo que se muestra es lo que abrir
-   * autorizaría; un código que no existe, vencido, o con demasiados intentos se dice por su motivo.
-   */
-  private async cotizarConCupon(code: string): Promise<void> {
-    const codigo = code.trim().toUpperCase();
-    const r = await cotizarCompraDeTienda(this.#host, cuerpoDeLaCompra(this.#store.getValidSession(), codigo));
-    if (!r.ok) {
-      this.promoRejection.set(motivoDelCupon(r.rechazo.code));
-      return;
-    }
-    const descuento = r.valor.descuento;
-    if (!descuento || descuento.amount <= 0) {
-      this.promoRejection.set('not-applicable');
-      return;
-    }
-    this.promo.set({ code: codigo, amountMinor: -aMenores(descuento.amount, descuento.currency), label: codigo });
-    this.promoControl()?.clear();
-    this.reprice();
-    this.emitCartUpdate();
-  }
-
-  /**
-   * El cupón queda FIJO mientras una compra suya pueda cobrar: abrir con otro código sería otra intención,
-   * otra saga que aparta y autoriza al lado de la primera.
-   */
-  readonly cuponFijado = computed(() => compraPendiente(this.#store.session()) !== null);
-
   /** Los motivos del cupón, del diccionario: el control no sabe del negocio. */
   readonly promoConfig = computed<PromoCodeConfig>(() => ({
     messages: {
@@ -2173,57 +1934,6 @@ export class StorefrontElementComponent implements OnInit {
     },
     lockedMessage: t('Storefront.Purchase.PromoFixed', 'El cupón queda fijo mientras tu compra está en curso.'),
   }));
-
-  /** Quita el cupón que dejó de valer al abrir: la compra no se apartó, y el carrito vuelve a su total. */
-  private quitarElCupon(): void {
-    this.promo.set(null);
-    this.reprice();
-    this.emitCartUpdate();
-  }
-
-  /** Quita el cupón y devuelve el total anterior. */
-  removePromo(): void {
-    if (this.cuponFijado()) {
-      return;
-    }
-    this.promo.set(null);
-    this.promoRejection.set(null);
-    this.promoDetail.set('');
-    this.reprice();
-    this.emitCartUpdate();
-  }
-
-  // ─── Helpers ───────────────────────────────────────────────────────────────
-  /** Recompute aggregate pricing from the cart lines (single source of truth). */
-  private reprice(): void {
-    const items = this.#store.items();
-    const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
-    const promo = this.promo();
-    const lineas = items.map((item) => ({
-      code: `line:${item.id}`,
-      label: item.label,
-      amount: item.amount * item.quantity,
-    }));
-    if (promo) {
-      // La línea NEGATIVA que el motor esperaba desde el primer día.
-      lineas.push({ code: `${PREFIJO_DEL_CUPON}${promo.code}`, label: promo.label, amount: promo.amountMinor });
-    }
-    // El descuento nunca deja el total bajo cero: un carrito que se debe a sí
-    // mismo no es un carrito, y el checkout lo cobraría como un importe negativo.
-    const total = Math.max(0, subtotal + (promo?.amountMinor ?? 0));
-    this.#store.setPricing({
-      currency: this.currency(),
-      totalAmount: total,
-      balanceDue: total,
-      breakdown: lineas,
-    });
-  }
-
-  private emitCartUpdate(): void {
-    const count = this.cartCount();
-    this.cartchange.emit(count);
-    this.#bus.publish('cartUpdated', { count, total: this.cartTotalMinor() });
-  }
 
   private itemString(
     selection: Readonly<Record<string, unknown>> | undefined,
@@ -2250,14 +1960,4 @@ export class StorefrontElementComponent implements OnInit {
     return typeof value === 'string' ? value : '';
   }
 
-  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
-  private formatPrice(amount: number, currency: string): string {
-    return formatearImporte(amount, currency);
-  }
-
-  /** Un importe del carrito, en unidades menores de su moneda (la de la sesión o la del catálogo). */
-  private formatMinor(minor: number): string {
-    const moneda = this.#store.pricing().currency || this.currency();
-    return this.formatPrice(desdeMenores(minor, moneda), moneda);
-  }
 }

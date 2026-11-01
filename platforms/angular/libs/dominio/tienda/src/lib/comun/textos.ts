@@ -35,6 +35,13 @@ export interface TextosDeLaTienda {
   readonly opinionYaAtendida: string;
   readonly opinionAjena: string;
   readonly opinionNoGuardada: string;
+  /** Cómo se llama la variante de un producto que no trae ninguna. */
+  readonly varianteEstandar: string;
+  /** Lo que se oye al agregar un producto al carrito, y al no poder. */
+  agregadoAlCarrito(titulo: string): string;
+  noSeAgregoAlCarrito(titulo: string): string;
+  /** Cuánto falta para el mínimo del cupón, con el importe ya formateado. */
+  faltaParaElCupon(importe: string): string;
 }
 
 /** Los textos de la tienda. Sin factory a propósito: una app que monta la fachada sin decir qué se dice no arranca. */
