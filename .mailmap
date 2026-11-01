@@ -1,0 +1,3 @@
+# Cuatro commits del 2026-09-21 (el arnés y la CI) quedaron firmados como «Claude». Corregirlos reescribiría 465
+# commits de master; esto los muestra a nombre de su autor en git log, shortlog y blame, sin tocar ninguno.
+Camilo Hernandez <hitmancodeme47@hotmail.com> Claude <noreply@anthropic.com>
