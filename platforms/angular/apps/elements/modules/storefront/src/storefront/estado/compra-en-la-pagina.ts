@@ -93,10 +93,16 @@ export class CompraEnLaPagina {
     this.#conexion = conexion;
   }
 
-  /** El enlace del aviso de una compra por la puerta (`?compra={id}`): se lee UNA vez y sale de la URL. */
-  leerElEnlace(): void {
+  /**
+   * El enlace del aviso de una compra por la puerta (`?compra={id}`): se lee UNA vez y sale de la URL. En la página de
+   * la confirmación se queda (014-despiece-tienda, I3): ahí la compra ES lo que la página muestra, y atrás o recargar
+   * la vuelven a abrir.
+   */
+  leerElEnlace(olvidar = true): void {
     this.#compraDelEnlace = compraDelEnlace();
-    olvidarLaCompraDelEnlace();
+    if (olvidar) {
+      olvidarLaCompraDelEnlace();
+    }
   }
 
   /** Abre la compra que trajo el enlace, si trajo una. */
@@ -405,15 +411,19 @@ export class CompraEnLaPagina {
         reference: voucher.reference,
       })),
     );
+    // La compra por la puerta, antes de vaciar la sesión: con ella, la confirmación se abre en su propia página si el
+    // sitio le dio una (014-despiece-tienda, I3), igual que la abre el enlace del aviso. La directa no tiene: se queda.
+    const compraDeLaPuerta = compraDeLaSesion(this.#store.getValidSession()) ?? '';
     // Lo comprado ya no está por comprar: el carrito queda vacío al confirmar, en los dos caminos (etapa 3). El
     // asistente sólo completa con la compra cerrada (por la puerta, `cerrar` contestó), así que no queda nada abierto.
     this.#store.reset();
     this.#pedidos.ordersLoaded.set(false);
-    this.#navegacion.navigate('confirmation');
     const payload = { orderRef: result.reference, orderNumber };
     this.#conexion?.alConfirmar(payload);
     this.#bus.publish('orderconfirmed', payload);
     this.#carrito.emitCartUpdate();
+    // Lo último: ir a la página de la confirmación descarga ésta.
+    this.#navegacion.navigate('confirmation', compraDeLaPuerta);
   }
 
   // ─── Start a fresh transaction after confirmation ────────────────────────────

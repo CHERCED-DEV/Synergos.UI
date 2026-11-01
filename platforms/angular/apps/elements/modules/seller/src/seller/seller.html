@@ -13,9 +13,10 @@
     </div>
 
     <nav class="seller__nav" aria-label="Vistas de la consola">
-      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'panel'" (pressed)="estado.goTo('panel')">Panel</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'publicar'" (pressed)="estado.goTo('publicar')">Publicar</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'mensajes'" (pressed)="estado.goTo('mensajes')">
+      <!-- Cada vista que vive en su página es un enlace a ella (014-despiece-tienda, I3); si no, se abre aquí. -->
+      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'panel'" [href]="estado.urlDe('panel')" (pressed)="estado.alPulsar('panel')">Panel</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'publicar'" [href]="estado.urlDe('publicar')" (pressed)="estado.alPulsar('publicar')">Publicar</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="estado.view() === 'mensajes'" [href]="estado.urlDe('mensajes')" (pressed)="estado.alPulsar('mensajes')">
         Mensajes
         @if (estado.unreadCount() > 0) {
           <syn-badge tone="brand" [text]="'' + estado.unreadCount()" />

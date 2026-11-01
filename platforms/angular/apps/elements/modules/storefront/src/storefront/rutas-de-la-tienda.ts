@@ -14,6 +14,31 @@ export type StorefrontView =
   | 'account' // SH-4: mis compras + tracking + wishlist + mensajes + perfil
   | 'seller'; // SH-5: la cara B del vendedor (#32)
 
+/**
+ * La vista que el editor elige en el bloque (`vista`, el desplegable `DTSelectVistaDeLaTienda`) y la vista de la app
+ * que abre (014-despiece-tienda, I3). El vocabulario del bloque es el del CMS; el de la app no cambia.
+ */
+export const VISTAS_DEL_BLOQUE = {
+  inicio: 'home',
+  catalogo: 'plp',
+  ficha: 'pdp',
+  carrito: 'cart',
+  pago: 'checkout',
+  confirmacion: 'confirmation',
+  cuenta: 'account',
+  vendedor: 'seller',
+} as const satisfies Readonly<Record<string, StorefrontView>>;
+
+export type VistaDelBloque = keyof typeof VISTAS_DEL_BLOQUE;
+
+/** Los valores que acepta `vista`, en el orden del desplegable. */
+export const VALORES_DE_LA_VISTA = Object.keys(VISTAS_DEL_BLOQUE) as readonly VistaDelBloque[];
+
+/** El nombre en el bloque de una vista de la app: el que lleva su ruta. */
+export function vistaDelBloque(view: StorefrontView): VistaDelBloque {
+  return VALORES_DE_LA_VISTA.find((valor) => VISTAS_DEL_BLOQUE[valor] === view) ?? 'inicio';
+}
+
 /** Quién está mirando: comprador (cara A) o vendedor (cara B). */
 export type ShopRole = 'buyer' | 'seller';
 

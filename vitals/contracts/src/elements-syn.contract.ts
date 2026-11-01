@@ -566,6 +566,7 @@ export interface SynSelectMultiSchema {
 export interface SynSellerSchema {
   readonly heading?: string;
   readonly subheading?: string;
+  readonly vista?: string;
   readonly content?: string;
 }
 
@@ -640,6 +641,7 @@ export interface SynStepperSchema {
 export interface SynStorefrontSchema {
   readonly heading?: string;
   readonly subheading?: string;
+  readonly vista?: string;
   readonly content?: string;
 }
 

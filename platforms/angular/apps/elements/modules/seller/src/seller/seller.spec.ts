@@ -1200,4 +1200,32 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
       ]);
     });
   });
+
+  // ── 014-despiece-tienda, I3: una vista de la consola por página ─────────────────────────────────────────
+  describe('una vista por página (I3)', () => {
+    const RUTAS = [
+      { vista: 'panel', url: '/tienda/vender/' },
+      { vista: 'mensajes', url: '/tienda/vender/mensajes/' },
+    ];
+
+    it('abre la vista que el editor eligió y enlaza las otras con su página', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent({ ...NEGOCIO_DEL_CMS, vista: 'mensajes', rutas: RUTAS });
+
+      expect(consola().estado.view()).toBe('mensajes');
+      expect(consola().estado.urlDe('panel')).toBe('/tienda/vender/');
+      // La suya y la que no tiene página se abren aquí.
+      expect(consola().estado.urlDe('mensajes')).toBe('');
+      expect(consola().estado.urlDe('publicar')).toBe('');
+      const enlace = (fixture.nativeElement as HTMLElement).querySelector('.seller__nav a[href="/tienda/vender/"]');
+      expect(enlace?.textContent?.trim()).toBe('Panel');
+    });
+
+    it('sin vista elegida abre el panel, como antes', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(consola().estado.view()).toBe('panel');
+    });
+  });
 });

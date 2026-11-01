@@ -108,6 +108,38 @@ export function coerceStringEnumInput<T extends string>(
   return allowedValues.find((allowedValue) => allowedValue === normalizedValue) as T | undefined;
 }
 
+/** Dónde vive una vista de una app en el sitio, como la manda el CMS (`RutaDeUnaVista`, 014-despiece-tienda I3). */
+export interface RutaDeUnaVistaDelSitio {
+  readonly vista: string;
+  readonly url: string;
+}
+
+/**
+ * Las rutas de las vistas de una app que manda el CMS, saneadas (014-despiece-tienda, I3): la vista en minúsculas y
+ * la primera vez que aparece. Sólo un camino de este mismo sitio (`/tienda/carrito/`): uno con origen
+ * (`https://…`, `//otro.com`) no se sigue, como no se sigue en un `returnUrl`.
+ */
+export function coerceRutasDeLasVistas(value: unknown): readonly RutaDeUnaVistaDelSitio[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const rutas: RutaDeUnaVistaDelSitio[] = [];
+  for (const entrada of value) {
+    const vista = isRecord(entrada) ? coerceTrimmedStringInput(entrada['vista'])?.toLowerCase() : undefined;
+    const url = isRecord(entrada) ? coerceTrimmedStringInput(entrada['url']) : undefined;
+    if (vista && url && esCaminoDelSitio(url) && !rutas.some((ruta) => ruta.vista === vista)) {
+      rutas.push({ vista, url });
+    }
+  }
+
+  return rutas.length > 0 ? rutas : undefined;
+}
+
+function esCaminoDelSitio(url: string): boolean {
+  return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
+}
+
 export function coerceStringRecordInput(value: unknown): Record<string, string> | undefined {
   if (!isRecord(value)) {
     return undefined;

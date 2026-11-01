@@ -4,6 +4,7 @@ import {
   coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
   coerceStringEnumInput,
+  coerceRutasDeLasVistas,
   coerceStringRecordInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -93,5 +94,21 @@ describe('config-input util', () => {
       Empty: '',
     });
     expect(coerceStringRecordInput([])).toBeUndefined();
+  });
+
+  // 014-despiece-tienda, I3: la página de cada vista la declara el CMS; el elemento sólo sigue caminos de su sitio.
+  it('keeps the routes of the views that point inside the site, once per view', () => {
+    expect(
+      coerceRutasDeLasVistas([
+        { vista: ' Catalogo ', url: '/tienda/catalogo/' },
+        { vista: 'catalogo', url: '/tienda/otro-catalogo/' },
+        { vista: 'carrito', url: '//otro.com/carrito/' },
+        { vista: 'pago', url: 'https://otro.com/pago/' },
+        { vista: 'ficha', url: '' },
+        'cuenta',
+      ]),
+    ).toEqual([{ vista: 'catalogo', url: '/tienda/catalogo/' }]);
+    expect(coerceRutasDeLasVistas([{ vista: 'carrito', url: '/\\otro.com' }])).toBeUndefined();
+    expect(coerceRutasDeLasVistas({ vista: 'inicio', url: '/tienda/' })).toBeUndefined();
   });
 });

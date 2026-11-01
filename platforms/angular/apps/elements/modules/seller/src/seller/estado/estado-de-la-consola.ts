@@ -16,7 +16,7 @@ import {
   type SellerReputation,
   type SellerThread,
 } from '@synergos/dominio/tienda';
-import { t } from '@synergos/vitals-core';
+import { type RutaDeUnaVistaDelSitio, t } from '@synergos/vitals-core';
 import { type SellerSectionId, type SellerView } from '../vistas-de-la-consola';
 import { estaAbierta, type EstadoDeLectura } from './comun-de-la-consola';
 
@@ -38,11 +38,16 @@ const SECTION_IDS: readonly SellerSectionId[] = [
   'reputacion',
 ];
 
-/** Lo que el elemento le da a su consola al construirse: la base de la API, la zona del sitio y emitir `productpublished`. */
+/**
+ * Lo que el elemento le da a su consola al construirse: la base de la API, la zona del sitio, emitir
+ * `productpublished`, y qué vista es esta página y dónde viven las otras (014-despiece-tienda, I3).
+ */
 export interface ConexionDeLaConsola {
   apiBase(): string;
   zonaHoraria(): string;
   publicado(recibo: SellerPublishReceipt): void;
+  vista(): SellerView;
+  rutas(): readonly RutaDeUnaVistaDelSitio[];
 }
 
 /** El estado de la consola: lo que se leyó de cada sección y cómo, la vista y la sección abiertas, y las lecturas que lo cargan. (014-despiece-tienda, T011) */
@@ -78,7 +83,35 @@ export class EstadoDeLaConsola {
   readonly view = signal<SellerView>('panel');
 
   // ─── Top-level navigation ──────────────────────────────────────────────────
+  /** Abre la vista que el editor eligió para esta página (014-despiece-tienda, I3). */
+  abrirLaVistaDeLaPagina(): void {
+    const vista = this.#conexion?.vista() ?? 'panel';
+    if (vista !== this.view()) {
+      this.goTo(vista);
+    }
+  }
+
+  /** La URL de la página donde vive `view`; vacía si se abre en ESTA página: es la suya, o el sitio no le dio otra. */
+  urlDe(view: SellerView): string {
+    if (view === (this.#conexion?.vista() ?? 'panel')) {
+      return '';
+    }
+    return this.#conexion?.rutas().find((ruta) => ruta.vista === view)?.url ?? '';
+  }
+
+  /** Pulsar una pestaña: con `href`, el navegador ya va a su página; sin él, la vista se abre aquí. */
+  alPulsar(view: SellerView): void {
+    if (!this.urlDe(view)) {
+      this.goTo(view);
+    }
+  }
+
   goTo(view: SellerView): void {
+    const pagina = typeof window === 'undefined' ? '' : this.urlDe(view);
+    if (pagina) {
+      window.location.assign(pagina);
+      return;
+    }
     this.view.set(view);
     if (view === 'mensajes') {
       void this.loadThreads();

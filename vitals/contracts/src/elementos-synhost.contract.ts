@@ -175,6 +175,12 @@ export interface PasoDelFormulario {
   readonly description?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: RutaDeUnaVista). */
+export interface RutaDeUnaVista {
+  readonly vista: string;
+  readonly url: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: SelectMultiItem). */
 export interface SelectMultiItem {
   readonly value: string;
@@ -682,6 +688,10 @@ export interface SellerProps {
   readonly apiBase: string;
   /** negocio */
   readonly zonaHoraria: string;
+  /** decision */
+  readonly vista?: string;
+  /** sitio */
+  readonly rutas: readonly RutaDeUnaVista[];
 }
 
 /** <synergos-separator> · pieza */
@@ -722,6 +732,10 @@ export interface StorefrontProps {
   readonly shippingCountry: string;
   /** negocio */
   readonly zonaHoraria: string;
+  /** decision */
+  readonly vista?: string;
+  /** sitio */
+  readonly rutas: readonly RutaDeUnaVista[];
 }
 
 /** <synergos-tabs> · pieza */
@@ -2389,15 +2403,47 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   record: "SellerProps",
   diccionario: ["Seller.Operaciones"],
   claves: ["Seller.Operaciones.ActDeliver","Seller.Operaciones.ActFailed","Seller.Operaciones.ActInFlight","Seller.Operaciones.ActPrepare","Seller.Operaciones.ActShip","Seller.Operaciones.Cancel","Seller.Operaciones.CantDispatch","Seller.Operaciones.Carrier","Seller.Operaciones.Close","Seller.Operaciones.Delivered","Seller.Operaciones.Destination","Seller.Operaciones.DispatchUnavailable","Seller.Operaciones.LoadFailed","Seller.Operaciones.Loading","Seller.Operaciones.NoAddress","Seller.Operaciones.NoShipment","Seller.Operaciones.OrderDetail","Seller.Operaciones.OrdersEmpty","Seller.Operaciones.OutOfOrder","Seller.Operaciones.RefundConfirm","Seller.Operaciones.RefundConfirmAction","Seller.Operaciones.Retry","Seller.Operaciones.ReturnApprove","Seller.Operaciones.ReturnApproved","Seller.Operaciones.ReturnFailed","Seller.Operaciones.ReturnReceive","Seller.Operaciones.ReturnReceived","Seller.Operaciones.ReturnRefund","Seller.Operaciones.ReturnRefunded","Seller.Operaciones.ReturnReject","Seller.Operaciones.ReturnRejected","Seller.Operaciones.ReturnRequested","Seller.Operaciones.ReturnStillIn","Seller.Operaciones.ReturnsAll","Seller.Operaciones.ReturnsClosed","Seller.Operaciones.ReturnsOpen","Seller.Operaciones.Samples","Seller.Operaciones.ShipFirst","Seller.Operaciones.ShipOrder","Seller.Operaciones.ShipmentClosed","Seller.Operaciones.ShipmentUnavailable","Seller.Operaciones.SignIn","Seller.Operaciones.SignInAction","Seller.Operaciones.StaffOnly","Seller.Operaciones.StageAll","Seller.Operaciones.StageDelivered","Seller.Operaciones.StagePaid","Seller.Operaciones.StagePreparing","Seller.Operaciones.StageShipped","Seller.Operaciones.StillIn","Seller.Operaciones.Tracking","Seller.Operaciones.TrackingHint","Seller.Operaciones.TrackingInvalid","Seller.Operaciones.TrackingNumber","Seller.Operaciones.TryAgain","Seller.Operaciones.Unreconciled","Seller.Operaciones.ViewDetail"],
-  campos: ["heading","subheading","apiBase","zonaHoraria"],
-  listas: {},
-  selectores: [],
+  campos: ["heading","subheading","apiBase","zonaHoraria","vista","rutas"],
+  listas: {"rutas":["vista","url"]},
+  selectores: [
+    {
+      "propiedad": "vista",
+      "dataType": "DTSelectVistaDeLaConsola",
+      "multiple": false,
+      "campo": "vista",
+      "valores": [
+        {
+          "editor": "panel",
+          "viaja": "panel"
+        },
+        {
+          "editor": "publicar",
+          "viaja": "publicar"
+        },
+        {
+          "editor": "mensajes",
+          "viaja": "mensajes"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Tu negocio, en un solo panel",
     "subheading": "Ventas, publicaciones, mensajes y devoluciones",
     "apiBase": "/api/shop",
-    "zonaHoraria": "America/Bogota"
+    "zonaHoraria": "America/Bogota",
+    "vista": "publicar",
+    "rutas": [
+      {
+        "vista": "panel",
+        "url": "/tienda/vender/"
+      },
+      {
+        "vista": "mensajes",
+        "url": "/tienda/vender/mensajes/"
+      }
+    ]
   },
 };
 
@@ -2541,9 +2587,50 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   record: "StorefrontProps",
   diccionario: ["Storefront.Purchase"],
   claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
-  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry","zonaHoraria"],
-  listas: {},
-  selectores: [],
+  campos: ["heading","subheading","apiBase","purchasePath","shippingCountry","zonaHoraria","vista","rutas"],
+  listas: {"rutas":["vista","url"]},
+  selectores: [
+    {
+      "propiedad": "vista",
+      "dataType": "DTSelectVistaDeLaTienda",
+      "multiple": false,
+      "campo": "vista",
+      "valores": [
+        {
+          "editor": "inicio",
+          "viaja": "inicio"
+        },
+        {
+          "editor": "catalogo",
+          "viaja": "catalogo"
+        },
+        {
+          "editor": "ficha",
+          "viaja": "ficha"
+        },
+        {
+          "editor": "carrito",
+          "viaja": "carrito"
+        },
+        {
+          "editor": "pago",
+          "viaja": "pago"
+        },
+        {
+          "editor": "confirmacion",
+          "viaja": "confirmacion"
+        },
+        {
+          "editor": "cuenta",
+          "viaja": "cuenta"
+        },
+        {
+          "editor": "vendedor",
+          "viaja": "vendedor"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Compra en nuestra tienda online",
@@ -2551,7 +2638,18 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
     "apiBase": "/api/shop",
     "purchasePath": "directa",
     "shippingCountry": "CO",
-    "zonaHoraria": "America/Bogota"
+    "zonaHoraria": "America/Bogota",
+    "vista": "catalogo",
+    "rutas": [
+      {
+        "vista": "inicio",
+        "url": "/tienda/"
+      },
+      {
+        "vista": "carrito",
+        "url": "/tienda/carrito/"
+      }
+    ]
   },
 };
 
