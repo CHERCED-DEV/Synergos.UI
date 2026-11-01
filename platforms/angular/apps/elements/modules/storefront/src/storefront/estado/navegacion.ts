@@ -5,12 +5,19 @@ import {
   CatalogoDeLaTienda,
   CompraDeLaTienda,
   DeseosDeLaTienda,
+  FLUJO_DE_LA_COMPRA,
   MensajesDeLaTienda,
   PedidosDeLaTienda,
   type ShopProduct,
 } from '@synergos/dominio/tienda';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
-import { type AccountSectionId, type StorefrontView } from '../rutas-de-la-tienda';
+import {
+  AVISOS_GENERADOS,
+  baseDeRuta,
+  mismaRuta,
+  type RutaDeUnaVistaDelSitio,
+  segmentosDeRuta,
+} from '@synergos/vitals-core';
+import { type AccountSectionId, type StorefrontView, vistaDelBloque } from '../rutas-de-la-tienda';
 const ACCOUNT_SECTIONS: readonly AccountSectionId[] = [
   'compras',
   'favoritos',
@@ -21,6 +28,9 @@ const ACCOUNT_SECTIONS: readonly AccountSectionId[] = [
 /**
  * Por dónde anda quien mira la tienda (014-despiece-tienda, T010): la vista, el cajón del carrito y la sección de
  * la cuenta, con el enrutado por hash (`#/<scope>/p/<id>`, `#/<scope>/cuenta/…`) que la deja enlazable.
+ *
+ * Desde I3, una vista que vive en OTRA página del sitio se abre yendo a esa página (`rutas`, que manda el CMS): un
+ * enlace de verdad, con atrás y adelante del navegador. La que no tiene página propia se sigue abriendo aquí.
  */
 @Injectable()
 export class NavegacionDeLaTienda {
@@ -35,8 +45,56 @@ export class NavegacionDeLaTienda {
   /** El prefijo de las rutas de ESTA tienda en el hash; lo conecta el elemento desde su entrada `scope`. */
   #scope: () => string = () => 'storefront';
 
-  conectar(scope: () => string): void {
-    this.#scope = scope;
+  /** Dónde vive cada vista en el sitio, y cuál es la de esta página: los del bloque, que conecta el elemento. */
+  #rutas: () => readonly RutaDeUnaVistaDelSitio[] = () => [];
+  #vistaDeLaPagina: () => StorefrontView = () => 'home';
+
+  conectar(fuentes: {
+    scope: () => string;
+    rutas: () => readonly RutaDeUnaVistaDelSitio[];
+    vista: () => StorefrontView;
+  }): void {
+    this.#scope = fuentes.scope;
+    this.#rutas = fuentes.rutas;
+    this.#vistaDeLaPagina = fuentes.vista;
+  }
+
+  /** Abre la vista que el editor eligió para esta página, antes de mirar el hash, que la puede cambiar. */
+  abrirLaVistaDeLaPagina(): void {
+    const vista = this.#vistaDeLaPagina();
+    if (vista !== 'home') {
+      this.applyRoute(vista === 'checkout' && !this.#carrito.hasCart() ? 'cart' : vista, '');
+    }
+  }
+
+  /**
+   * La URL de la página donde vive `view`, con lo que la vista necesita (el producto, la sección de la cuenta, la
+   * compra de la confirmación); vacía si la vista se abre en ESTA página: es la suya, o el sitio no le dio otra.
+   * La confirmación sólo va a su página con la compra (`?compra=`), que es como esa página la abre.
+   */
+  urlDe(view: StorefrontView, param = ''): string {
+    if (view === this.#vistaDeLaPagina() || (view === 'confirmation' && !param)) {
+      return '';
+    }
+    const url = this.#rutas().find((ruta) => ruta.vista === vistaDelBloque(view))?.url;
+    if (!url) {
+      return '';
+    }
+    if (view === 'confirmation') {
+      // El parámetro del enlace del aviso (`?compra=`): lo genera N3, y es el que esa página lee.
+      return `${url}?${AVISOS_GENERADOS[FLUJO_DE_LA_COMPRA].parametro}=${encodeURIComponent(param)}`;
+    }
+    return view === 'pdp' || view === 'account' ? `${url}${this.routeHash(view, param)}` : url;
+  }
+
+  /**
+   * Lo que hace pulsar un enlace de la tienda: si lleva `href` (la vista vive en otra página), el navegador ya va
+   * ahí y no hay nada más que hacer; si no, abre la vista aquí.
+   */
+  alPulsar(view: StorefrontView, param = ''): void {
+    if (!this.urlDe(view, param)) {
+      this.navigate(view, param);
+    }
   }
 
   /** Escucha el hash del navegador mientras viva la tienda: atrás y adelante mueven la vista. */
@@ -60,6 +118,11 @@ export class NavegacionDeLaTienda {
   navigate(view: StorefrontView, param = ''): void {
     if (view === 'checkout' && !this.#carrito.hasCart()) {
       view = 'cart';
+    }
+    const pagina = typeof window === 'undefined' ? '' : this.urlDe(view, param);
+    if (pagina) {
+      window.location.assign(pagina);
+      return;
     }
     this.applyRoute(view, param);
     this.writeHash(view, param);

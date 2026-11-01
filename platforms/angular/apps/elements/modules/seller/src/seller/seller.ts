@@ -5,6 +5,8 @@ import { type SellerPublishReceipt } from '@synergos/dominio/tienda';
 import {
   BadgeComponent,
   ButtonComponent,
+  coerceRutasDeLasVistas,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   LiveRegionComponent,
@@ -16,6 +18,7 @@ import { DespachoDeLaConsola } from './estado/despacho';
 import { EstadoDeLaConsola } from './estado/estado-de-la-consola';
 import { PresentacionDeLaConsola } from './estado/presentacion';
 import { ReembolsosDeLaConsola } from './estado/reembolsos';
+import { type SellerView, VISTAS_DE_LA_CONSOLA } from './vistas-de-la-consola';
 import { ConsolaMensajesComponent } from './vistas/mensajes/mensajes';
 import { ConsolaPanelComponent } from './vistas/panel/panel';
 import { ConsolaPublicarComponent } from './vistas/publicar/publicar';
@@ -48,6 +51,8 @@ export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
+    vista: coerceStringEnumInput(value.vista, VISTAS_DE_LA_CONSOLA),
+    rutas: coerceRutasDeLasVistas(value.rutas),
   });
 }
 let sellerInstanceId = 0;
@@ -121,6 +126,12 @@ export class SellerElementComponent implements OnInit {
   /** La zona en que se dicen las fechas: la del sitio (la de los listados), que manda el CMS. */
   readonly zonaHoraria = computed(() => this.config()?.zonaHoraria ?? '');
 
+  /** Qué parte de la consola es esta página (014-despiece-tienda, I3): la que eligió el editor; sin elegir, el panel. */
+  readonly vista = computed<SellerView>(() => (this.config()?.vista as SellerView | undefined) ?? 'panel');
+
+  /** En qué página del sitio vive cada vista: la declara el CMS. Sin rutas, todo se abre en esta página. */
+  readonly rutas = computed(() => this.config()?.rutas ?? []);
+
   readonly instanceId = (sellerInstanceId += 1);
 
   readonly fieldId = `syn-seller-${this.instanceId}`;
@@ -132,6 +143,8 @@ export class SellerElementComponent implements OnInit {
     this.estado.conectar({
       apiBase: () => this.apiBase(),
       zonaHoraria: () => this.zonaHoraria(),
+      vista: () => this.vista(),
+      rutas: () => this.rutas(),
       publicado: (recibo) => this.productpublished.emit(recibo),
     });
   }
@@ -144,6 +157,7 @@ export class SellerElementComponent implements OnInit {
    * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
    */
   ngOnInit(): void {
+    this.estado.abrirLaVistaDeLaPagina();
     void this.estado.loadSummary();
     void this.estado.loadOrders();
   }

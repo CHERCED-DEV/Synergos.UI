@@ -1,15 +1,16 @@
 <section class="storefront" aria-label="Tienda Synergos">
   <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
   <header class="storefront__bar">
-    <syn-button variant="ghost" class="storefront__brand" (pressed)="navegacion.goHome()">
+    <syn-button variant="ghost" class="storefront__brand" [href]="navegacion.urlDe('home')" (pressed)="navegacion.alPulsar('home')">
       <span class="storefront__brand-mark" aria-hidden="true">◈</span>
       <span class="storefront__brand-text">Synergos Market</span>
     </syn-button>
 
     <nav class="storefront__nav" aria-label="Navegación de la tienda">
-      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'home'" (pressed)="navegacion.goHome()">Inicio</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'plp'" (pressed)="navegacion.goToPlp()">Tienda</syn-button>
-      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'account'" (pressed)="navegacion.goToAccount()">Mi cuenta</syn-button>
+      <!-- Cada vista que vive en su página es un enlace a ella (014-despiece-tienda, I3); si no, se abre aquí. -->
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'home'" [href]="navegacion.urlDe('home')" (pressed)="navegacion.alPulsar('home')">Inicio</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'plp'" [href]="navegacion.urlDe('plp')" (pressed)="navegacion.alPulsar('plp')">Tienda</syn-button>
+      <syn-button variant="ghost" size="sm" [current]="navegacion.view() === 'account'" [href]="navegacion.urlDe('account')" (pressed)="navegacion.alPulsar('account')">Mi cuenta</syn-button>
       <!-- La cara B (#32). Tienda era el único de los tres dominios con consola
            que no la tenía, y por eso la cola de moderación de #31 se quedó sin
            sitio y el `advance` de las devoluciones sin consumidor. -->
@@ -17,7 +18,8 @@
         variant="ghost"
         size="sm"
         [current]="role() === 'seller'"
-        (pressed)="setRole(role() === 'seller' ? 'buyer' : 'seller')"
+        [href]="paginaDeLaOtraCara()"
+        (pressed)="alternarCara()"
       >
         {{ role() === 'seller' ? 'Volver a comprar' : 'Vender' }}
       </syn-button>

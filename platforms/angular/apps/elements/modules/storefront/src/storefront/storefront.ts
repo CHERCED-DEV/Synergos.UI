@@ -20,6 +20,8 @@ import {
 import {
   BadgeComponent,
   ButtonComponent,
+  coerceRutasDeLasVistas,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   LiveAnnouncerService,
@@ -31,7 +33,7 @@ import { OrchestratorService, SessionStore, TransactionEventBusService } from '@
 import { CompraEnLaPagina } from './estado/compra-en-la-pagina';
 import { NavegacionDeLaTienda } from './estado/navegacion';
 import { INSTANCIA_DE_LA_TIENDA, PresentacionDeLaTienda } from './estado/presentacion';
-import { type ShopRole } from './rutas-de-la-tienda';
+import { type ShopRole, type StorefrontView, VALORES_DE_LA_VISTA, VISTAS_DEL_BLOQUE } from './rutas-de-la-tienda';
 import { TEXTOS_DE_ESTA_TIENDA } from './textos-de-la-tienda';
 import { TiendaCarritoComponent } from './vistas/carrito/carrito';
 import { TiendaCatalogoComponent } from './vistas/catalogo/catalogo';
@@ -70,6 +72,8 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     purchasePath: coerceTrimmedStringInput(value.purchasePath),
     shippingCountry: coerceTrimmedStringInput(value.shippingCountry),
     zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
+    vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
+    rutas: coerceRutasDeLasVistas(value.rutas),
   });
 }
 let storefrontInstanceId = 0;
@@ -225,6 +229,18 @@ export class StorefrontElementComponent implements OnInit {
   /** La zona del sitio (IANA), en la que «Mis compras» dice sus fechas: la declara el CMS (`zonaHoraria`). */
   readonly zonaHoraria = computed(() => coerceTrimmedStringInput(this.config()?.zonaHoraria) ?? '');
 
+  /**
+   * Qué parte de la tienda es esta página (014-despiece-tienda, I3): la que el editor eligió en el bloque. Sin
+   * elegir, el inicio, que es la tienda entera de antes.
+   */
+  readonly vista = computed<StorefrontView>(() => {
+    const vista = this.config()?.vista;
+    return vista && vista in VISTAS_DEL_BLOQUE ? VISTAS_DEL_BLOQUE[vista as keyof typeof VISTAS_DEL_BLOQUE] : 'home';
+  });
+
+  /** En qué página del sitio vive cada vista: la declara el CMS. Sin rutas, todo se abre en esta página. */
+  readonly rutas = computed(() => this.config()?.rutas ?? []);
+
   // ═══ Consola del vendedor — SH-5 (#32) ═══════════════════════════════════════
   //
   // Tienda era el único de los tres dominios con cara B que no la tenía, y eso
@@ -245,6 +261,18 @@ export class StorefrontElementComponent implements OnInit {
     this.navegacion.view.set('home');
   }
 
+  /**
+   * «Vender» y «Volver a comprar» (014-despiece-tienda, I3): si la otra cara vive en su página, el botón es un enlace
+   * a ella y ya va; si no, la cara cambia aquí.
+   */
+  readonly paginaDeLaOtraCara = computed(() => this.navegacion.urlDe(this.role() === 'seller' ? 'home' : 'seller'));
+
+  alternarCara(): void {
+    if (!this.paginaDeLaOtraCara()) {
+      this.setRole(this.role() === 'seller' ? 'buyer' : 'seller');
+    }
+  }
+
   constructor() {
     this.configuracion.conectar({
       apiBase: this.apiBase,
@@ -252,7 +280,7 @@ export class StorefrontElementComponent implements OnInit {
       purchasePath: computed(() => this.config()?.purchasePath),
       shippingCountry: this.shippingCountry,
     });
-    this.navegacion.conectar(() => this.scope());
+    this.navegacion.conectar({ scope: () => this.scope(), rutas: () => this.rutas(), vista: () => this.vista() });
     this.pagina.conectar({ alConfirmar: (pedido) => this.orderconfirmed.emit(pedido) });
     this.carrito.conectar({
       alCambiar: (count) => this.cartchange.emit(count),
@@ -305,8 +333,13 @@ export class StorefrontElementComponent implements OnInit {
    */
   ngOnInit(): void {
     // El enlace del aviso de una compra por la puerta (`?compra={id}`, 004-tienda-compra): se lee UNA vez y
-    // sale de la URL, así recargar no vuelve a abrirla.
-    this.pagina.leerElEnlace();
+    // sale de la URL, así recargar no vuelve a abrirla; en la página de la confirmación se queda, que es lo que muestra.
+    this.pagina.leerElEnlace(this.vista() !== 'confirmation');
+    // La parte de la tienda que el editor puso en esta página (014-despiece-tienda, I3); el hash la puede cambiar.
+    this.navegacion.abrirLaVistaDeLaPagina();
+    if (this.vista() === 'seller') {
+      this.setRole('seller');
+    }
     // Open with an unfiltered listing (feeds home rails + PLP), then honour a deep link.
     void this.catalogo.runSearch().then(() => {
       this.navegacion.applyHash();

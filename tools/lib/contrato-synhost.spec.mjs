@@ -103,6 +103,13 @@ describe('validarContrato', () => {
     expect(validarContrato(c)).toEqual([]);
   });
 
+  // 014-despiece-tienda, I3: dónde vive cada vista de una app lo lee el CMS de cómo está compuesto el sitio.
+  it('acepta un campo del sitio', () => {
+    const c = contrato();
+    c.elementos[0].campos[2].origen = 'sitio';
+    expect(validarContrato(c)).toEqual([]);
+  });
+
   // CMS#181: lo que el editor elige en un selector, pasado por el resolver.
   const conSelector = () => {
     const c = contrato();
