@@ -1,12 +1,12 @@
 {
   "obligatorias": [
+    "blogs",
     "seller",
     "storefront"
   ],
   "piso": {
     "academy": 40,
     "alquiler": 19,
-    "blogs": 51,
     "booking-wizard": 6,
     "ehr": 63,
     "eventos": 48,

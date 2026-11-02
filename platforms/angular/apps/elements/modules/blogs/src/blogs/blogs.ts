@@ -44,11 +44,15 @@ import {
   type MessageCenterConfig,
 } from '@synergos/shells';
 import {
+  BadgeComponent,
+  ButtonComponent,
+  InputComponent,
   LiveAnnouncerService,
   LiveRegionComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
   TabsComponent,
+  TextareaComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -227,6 +231,11 @@ const ARTICLE_MIN_BODY = 20;
     SynSkeletonComponent,
     SynEmptyStateComponent,
     LiveRegionComponent,
+    // Los controles son los átomos del design system: ningún botón, campo ni área de texto a mano (012, I1).
+    ButtonComponent,
+    InputComponent,
+    TextareaComponent,
+    BadgeComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',
@@ -507,13 +516,12 @@ export class BlogsElementComponent implements OnInit {
     this.articleCoverAlt.set(readDraftString(draft, 'coverAlt'));
   }
 
-  /** Un campo del artículo: escribe el espejo Y el borrador persistente. */
+  /** Un campo del artículo (lo que emite su átomo): escribe el espejo Y el borrador persistente. */
   onArticleField(
     patch: (values: AuthoringDraft) => void,
     field: 'title' | 'body' | 'coverUrl' | 'coverAlt',
-    event: Event,
+    value: string,
   ): void {
-    const value = (event.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? '';
     this.articleNotSaved.set(false);
     switch (field) {
       case 'title':
@@ -965,10 +973,6 @@ export class BlogsElementComponent implements OnInit {
     this.#panelFocusPending.set(true);
   }
 
-  // ─── Native input bindings ───────────────────────────────────────────────────
-  bind(setter: (value: string) => void): (event: Event) => void {
-    return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
-  }
 
   // ─── Navigation (signals + hash deep-links) ──────────────────────────────────
   go(view: BlogsView): void {

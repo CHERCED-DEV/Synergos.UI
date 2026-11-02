@@ -20,6 +20,7 @@ let textareaId = 0;
         [placeholder]="placeholder()"
         [disabled]="disabled()"
         [required]="required()"
+        [attr.maxlength]="maxlength() ?? null"
         [value]="value()"
         [attr.autocomplete]="resolvedAutocomplete()"
         [attr.aria-invalid]="invalid() || null"
@@ -63,6 +64,8 @@ export class TextareaComponent {
   readonly disabled = input(false);
   readonly invalid = input(false);
   readonly required = input(false);
+  /** El tope de caracteres, como el de `syn-input`: el navegador no deja escribir más (012-blogs-social, T009). */
+  readonly maxlength = input<number | undefined>(undefined);
 
   readonly valueChange = output<string>();
   readonly focused = output<void>();

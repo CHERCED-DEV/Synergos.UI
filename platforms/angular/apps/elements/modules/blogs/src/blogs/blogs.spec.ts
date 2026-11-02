@@ -1126,7 +1126,7 @@ describe('BlogsElementComponent', () => {
     component.onArticleField(
       (v) => patched.push(v as Record<string, unknown>),
       'coverUrl',
-      { target: { value: '' } } as unknown as Event,
+      '',
     );
 
     // Antes el alt se quedaba rancio: el input vive dentro de un `@if` que lo
@@ -1727,11 +1727,11 @@ describe('BlogsElementComponent', () => {
   it('el contador del compositor se DESCRIBE y sólo habla en los hitos, no en cada tecla', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    (fixture.nativeElement.querySelector('.blogs__composer-open') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('.blogs__composer-open button') as HTMLButtonElement).click();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const campo = fixture.nativeElement.querySelector('.blogs__composer-input') as HTMLTextAreaElement;
+    const campo = fixture.nativeElement.querySelector('.blogs__composer-input textarea') as HTMLTextAreaElement;
     const contador = fixture.nativeElement.querySelector('.blogs__char-count') as HTMLElement;
     expect(campo).toBeTruthy();
     expect(contador.getAttribute('aria-live')).toBeNull();
@@ -1766,7 +1766,7 @@ describe('BlogsElementComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const campo = fixture.nativeElement.querySelector('.blogs__editor-body') as HTMLTextAreaElement;
+    const campo = fixture.nativeElement.querySelector('.blogs__editor-body textarea') as HTMLTextAreaElement;
     const pista = fixture.nativeElement.querySelector('.blogs__editor-hint') as HTMLElement;
     expect(campo, 'el paso «contenido» no está a la vista').toBeTruthy();
     expect(pista.getAttribute('aria-live')).toBeNull();

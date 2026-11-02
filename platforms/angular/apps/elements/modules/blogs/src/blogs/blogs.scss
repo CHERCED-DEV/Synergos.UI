@@ -153,74 +153,6 @@
   white-space: nowrap;
 }
 
-.blogs__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: syn.$space-1;
-  padding: syn.$space-2 syn.$space-4;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-full;
-  background: var(--bl-surface);
-  color: var(--bl-text);
-  font: inherit;
-  font-weight: syn.$font-weight-semibold;
-  font-size: syn.$font-size-sm;
-  cursor: pointer;
-  transition: background-color syn.$duration-fast syn.$easing-smooth,
-    border-color syn.$duration-fast syn.$easing-smooth;
-
-  &:hover:not(:disabled) {
-    background: var(--bl-surface-muted);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
-
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  &--brand {
-    background: var(--bl-brand);
-    border-color: var(--bl-brand);
-    color: var(--bl-brand-text);
-
-    &:hover:not(:disabled) {
-      background: var(--bl-brand);
-      filter: brightness(0.95);
-    }
-  }
-
-  &--ghost {
-    background: transparent;
-  }
-
-  &--sm {
-    padding: syn.$space-1 syn.$space-3;
-    font-size: syn.$font-size-xs;
-  }
-}
-
-.blogs__link-btn {
-  border: 0;
-  background: none;
-  color: var(--bl-brand);
-  font: inherit;
-  font-size: syn.$font-size-sm;
-  font-weight: syn.$font-weight-semibold;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-sm;
-  }
-}
-
 // ─── Hueco de identidad (401) ───────────────────────────────────────────────────
 // Lo que se ve en mensajes / notificaciones / guardados / estudio sin sesión. No es un
 // error ni una degradación — es una invitación, así que se estila como panel neutro y
@@ -380,75 +312,10 @@
   }
 }
 
-.blogs__nav-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: syn.$space-3;
-  width: 100%;
-  padding: syn.$space-3 syn.$space-4;
-  border: 0;
-  border-radius: syn.$radius-full;
-  background: none;
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-base;
-  font-weight: syn.$font-weight-medium;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color syn.$duration-fast syn.$easing-smooth;
-
-  &:hover {
-    background: var(--bl-surface-muted);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(-2);
-  }
-
-  &.is-active {
-    background: var(--bl-brand-soft);
-    color: var(--bl-brand);
-    font-weight: syn.$font-weight-bold;
-  }
-}
-
+// Los elementos de la barra son `syn-button` (variante ghost, al comienzo y con el lugar actual): su look, su foco y
+// su contador (`syn-badge`) son del design system (012, I1). Aquí sólo queda el icono, que sigue al color del botón.
 .blogs__nav-glyph {
   color: currentColor;
-}
-
-.blogs__nav-badge {
-  margin-left: auto;
-  min-width: syn.px-to-rem(20);
-  padding: 0 syn.px-to-rem(6);
-  border-radius: syn.$radius-full;
-  background: var(--bl-brand);
-  color: var(--bl-brand-text);
-  font-size: syn.$font-size-xs;
-  font-weight: syn.$font-weight-bold;
-  text-align: center;
-}
-
-.blogs__compose-cta {
-  margin: syn.$space-3 0;
-  padding: syn.$space-3 syn.$space-5;
-  border: 0;
-  border-radius: syn.$radius-full;
-  background: var(--bl-brand);
-  color: var(--bl-brand-text);
-  font: inherit;
-  font-size: syn.$font-size-base;
-  font-weight: syn.$font-weight-bold;
-  cursor: pointer;
-
-  &:hover {
-    filter: brightness(0.95);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
 }
 
 .blogs__rail-me {
@@ -554,21 +421,10 @@
   box-shadow: var(--bl-shadow);
 }
 
+// El disparador y los campos son átomos (`syn-button` al comienzo, `syn-textarea`, `syn-input`): aquí sólo su lugar en
+// la fila (012, I1).
 .blogs__composer-open {
   flex: 1;
-  padding: syn.$space-3 syn.$space-4;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-full;
-  background: var(--bl-surface-muted);
-  color: var(--bl-muted);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
 }
 
 .blogs__composer {
@@ -587,49 +443,13 @@
 
 .blogs__composer-input {
   flex: 1;
-  min-height: syn.px-to-rem(72);
-  padding: syn.$space-2;
-  border: 0;
-  background: none;
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-base;
-  resize: vertical;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-sm;
-  }
 }
 
 .blogs__composer-media {
   display: flex;
   flex-direction: column;
-  gap: syn.$space-1;
+  gap: syn.$space-2;
   margin-top: syn.$space-3;
-}
-
-.blogs__field-label {
-  color: var(--bl-text-secondary);
-  font-size: syn.$font-size-xs;
-  font-weight: syn.$font-weight-semibold;
-}
-
-.blogs__composer-field {
-  padding: syn.$space-2 syn.$space-3;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-md;
-  background: var(--bl-surface-muted);
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-sm;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: 0;
-    border-color: var(--bl-brand);
-  }
 }
 
 .blogs__composer-foot {
@@ -680,23 +500,17 @@
   gap: syn.$space-3;
 }
 
+// Lo que va DENTRO de un `syn-button` sin cromo (plain): el botón pone el foco y la pulsación; aquí, la fila (012, I1).
 .blogs__post-author,
 .blogs__account-id {
   display: flex;
   align-items: center;
   gap: syn.$space-3;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+}
 
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-md;
-  }
+.blogs__account-open {
+  flex: 1;
+  min-width: 0;
 }
 
 .blogs__post-id,
@@ -765,25 +579,11 @@
   list-style: none;
 }
 
-.blogs__chip,
+// Las etiquetas de una tarjeta son `syn-button` (outline, sm); estas dos son el texto de una fila sin cromo.
 .blogs__hashtag-name,
 .blogs__trend-name {
   color: var(--bl-brand);
   font-weight: syn.$font-weight-semibold;
-}
-
-.blogs__chip {
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: syn.$font-size-sm;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-sm;
-  }
 }
 
 // ─── Actions / reactions ──────────────────────────────────────────────────────────
@@ -802,91 +602,25 @@
   gap: syn.$space-1;
 }
 
-.blogs__react,
-.blogs__action,
-.blogs__comment-like {
-  display: inline-flex;
-  align-items: center;
-  gap: syn.$space-1;
-  padding: syn.$space-1 syn.$space-3;
-  border: syn.px-to-rem(1) solid transparent;
-  border-radius: syn.$radius-full;
-  background: none;
-  color: var(--bl-text-secondary);
-  font: inherit;
-  font-size: syn.$font-size-sm;
-  cursor: pointer;
-  transition: background-color syn.$duration-fast syn.$easing-smooth,
-    color syn.$duration-fast syn.$easing-smooth;
-
-  &:hover {
-    background: var(--bl-surface-muted);
-    color: var(--bl-text);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
-
-  &.is-active {
-    background: var(--bl-brand-soft);
-    color: var(--bl-brand);
-    border-color: var(--bl-brand-soft);
-    font-weight: syn.$font-weight-bold;
-  }
-}
-
+// Reacciones, comentar, republicar, guardar y el «me gusta» de un comentario son `syn-button` (ghost, sm) con su
+// alternancia; «Cargar más» y «Volver» también (012, I1). Aquí sólo el lugar de cada uno.
 .blogs__react-count {
   font-variant-numeric: tabular-nums;
 }
 
 .blogs__more {
-  display: block;
-  width: 100%;
   margin-top: syn.$space-4;
-  padding: syn.$space-3;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-md;
-  background: var(--bl-surface);
-  color: var(--bl-text);
-  font: inherit;
-  font-weight: syn.$font-weight-semibold;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--bl-surface-muted);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
 }
 
 .blogs__back {
-  display: inline-flex;
-  align-items: center;
-  gap: syn.$space-1;
   margin-bottom: syn.$space-4;
-  border: 0;
-  background: none;
-  color: var(--bl-brand);
-  font: inherit;
-  font-weight: syn.$font-weight-semibold;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-sm;
-  }
 }
 
 // ─── Comment thread ────────────────────────────────────────────────────────────────
 .blogs__comment-form,
 .blogs__reply-form {
   display: flex;
+  align-items: flex-end;
   gap: syn.$space-2;
   margin: syn.$space-3 0;
 }
@@ -894,20 +628,6 @@
 .blogs__comment-input,
 .blogs__reply-input {
   flex: 1;
-  padding: syn.$space-2 syn.$space-3;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-md;
-  background: var(--bl-surface-muted);
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-sm;
-  resize: vertical;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: 0;
-    border-color: var(--bl-brand);
-  }
 }
 
 .blogs__thread-title {
@@ -950,19 +670,8 @@
 }
 
 .blogs__comment-author {
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
   font-weight: syn.$font-weight-bold;
   font-size: syn.$font-size-sm;
-  cursor: pointer;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-    border-radius: syn.$radius-sm;
-  }
 }
 
 .blogs__comment-handle {
@@ -1057,41 +766,25 @@
   list-style: none;
 }
 
+// La fila va DENTRO de un `syn-button` sin cromo: el botón pone el foco y la pulsación (012, I1).
 .blogs__notif {
   display: flex;
   align-items: center;
   gap: syn.$space-3;
-  width: 100%;
   padding: syn.$space-3 syn.$space-4;
-  border: 0;
   border-radius: syn.$radius-md;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 
   &:hover {
     background: var(--bl-surface-muted);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(-2);
   }
 
   &.is-unread {
     background: var(--bl-brand-soft);
   }
 
-  // El molde comparte el padding/gap de la fila real, pero no es un control: ni
-  // cursor de mano ni realce al pasar el ratón.
-  &--skeleton {
-    cursor: default;
-
-    &:hover {
-      background: none;
-    }
+  // El molde comparte el padding y el hueco de la fila real, pero no es un control: sin realce al pasar el ratón.
+  &--skeleton:hover {
+    background: none;
   }
 }
 
@@ -1133,22 +826,11 @@
   display: flex;
   flex-direction: column;
   gap: syn.px-to-rem(2);
-  width: 100%;
   padding: syn.$space-3 syn.$space-4;
-  border: 0;
   border-radius: syn.$radius-md;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 
   &:hover {
     background: var(--bl-surface-muted);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(-2);
   }
 }
 
@@ -1185,24 +867,7 @@
   display: flex;
   flex-direction: column;
   gap: syn.$space-2;
-}
-
-.blogs__compose-cta--ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: syn.$space-2;
-  margin: 0;
-  padding: syn.$space-2 syn.$space-4;
-  background: transparent;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  color: var(--bl-text);
-  font-size: syn.$font-size-sm;
-
-  &:hover {
-    background: var(--bl-surface-muted);
-    filter: none;
-  }
+  margin: syn.$space-3 0;
 }
 
 // Progressive-enhancement embeds (hydrate in the CMS; hidden until upgraded so the
@@ -1224,28 +889,7 @@
 
 // ─── Long-form editor (`/write`) ─────────────────────────────────────────────────
 
-.blogs__editor-title {
-  padding: syn.$space-3;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-md;
-  background: var(--bl-surface);
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-xl;
-  font-weight: syn.$font-weight-bold;
-}
 
-.blogs__editor-body {
-  padding: syn.$space-3;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-md;
-  background: var(--bl-surface);
-  color: var(--bl-text);
-  font: inherit;
-  font-size: syn.$font-size-base;
-  line-height: syn.$line-height-relaxed;
-  resize: vertical;
-}
 
 .blogs__editor-hint {
   font-size: syn.$font-size-xs;
@@ -1293,12 +937,6 @@
   display: flex;
   align-items: center;
   gap: syn.$space-2;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
 }
 
 .blogs__dm-peer-name {
@@ -1354,15 +992,6 @@
   color: var(--bl-danger);
 }
 
-.blogs__dm-retry {
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
 
 .blogs__dm-time {
   font-size: syn.$font-size-xs;
