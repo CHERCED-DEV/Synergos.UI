@@ -642,6 +642,7 @@ export interface SynStorefrontSchema {
   readonly heading?: string;
   readonly subheading?: string;
   readonly vista?: string;
+  readonly seleccion?: string;
   readonly content?: string;
 }
 

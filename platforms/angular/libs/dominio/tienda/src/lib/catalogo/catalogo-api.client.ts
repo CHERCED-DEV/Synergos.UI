@@ -371,6 +371,9 @@ function leerElemento(value: unknown, monedaPorDefecto: string): ShopProduct | n
     return null;
   }
   const precio = leerRegistro(value['precio']);
+  const amount = leerNumero(precio['monto']);
+  // El precio de antes de una oferta (I5): lo que la tarjeta ya pinta tachado. Sólo si es mayor, como en la interina.
+  const antes = leerNumero(leerRegistro(value['precioAntes'])['monto']);
   const calificacion = leerRegistro(value['calificacion']);
   const atributos = leerRegistro(value['atributos']);
   const imagen = leerTexto(value['imagen']).trim();
@@ -379,8 +382,8 @@ function leerElemento(value: unknown, monedaPorDefecto: string): ShopProduct | n
     id,
     title,
     subtitle: '',
-    amount: leerNumero(precio['monto']),
-    listAmount: undefined,
+    amount,
+    listAmount: antes > amount ? antes : undefined,
     currency: leerTexto(precio['moneda']).trim() || monedaPorDefecto,
     brand: leerTexto(atributos['marca']).trim(),
     category: leerTexto(atributos['categoria']).trim(),

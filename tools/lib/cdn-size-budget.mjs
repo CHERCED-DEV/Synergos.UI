@@ -151,7 +151,15 @@ export const EXCEPCIONES = {
   // suman 666 bytes, y el grueso evitable vuelve a ser del build —7 033 escapes `\uXXXX` de los `ɵɵ`,
   // 42 KB de los 459—, que es la decisión de `charset` que ya anotó eventos, no un recorte de este
   // vertical.
-  storefront: { techo: 480 * KB, razon: 'tienda entera: catálogo, carrito, checkout, compra por la puerta, compra pendiente, cupón y devoluciones. 459 KB medidos el 2026-10-22, 254 de shells (55 %)' },
+  // Resubido el 2026-11-01 (014-despiece-tienda, I5): 480,7 KB medidos (492 250 B), reempaquetando la entrada AOT con
+  // las opciones de build.mjs y metafile: 254,6 de shells (53 %), 139,5 del app y 60,9 de la lib de dominio de la tienda
+  // (los adaptadores por capacidad y sus fachadas, que en I2 salieron del componente), 10,9 de vitals/core, 8,5 de
+  // transaction-engine y 6,3 de contratos. Lo que entró desde los 459 del 2026-10-22 es el despiece (I1-I3: las piezas
+  // del design system en vez de los controles a mano, la navegación por páginas), las lecturas genéricas de I4 con la
+  // interina al lado, que es la vuelta atrás sin desplegar, y los filtros fijos de «Ofertas» (I5): funcionalidad y la
+  // vuelta atrás, no código muerto. Lo evitable vuelve a ser del build: 7 004 escapes `\uXXXX` (41 KB), la decisión de
+  // `charset` que anotó eventos. Se sube con ~8 % de aire.
+  storefront: { techo: 519 * KB, razon: 'tienda entera: catálogo con ofertas, carrito, checkout, compra por la puerta, compra pendiente, cupón, devoluciones y las lecturas genéricas con su vuelta atrás. 481 KB medidos el 2026-11-01, 255 de shells (53 %)' },
   // Resubido el 2026-10-24 (ADR 0140, línea 006): 436,3 KB medidos (446 773 B), reempaquetando la entrada AOT con las
   // opciones de build.mjs y metafile: 264,9 de shells (61 %), 148,4 del propio componente, 8,9 de la puerta común
   // (vitals/core/flujos, que el portal carga por primera vez), 8,5 del motor de transacción y 4,0 de contratos. Lo que

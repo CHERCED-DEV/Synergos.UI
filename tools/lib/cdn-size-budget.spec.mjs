@@ -127,14 +127,28 @@ describe('revisarBundle', () => {
     expect(v.origen).toBe('excepción');
   });
 
-  it('storefront un byte por encima de su techo de 480 KB: NO pasa', () => {
+  it('storefront como se mide el 2026-11-01, con I5 de 014: pasa por su excepción', () => {
+    // 492 250 bytes publicados en la copia piloto de 014 con el despiece entero (I1–I5): las
+    // lecturas genéricas con su interina al lado y los filtros fijos de «Ofertas».
+    const v = revisarBundle({
+      framework: 'angular',
+      nombre: 'storefront',
+      tier: 'module',
+      bytes: 492_250,
+      codigo: bundleSano(),
+    });
+    expect(v.ok).toBe(true);
+    expect(v.origen).toBe('excepción');
+  });
+
+  it('storefront un byte por encima de su techo de 519 KB: NO pasa', () => {
     // El otro lado: el techo es un número que alguien defendió con su medida, no uno que se sube
     // en silencio. Un techo más laxo deja pasar este bundle y este test lo dice.
     const v = revisarBundle({
       framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
-      bytes: 480 * 1024 + 1,
+      bytes: 519 * 1024 + 1,
       codigo: bundleSano(),
     });
     expect(v.ok).toBe(false);

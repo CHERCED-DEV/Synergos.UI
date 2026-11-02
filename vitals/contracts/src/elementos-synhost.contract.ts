@@ -146,6 +146,12 @@ export interface FilaDelListado {
   readonly specs?: readonly DatoDeLaFila[];
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: FiltroFijo). */
+export interface FiltroFijo {
+  readonly campo: string;
+  readonly valor: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: LightboxGalleryImage). */
 export interface LightboxGalleryImage {
   readonly src: string;
@@ -738,6 +744,8 @@ export interface StorefrontProps {
   readonly zonaHoraria: string;
   /** decision */
   readonly vista?: string;
+  /** decision */
+  readonly filtros: readonly FiltroFijo[];
   /** sitio */
   readonly rutas: readonly RutaDeUnaVista[];
 }
@@ -2592,9 +2600,22 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   record: "StorefrontProps",
   diccionario: ["Storefront.Purchase"],
   claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
-  campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","rutas"],
-  listas: {"rutas":["vista","url"]},
+  campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","filtros","rutas"],
+  listas: {"filtros":["campo","valor"],"rutas":["vista","url"]},
   selectores: [
+    {
+      "propiedad": "seleccion",
+      "dataType": "DTSelectSeleccionDelCatalogo",
+      "multiple": false,
+      "campo": null,
+      "valores": [
+        {
+          "editor": "ofertas",
+          "viaja": null
+        }
+      ],
+      "deDatos": true
+    },
     {
       "propiedad": "vista",
       "dataType": "DTSelectVistaDeLaTienda",
@@ -2646,6 +2667,12 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
     "shippingCountry": "CO",
     "zonaHoraria": "America/Bogota",
     "vista": "catalogo",
+    "filtros": [
+      {
+        "campo": "oferta",
+        "valor": "En oferta"
+      }
+    ],
     "rutas": [
       {
         "vista": "inicio",
