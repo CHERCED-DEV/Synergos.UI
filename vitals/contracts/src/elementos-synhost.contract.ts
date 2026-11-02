@@ -332,7 +332,7 @@ export interface BadgeGroupProps {
   readonly layout?: string;
 }
 
-/** <synergos-blogs> · funcionalidad */
+/** <synergos-blogs> · funcionalidad · diccionario: Blogs.Comentarios */
 export interface BlogsProps {
   /** contenido */
   readonly heading?: string;
@@ -1045,8 +1045,8 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   nombre: "blogs",
   tipo: "funcionalidad",
   record: "BlogsProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Blogs.Comentarios"],
+  claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion"],
   campos: ["heading","subheading","apiBase"],
   listas: {},
   selectores: [],

@@ -198,6 +198,70 @@ export class BlogsApiClient {
     }
   }
 
+  // ─── Comentar (012-blogs-social, I0) ───────────────────────────────────────
+
+  /**
+   * Comenta una publicación, o responde a un comentario. **Lanza si el borde no lo guardó** (UI#92): la app pintaba
+   * el comentario en local y no lo mandaba a ninguna parte, así que al recargar no estaba.
+   *
+   * `approved: false` quiere decir que el comentario espera a un moderador: se guardó, pero no se ve en el hilo, y la
+   * pantalla no lo pinta como publicado.
+   */
+  async comment(
+    apiBase: string,
+    postId: string,
+    body: string,
+    parentId: string | null,
+  ): Promise<{ readonly comment: Comment | null; readonly approved: boolean }> {
+    const url = `${apiBase}/post/${encodeURIComponent(postId)}/comments`;
+    try {
+      const data = await this.postJson(apiBase, url, { body, parentId });
+      if (isRecord(data) && typeof data['approved'] === 'boolean') {
+        return { comment: normalizeComment(data['comment'], postId), approved: data['approved'] };
+      }
+      throw new Error('comment-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/blogs/post/{id}/comments', error);
+    }
+  }
+
+  /**
+   * Le da «me gusta» a un comentario y devuelve cuántos tiene, según el SERVIDOR. Suma uno, como en la página del
+   * post: el almacén no recuerda quién lo dio. **Lanza si el borde no lo guardó.**
+   */
+  async likeComment(apiBase: string, postId: string, commentId: string): Promise<number> {
+    const url = `${apiBase}/post/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/like`;
+    try {
+      const data = await this.postJson(apiBase, url, {});
+      if (isRecord(data) && data['likeCount'] !== undefined) {
+        return Math.trunc(readNumber(data['likeCount']));
+      }
+      throw new Error('comment-like-shape');
+    } catch (error) {
+      this.writeFailed('POST /api/blogs/post/{id}/comments/{commentId}/like', error);
+    }
+  }
+
+  // ─── Quién soy en la red (012-blogs-social, I0) ────────────────────────────
+
+  /**
+   * La cara pública de quien lee: la misma con que sale en lo que publica. La app la usa para reconocer lo suyo —no
+   * ofrecerse «Seguir» a sí misma— sin saber su correo, que antes hacía de llave y salía a la vista de todos.
+   *
+   * `null` si no hay sesión o el borde no contesta: no se degrada a nadie de ejemplo, porque sería decirle a quien lee
+   * que es otra persona.
+   */
+  async me(apiBase: string): Promise<Author | null> {
+    const url = `${apiBase}/me`;
+    try {
+      const data = await this.getJson(apiBase, url);
+      return isRecord(data) ? normalizeAuthor(data['author']) : null;
+    } catch (error) {
+      this.#logger.warn('Blogs API "GET /api/blogs/me" unavailable — the viewer has no public key yet.', error);
+      return null;
+    }
+  }
+
   // ─── Publish a post ─────────────────────────────────────────────────────────
 
   /** Dice si se GUARDÓ — misma razón que `publishArticle` (#26). */
