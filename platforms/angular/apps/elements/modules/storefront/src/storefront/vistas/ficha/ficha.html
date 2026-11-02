@@ -23,7 +23,10 @@
   />
 
   <ng-template #pdpBody>
-    <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
+    <!-- Una sola vez: si la descripción es la misma entradilla de arriba, no se repite. -->
+    @if (pdp.description && pdp.description !== pdp.product.subtitle) {
+      <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
+    }
     <p class="storefront__pdp-meta">
       <synergos-rating-stars
         [attr.value]="pdp.product.rating"
