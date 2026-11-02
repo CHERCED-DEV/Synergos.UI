@@ -11,6 +11,7 @@ import {
   DevolucionesDeLaTienda,
   EscritorioDeLaTienda,
   LecturasDeLaTienda,
+  leerFiltrosFijos,
   MensajesDeLaTienda,
   PedidosDeLaTienda,
   ResenasDeLaTienda,
@@ -74,6 +75,7 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     shippingCountry: coerceTrimmedStringInput(value.shippingCountry),
     zonaHoraria: coerceTrimmedStringInput(value.zonaHoraria),
     vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
+    filtros: leerFiltrosFijos(value.filtros),
     rutas: coerceRutasDeLasVistas(value.rutas),
   });
 }
@@ -284,6 +286,7 @@ export class StorefrontElementComponent implements OnInit {
     this.configuracion.conectar({
       apiBase: this.apiBase,
       lecturasBase: this.lecturasBase,
+      filtrosFijos: computed(() => this.config()?.filtros ?? []),
       zonaHoraria: this.zonaHoraria,
       purchasePath: computed(() => this.config()?.purchasePath),
       shippingCountry: this.shippingCountry,

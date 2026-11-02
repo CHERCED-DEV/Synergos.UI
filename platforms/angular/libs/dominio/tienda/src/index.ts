@@ -23,6 +23,7 @@ export * from './lib/vendedor/escritorio.model';
 // (llamar sólo con la base de la API, pedir JSON, leer sin confiar en la forma) vive en @synergos/core.
 export { LecturasDeLaTienda, ShopWriteFailedError } from './lib/comun/lecturas';
 export { CatalogoApi } from './lib/catalogo/catalogo-api.client';
+export { facetasFijas, leerFiltrosFijos, type FiltroFijoDelCatalogo } from './lib/catalogo/filtros-fijos';
 export { CuponApi } from './lib/carrito/cupon-api.client';
 export { CompraApi } from './lib/compra/compra-api.client';
 export { MUESTRAS_DE_LA_CUENTA, PedidosApi } from './lib/pedidos/pedidos-api.client';

@@ -87,6 +87,7 @@ describe('esFicheroDeInterfaz', () => {
     expect(esFicheroDeInterfaz('apps/x/src/x/x.ts')).toBe(true);
     expect(esFicheroDeInterfaz('apps/x/src/x/x.html')).toBe(true);
     expect(esFicheroDeInterfaz('apps/x/src/x/x.spec.ts')).toBe(false);
+    expect(esFicheroDeInterfaz('apps/x/src/x/arnes-de-x.test.ts')).toBe(false);
     expect(esFicheroDeInterfaz('apps/x/src/index.html')).toBe(false);
     expect(esFicheroDeInterfaz('apps/x/src/main.ts')).toBe(false);
     expect(esFicheroDeInterfaz('apps/x/src/x/eventos-api.client.ts')).toBe(false);

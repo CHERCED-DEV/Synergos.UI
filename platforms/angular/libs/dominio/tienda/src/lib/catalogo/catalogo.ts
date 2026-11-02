@@ -4,6 +4,7 @@ import { AvisosDeLaTienda } from '../comun/avisos';
 import { ConfiguracionDeLaTienda } from '../comun/configuracion';
 import { TEXTOS_DE_LA_TIENDA } from '../comun/textos';
 import { CatalogoApi } from './catalogo-api.client';
+import { facetasFijas } from './filtros-fijos';
 import type { Facet, ProductDetail, ProductVariant, SearchCriteria, ShopProduct, SortKey } from './catalogo.model';
 
 /** Lo que pide la búsqueda de la tienda: término, facetas, orden y página. */
@@ -94,10 +95,13 @@ export class CatalogoDeLaTienda {
   async runSearch(): Promise<void> {
     const active = this.criteria();
     const sort = ORDENES.find((key) => key === active.sort) ?? 'relevance';
+    // Los filtros fijos del bloque (I5) van en cada búsqueda, encima de lo que elija quien compra, y su faceta no se
+    // ofrece: en «Ofertas» no se puede desmarcar la oferta.
+    const fijas = facetasFijas(this.#config.filtrosFijos());
     const criteria: SearchCriteria = {
       q: active.term,
       category: '',
-      facets: active.facets,
+      facets: { ...active.facets, ...fijas },
       sort,
       page: active.page,
     };
@@ -112,7 +116,7 @@ export class CatalogoDeLaTienda {
       this.products.set(result.products);
       this.total.set(result.total);
       this.discoveryFacets.set(
-        result.facets.map((facet) => ({
+        result.facets.filter((facet) => !(facet.key in fijas)).map((facet) => ({
           key: facet.key,
           label: facet.label,
           // El kind VIAJA: es lo que hace que `minRating` se pinte como radio (un umbral es

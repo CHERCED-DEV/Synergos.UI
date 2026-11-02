@@ -1,4 +1,5 @@
 import { Injectable, computed, signal, type Signal } from '@angular/core';
+import type { FiltroFijoDelCatalogo } from '../catalogo/filtros-fijos';
 import { caminoDeLaCompra, type CaminoDeCompra } from '../compra/compra.model';
 
 /** Lo que el elemento lee del bloque del CMS y la fachada necesita. */
@@ -17,6 +18,11 @@ export interface FuentesDeLaTienda {
   readonly purchasePath: Signal<string | undefined>;
   /** El país al que despacha el sitio (ISO 3166-1 alfa-2): lo declara el CMS, el formulario no lo pregunta. */
   readonly shippingCountry: Signal<string>;
+  /**
+   * Los filtros fijos del catálogo que declara el bloque (014-despiece-tienda, I5): la página «Ofertas» es el catálogo con
+   * `oferta = En oferta`. Sin ninguno, todo el catálogo.
+   */
+  readonly filtrosFijos: Signal<readonly FiltroFijoDelCatalogo[]>;
 }
 
 /**
@@ -33,6 +39,7 @@ export class ConfiguracionDeLaTienda {
   readonly zonaHoraria = computed(() => this.#fuentes()?.zonaHoraria() ?? '');
   readonly purchasePath = computed(() => this.#fuentes()?.purchasePath());
   readonly shippingCountry = computed(() => this.#fuentes()?.shippingCountry() ?? '');
+  readonly filtrosFijos = computed(() => this.#fuentes()?.filtrosFijos() ?? []);
 
   /**
    * El camino de la compra que declara el CMS en `purchasePath` (ADR 0140): la puerta o la ruta directa, la de
