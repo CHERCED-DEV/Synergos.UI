@@ -375,16 +375,39 @@ describe('BlogsElementComponent', () => {
       expect(hayPerfil()).toBe(true);
     });
 
-    it('con sesión, la tarjeta es la del miembro y no le inventa un handle', async () => {
+    it('con sesión y sin respuesta de /me, la tarjeta es la del miembro, sin handle y sin su correo', async () => {
       conHost({ member: { key: 'k-1', displayName: 'Camila Restrepo', email: 'camila@ejemplo.co', roles: [] } });
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
 
       expect(tarjeta()).toEqual(['CR', 'Camila Restrepo', '']);
-      // El id de actor del servidor es el correo: lo que el miembro publica es «suyo».
-      expect(component.viewer()?.actorKey).toBe('camila@ejemplo.co');
+      // El correo ya no hace de llave (012-blogs-social, I0): salía a la vista de todos. Sin la
+      // llave pública que contesta /me, la llave va vacía y no se le inventa otra.
+      expect(component.viewer()?.actorKey).toBe('');
+      expect(JSON.stringify(component.viewer())).not.toContain('camila@ejemplo.co');
       // Sin handle no hay perfil que abrir: el de `tu` no existe en el servidor.
       expect(hayPerfil()).toBe(false);
+    });
+
+    it('con sesión, quien lee es su cara pública: la llave y el alias que contesta /me', async () => {
+      conHost({ member: { key: 'k-1', displayName: 'Camila Restrepo', email: 'camila@ejemplo.co', roles: [] } });
+      const cara = { id: '0123abcdef456789', actorKey: '0123abcdef456789', handle: 'camila-restrepo-0123ab', displayName: 'Camila Restrepo' };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          String(url).endsWith('/me')
+            ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ author: cara }) } as Response)
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent();
+      fixture.detectChanges();
+
+      expect(component.viewer()?.actorKey).toBe('0123abcdef456789');
+      expect(component.viewer()?.handle).toBe('camila-restrepo-0123ab');
+      expect(tarjeta()).toEqual(['CR', 'Camila Restrepo', '@camila-restrepo-0123ab']);
+      expect(JSON.stringify(component.viewer())).not.toContain('camila@ejemplo.co');
+      expect(hayPerfil()).toBe(true);
     });
 
     it('con host y sin sesión no hay «yo»: se ofrece entrar, no se inventa a nadie', async () => {
@@ -554,25 +577,78 @@ describe('BlogsElementComponent', () => {
     expect(component.errorMessage()).toBe('No pudimos actualizar a quién sigues. Intenta de nuevo.');
   });
 
-  // ── thread: open a post, add a top-level comment optimistically ──────────────
-  it('opens a post thread and appends a comment optimistically', async () => {
+  // ── thread: comentar va al servidor y se pinta lo que guardó (012-blogs-social, I0) ──
+  //
+  // Antes el comentario se pintaba en local y no se mandaba a ninguna parte: al recargar no estaba.
+
+  /** Un servidor que guarda el comentario y lo devuelve como lo vería el hilo. */
+  function servidorQueComenta(aprobado = true): ReturnType<typeof vi.fn> {
+    const mock = vi.fn((url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/comments') && init?.method === 'POST') {
+        const cuerpo = JSON.parse(String(init.body)) as { body: string; parentId: string | null };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              approved: aprobado,
+              comment: { id: 'c-srv', author: AUTHOR, body: cuerpo.body, parentId: cuerpo.parentId, createdAtUtc: '2026-11-02T10:00:00Z', likeCount: 0, replies: [] },
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', mock as unknown as typeof fetch);
+    return mock;
+  }
+
+  it('comentar manda el comentario y pinta el que guardó el servidor', async () => {
+    const fetchMock = servidorQueComenta();
+    await createComponent();
+    component.openPost(component.posts()[0]);
+    await flushMicrotasks();
+    const before = component.comments().length;
+
+    component.commentDraft.set('¡Excelente!');
+    await component.submitComment();
+
+    const pedido = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/comments'));
+    expect(pedido).toBeDefined();
+    expect(JSON.parse(String((pedido![1] as RequestInit).body))).toEqual({ body: '¡Excelente!', parentId: null });
+    expect(component.comments().length).toBe(before + 1);
+    expect(component.comments()[component.comments().length - 1].id).toBe('c-srv');
+    expect(component.commentDraft()).toBe('');
+  });
+
+  it('si el comentario no llega al servidor, no se pinta y el borrador se queda', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-
-    const post = component.posts()[0];
-    component.openPost(post);
+    component.openPost(component.posts()[0]);
     await flushMicrotasks();
-
-    expect(component.view()).toBe('post');
-    expect(component.comments().length).toBeGreaterThan(0);
-
     const before = component.comments().length;
-    component.commentDraft.set('¡Excelente!');
-    component.submitComment();
 
-    expect(component.comments().length).toBe(before + 1);
-    expect(component.comments()[component.comments().length - 1].body).toBe('¡Excelente!');
-    expect(component.commentDraft()).toBe('');
+    component.commentDraft.set('¡Excelente!');
+    await component.submitComment();
+
+    expect(component.comments().length).toBe(before);
+    expect(component.commentDraft()).toBe('¡Excelente!');
+    expect(component.errorMessage()).toContain('NO se publicó');
+  });
+
+  it('un comentario en revisión no se pinta como publicado y se dice', async () => {
+    servidorQueComenta(false);
+    await createComponent();
+    component.openPost(component.posts()[0]);
+    await flushMicrotasks();
+    const before = component.comments().length;
+
+    component.commentDraft.set('Espera tu turno');
+    await component.submitComment();
+    fixture.detectChanges();
+
+    expect(component.comments().length).toBe(before);
+    expect(component.commentNotice()).toContain('en revisión');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('en revisión');
   });
 
   // ── search: hashtag search routes to the search view with results ────────────
@@ -1073,23 +1149,32 @@ describe('BlogsElementComponent', () => {
     expect(component.studioRows().length).toBeGreaterThan(0);
   });
 
-  // ── v2 monetization (SH-3): subscribe wizard runs pay→confirm over the engine ─
-  it('completes a subscription checkout over the engine and confirms membership', async () => {
+  // ── La suscripción, declarada y apagada (012-blogs-social, I0, P5 A) ──────────
+  //
+  // Su pago es local: el asistente aceptaba con una referencia inventada. Hasta que haya cobro
+  // real la pantalla no la ofrece; el asistente y su estrategia se quedan (superset).
+  it('la suscripción está apagada: el estudio no ofrece monetización ni ingresos, y no se abre', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    // Seed a tier from the studio, then open the subscribe wizard.
     component.go('studio');
     await flushMicrotasks();
-    const tier = component.studio()!.tiers[0];
+    expect(component.suscripcionEncendida).toBe(false);
+    expect(component.studioConfig().sections.map((s) => s.id)).not.toContain('monetization');
+    expect(component.studioKpis().map((k) => k.id)).not.toContain('revenue');
 
+    const tier = component.studio()!.tiers[0];
     component.startSubscribe(component.autorLocal(), tier);
     await flushMicrotasks();
-    expect(component.view()).toBe('subscribe');
-    expect(component.subscribeTier()!.id).toBe(tier.id);
+    expect(component.view()).toBe('studio');
+    expect(component.subscribeTier()).toBeNull();
+  });
 
-    component.onSubscribeCompleted({ reference: 'SUB-TEST', vouchers: [] });
-    expect(component.confirmedMembership()).toBe('SUB-TEST');
+  it('un enlace a #/suscribir lleva al inicio y no a un pago que no cobra', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent('#/blogs/suscribir');
+
+    expect(component.view()).toBe('feed');
   });
 
   // ═══ Ola de seguridad: lo del usuario NO se degrada a datos sembrados ═════════

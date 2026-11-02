@@ -78,7 +78,7 @@ import {
   type StudioSection,
   type TrendingTag,
 } from './blogs.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynBlogs</c>.
@@ -162,8 +162,18 @@ const SEARCH_TABS: readonly { key: SearchTab; label: string }[] = [
   { key: 'hashtags', label: 'Hashtags' },
 ];
 
+/**
+ * La suscripción y la propina, **declaradas y apagadas** (012-blogs-social, I0, P5 A). Su pago es local —el asistente
+ * aceptaba con una referencia inventada— y no hay cobro real detrás, así que la pantalla no las ofrece: ni el estudio
+ * enseña la monetización, ni `#/suscribir` abre el asistente. El código se queda (superset) para cuando la capacidad de
+ * pagos cobre de verdad.
+ */
+const SUSCRIPCION_ENCENDIDA = false;
+
 /** The addressable sections inside the SH-5 creator studio (order = sidebar). */
-const STUDIO_SECTIONS: readonly StudioSection[] = ['overview', 'content', 'audience', 'monetization'];
+const STUDIO_SECTIONS: readonly StudioSection[] = SUSCRIPCION_ENCENDIDA
+  ? ['overview', 'content', 'audience', 'monetization']
+  : ['overview', 'content', 'audience'];
 
 const VALID_VIEWS: readonly BlogsView[] = [
   'feed',
@@ -266,9 +276,13 @@ export class BlogsElementComponent implements OnInit {
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
-  readonly initialView = computed<BlogsView>(() =>
-    resolveConfigValue(coerceView(this.viewInput()), undefined, DEFAULT_VIEW),
-  );
+  readonly initialView = computed<BlogsView>(() => {
+    const view = resolveConfigValue(coerceView(this.viewInput()), undefined, DEFAULT_VIEW);
+    return view === 'subscribe' && !SUSCRIPCION_ENCENDIDA ? DEFAULT_VIEW : view;
+  });
+
+  /** Si se ofrece la suscripción (P5 A): apagada hasta que haya cobro real. La plantilla lo lee. */
+  readonly suscripcionEncendida = SUSCRIPCION_ENCENDIDA;
 
   readonly instanceId = (blogsInstanceId += 1);
   readonly fieldId = `syn-blogs-${this.instanceId}`;
@@ -319,6 +333,10 @@ export class BlogsElementComponent implements OnInit {
   readonly subheading = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.subheadingInput()), this.config()?.subheading, ''),
   );
+
+  /** La cara pública de quien lee, tal como la contesta `GET /me`; `null` hasta que contesta. */
+  readonly #yo = signal<Author | null>(null);
+
   /**
    * Quién lee: lo dice la SESIÓN del host (CMS#197), no el editor.
    *
@@ -327,9 +345,10 @@ export class BlogsElementComponent implements OnInit {
    * lector se veía como el mismo demo y «Perfil» abría el de `tu`, que el servidor no tiene.
    *
    *  - **Sin host** (standalone, tests): la identidad de muestra, como siempre.
-   *  - **Con sesión**: el miembro. Su `actorKey` es su correo, que es el id de actor que el
-   *    servidor pone a lo que publica (`RequireActor`), así que «esto es tuyo» casa con él. El
-   *    handle no viaja en el bridge: vacío, y lo que lo necesita no se ofrece.
+   *  - **Con sesión**: el miembro, por su cara pública, la que contesta `GET /me` (012-blogs-social, I0). Su
+   *    `actorKey` es su llave pública, la misma que el servidor pone en lo que publica, así que «esto es tuyo» casa
+   *    con ella. **Nunca su correo**: hacía de llave y salía a la vista de cualquiera. Mientras `/me` no contesta, la
+   *    llave y el handle van vacíos, y lo que los necesita no se ofrece.
    *  - **Con host y sin sesión**: `null`. No se inventa a nadie.
    */
   readonly viewer = computed<Author | null>(() => {
@@ -337,7 +356,16 @@ export class BlogsElementComponent implements OnInit {
       return mockViewer();
     }
     const miembro = this.#identity.member();
-    return miembro ? { ...SIN_CIFRAS, actorKey: miembro.email, displayName: miembro.displayName } : null;
+    if (!miembro) {
+      return null;
+    }
+    const yo = this.#yo();
+    return {
+      ...SIN_CIFRAS,
+      actorKey: yo?.actorKey ?? '',
+      handle: yo?.handle ?? '',
+      displayName: yo?.displayName || miembro.displayName,
+    };
   });
 
   /**
@@ -535,6 +563,10 @@ export class BlogsElementComponent implements OnInit {
   readonly activePost = signal<Post | null>(null);
   readonly comments = signal<readonly Comment[]>([]);
   readonly commentDraft = signal('');
+  /** Si un comentario va camino del servidor: no se manda otro encima. */
+  readonly commentSending = signal(false);
+  /** Lo que se le dice a quien comentó cuando su comentario quedó en revisión. */
+  readonly commentNotice = signal('');
   readonly commentDrafts = signal<Readonly<Record<string, string>>>({});
   readonly commentValid = computed(() => this.commentDraft().trim().length > 0);
 
@@ -736,7 +768,10 @@ export class BlogsElementComponent implements OnInit {
         { id: 'overview', label: 'Resumen', kind: 'custom' },
         { id: 'content', label: 'Contenido', kind: 'table', badge: studio?.topPosts.length || undefined },
         { id: 'audience', label: 'Audiencia', kind: 'custom' },
-        { id: 'monetization', label: 'Monetización', kind: 'custom', badge: studio?.tiers.length || undefined },
+        // La suscripción está apagada (P5 A): sin ella, la monetización no se ofrece.
+        ...(SUSCRIPCION_ENCENDIDA
+          ? [{ id: 'monetization', label: 'Monetización', kind: 'custom' as const, badge: studio?.tiers.length || undefined }]
+          : []),
       ],
     };
   });
@@ -767,12 +802,18 @@ export class BlogsElementComponent implements OnInit {
         value: `${studio.engagementRate.toFixed(1)}%`,
         hint: 'reacciones + comentarios / alcance',
       },
-      {
-        id: 'revenue',
-        label: 'Ingresos del mes',
-        value: this.formatMinor(studio.monthlyRevenueMinor, studio.currency),
-        hint: `${this.subscriberTotal()} suscriptores`,
-      },
+      // Ingresos y suscriptores son de la suscripción, que está apagada (P5 A): un «$ 0» no es un dato, es la
+      // promesa de algo que no hay.
+      ...(SUSCRIPCION_ENCENDIDA
+        ? [
+            {
+              id: 'revenue',
+              label: 'Ingresos del mes',
+              value: this.formatMinor(studio.monthlyRevenueMinor, studio.currency),
+              hint: `${this.subscriberTotal()} suscriptores`,
+            },
+          ]
+        : []),
     ];
   });
 
@@ -903,7 +944,16 @@ export class BlogsElementComponent implements OnInit {
     this.view.set(this.initialView());
     void this.loadFeed();
     void this.loadTrending();
+    void this.loadYo();
     this.applyHash();
+  }
+
+  /** La cara pública de quien lee, si hay sesión en el host. Sin ella no hay a quién preguntar. */
+  private async loadYo(): Promise<void> {
+    if (!this.#identity.hasHost() || !this.#identity.member()) {
+      return;
+    }
+    this.#yo.set(await this.#api.me(this.apiBase()));
   }
 
   /**
@@ -1057,7 +1107,8 @@ export class BlogsElementComponent implements OnInit {
         this.applyRoute('studio', '');
         return;
       case 'suscribir':
-        this.applyRoute('subscribe', '');
+        // Apagada (P5 A): el enlace lleva al inicio en vez de abrir un pago que no cobra.
+        this.applyRoute(SUSCRIPCION_ENCENDIDA ? 'subscribe' : 'feed', '');
         return;
       default:
         if (head.startsWith('@')) {
@@ -1481,43 +1532,94 @@ export class BlogsElementComponent implements OnInit {
     return this.commentDrafts()[parentId] ?? '';
   }
 
-  submitComment(): void {
+  // ─── Comentar (012-blogs-social, I0) ────────────────────────────────────────────
+  //
+  // El comentario se pintaba en local y no se mandaba a ninguna parte: al recargar, no estaba.
+  // Ahora va al hilo de la publicación —el de su página, si es un artículo del CMS— y se pinta
+  // lo que el SERVIDOR guardó, no lo que se tecleó. Si queda esperando a un moderador, se dice
+  // y no se pinta como publicado; si no llegó, el borrador se queda para reintentarlo.
+
+  async submitComment(): Promise<void> {
     const post = this.activePost();
     const body = this.commentDraft().trim();
-    if (!post || !body) {
+    if (!post || !body || this.commentSending()) {
       return;
     }
-    const comment = this.buildLocalComment(post.id, body, null);
-    this.comments.update((current) => [...current, comment]);
-    this.commentDraft.set('');
-    this.patchPost(post.id, (current) => ({ ...current, commentCount: current.commentCount + 1 }));
+    const sent = await this.sendComment(post, body, null);
+    if (sent) {
+      this.commentDraft.set('');
+    }
   }
 
-  submitReply(parent: Comment): void {
+  async submitReply(parent: Comment): Promise<void> {
     const post = this.activePost();
     const body = this.commentDraftFor(parent.id).trim();
-    if (!post || !body) {
+    if (!post || !body || this.commentSending()) {
       return;
     }
-    const reply = this.buildLocalComment(post.id, body, parent.id);
-    this.comments.update((current) =>
-      current.map((comment) =>
-        comment.id === parent.id
-          ? { ...comment, replies: [...comment.replies, reply] }
-          : comment,
-      ),
-    );
-    this.setCommentDraft(parent.id, '');
-    this.patchPost(post.id, (current) => ({ ...current, commentCount: current.commentCount + 1 }));
+    const sent = await this.sendComment(post, body, parent);
+    if (sent) {
+      this.setCommentDraft(parent.id, '');
+    }
   }
 
-  toggleCommentLike(comment: Comment): void {
-    const liked = !comment.liked;
-    const apply = (entry: Comment): Comment =>
-      entry.id === comment.id
-        ? { ...entry, liked, likeCount: Math.max(0, entry.likeCount + (liked ? 1 : -1)) }
-        : { ...entry, replies: entry.replies.map(apply) };
-    this.comments.update((current) => current.map(apply));
+  /** Manda el comentario y pinta el del servidor. `true` si el servidor lo guardó. */
+  private async sendComment(post: Post, body: string, parent: Comment | null): Promise<boolean> {
+    this.commentSending.set(true);
+    this.commentNotice.set('');
+    this.errorMessage.set('');
+    try {
+      const { comment, approved } = await this.#api.comment(this.apiBase(), post.id, body, parent?.id ?? null);
+      if (!approved || !comment) {
+        // Del diccionario, sección `Blogs.Comentarios` (ADR 0136): lo que se ve y lo que se anuncia es lo mismo.
+        const enRevision = t(
+          'Blogs.Comentarios.EnRevision',
+          'Tu comentario quedó en revisión: se verá cuando lo apruebe un moderador.',
+        );
+        this.commentNotice.set(enRevision);
+        this.announce(enRevision);
+        return true;
+      }
+      this.comments.update((current) =>
+        parent
+          ? current.map((entry) => (entry.id === parent.id ? { ...entry, replies: [...entry.replies, comment] } : entry))
+          : [...current, comment],
+      );
+      this.patchPost(post.id, (current) => ({ ...current, commentCount: current.commentCount + 1 }));
+      return true;
+    } catch (error) {
+      if (!this.handleUnauthenticated(error, t('Blogs.Comentarios.SinSesion', 'Inicia sesión para comentar.'))) {
+        this.errorMessage.set(
+          t('Blogs.Comentarios.NoPublicado', 'Tu comentario NO se publicó. Sigue en la caja para reintentarlo.'),
+        );
+      }
+      return false;
+    } finally {
+      this.commentSending.set(false);
+    }
+  }
+
+  /**
+   * «Me gusta» a un comentario. Suma uno en el servidor, como en la página del post, y no se
+   * deshace: el almacén no recuerda quién lo dio, así que un «ya no me gusta» sería pintar un
+   * número que el servidor no tiene. Una reacción por persona llega con Engagement (I5).
+   */
+  async likeComment(comment: Comment): Promise<void> {
+    const post = this.activePost();
+    if (!post || comment.liked) {
+      return;
+    }
+    this.errorMessage.set('');
+    try {
+      const likeCount = await this.#api.likeComment(this.apiBase(), post.id, comment.id);
+      const apply = (entry: Comment): Comment =>
+        entry.id === comment.id ? { ...entry, liked: true, likeCount } : { ...entry, replies: entry.replies.map(apply) };
+      this.comments.update((current) => current.map(apply));
+    } catch (error) {
+      if (!this.handleUnauthenticated(error, t('Blogs.Comentarios.MeGustaSinSesion', 'Inicia sesión para dar me gusta.'))) {
+        this.errorMessage.set(t('Blogs.Comentarios.MeGustaNoGuardado', 'No pudimos guardar tu me gusta. Intenta de nuevo.'));
+      }
+    }
   }
 
   // ─── Profile ─────────────────────────────────────────────────────────────────────
@@ -1969,6 +2071,10 @@ export class BlogsElementComponent implements OnInit {
   // ─── Monetization (SH-3 subscribe/tip over engine) ─────────────────────────────────
   /** Open the subscribe wizard for a creator's tier (called from studio or profile). */
   startSubscribe(creator: Author, tier: CreatorTier): void {
+    if (!SUSCRIPCION_ENCENDIDA) {
+      // Apagada (P5 A): su pago es local y no cobra; la pantalla no la ofrece, y aquí tampoco se abre.
+      return;
+    }
     this.subscribeCreator.set(creator);
     this.subscribeTier.set(tier);
     this.confirmedMembership.set('');
@@ -2147,19 +2253,6 @@ export class BlogsElementComponent implements OnInit {
     }
   }
 
-  private buildLocalComment(postId: string, body: string, parentId: string | null): Comment {
-    return {
-      id: `local-c-${Date.now().toString(36)}`,
-      postId,
-      author: this.autorLocal(),
-      body,
-      parentId,
-      createdAtUtc: new Date().toISOString(),
-      likeCount: 0,
-      liked: false,
-      replies: [],
-    };
-  }
 }
 
 /**
