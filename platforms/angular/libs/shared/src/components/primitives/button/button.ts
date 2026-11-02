@@ -179,6 +179,11 @@ export class ButtonComponent {
   readonly controls = input('');
   /** The current place in a navigation (`aria-current="page"`), with its look. */
   readonly current = input(false, { transform: booleanAttribute });
+  /**
+   * Where the content sits: centred (the default) or at the start — an item of a vertical navigation rail, or a trigger
+   * that reads like a field («¿Qué estás pensando?») (012-blogs-social, T009).
+   */
+  readonly align = input<'center' | 'start'>('center');
 
   readonly classes = computed(() =>
     classNames(
@@ -189,6 +194,7 @@ export class ButtonComponent {
       this.block() && 'syn-button--block',
       this.selected() && 'syn-button--selected',
       this.current() && 'syn-button--current',
+      this.align() === 'start' && 'syn-button--start',
     ),
   );
 
