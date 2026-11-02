@@ -62,7 +62,7 @@ import type { BlogsProps } from '@synergos/contracts';
 import { HostIdentityService } from '@synergos/core';
 import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
-import { mockViewer, reactionStateFor } from './blogs.mock';
+import { mockViewer, reactionStateFor } from '@synergos/dominio/blogs';
 import {
   type Author,
   type BlogsView,
@@ -81,7 +81,7 @@ import {
   type StudioPostStat,
   type StudioSection,
   type TrendingTag,
-} from './blogs.model';
+} from '@synergos/dominio/blogs';
 import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
 
 /**

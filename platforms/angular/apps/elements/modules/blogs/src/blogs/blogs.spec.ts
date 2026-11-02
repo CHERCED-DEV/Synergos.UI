@@ -11,7 +11,7 @@ import {
 import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BlogsElementComponent } from './blogs';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
-import type { Author, Post } from './blogs.model';
+import type { Author, Post } from '@synergos/dominio/blogs';
 import { asentar } from '../../../../../../tools/asentar';
 import { BLOGS_SYNHOST } from '@synergos/contracts';
 

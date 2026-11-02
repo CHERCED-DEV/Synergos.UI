@@ -70,4 +70,6 @@ export const BUNDLED_SYNERGOS = [
   'shop',
   // El dominio de la Tienda (014-despiece-tienda): `storefront` y `seller` lo componen.
   'dominio/tienda',
+  // El dominio de la red social (012-blogs-social): `blogs` lo compone.
+  'dominio/blogs',
 ];
