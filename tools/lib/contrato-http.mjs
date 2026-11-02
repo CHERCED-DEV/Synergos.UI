@@ -91,6 +91,22 @@ const UBICACIONES = new Set(['path', 'query', 'header']);
 const CLAVES_DE_REF = new Set(['$ref']);
 const CLAVES_DE_ONEOF = new Set(['oneOf']);
 const CLAVES_DE_TIPO = new Set(['type', 'properties', 'required', 'items', 'enum', 'format', 'maxLength']);
+
+/**
+ * El objeto vacío A PROPÓSITO (D-003-CUERPO, 003-salud-cita): `{ type: 'object', additionalProperties: false }`, sin
+ * propiedades. Es la entrada de un `abrir` sin campos en el cuerpo, o los datos de una salida vacía, y se traduce a
+ * `Record<string, never>`, que sólo acepta `{}`. Exactamente esa forma: un `{ type: 'object' }` sin más sigue siendo un
+ * objeto sin declarar, y se rechaza, porque `{}` en TypeScript acepta casi cualquier cosa.
+ */
+function esVacioAProposito(s) {
+  return (
+    esObjeto(s) &&
+    s.type === 'object' &&
+    s.additionalProperties === false &&
+    (s.properties === undefined || (esObjeto(s.properties) && Object.keys(s.properties).length === 0)) &&
+    Object.keys(s).every((k) => k === 'type' || k === 'additionalProperties' || k === 'properties')
+  );
+}
 const TIPOS = new Set(['object', 'array', 'string', 'integer', 'number', 'boolean']);
 
 // Los `format` que se traducen sin perder nada. `int64` NO está: un `long` que pase de 2^53
@@ -192,6 +208,8 @@ function revisarEsquema(s, donde, esquemas, errores) {
     revisarEsquema(resto[0], donde, esquemas, errores);
     return;
   }
+
+  if (esVacioAProposito(s)) return;
 
   sobran(s, CLAVES_DE_TIPO, donde, errores);
   const tipos = Array.isArray(s.type) ? s.type : [s.type];
@@ -421,6 +439,7 @@ function propiedades(s) {
 function tipoTs(s) {
   if (s.$ref !== undefined) return s.$ref.match(REF_A_ESQUEMA)[1];
   if (s.oneOf !== undefined) return `${tipoTs(s.oneOf.find((a) => !esNulo(a)))} | null`;
+  if (esVacioAProposito(s)) return 'Record<string, never>';
   const tipos = Array.isArray(s.type) ? s.type : [s.type];
   const tipo = tipos.find((t) => t !== 'null');
   let base;
@@ -434,6 +453,7 @@ function tipoTs(s) {
 
 function declaracion(nombre, s) {
   if (nombre === RECHAZO) return declaracionDelRechazo(s);
+  if (esVacioAProposito(s)) return `export type ${nombre} = Record<string, never>;`;
   if (s.type === 'object') return [`export interface ${nombre} {`, ...propiedades(s).map((l) => `  ${l}`), '}'].join('\n');
   return `export type ${nombre} = ${tipoTs(s)};`;
 }

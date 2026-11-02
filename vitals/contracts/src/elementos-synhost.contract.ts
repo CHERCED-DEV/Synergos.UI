@@ -446,7 +446,7 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
-/** <synergos-ehr> · funcionalidad · diccionario: Health.Appointment */
+/** <synergos-ehr> · funcionalidad · diccionario: Health.Appointment, Health.Consent */
 export interface EhrProps {
   /** negocio */
   readonly apiBase: string;
@@ -1407,8 +1407,8 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
   nombre: "ehr",
   tipo: "funcionalidad",
   record: "EhrProps",
-  diccionario: ["Health.Appointment"],
-  claves: ["Health.Appointment.BadRequest","Health.Appointment.BadWindow","Health.Appointment.Cancel","Health.Appointment.CancelledNoCharge","Health.Appointment.ConsentMissing","Health.Appointment.Copay","Health.Appointment.CopayUnavailable","Health.Appointment.Generic","Health.Appointment.Heading","Health.Appointment.Loading","Health.Appointment.NoAgenda","Health.Appointment.NoCopay","Health.Appointment.NoSlots","Health.Appointment.NotCancellable","Health.Appointment.NotConfirmable","Health.Appointment.NotFound","Health.Appointment.PaymentFailed","Health.Appointment.RefundIssued","Health.Appointment.SignInRequired","Health.Appointment.SlotExpired","Health.Appointment.SlotTaken","Health.Appointment.StateConfirmed","Health.Appointment.StatePending","Health.Appointment.StateReview","Health.Appointment.StateUndone","Health.Appointment.Unavailable"],
+  diccionario: ["Health.Appointment","Health.Consent"],
+  claves: ["Health.Appointment.BadRequest","Health.Appointment.BadWindow","Health.Appointment.Cancel","Health.Appointment.CancelledNoCharge","Health.Appointment.ConsentMissing","Health.Appointment.Copay","Health.Appointment.CopayUnavailable","Health.Appointment.Generic","Health.Appointment.Heading","Health.Appointment.Loading","Health.Appointment.NoAgenda","Health.Appointment.NoCopay","Health.Appointment.NoSlots","Health.Appointment.NotCancellable","Health.Appointment.NotConfirmable","Health.Appointment.NotFound","Health.Appointment.PaymentFailed","Health.Appointment.RefundIssued","Health.Appointment.SignInRequired","Health.Appointment.SlotExpired","Health.Appointment.SlotTaken","Health.Appointment.StateConfirmed","Health.Appointment.StatePending","Health.Appointment.StateReview","Health.Appointment.StateUndone","Health.Appointment.Unavailable","Health.Consent.Accept","Health.Consent.Granted","Health.Consent.Purpose","Health.Consent.Responsible","Health.Consent.Revoke","Health.Consent.Revoked","Health.Consent.Title","Health.Consent.Use"],
   campos: ["apiBase","lecturasBase","appointmentPath","zona"],
   listas: {},
   selectores: [],

@@ -312,6 +312,21 @@ describe('validarDocumento', () => {
     expect(errores(d)).toContain('MoneyDto: objeto sin propiedades');
   });
 
+  it('traduce el objeto vacío a propósito (additionalProperties: false), y sólo esa forma, a Record<string, never> (D-003-CUERPO)', () => {
+    const d = documento();
+    d.components.schemas.MoneyDto = { type: 'object', additionalProperties: false };
+    expect(errores(d)).toBe('');
+    expect(generarTs(d, 'Synergos.Bff.Prueba.json')).toContain('export type MoneyDto = Record<string, never>;');
+
+    const conOtraClave = documento();
+    conOtraClave.components.schemas.MoneyDto = { type: 'object', additionalProperties: false, required: ['x'] };
+    expect(errores(conOtraClave)).not.toBe('');
+
+    const abierto = documento();
+    abierto.components.schemas.MoneyDto = { type: 'object', additionalProperties: true };
+    expect(errores(abierto)).not.toBe('');
+  });
+
   it('rechaza un required que nombra una propiedad que no existe', () => {
     const d = documento();
     d.components.schemas.Linea.required = ['quantity', 'cantidad'];

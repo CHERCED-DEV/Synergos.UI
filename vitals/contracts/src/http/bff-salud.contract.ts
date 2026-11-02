@@ -62,6 +62,46 @@ export interface SaludCitaRespuesta {
   readonly deshaciendo: boolean;
 }
 
+export type SaludConsentimientoEntrada = Record<string, never>;
+
+export interface SaludConsentimientoPagina {
+  readonly items: readonly SaludConsentimientoRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface SaludConsentimientoRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: Record<string, never>;
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export type SaludConsentimientoRetiroEntrada = Record<string, never>;
+
+export interface SaludConsentimientoRetiroPagina {
+  readonly items: readonly SaludConsentimientoRetiroRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface SaludConsentimientoRetiroRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: Record<string, never>;
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 /**
  * Una operación por la puerta: con qué método, qué va en la consulta (los parámetros de ruta del
  * orquestador viajan ahí, con su nombre), el cuerpo que se manda (`undefined` si no lleva), lo
@@ -86,6 +126,18 @@ export interface OperacionesDeLaPuerta {
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, SaludCitaEntrada, SaludCitaCotizacion, "ninguna">;
     readonly disponibilidad: OperacionDeLaPuerta<"POST", undefined, SaludCitaDisponibilidadEntrada, SaludCitaDisponibilidad, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludCitaPagina, "ninguna">;
+  };
+  readonly "salud.consentimiento": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludConsentimientoEntrada, SaludConsentimientoRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludConsentimientoRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludConsentimientoRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludConsentimientoPagina, "ninguna">;
+  };
+  readonly "salud.consentimiento-retiro": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludConsentimientoRetiroEntrada, SaludConsentimientoRetiroRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludConsentimientoRetiroRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludConsentimientoRetiroRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludConsentimientoRetiroPagina, "ninguna">;
   };
 }
 
@@ -118,6 +170,18 @@ export const OPERACIONES_DE_LA_PUERTA = {
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
     disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "salud.consentimiento": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "salud.consentimiento-retiro": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

@@ -1146,6 +1146,15 @@ interface GuionDeLaPuerta {
   readonly estadoInicial?: string;
   /** Lo que contesta `disponibilidad` (T046): las franjas de la agenda del profesional, también las llenas. */
   readonly franjas?: readonly { readonly inicio: string; readonly fin: string; readonly libres: number }[];
+  /** Sin el permiso de datos de salud (T050): `cotizar` dice `consent.not_granted` hasta que se da por la puerta. */
+  readonly sinPermiso?: boolean;
+}
+
+/** Un pedido a los flujos del permiso (T050): darlo o retirarlo. */
+interface PedidoDelPermiso {
+  readonly flujo: string;
+  readonly llave: string | null;
+  readonly cuerpo: unknown;
 }
 
 interface PedidoALaPuerta {
@@ -1166,6 +1175,8 @@ const ID_DE_LA_CITA = 'cita-77';
 function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions = {}) {
   const base = servidorFalso(opciones);
   const pedidos: PedidoALaPuerta[] = [];
+  const permisos: PedidoDelPermiso[] = [];
+  let permisoDado = !guion.sinPermiso;
   const rutas: string[] = [];
   let estado = guion.estadoInicial ?? 'Running';
   let profesional = { kind: 'salud.profesional', id: 'doc-mendez' };
@@ -1187,6 +1198,13 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
     const ruta = String(url);
     const metodo = (init?.method ?? 'GET').toUpperCase();
     rutas.push(`${metodo} ${ruta}`);
+    const delPermiso = /\/api\/flujos\/(salud\.consentimiento(?:-retiro)?)\/abrir/.exec(ruta);
+    if (delPermiso) {
+      const flujo = delPermiso[1] as string;
+      permisos.push({ flujo, llave: new Headers(init?.headers).get('Idempotency-Key'), cuerpo: init?.body ? JSON.parse(String(init.body)) : null });
+      permisoDado = flujo === 'salud.consentimiento';
+      return json(201, { id: `permiso-${permisos.length}`, flujo, numero: null, estado: 'Completed', datos: {}, compensacionesPendientes: 0, error: null, deshaciendo: false });
+    }
     const m = /\/api\/flujos\/salud\.cita\/([a-z]+)/.exec(ruta);
     if (!m) {
       return base(url, init);
@@ -1197,6 +1215,9 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
     pedidos.push({ operacion, url: ruta, llave: cabeceras.get('Idempotency-Key'), cuerpo });
     if (cuerpo?.profesional && operacion !== 'disponibilidad') profesional = cuerpo.profesional;
     if (cuerpo?.ventana) ventana = cuerpo.ventana;
+    if (operacion === 'cotizar' && !permisoDado) {
+      return json(403, { code: 'consent.not_granted', detail: 'sin permiso', title: 'Forbidden' });
+    }
     const rechazo = guion.rechazos?.[operacion];
     if (rechazo) {
       if (operacion === 'cerrar' && guion.estadoTrasCerrar) estado = guion.estadoTrasCerrar;
@@ -1241,6 +1262,7 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
   return {
     fetchDoble,
     pedidos,
+    permisos,
     veces: (operacion: OperacionDeLaCita) => pedidos.filter((p) => p.operacion === operacion).length,
     directas: () => rutas.filter((r) => r.startsWith('POST') && r.includes('/appointment')).length,
     alaPuerta: () => rutas.filter((r) => r.includes('/api/flujos')).length,
@@ -1274,12 +1296,19 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     }).compileComponents();
     fixture = TestBed.createComponent(EhrElementComponent);
     component = fixture.componentInstance;
-    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la cita encuentra por ancestro.
+    // Como lo coloca el CMS: dentro de su <synergos-flujo>, que la cita encuentra por ancestro; y dentro, los del permiso
+    // (T050, D-003-GATE), del mismo orquestador.
     if (conCoordinador) {
       const flujo = document.createElement('synergos-flujo');
       flujo.setAttribute('flujo', 'salud.cita');
+      const permiso = document.createElement('synergos-flujo');
+      permiso.setAttribute('flujo', 'salud.consentimiento');
+      const retiro = document.createElement('synergos-flujo');
+      retiro.setAttribute('flujo', 'salud.consentimiento-retiro');
       document.body.appendChild(flujo);
-      flujo.appendChild(fixture.nativeElement as HTMLElement);
+      flujo.appendChild(permiso);
+      permiso.appendChild(retiro);
+      retiro.appendChild(fixture.nativeElement as HTMLElement);
     }
     fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
@@ -1405,6 +1434,62 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
     await asentar(12);
     expect(puerta.veces('disponibilidad')).toBe(3);
+  });
+
+  // ── T050: el permiso de datos de salud, en el paso del copago y en «Mis citas» ───────────────────────
+
+  async function elegirLaFranjaDeLaAgenda(): Promise<void> {
+    component.navigate('schedule');
+    await asentar(12);
+    component.scheduleReason.set('Control de hipertensión');
+    component.selectSlot({ date: '2027-03-15', time: '09:40' });
+    fixture.detectChanges();
+    await asentar(12);
+  }
+
+  it('sin permiso, el paso del copago pinta el texto y «Autorizo» lo da por la puerta sin titular ni versión, y vuelve a cotizar (T050)', async () => {
+    const puerta = puertaDeLaCita({ franjas: AGENDA, sinPermiso: true });
+    await montar(puerta);
+    await elegirLaFranjaDeLaAgenda();
+
+    expect(component.necesitaPermiso()).toBe(true);
+    expect(component.copay()).toBeNull();
+
+    await component.darElPermiso();
+    await asentar(12);
+
+    const [dado] = puerta.permisos;
+    expect(puerta.permisos.map((p) => p.flujo)).toEqual(['salud.consentimiento']);
+    // El titular lo pone la puerta y la versión la declara el CMS: el cuerpo no lleva ninguno de los dos.
+    expect(dado?.cuerpo).toEqual({});
+    expect(dado?.llave).toBeTruthy();
+    expect(component.avisoDelPermiso()).toBe('Diste tu autorización. Ya puedes agendar.');
+    expect(component.necesitaPermiso()).toBe(false);
+    expect(component.copay()?.amountMinor).toBe(5_000_000);
+    expect(puerta.veces('cotizar')).toBe(2);
+  });
+
+  it('dos «Autorizo» a la vez dan un solo permiso (T050)', async () => {
+    const puerta = puertaDeLaCita({ franjas: AGENDA, sinPermiso: true });
+    await montar(puerta);
+    await elegirLaFranjaDeLaAgenda();
+
+    await Promise.all([component.darElPermiso(), component.darElPermiso()]);
+    await asentar(12);
+
+    expect(puerta.permisos.length).toBe(1);
+  });
+
+  it('«Retirar mi autorización» lo retira por la puerta, como acto propio, y lo dice (T050)', async () => {
+    const puerta = puertaDeLaCita();
+    await montar(puerta);
+
+    await component.retirarElPermiso();
+    await asentar(12);
+
+    expect(puerta.permisos.map((p) => p.flujo)).toEqual(['salud.consentimiento-retiro']);
+    expect(puerta.permisos[0]?.cuerpo).toEqual({});
+    expect(component.avisoDelPermiso()).toBe('Retiraste tu autorización. Para agendar tendrás que darla otra vez.');
   });
 
   // ── T028 + T032: «puerta» abre y cierra por el coordinador, nunca por /api/ehr/appointment ──────────

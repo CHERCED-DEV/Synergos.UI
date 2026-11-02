@@ -216,6 +216,16 @@
               (sectionchange)="onVisitsSectionChange($event)"
             ></syn-account-shell>
           }
+          @if (porLaPuerta()) {
+            <!-- T050: el permiso de datos de salud se retira desde aquí, cuando quiera el paciente. -->
+            <div class="ehr__wizard-actions">
+              <syn-button variant="ghost" size="sm" [label]="textosDelPermiso.retirar" [loading]="moviendoElPermiso()"
+                (pressed)="retirarElPermiso()" />
+            </div>
+            @if (avisoDelPermiso()) {
+              <syn-live-region class="ehr__panel-text" [message]="avisoDelPermiso()" [visuallyHidden]="false" announceInitial />
+            }
+          }
         }
 
         <!-- ─── SCHEDULE — SH-3 checkout-wizard over the engine ─── -->
@@ -1045,6 +1055,19 @@
         <p class="ehr__panel-text">Se cobra cuando confirmas la cita; si no la confirmas, no se te cobra nada.</p>
       } @else if (!cotizando()) {
         <p class="ehr__panel-text">{{ textoDelCopago() }}</p>
+      }
+      @if (necesitaPermiso()) {
+        <!-- T050: sin el permiso de datos de salud no hay copago ni cita; se da aquí, con el texto que declara el CMS. -->
+        <section class="ehr__permiso" [attr.aria-label]="textosDelPermiso.titulo">
+          <h3 class="ehr__panel-title">{{ textosDelPermiso.titulo }}</h3>
+          <p class="ehr__panel-text">{{ textosDelPermiso.proposito }}</p>
+          <p class="ehr__panel-text">{{ textosDelPermiso.uso }}</p>
+          <p class="ehr__panel-text">{{ textosDelPermiso.responsable }}</p>
+          <syn-button [label]="textosDelPermiso.aceptar" [loading]="moviendoElPermiso()" (pressed)="darElPermiso()" />
+        </section>
+      }
+      @if (avisoDelPermiso()) {
+        <syn-live-region class="ehr__panel-text" [message]="avisoDelPermiso()" [visuallyHidden]="false" announceInitial />
       }
     }
     @case ('confirmar') {

@@ -38,6 +38,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  ButtonComponent,
   LiveRegionComponent,
   SegmentedComponent,
   SynEmptyStateComponent,
@@ -54,10 +55,12 @@ import {
   cancelarCita,
   consultarCita,
   cotizarCita,
+  darElPermiso,
   escribirYAsentar,
   franjasDelProfesional,
   listarCitas,
   relojEnZona,
+  retirarElPermiso,
   ventanaDeLaCita,
   zonaValida,
   type CitaLeida,
@@ -166,6 +169,9 @@ export interface FranjaDelAsistente {
   readonly time: string;
   readonly minutos: number;
 }
+
+/** Una llave nueva para una intención: la de darle o retirarle el permiso. */
+const nuevaLlave = (): string => globalThis.crypto.randomUUID();
 
 const instanteIso = (instante: number): string => new Date(instante).toISOString().replace('.000Z', 'Z');
 
@@ -360,6 +366,7 @@ let ehrInstanceId = 0;
     SynSkeletonComponent,
     SynEmptyStateComponent,
     LiveRegionComponent,
+    ButtonComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -455,6 +462,35 @@ export class EhrElementComponent implements OnInit {
   /** La cita abierta por la puerta y sin confirmar de esta sesión: la única que se puede cancelar aquí. */
   readonly citaPendiente = computed(() => (this.porLaPuerta() ? citaPendiente(this.#store.session()) : null));
   readonly textoCancelar = t('Health.Appointment.Cancel', 'Cancelar cita');
+  /**
+   * El permiso de datos de salud (T048-T050): sus textos son la sección `Health.Consent` del diccionario, cuya versión
+   * declara el CMS (`VersionDelPermiso`). El borrador lo aprueba el arquitecto antes de encender Salud (S-4).
+   */
+  readonly textosDelPermiso = {
+    titulo: t('Health.Consent.Title', 'Autorización para tratar tus datos de salud'),
+    proposito: t(
+      'Health.Consent.Purpose',
+      'Para agendar tu cita y prestarte la atención necesitamos tratar datos sobre tu salud: el motivo de la consulta, tus citas y lo que registren los profesionales que te atiendan. Son datos sensibles. Darlos es facultativo y no estás obligado a autorizarlo; sin esta autorización, eso sí, no podemos agendar tu cita en línea.',
+    ),
+    uso: t(
+      'Health.Consent.Use',
+      'Los usamos sólo para agendar y prestarte la atención que pediste. Los guardamos cifrados, y sólo los ve el personal del consultorio que te atiende. Puedes retirar esta autorización cuando quieras desde tu portal; retirarla no borra lo que la ley obliga a conservar de tu historia clínica.',
+    ),
+    responsable: t('Health.Consent.Responsible', 'El detalle está en la Política de tratamiento de datos.'),
+    aceptar: t('Health.Consent.Accept', 'Autorizo'),
+    retirar: t('Health.Consent.Revoke', 'Retirar mi autorización'),
+    dado: t('Health.Consent.Granted', 'Diste tu autorización. Ya puedes agendar.'),
+    retirado: t('Health.Consent.Revoked', 'Retiraste tu autorización. Para agendar tendrás que darla otra vez.'),
+  } as const;
+  /** Si el copago no se cotizó porque falta el permiso: el paso pinta el texto del permiso y «Autorizo». */
+  readonly necesitaPermiso = computed(() =>
+    ['consent.not_granted', 'consent.revoked', 'consent.expired'].includes(this.rechazoDelCopago() ?? ''),
+  );
+  readonly moviendoElPermiso = signal(false);
+  /** Lo que quedó de la última acción sobre el permiso: darlo o retirarlo. */
+  readonly avisoDelPermiso = signal('');
+  /** La llave de la intención de darlo: la misma hasta que se da, así un doble clic o un reintento no da dos. */
+  #llaveDelPermiso = '';
   /** Lo que quedó de la última acción sobre una cita (cancelarla, resolver la pendiente). */
   readonly avisoDeLaCita = signal('');
   readonly cancelando = signal(false);
@@ -1287,6 +1323,46 @@ export class EhrElementComponent implements OnInit {
    * la autorización. Lo que se dice sale de lo que QUEDÓ (se consulta si la cancelación no contestó): «no se te
    * cobró nada» sólo cuando la cita se deshizo antes de capturar.
    */
+  /**
+   * Da el permiso por la puerta (T050) y, si se dio, vuelve a cotizar la elección: el asistente sigue donde estaba, ya con
+   * el copago. La llave es la de la intención hasta que el permiso queda dado.
+   */
+  async darElPermiso(): Promise<void> {
+    if (this.moviendoElPermiso()) {
+      return;
+    }
+    this.#llaveDelPermiso ||= nuevaLlave();
+    this.moviendoElPermiso.set(true);
+    this.avisoDelPermiso.set('');
+    const r = await darElPermiso(this.#host, this.#llaveDelPermiso);
+    this.moviendoElPermiso.set(false);
+    if (!r.ok) {
+      this.avisoDelPermiso.set(mensajeDeLaCita(r.rechazo.code));
+      return;
+    }
+    this.#llaveDelPermiso = '';
+    this.avisoDelPermiso.set(this.textosDelPermiso.dado);
+    this.#ultimaCotizacion = '';
+    void this.cotizarElCopago(this.scheduleDoctorId(), this.scheduleDate(), this.scheduleTime(), this.zona());
+  }
+
+  /**
+   * Retira el permiso por la puerta (T050), cuando quiera el paciente. Uno que nunca se dio es el mismo resultado para
+   * quien lo pide: no queda ninguno vigente.
+   */
+  async retirarElPermiso(): Promise<void> {
+    if (this.moviendoElPermiso()) {
+      return;
+    }
+    this.moviendoElPermiso.set(true);
+    this.avisoDelPermiso.set('');
+    const r = await retirarElPermiso(this.#host, nuevaLlave());
+    this.moviendoElPermiso.set(false);
+    this.avisoDelPermiso.set(
+      r.ok || r.rechazo.code === 'consent.not_granted' ? this.textosDelPermiso.retirado : mensajeDeLaCita(r.rechazo.code),
+    );
+  }
+
   async cancelarLaCita(id: string): Promise<void> {
     if (this.cancelando()) {
       return;
