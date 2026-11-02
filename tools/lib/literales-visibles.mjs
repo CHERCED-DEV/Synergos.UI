@@ -235,10 +235,13 @@ export function analizarCodigo(ts, ruta, src) {
   return out;
 }
 
-/** Specs, la vista previa de desarrollo y el arranque: no son interfaz. */
+/**
+ * Specs, la vista previa de desarrollo y el arranque: no son interfaz. Un `*.test.ts` es el arnés que comparten las
+ * specs de un elemento (014-despiece-tienda, T013): el `tsconfig.app.json` lo deja fuera del build igual que a ellas.
+ */
 export function esFicheroDeInterfaz(ruta) {
   const nombre = ruta.split(/[\\/]/).pop() ?? '';
-  if (/\.spec\.ts$|\.stories\.ts$|\.d\.ts$/.test(nombre)) return false;
+  if (/\.spec\.ts$|\.test\.ts$|\.stories\.ts$|\.d\.ts$/.test(nombre)) return false;
   if (/[\\/]src[\\/]index\.html$/.test(ruta) || nombre === 'main.ts') return false;
   // Datos de ejemplo: un texto ahí es contenido de demo, no cromo de interfaz (informe 16).
   if (/-api\.client\.ts$|mock|demo|fixture|seed|fake|\.data\.ts$|-data\.ts$|sample/i.test(nombre)) return false;
