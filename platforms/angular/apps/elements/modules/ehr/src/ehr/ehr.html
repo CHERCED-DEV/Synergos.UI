@@ -1042,10 +1042,10 @@
     @case ('copago') {
       @if (copay(); as c) {
         <p class="ehr__panel-text">Se aplicará un copago de {{ formatMinor(c.amountMinor, c.currency) }} para esta cita.</p>
+        <p class="ehr__panel-text">Se cobra cuando confirmas la cita; si no la confirmas, no se te cobra nada.</p>
       } @else if (!cotizando()) {
         <p class="ehr__panel-text">{{ textoDelCopago() }}</p>
       }
-      <p class="ehr__panel-text">El pago se procesa de forma segura al confirmar (PSP de demostración).</p>
     }
     @case ('confirmar') {
       <h3 class="ehr__panel-title">Revisa tu cita</h3>
