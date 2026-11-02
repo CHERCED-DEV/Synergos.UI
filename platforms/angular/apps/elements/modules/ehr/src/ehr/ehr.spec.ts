@@ -235,6 +235,40 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture.detectChanges();
   }
 
+  // ── I1 de producción (T045): el directorio sale de la lectura genérica que declara el CMS ──
+  it('con la base de lecturas, el directorio sale de la lectura genérica de Salud y no de /doctors', async () => {
+    await createComponent({}, { ...NEGOCIO_DEL_CMS, lecturasBase: '/api/lecturas/salud' });
+
+    component.navigate('schedule');
+    await flushMicrotasks();
+
+    const pedidas = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(pedidas.some((url) => url.startsWith('/api/lecturas/salud/catalogo'))).toBe(true);
+    expect(pedidas.some((url) => url.includes('/doctors'))).toBe(false);
+    expect(component.doctors()[0]).toMatchObject({
+      id: 'doc-mendez',
+      name: 'Dra. Laura Méndez',
+      specialty: 'Medicina interna',
+      license: 'RM-48211',
+      phone: '+57 310 555 0101',
+    });
+    expect(component.doctors().length).toBeGreaterThan(1);
+    // Lo que el CMS no dijo no se rellena: «no consta» sigue siendo `null`.
+    expect(component.doctors().every((d) => d.acceptingPatients === null)).toBe(true);
+  });
+
+  it('si la lectura genérica no contesta, el directorio falla visible y no cae a /doctors', async () => {
+    await createComponent({ caidos: ['/api/lecturas/salud/catalogo'] }, { ...NEGOCIO_DEL_CMS, lecturasBase: '/api/lecturas/salud' });
+
+    component.navigate('schedule');
+    await flushMicrotasks();
+
+    const pedidas = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+    expect(pedidas.some((url) => url.includes('/doctors'))).toBe(false);
+    expect(component.doctors()).toEqual([]);
+    expect(component.errorMessage()).toBe('No pudimos cargar el directorio médico.');
+  });
+
   // ── #83: la modalidad la pinta `syn-segmented`, y el lector sabe cuál está elegida ──
   //
   // Antes eran dos <button> con sólo la clase `is-active`: la pantalla cambiaba de color
@@ -1088,7 +1122,7 @@ interface RechazoGuionado {
   readonly detail?: string;
 }
 
-type OperacionDeLaCita = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'listar';
+type OperacionDeLaCita = 'cotizar' | 'abrir' | 'cerrar' | 'cancelar' | 'consultar' | 'listar' | 'disponibilidad';
 
 /** Una cita de las que da `listar`, en pocas palabras. */
 interface CitaListada {
@@ -1110,13 +1144,20 @@ interface GuionDeLaPuerta {
   readonly estadoTrasCerrar?: string;
   /** El estado de la cita que lee el enlace del aviso. */
   readonly estadoInicial?: string;
+  /** Lo que contesta `disponibilidad` (T046): las franjas de la agenda del profesional, también las llenas. */
+  readonly franjas?: readonly { readonly inicio: string; readonly fin: string; readonly libres: number }[];
 }
 
 interface PedidoALaPuerta {
   readonly operacion: string;
   readonly url: string;
   readonly llave: string | null;
-  readonly cuerpo: { profesional?: { kind: string; id: string }; ventana?: { start: string; end: string } } | null;
+  readonly cuerpo: {
+    profesional?: { kind: string; id: string };
+    ventana?: { start: string; end: string };
+    desde?: string;
+    hasta?: string;
+  } | null;
 }
 
 const ID_DE_LA_CITA = 'cita-77';
@@ -1154,7 +1195,7 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
     const cabeceras = new Headers(init?.headers);
     const cuerpo = init?.body ? (JSON.parse(String(init.body)) as PedidoALaPuerta['cuerpo']) : null;
     pedidos.push({ operacion, url: ruta, llave: cabeceras.get('Idempotency-Key'), cuerpo });
-    if (cuerpo?.profesional) profesional = cuerpo.profesional;
+    if (cuerpo?.profesional && operacion !== 'disponibilidad') profesional = cuerpo.profesional;
     if (cuerpo?.ventana) ventana = cuerpo.ventana;
     const rechazo = guion.rechazos?.[operacion];
     if (rechazo) {
@@ -1164,6 +1205,8 @@ function puertaDeLaCita(guion: GuionDeLaPuerta = {}, opciones: FakeServerOptions
     switch (operacion) {
       case 'cotizar':
         return json(200, { flujo: 'salud.cita', datos: { profesional, ventana, total, reservaId: null } });
+      case 'disponibilidad':
+        return json(200, { flujo: 'salud.cita', datos: { franjas: guion.franjas ?? [] } });
       case 'abrir':
         estado = 'Running';
         return json(201, cita());
@@ -1284,6 +1327,85 @@ describe('La cita por la puerta (003-salud-cita)', () => {
       .map((nodo) => (nodo.textContent ?? '').trim())
       .filter((texto) => texto !== '');
   }
+
+  // ── T046: las horas que se ofrecen son las libres de la agenda del profesional ──────────────────────
+
+  /** Un lunes de 2027 en Bogotá, por franjas de 20 minutos: 9:00, 9:20 (llena) y 9:40. */
+  const AGENDA = [
+    { inicio: '2027-03-15T14:00:00Z', fin: '2027-03-15T14:20:00Z', libres: 1 },
+    { inicio: '2027-03-15T14:20:00Z', fin: '2027-03-15T14:40:00Z', libres: 0 },
+    { inicio: '2027-03-15T14:40:00Z', fin: '2027-03-15T15:00:00Z', libres: 1 },
+  ];
+
+  it('las horas son las libres de la agenda del profesional, en la hora del sitio, pedidas por la puerta (T046)', async () => {
+    const puerta = puertaDeLaCita({ franjas: AGENDA });
+    await montar(puerta);
+
+    component.navigate('schedule');
+    await asentar(12);
+
+    const pedido = puerta.pedidos.find((p) => p.operacion === 'disponibilidad');
+    expect(pedido?.cuerpo?.profesional).toEqual({ kind: 'salud.profesional', id: component.doctors()[0]?.id });
+    expect(Date.parse(pedido?.cuerpo?.hasta ?? '') - Date.parse(pedido?.cuerpo?.desde ?? '')).toBe(8 * 86_400_000);
+    expect(component.availableSlots()).toEqual([
+      { date: '2027-03-15', time: '09:00' },
+      { date: '2027-03-15', time: '09:40' },
+    ]);
+    expect(component.avisoDeLaAgenda()).toBeNull();
+  });
+
+  it('la cita se aparta con la duración de su franja de la agenda, no con la de siempre (T046)', async () => {
+    const puerta = puertaDeLaCita({ franjas: AGENDA });
+    await montar(puerta);
+    component.navigate('schedule');
+    await asentar(12);
+    component.scheduleReason.set('Control de hipertensión');
+    component.selectSlot({ date: '2027-03-15', time: '09:40' });
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+    await confirmar();
+
+    expect(puerta.pedidos.find((p) => p.operacion === 'cotizar')?.cuerpo?.ventana).toEqual({
+      start: '2027-03-15T14:40:00Z',
+      end: '2027-03-15T15:00:00Z',
+    });
+    expect(puerta.pedidos.find((p) => p.operacion === 'abrir')?.cuerpo?.ventana).toEqual({
+      start: '2027-03-15T14:40:00Z',
+      end: '2027-03-15T15:00:00Z',
+    });
+  });
+
+  it('sin horas libres lo dice, y no ofrece ninguna inventada (T046)', async () => {
+    await montar(puertaDeLaCita({ franjas: [] }));
+    component.navigate('schedule');
+    await asentar(12);
+
+    expect(component.availableSlots()).toEqual([]);
+    expect(component.avisoDeLaAgenda()).toBe('Este profesional no tiene horas libres en los próximos días.');
+  });
+
+  it('un profesional sin agenda lo dice por su code, y volver a elegirlo la lee otra vez (T046)', async () => {
+    const puerta = puertaDeLaCita({ rechazos: { disponibilidad: { code: 'booking.resource_not_found', status: 404 } } });
+    await montar(puerta);
+    component.navigate('schedule');
+    await asentar(12);
+
+    expect(component.availableSlots()).toEqual([]);
+    expect(component.avisoDeLaAgenda()).toBe('Este profesional no tiene agenda disponible.');
+
+    const otro = component.doctors()[1]?.id ?? 'doc-rojas';
+    component.setScheduleDoctor(otro);
+    await asentar(12);
+    component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
+    await asentar(12);
+    expect(puerta.veces('disponibilidad')).toBe(3);
+  });
 
   // ── T028 + T032: «puerta» abre y cierra por el coordinador, nunca por /api/ehr/appointment ──────────
 

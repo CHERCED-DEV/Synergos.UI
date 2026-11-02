@@ -1022,6 +1022,9 @@
     }
     @case ('slot') {
       <p class="ehr__field-label">Elige fecha y hora</p>
+      @if (avisoDeLaAgenda(); as aviso) {
+        <p class="ehr__panel-text" role="status">{{ aviso }}</p>
+      }
       <div class="ehr__slots">
         @for (day of availableDays(); track trackString($index, day)) {
           <div class="ehr__slot-day">

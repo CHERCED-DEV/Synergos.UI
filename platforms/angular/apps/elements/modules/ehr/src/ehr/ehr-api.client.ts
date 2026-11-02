@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { type Profesional, leerDirectorio } from '@synergos/dominio/salud';
 import {
   type Appointment,
   type AppointmentStatus,
@@ -198,7 +199,18 @@ export class EhrApiClient {
 
   // ─── Doctors ───────────────────────────────────────────────────────────────
 
-  async doctors(apiBase: string): Promise<readonly Doctor[]> {
+  /**
+   * El directorio. Con `lecturasBase`, el de la lectura genérica de Salud (`GET {lecturasBase}/catalogo`, I1 de
+   * producción); sin ella, la ruta de `apiBase` de siempre. Las dos lanzan si no llega: no hay muestra que poner.
+   */
+  async doctors(apiBase: string, lecturasBase = ''): Promise<readonly Doctor[]> {
+    if (lecturasBase) {
+      try {
+        return (await leerDirectorio(lecturasBase)).map(doctorDelProfesional);
+      } catch (error) {
+        this.unavailable('GET /api/lecturas/salud/catalogo', error);
+      }
+    }
     const url = `${apiBase}/doctors`;
     try {
       const data = await this.getJson(apiBase, url);
@@ -760,6 +772,23 @@ function normalizeDoctor(value: unknown): Doctor | null {
     email: readString(value['email']).trim(),
     acceptingPatients: readOptionalBoolean(value['acceptingPatients']),
     rating: readNumber(value['rating']),
+  };
+}
+
+/**
+ * Un profesional de la lectura genérica, como lo pinta el portal. Sin calificación: la lectura no la trae porque no sale
+ * de ninguna reseña, y el portal no la muestra.
+ */
+function doctorDelProfesional(p: Profesional): Doctor {
+  return {
+    id: p.id,
+    name: p.nombre,
+    specialty: p.especialidad,
+    license: p.registro,
+    phone: p.telefono,
+    email: p.correo,
+    acceptingPatients: p.aceptaPacientes,
+    rating: 0,
   };
 }
 

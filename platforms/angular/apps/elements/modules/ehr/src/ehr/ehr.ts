@@ -55,11 +55,13 @@ import {
   consultarCita,
   cotizarCita,
   escribirYAsentar,
+  franjasDelProfesional,
   listarCitas,
   relojEnZona,
   ventanaDeLaCita,
   zonaValida,
   type CitaLeida,
+  type FranjaDeLaAgenda,
 } from './ehr-cita';
 import {
   EHR_FLOW,
@@ -154,6 +156,39 @@ interface EhrBus extends Record<string, unknown> {
 
 const DEFAULT_CLINIC = 'Clínica Synergos';
 const DEFAULT_SCOPE = 'ehr';
+
+/** Cuántos días de la agenda del profesional ofrece el asistente, desde ahora (T046). */
+const DIAS_DE_LA_AGENDA = 8;
+
+/** Una hora libre de la agenda como la ofrece el asistente: el día y la hora del SITIO, y cuántos minutos dura. */
+export interface FranjaDelAsistente {
+  readonly date: string;
+  readonly time: string;
+  readonly minutos: number;
+}
+
+const instanteIso = (instante: number): string => new Date(instante).toISOString().replace('.000Z', 'Z');
+
+/**
+ * Las franjas que ofrece el asistente: las que tienen cupo y no empezaron, en el día y la hora del sitio, en orden. Sin
+ * una zona válida no hay ninguna: no se ofrece una hora adivinada.
+ */
+export function franjasDelAsistente(
+  franjas: readonly FranjaDeLaAgenda[],
+  zona: string,
+  ahora: number,
+): readonly FranjaDelAsistente[] {
+  const ofrecidas: FranjaDelAsistente[] = [];
+  for (const f of [...franjas].sort((a, b) => Date.parse(a.ventana.start) - Date.parse(b.ventana.start))) {
+    const inicio = Date.parse(f.ventana.start);
+    const minutos = Math.round((Date.parse(f.ventana.end) - inicio) / 60_000);
+    const reloj = f.libres > 0 && inicio > ahora && minutos > 0 ? relojEnZona(f.ventana.start, zona) : null;
+    if (reloj) {
+      ofrecidas.push({ date: reloj.fecha, time: reloj.hora, minutos });
+    }
+  }
+  return ofrecidas;
+}
 
 /** El fallo del asistente de citas, con o sin copago: la cita NO quedó (UI#91). */
 const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
@@ -288,6 +323,7 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
   // lo resuelve el servidor por la sesión del miembro.
   return omitUndefinedProperties<EhrProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
     appointmentPath: normalizeAppointmentPath(value.appointmentPath),
     zona: zonaValida(value.zona) ? value.zona : undefined,
   });
@@ -359,6 +395,11 @@ export class EhrElementComponent implements OnInit {
       '',
     ),
   );
+  /**
+   * De dónde lee el directorio: la base de las lecturas genéricas de Salud que declara el CMS (`/api/lecturas/salud`,
+   * I1 de producción). Vacía, el directorio sale de `apiBase`, como antes: es la vuelta atrás sin desplegar.
+   */
+  readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').trim().replace(/\/+$/, ''));
   readonly clinic = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.clinicInput()), undefined, DEFAULT_CLINIC),
   );
@@ -565,6 +606,15 @@ export class EhrElementComponent implements OnInit {
   readonly scheduleDoctorId = signal('');
   readonly scheduleDate = signal('');
   readonly scheduleTime = signal('');
+  /**
+   * Por la puerta, las horas LIBRES de la agenda del profesional elegido (I1 de producción, T046), en la hora del
+   * sitio y con su duración. `null` mientras se leen; vacía si no hay ninguna libre en los próximos días o si la
+   * agenda no se pudo leer (`rechazoDeLaAgenda` dice cuál).
+   */
+  readonly franjasDeLaAgenda = signal<readonly FranjaDelAsistente[] | null>(null);
+  /** El `code` con que la agenda del profesional no se pudo leer, o `null`. */
+  readonly rechazoDeLaAgenda = signal<string | null>(null);
+  #ultimaAgenda = '';
   readonly scheduleReason = signal('');
   readonly scheduleModes = SCHEDULE_MODES;
   readonly scheduleMode = signal<ScheduleMode>('in-person');
@@ -1046,6 +1096,20 @@ export class EhrElementComponent implements OnInit {
       panel.nativeElement.focus();
     });
 
+    // Por la puerta, las horas que se ofrecen son las libres de la agenda del profesional (T046), no cuatro horas
+    // fijas: se leen al elegirlo. Una vez por profesional.
+    effect(() => {
+      if (this.view() !== 'schedule' || !this.porLaPuerta()) {
+        return;
+      }
+      const doctor = this.scheduleDoctorId();
+      const zona = this.zona();
+      if (!doctor) {
+        return;
+      }
+      untracked(() => void this.leerLaAgenda(doctor, zona));
+    });
+
     // El copago por la puerta sale de `cotizar` (T029), con el profesional y la franja elegidos: corre el
     // permiso, el copago y la agenda del profesional sin apartar nada. Una vez por elección.
     effect(() => {
@@ -1073,6 +1137,55 @@ export class EhrElementComponent implements OnInit {
     });
   }
 
+  /**
+   * Lee las franjas libres del profesional en los próximos días (T046). Lo que contesta la agenda de otro profesional
+   * elegido antes se descarta, y un rechazo no se queda: volver a elegirlo la lee otra vez.
+   */
+  private async leerLaAgenda(doctor: string, zona: string): Promise<void> {
+    if (doctor === this.#ultimaAgenda) {
+      return;
+    }
+    this.#ultimaAgenda = doctor;
+    this.franjasDeLaAgenda.set(null);
+    this.rechazoDeLaAgenda.set(null);
+    const ahora = Math.floor(Date.now() / 60_000) * 60_000;
+    const rango = { start: instanteIso(ahora), end: instanteIso(ahora + DIAS_DE_LA_AGENDA * 86_400_000) };
+    const r = await franjasDelProfesional(this.#host, doctor, rango);
+    if (doctor !== this.#ultimaAgenda) {
+      return;
+    }
+    if (!r.ok) {
+      this.rechazoDeLaAgenda.set(r.rechazo.code);
+      this.franjasDeLaAgenda.set([]);
+      this.#ultimaAgenda = '';
+      return;
+    }
+    this.franjasDeLaAgenda.set(franjasDelAsistente(r.valor, zona, ahora));
+  }
+
+  /**
+   * Lo que el paso de la hora dice de la agenda, por la puerta: el rechazo por su `code`, o que no hay horas libres.
+   * `null` mientras se lee o si hay horas que ofrecer.
+   */
+  readonly avisoDeLaAgenda = computed<string | null>(() => {
+    if (!this.porLaPuerta()) {
+      return null;
+    }
+    const rechazo = this.rechazoDeLaAgenda();
+    if (rechazo) {
+      return mensajeDeLaCita(rechazo);
+    }
+    const franjas = this.franjasDeLaAgenda();
+    return franjas !== null && franjas.length === 0
+      ? t('Health.Appointment.NoSlots', 'Este profesional no tiene horas libres en los próximos días.')
+      : null;
+  });
+
+  /** Cuántos minutos dura la franja elegida: la de la agenda por la puerta; si no, la de siempre. */
+  minutosDeLaFranja(fecha: string, hora: string): number {
+    return this.franjasDeLaAgenda()?.find((f) => f.date === fecha && f.time === hora)?.minutos ?? MINUTOS_DE_LA_CITA;
+  }
+
   /** Cotiza el copago de ESTA elección por la puerta; lo que contesta otra elección anterior se descarta. */
   private async cotizarElCopago(doctor: string, fecha: string, hora: string, zona: string): Promise<void> {
     const clave = `${doctor}|${fecha}|${hora}`;
@@ -1082,7 +1195,7 @@ export class EhrElementComponent implements OnInit {
     this.#ultimaCotizacion = clave;
     this.copay.set(null);
     this.rechazoDelCopago.set(null);
-    const ventana = ventanaDeLaCita(fecha, hora, MINUTOS_DE_LA_CITA, zona);
+    const ventana = ventanaDeLaCita(fecha, hora, this.minutosDeLaFranja(fecha, hora), zona);
     if (!ventana) {
       this.rechazoDelCopago.set('cliente.sin_zona');
       return;
@@ -1891,7 +2004,7 @@ export class EhrElementComponent implements OnInit {
       return;
     }
     try {
-      const doctors = await this.#api.doctors(this.apiBase());
+      const doctors = await this.#api.doctors(this.apiBase(), this.lecturasBase());
       this.doctors.set(doctors);
       this.doctorsLoaded.set(true);
       this.markRead('doctors', true);
@@ -1908,6 +2021,11 @@ export class EhrElementComponent implements OnInit {
 
   /** Demo availability: next 7 days × 4 daily windows. */
   readonly availableSlots = computed<readonly { date: string; time: string }[]>(() => {
+    // Por la puerta, las libres de la agenda del profesional (T046); mientras se leen, ninguna.
+    if (this.porLaPuerta()) {
+      return (this.franjasDeLaAgenda() ?? []).map(({ date, time }) => ({ date, time }));
+    }
+    // Por la directa (desarrollo), las cuatro horas de siempre: el motor en proceso no tiene agenda que leer.
     const slots: { date: string; time: string }[] = [];
     const times = ['08:00', '10:00', '14:00', '16:00'];
     // El día de cada franja es LOCAL: el servidor lee `{ date, time }` como hora del sitio, y con
@@ -1990,7 +2108,11 @@ export class EhrElementComponent implements OnInit {
           patientName: this.home()?.patient.name ?? 'Paciente',
           doctorId: this.scheduleDoctorId(),
           doctorName: doctor?.name ?? 'Médico',
-          slot: { date: this.scheduleDate(), time: this.scheduleTime() },
+          slot: {
+            date: this.scheduleDate(),
+            time: this.scheduleTime(),
+            minutes: this.minutosDeLaFranja(this.scheduleDate(), this.scheduleTime()),
+          },
           reason: this.scheduleReason().trim() || 'Consulta',
           mode: this.scheduleMode(),
           copayMinor: this.copayMinor(),

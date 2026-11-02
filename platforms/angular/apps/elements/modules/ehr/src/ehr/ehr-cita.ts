@@ -5,6 +5,7 @@ import {
   cerrarSaludCita,
   consultarSaludCita,
   cotizarSaludCita,
+  disponibilidadSaludCita,
   listarSaludCita,
   instanteEnZona,
   zonaValida,
@@ -97,6 +98,30 @@ export async function cancelarCita(desde: Element, id: string): Promise<Resultad
 
 export async function consultarCita(desde: Element, id: string): Promise<ResultadoDelFlujo<CitaLeida>> {
   return leida(await consultarSaludCita(desde, { consulta: { id } }));
+}
+
+/** Una franja de la agenda del profesional, con cuántos cupos le quedan. */
+export interface FranjaDeLaAgenda {
+  readonly ventana: Ventana;
+  readonly libres: number;
+}
+
+/**
+ * Las franjas del profesional en `rango`, también las llenas, de la lectura `disponibilidad` (I1 de producción, T046):
+ * la pide también quien no inició sesión, no aparta nada y no escribe nada. Lo libre lo cuenta la agenda con la MISMA
+ * ocupación con que aparta; que siga libre al agendar lo dice abrir.
+ */
+export async function franjasDelProfesional(
+  desde: Element,
+  profesionalId: string,
+  rango: Ventana,
+): Promise<ResultadoDelFlujo<readonly FranjaDeLaAgenda[]>> {
+  const r = await disponibilidadSaludCita(desde, {
+    cuerpo: { profesional: { kind: 'salud.profesional', id: profesionalId }, desde: rango.start, hasta: rango.end },
+  });
+  return r.ok
+    ? { ...r, valor: (r.valor.datos.franjas ?? []).map((f) => ({ ventana: { start: f.inicio, end: f.fin }, libres: f.libres })) }
+    : r;
 }
 
 /** Las citas del paciente de la sesión, tal como las da `listar` (T034): «Mis citas» por la puerta. */

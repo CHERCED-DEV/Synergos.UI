@@ -95,6 +95,7 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
         doctorName: payload.doctorName,
         slotDate: payload.slot.date,
         slotTime: payload.slot.time,
+        slotMinutes: payload.slot.minutes ?? MINUTOS_DE_LA_CITA,
         reason: payload.reason,
         mode: payload.mode,
         apiBase: payload.apiBase,
@@ -129,7 +130,9 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
       return { accepted: false, reason: 'cliente.sin_coordinador' };
     }
     const selection = line.selection as Record<string, unknown>;
-    const ventana = ventanaDeLaCita(texto(selection['slotDate']), texto(selection['slotTime']), MINUTOS_DE_LA_CITA, instrument.zona);
+    // La duración es la de la franja de la agenda (T046): con otra, el apartado no casaría con ninguna franja.
+    const minutos = typeof selection['slotMinutes'] === 'number' && selection['slotMinutes'] > 0 ? selection['slotMinutes'] : MINUTOS_DE_LA_CITA;
+    const ventana = ventanaDeLaCita(texto(selection['slotDate']), texto(selection['slotTime']), minutos, instrument.zona);
     if (!ventana) {
       return { accepted: false, reason: 'cliente.sin_zona' };
     }
