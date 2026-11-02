@@ -197,8 +197,12 @@
           <textarea class="blogs__comment-input" [id]="fieldId + '-comment'" rows="2"
             placeholder="Escribe un comentario…" [value]="commentDraft()"
             (input)="bind(commentDraft.set)($event)"></textarea>
-          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!commentValid()">Comentar</button>
+          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!commentValid() || commentSending()">Comentar</button>
         </form>
+        @if (commentNotice()) {
+          <!-- Visual: el anuncio va por la región compartida (`announce`), para no decirlo dos veces. -->
+          <p class="blogs__notice">{{ commentNotice() }}</p>
+        }
 
         <h2 class="blogs__thread-title">Comentarios ({{ post.commentCount }})</h2>
         @if (loading() && comments().length === 0) {
@@ -790,7 +794,7 @@
       <p class="blogs__comment-text">{{ comment.body }}</p>
       <div class="blogs__comment-actions">
         <button type="button" class="blogs__comment-like" [class.is-active]="comment.liked"
-          [attr.aria-pressed]="comment.liked" (click)="toggleCommentLike(comment)">
+          [attr.aria-pressed]="comment.liked" [disabled]="comment.liked" (click)="likeComment(comment)">
           <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg> {{ formatCount(comment.likeCount) }}
         </button>
       </div>
