@@ -1760,7 +1760,7 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     await asentar(12);
     fixture.detectChanges();
 
-    const panel = (fixture.nativeElement as HTMLElement).querySelector('.ehr__panel')?.textContent ?? '';
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('sg-salud-cita-del-enlace')?.textContent ?? '';
     expect(panel).toContain('Tu cita SAL-0077');
     expect(panel).toContain('Confirmada');
     expect(panel).toContain('Dra. Laura Méndez');

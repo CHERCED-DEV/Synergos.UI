@@ -1,0 +1,24 @@
+// Sólo las variables de la grilla y la tipografía: `@use 'scss'` trae también los temas, que ya emite `ehr.scss`, y en
+// cada vista le sumaba ~10 KB al bundle (T051).
+@use 'scss/tokens/spacing' as space;
+@use 'scss/tokens/typography' as type;
+
+// Lo mismo que `ehr__panel-title` y `ehr__panel-text` del portal: la vista trae su hoja porque `ehr` conserva la
+// encapsulación (T051). Los colores son los `--eh-*` que declara `.sg-ehr`, que se heredan.
+
+.salud-permiso__titulo {
+  margin: space.$space-md 0 space.$space-2;
+  font-size: type.$font-size-base;
+  font-weight: type.$font-weight-semibold;
+}
+
+.salud-permiso__texto {
+  margin: 0 0 space.$space-2;
+  color: var(--eh-text-secondary);
+}
+
+.salud-permiso__acciones {
+  display: flex;
+  justify-content: space-between;
+  gap: space.$space-3;
+}

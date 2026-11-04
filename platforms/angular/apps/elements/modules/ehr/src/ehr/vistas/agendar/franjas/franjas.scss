@@ -1,0 +1,40 @@
+// Sólo las variables de la grilla y la tipografía: `@use 'scss'` trae también los temas, que ya emite `ehr.scss`, y en
+// cada vista le sumaba ~10 KB al bundle (T051).
+@use 'scss/tokens/spacing' as space;
+@use 'scss/tokens/typography' as type;
+@use 'scss/functions/px-to-rem' as rem;
+
+// Se mudó de `ehr.scss` (`ehr__slots`, `ehr__slot-date`, `ehr__slot-times`) con el despiece (T051). La hora ya no es un
+// botón hecho a mano: es `syn-button`, que trae su aspecto y su estado elegido.
+
+.salud-franjas__rotulo {
+  display: block;
+  margin: space.$space-2 0 rem.px-to-rem(4);
+  font-weight: type.$font-weight-medium;
+  font-size: type.$font-size-sm;
+}
+
+.salud-franjas__aviso {
+  margin: 0 0 space.$space-2;
+  color: var(--eh-text-secondary);
+}
+
+.salud-franjas {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-2;
+  max-height: rem.px-to-rem(280);
+  overflow-y: auto;
+}
+
+.salud-franjas__fecha {
+  margin: 0 0 rem.px-to-rem(4);
+  font-weight: type.$font-weight-semibold;
+  font-size: type.$font-size-sm;
+}
+
+.salud-franjas__horas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: space.$space-2;
+}

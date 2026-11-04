@@ -38,7 +38,6 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
-  ButtonComponent,
   LiveRegionComponent,
   SegmentedComponent,
   SynEmptyStateComponent,
@@ -52,20 +51,22 @@ import {
 import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
+  AgendaDeSalud,
+  PermisoDeSalud,
+  TEXTOS_DE_SALUD,
   cancelarCita,
   consultarCita,
   cotizarCita,
-  darElPermiso,
   escribirYAsentar,
-  franjasDelProfesional,
+  faltaElPermiso,
   listarCitas,
-  relojEnZona,
-  retirarElPermiso,
   ventanaDeLaCita,
-  zonaValida,
   type CitaLeida,
-  type FranjaDeLaAgenda,
-} from './ehr-cita';
+} from '@synergos/dominio/salud';
+import { encabezadoDeLaCita, estadoDeLaCita, mensajeDeLaCita, textosDeSaludDelPortal } from './textos-de-salud';
+import { SaludFranjasComponent, type DiaDeLaAgenda, type HoraElegida } from './vistas/agendar/franjas/franjas';
+import { SaludCitaDelEnlaceComponent } from './vistas/mis-citas/cita-del-enlace/cita-del-enlace';
+import { SaludPermisoComponent } from './vistas/permiso/permiso';
 import {
   EHR_FLOW,
   MINUTOS_DE_LA_CITA,
@@ -115,17 +116,20 @@ import {
   aMenores,
   avisoDelFlujo,
   baseDeRuta,
-  elegirMensaje,
   hayCoordinador,
   mismaRuta,
+  relojEnZona,
   segmentosDeRuta,
   formatearImporte,
   desdeMenores,
   diaLocal,
   diaLocalMas,
   t,
-  type RechazoDelFlujo,
+  zonaValida,
 } from '@synergos/vitals-core';
+
+// Lo que se dice de la cita vive con los textos de Salud del portal (T051); se reexporta para quien lo importaba desde aquí.
+export { estadoDeLaCita, mensajeDeLaCita } from './textos-de-salud';
 
 /**
  * Runtime config for the CMS element <c>elementSynEhr</c>.
@@ -160,99 +164,11 @@ interface EhrBus extends Record<string, unknown> {
 const DEFAULT_CLINIC = 'Clínica Synergos';
 const DEFAULT_SCOPE = 'ehr';
 
-/** Cuántos días de la agenda del profesional ofrece el asistente, desde ahora (T046). */
-const DIAS_DE_LA_AGENDA = 8;
-
-/** Una hora libre de la agenda como la ofrece el asistente: el día y la hora del SITIO, y cuántos minutos dura. */
-export interface FranjaDelAsistente {
-  readonly date: string;
-  readonly time: string;
-  readonly minutos: number;
-}
-
-/** Una llave nueva para una intención: la de darle o retirarle el permiso. */
-const nuevaLlave = (): string => globalThis.crypto.randomUUID();
-
-const instanteIso = (instante: number): string => new Date(instante).toISOString().replace('.000Z', 'Z');
-
-/**
- * Las franjas que ofrece el asistente: las que tienen cupo y no empezaron, en el día y la hora del sitio, en orden. Sin
- * una zona válida no hay ninguna: no se ofrece una hora adivinada.
- */
-export function franjasDelAsistente(
-  franjas: readonly FranjaDeLaAgenda[],
-  zona: string,
-  ahora: number,
-): readonly FranjaDelAsistente[] {
-  const ofrecidas: FranjaDelAsistente[] = [];
-  for (const f of [...franjas].sort((a, b) => Date.parse(a.ventana.start) - Date.parse(b.ventana.start))) {
-    const inicio = Date.parse(f.ventana.start);
-    const minutos = Math.round((Date.parse(f.ventana.end) - inicio) / 60_000);
-    const reloj = f.libres > 0 && inicio > ahora && minutos > 0 ? relojEnZona(f.ventana.start, zona) : null;
-    if (reloj) {
-      ofrecidas.push({ date: reloj.fecha, time: reloj.hora, minutos });
-    }
-  }
-  return ofrecidas;
-}
+// La agenda del profesional (las franjas del asistente) y el permiso de datos de salud viven en sus fachadas del dominio
+// de Salud (`AgendaDeSalud` y `PermisoDeSalud`, T051): una por elemento, en los `providers` del componente.
 
 /** El fallo del asistente de citas, con o sin copago: la cita NO quedó (UI#91). */
 const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
-
-/**
- * Lo que se dice de un rechazo de la cita por la puerta, elegido por su `code` y nunca por su `title`
- * (sección `Health.Appointment`, 003-salud-cita T025). Lo que no tiene texto propio cae al de su clase.
- */
-export function mensajeDeLaCita(code: string): string {
-  const porCodigo: Readonly<Record<string, string>> = {
-    'consent.not_granted': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
-    'consent.revoked': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
-    'consent.expired': t('Health.Appointment.ConsentMissing', 'Para agendar necesitamos tu autorización de tratamiento de datos de salud.'),
-    'booking.resource_not_found': t('Health.Appointment.NoAgenda', 'Este profesional no tiene agenda disponible.'),
-    'booking.at_capacity': t('Health.Appointment.SlotTaken', 'Esa franja ya no está disponible. Elige otra.'),
-    'booking.window_in_the_past': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
-    'booking.outside_opening_hours': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
-    'booking.off_slot_grid': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
-    'booking.bad_slot_length': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
-    'booking.crosses_midnight': t('Health.Appointment.BadWindow', 'Esa hora no está en la agenda del profesional. Elige otra.'),
-    'booking.hold_expired': t('Health.Appointment.SlotExpired', 'Tu franja venció antes de confirmar. Elige otra.'),
-    'booking.hold_released': t('Health.Appointment.SlotExpired', 'Tu franja venció antes de confirmar. Elige otra.'),
-    'payments.payment_declined': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
-    'payments.payment_failed': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
-    'payments.voided': t('Health.Appointment.PaymentFailed', 'No pudimos procesar el copago. No se te cobró nada.'),
-    'salud.not_continuable': t('Health.Appointment.NotConfirmable', 'Esta cita ya no se puede confirmar.'),
-    'salud.already_completed': t('Health.Appointment.NotCancellable', 'Esta cita ya está confirmada; no se puede cancelar en línea.'),
-    'salud.saga_not_found': t('Health.Appointment.NotFound', 'No encontramos esa cita en tu cuenta.'),
-    'salud.entrada_invalida': t('Health.Appointment.BadRequest', 'Revisa los datos de la cita: falta alguno o no es válido.'),
-  };
-  if (code.startsWith('pricing.')) {
-    return t('Health.Appointment.CopayUnavailable', 'No pudimos calcular el copago. Intenta de nuevo en un momento.');
-  }
-  // Sólo se sabe el `code` (el asistente pasa el motivo): lo transitorio y lo negado dicen lo mismo.
-  const rechazo: RechazoDelFlujo = { code, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} };
-  const generico = t('Health.Appointment.Generic', 'No pudimos agendar tu cita. Intenta de nuevo.');
-  return elegirMensaje(rechazo, porCodigo, {
-    sesion: t('Health.Appointment.SignInRequired', 'Inicia sesión para ver y agendar tus citas.'),
-    no_disponible: t('Health.Appointment.Unavailable', 'La agenda en línea no está disponible en este momento.'),
-    reintentable: generico,
-    defecto: generico,
-    negado: generico,
-  });
-}
-
-/** El estado de una cita como lo lee el paciente (`Health.Appointment`). */
-export function estadoDeLaCita(estado: string): string {
-  switch (estado) {
-    case 'Running':
-      return t('Health.Appointment.StatePending', 'Pendiente de confirmar');
-    case 'Completed':
-      return t('Health.Appointment.StateConfirmed', 'Confirmada');
-    case 'Compensated':
-      return t('Health.Appointment.StateUndone', 'No quedó agendada');
-    default:
-      return t('Health.Appointment.StateReview', 'En revisión');
-  }
-}
 
 const DEFAULT_ROLE: EhrRole = 'patient';
 /** El login del sitio, con la vuelta a ESTA página (el mismo de gov, blogs y realty). */
@@ -366,7 +282,9 @@ let ehrInstanceId = 0;
     SynSkeletonComponent,
     SynEmptyStateComponent,
     LiveRegionComponent,
-    ButtonComponent,
+    SaludPermisoComponent,
+    SaludFranjasComponent,
+    SaludCitaDelEnlaceComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -374,6 +292,10 @@ let ehrInstanceId = 0;
   // Embedded published custom elements may be hydrated by the CMS shell.
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-ehr' },
+  // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
+  // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
+  // el portal con su diccionario.
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -463,34 +385,17 @@ export class EhrElementComponent implements OnInit {
   readonly citaPendiente = computed(() => (this.porLaPuerta() ? citaPendiente(this.#store.session()) : null));
   readonly textoCancelar = t('Health.Appointment.Cancel', 'Cancelar cita');
   /**
-   * El permiso de datos de salud (T048-T050): sus textos son la sección `Health.Consent` del diccionario, cuya versión
-   * declara el CMS (`VersionDelPermiso`). El borrador lo aprueba el arquitecto antes de encender Salud (S-4).
+   * El permiso de datos de salud (T048-T050), en su fachada (T051): sus textos son la sección `Health.Consent` del
+   * diccionario, cuya versión declara el CMS (`VersionDelPermiso`). El borrador lo aprueba el arquitecto antes de encender
+   * Salud (S-4). Los nombres de antes quedan como alias de la fachada.
    */
-  readonly textosDelPermiso = {
-    titulo: t('Health.Consent.Title', 'Autorización para tratar tus datos de salud'),
-    proposito: t(
-      'Health.Consent.Purpose',
-      'Para agendar tu cita y prestarte la atención necesitamos tratar datos sobre tu salud: el motivo de la consulta, tus citas y lo que registren los profesionales que te atiendan. Son datos sensibles. Darlos es facultativo y no estás obligado a autorizarlo; sin esta autorización, eso sí, no podemos agendar tu cita en línea.',
-    ),
-    uso: t(
-      'Health.Consent.Use',
-      'Los usamos sólo para agendar y prestarte la atención que pediste. Los guardamos cifrados, y sólo los ve el personal del consultorio que te atiende. Puedes retirar esta autorización cuando quieras desde tu portal; retirarla no borra lo que la ley obliga a conservar de tu historia clínica.',
-    ),
-    responsable: t('Health.Consent.Responsible', 'El detalle está en la Política de tratamiento de datos.'),
-    aceptar: t('Health.Consent.Accept', 'Autorizo'),
-    retirar: t('Health.Consent.Revoke', 'Retirar mi autorización'),
-    dado: t('Health.Consent.Granted', 'Diste tu autorización. Ya puedes agendar.'),
-    retirado: t('Health.Consent.Revoked', 'Retiraste tu autorización. Para agendar tendrás que darla otra vez.'),
-  } as const;
+  readonly #permiso = inject(PermisoDeSalud);
+  readonly textosDelPermiso = this.#permiso.textos;
   /** Si el copago no se cotizó porque falta el permiso: el paso pinta el texto del permiso y «Autorizo». */
-  readonly necesitaPermiso = computed(() =>
-    ['consent.not_granted', 'consent.revoked', 'consent.expired'].includes(this.rechazoDelCopago() ?? ''),
-  );
-  readonly moviendoElPermiso = signal(false);
+  readonly necesitaPermiso = computed(() => faltaElPermiso(this.rechazoDelCopago()));
+  readonly moviendoElPermiso = this.#permiso.moviendo;
   /** Lo que quedó de la última acción sobre el permiso: darlo o retirarlo. */
-  readonly avisoDelPermiso = signal('');
-  /** La llave de la intención de darlo: la misma hasta que se da, así un doble clic o un reintento no da dos. */
-  #llaveDelPermiso = '';
+  readonly avisoDelPermiso = this.#permiso.aviso;
   /** Lo que quedó de la última acción sobre una cita (cancelarla, resolver la pendiente). */
   readonly avisoDeLaCita = signal('');
   readonly cancelando = signal(false);
@@ -643,14 +548,14 @@ export class EhrElementComponent implements OnInit {
   readonly scheduleDate = signal('');
   readonly scheduleTime = signal('');
   /**
-   * Por la puerta, las horas LIBRES de la agenda del profesional elegido (I1 de producción, T046), en la hora del
-   * sitio y con su duración. `null` mientras se leen; vacía si no hay ninguna libre en los próximos días o si la
-   * agenda no se pudo leer (`rechazoDeLaAgenda` dice cuál).
+   * Por la puerta, las horas LIBRES de la agenda del profesional elegido (I1 de producción, T046), en su fachada (T051):
+   * en la hora del sitio y con su duración. `null` mientras se leen; vacía si no hay ninguna libre en los próximos días o
+   * si la agenda no se pudo leer (`rechazoDeLaAgenda` dice cuál). Los nombres de antes quedan como alias de la fachada.
    */
-  readonly franjasDeLaAgenda = signal<readonly FranjaDelAsistente[] | null>(null);
+  readonly #agenda = inject(AgendaDeSalud);
+  readonly franjasDeLaAgenda = this.#agenda.franjas;
   /** El `code` con que la agenda del profesional no se pudo leer, o `null`. */
-  readonly rechazoDeLaAgenda = signal<string | null>(null);
-  #ultimaAgenda = '';
+  readonly rechazoDeLaAgenda = this.#agenda.rechazo;
   readonly scheduleReason = signal('');
   readonly scheduleModes = SCHEDULE_MODES;
   readonly scheduleMode = signal<ScheduleMode>('in-person');
@@ -1143,7 +1048,7 @@ export class EhrElementComponent implements OnInit {
       if (!doctor) {
         return;
       }
-      untracked(() => void this.leerLaAgenda(doctor, zona));
+      untracked(() => void this.#agenda.leer(this.#host, doctor, zona));
     });
 
     // El copago por la puerta sale de `cotizar` (T029), con el profesional y la franja elegidos: corre el
@@ -1174,52 +1079,14 @@ export class EhrElementComponent implements OnInit {
   }
 
   /**
-   * Lee las franjas libres del profesional en los próximos días (T046). Lo que contesta la agenda de otro profesional
-   * elegido antes se descarta, y un rechazo no se queda: volver a elegirlo la lee otra vez.
-   */
-  private async leerLaAgenda(doctor: string, zona: string): Promise<void> {
-    if (doctor === this.#ultimaAgenda) {
-      return;
-    }
-    this.#ultimaAgenda = doctor;
-    this.franjasDeLaAgenda.set(null);
-    this.rechazoDeLaAgenda.set(null);
-    const ahora = Math.floor(Date.now() / 60_000) * 60_000;
-    const rango = { start: instanteIso(ahora), end: instanteIso(ahora + DIAS_DE_LA_AGENDA * 86_400_000) };
-    const r = await franjasDelProfesional(this.#host, doctor, rango);
-    if (doctor !== this.#ultimaAgenda) {
-      return;
-    }
-    if (!r.ok) {
-      this.rechazoDeLaAgenda.set(r.rechazo.code);
-      this.franjasDeLaAgenda.set([]);
-      this.#ultimaAgenda = '';
-      return;
-    }
-    this.franjasDeLaAgenda.set(franjasDelAsistente(r.valor, zona, ahora));
-  }
-
-  /**
    * Lo que el paso de la hora dice de la agenda, por la puerta: el rechazo por su `code`, o que no hay horas libres.
    * `null` mientras se lee o si hay horas que ofrecer.
    */
-  readonly avisoDeLaAgenda = computed<string | null>(() => {
-    if (!this.porLaPuerta()) {
-      return null;
-    }
-    const rechazo = this.rechazoDeLaAgenda();
-    if (rechazo) {
-      return mensajeDeLaCita(rechazo);
-    }
-    const franjas = this.franjasDeLaAgenda();
-    return franjas !== null && franjas.length === 0
-      ? t('Health.Appointment.NoSlots', 'Este profesional no tiene horas libres en los próximos días.')
-      : null;
-  });
+  readonly avisoDeLaAgenda = computed<string | null>(() => (this.porLaPuerta() ? this.#agenda.aviso() : null));
 
   /** Cuántos minutos dura la franja elegida: la de la agenda por la puerta; si no, la de siempre. */
   minutosDeLaFranja(fecha: string, hora: string): number {
-    return this.franjasDeLaAgenda()?.find((f) => f.date === fecha && f.time === hora)?.minutos ?? MINUTOS_DE_LA_CITA;
+    return this.#agenda.minutosDe(fecha, hora) ?? MINUTOS_DE_LA_CITA;
   }
 
   /** Cotiza el copago de ESTA elección por la puerta; lo que contesta otra elección anterior se descarta. */
@@ -1276,11 +1143,16 @@ export class EhrElementComponent implements OnInit {
 
   /** Lo que se lee de una cita: su número, su estado y su hora en la zona del sitio. */
   encabezadoDeLaCita(cita: CitaLeida): string {
-    return t('Health.Appointment.Heading', 'Tu cita {numero}', { numero: cita.numero });
+    return encabezadoDeLaCita(cita.numero);
   }
 
   estadoDe(cita: CitaLeida): string {
     return estadoDeLaCita(cita.estado);
+  }
+
+  /** El total de la cita ya escrito, o nada si es cero o el servidor no lo dio: no se inventa un copago. */
+  importeDeLaCita(cita: CitaLeida): string {
+    return cita.total && cita.total.amount > 0 ? this.importeDe(cita.total) : '';
   }
 
   horaDeLaCita(cita: CitaLeida): string {
@@ -1328,20 +1200,9 @@ export class EhrElementComponent implements OnInit {
    * el copago. La llave es la de la intención hasta que el permiso queda dado.
    */
   async darElPermiso(): Promise<void> {
-    if (this.moviendoElPermiso()) {
+    if (!(await this.#permiso.dar(this.#host))) {
       return;
     }
-    this.#llaveDelPermiso ||= nuevaLlave();
-    this.moviendoElPermiso.set(true);
-    this.avisoDelPermiso.set('');
-    const r = await darElPermiso(this.#host, this.#llaveDelPermiso);
-    this.moviendoElPermiso.set(false);
-    if (!r.ok) {
-      this.avisoDelPermiso.set(mensajeDeLaCita(r.rechazo.code));
-      return;
-    }
-    this.#llaveDelPermiso = '';
-    this.avisoDelPermiso.set(this.textosDelPermiso.dado);
     this.#ultimaCotizacion = '';
     void this.cotizarElCopago(this.scheduleDoctorId(), this.scheduleDate(), this.scheduleTime(), this.zona());
   }
@@ -1351,16 +1212,7 @@ export class EhrElementComponent implements OnInit {
    * quien lo pide: no queda ninguno vigente.
    */
   async retirarElPermiso(): Promise<void> {
-    if (this.moviendoElPermiso()) {
-      return;
-    }
-    this.moviendoElPermiso.set(true);
-    this.avisoDelPermiso.set('');
-    const r = await retirarElPermiso(this.#host, nuevaLlave());
-    this.moviendoElPermiso.set(false);
-    this.avisoDelPermiso.set(
-      r.ok || r.rechazo.code === 'consent.not_granted' ? this.textosDelPermiso.retirado : mensajeDeLaCita(r.rechazo.code),
-    );
+    await this.#permiso.retirar(this.#host);
   }
 
   async cancelarLaCita(id: string): Promise<void> {
@@ -2127,6 +1979,20 @@ export class EhrElementComponent implements OnInit {
   slotsForDay(date: string): readonly { date: string; time: string }[] {
     return this.availableSlots().filter((slot) => slot.date === date);
   }
+
+  /** Los días con sus horas, como los pinta la vista de las franjas (T051). */
+  readonly diasDeLaAgenda = computed<readonly DiaDeLaAgenda[]>(() =>
+    this.availableDays().map((fecha) => ({
+      fecha,
+      etiqueta: this.formatDate(fecha),
+      horas: this.slotsForDay(fecha).map((slot) => slot.time),
+    })),
+  );
+
+  /** La hora elegida, o `null` mientras no se elige ninguna. */
+  readonly horaElegida = computed<HoraElegida | null>(() =>
+    this.scheduleDate() && this.scheduleTime() ? { date: this.scheduleDate(), time: this.scheduleTime() } : null,
+  );
 
   selectSlot(slot: { date: string; time: string }): void {
     this.scheduleDate.set(slot.date);

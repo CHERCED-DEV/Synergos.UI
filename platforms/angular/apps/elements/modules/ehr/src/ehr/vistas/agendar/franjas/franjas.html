@@ -1,0 +1,17 @@
+<p class="salud-franjas__rotulo">Elige fecha y hora</p>
+@if (aviso(); as aviso) {
+  <syn-live-region class="salud-franjas__aviso" [message]="aviso" [visuallyHidden]="false" announceInitial />
+}
+<div class="salud-franjas">
+  @for (dia of dias(); track dia.fecha) {
+    <div class="salud-franjas__dia">
+      <p class="salud-franjas__fecha">{{ dia.etiqueta }}</p>
+      <div class="salud-franjas__horas">
+        @for (hora of dia.horas; track hora) {
+          <syn-button variant="outline" size="sm" [label]="hora" [selected]="esLaElegida(dia.fecha, hora)"
+            (pressed)="elegir.emit({ date: dia.fecha, time: hora })" />
+        }
+      </div>
+    </div>
+  }
+</div>

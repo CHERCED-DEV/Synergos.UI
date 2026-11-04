@@ -1082,33 +1082,7 @@
     margin-bottom: syn.$space-2;
   }
 
-  &__slots {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    max-height: syn.px-to-rem(280);
-    overflow-y: auto;
-  }
-
-  &__slot-date { margin: 0 0 syn.px-to-rem(4); font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
-
-  &__slot-times {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-  }
-
-  &__slot {
-    padding: syn.px-to-rem(6) syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--eh-border);
-    border-radius: syn.$radius-md;
-    background: var(--eh-surface);
-    color: var(--eh-text);
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
-
-    &.is-active { background: var(--eh-brand); border-color: var(--eh-brand); color: var(--eh-brand-text); }
-  }
+  // Las franjas del paso de la hora se mudaron a su vista (`vistas/agendar/franjas`, T051), con su hoja.
 
   /* ─── SH-4 visits / SH-7 threads templates ───────────────────────────────── */
   &__visit-row,

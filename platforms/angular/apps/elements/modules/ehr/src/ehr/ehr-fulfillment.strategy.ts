@@ -11,9 +11,9 @@ import {
   type SessionData,
   type SessionItem,
 } from '@synergos/transaction-engine';
-import { aMenores, clasificarRechazo, type RechazoDelFlujo } from '@synergos/vitals-core';
+import { aMenores, clasificarRechazo, relojEnZona, type RechazoDelFlujo } from '@synergos/vitals-core';
 import { EhrApiClient } from './ehr-api.client';
-import { abrirCita, cerrarCita, consultarCita, relojEnZona, ventanaDeLaCita, type CitaLeida } from './ehr-cita';
+import { abrirCita, cerrarCita, consultarCita, ventanaDeLaCita, type CitaLeida } from '@synergos/dominio/salud';
 import { type AppointmentSelectionPayload, type CaminoDeLaCita } from './ehr.model';
 
 /** The flow id the engine routes the appointment checkout on — one strategy owns it. */
