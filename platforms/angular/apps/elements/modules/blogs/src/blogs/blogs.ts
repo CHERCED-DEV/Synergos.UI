@@ -318,18 +318,12 @@ export class BlogsElementComponent implements OnInit {
     const widget = this.#orchestrator.register('blogs-feed', { order: 0 });
     this.#orchestrator.setStatus(widget, 'ready');
 
-    // Hash router: deep-linkable views (#/<scope>/post/<id>, #/<scope>/mensajes…).
-    const onHashChange = (): void => this.navegacion.applyHash();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('hashchange', onHashChange);
-    }
+    // Hash router: deep-linkable views (#/<scope>/post/<id>, #/<scope>/mensajes…). La escucha es de la navegación.
+    this.navegacion.escucharElHash(this.#destroyRef);
 
     this.#destroyRef.onDestroy(() => {
       this.#orchestrator.unregister(widget);
       this.#bus.destroy();
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('hashchange', onHashChange);
-      }
     });
   }
 

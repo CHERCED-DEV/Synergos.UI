@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, inject } from '@angular/core';
 import {
   EstudioDeBlogs,
   ExplorarDeBlogs,
@@ -38,6 +38,19 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
 
   /** El shell la escucha para emitir `viewchanged`. */
   alCambiarDeVista: (view: BlogsView) => void = () => undefined;
+
+  /**
+   * Escucha el hash del navegador mientras viva la red: atrás, adelante y un enlace pegado llevan a su vista. Es de la
+   * navegación, como en la tienda: quien lee y escribe la ruta es quien la escucha (lo vigila `rutas-por-hash.spec`).
+   */
+  escucharElHash(destroyRef: DestroyRef): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const onHashChange = (): void => this.applyHash();
+    window.addEventListener('hashchange', onHashChange);
+    destroyRef.onDestroy(() => window.removeEventListener('hashchange', onHashChange));
+  }
 
   go(view: BlogsView): void {
     this.applyRoute(view, '');
