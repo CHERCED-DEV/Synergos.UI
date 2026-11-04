@@ -1,14 +1,23 @@
-@use '../../../../../../vitals/core-assets/src/scss' as syn;
+// Sólo los parciales que dan variables, funciones y mixins: el índice (`scss`) carga también los tokens semánticos y
+// de marca, que EMITEN las reglas del tema (`:root`, `[data-theme]`…, ~10 KB), y cada hoja que lo usa las repite.
+@use '../../../../../../vitals/core-assets/src/scss/functions/px-to-rem' as fn;
+@use '../../../../../../vitals/core-assets/src/scss/mixins/visually-hidden' as vh;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/colors' as colors;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/motion' as motion;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/radius' as radius;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/spacing' as space;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/typography' as type;
 
 // SH-15 — el hilo de comentarios. Las medidas son las que tenía el hilo de la red social (012-blogs-social, I2), y
 // los colores salen de los tokens del sitio, con los de la línea de diseño como respaldo: los siete temas lo repintan.
 :host {
-  --sct-accent: var(--syn-color-action-primary, #{syn.$color-brand-500});
-  --sct-accent-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --sct-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
-  --sct-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sct-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
-  --sct-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+  --sct-accent: var(--syn-color-action-primary, #{colors.$color-brand-500});
+  --sct-accent-soft: var(--syn-color-state-brand-soft, #{colors.$color-brand-100});
+  --sct-border-subtle: var(--syn-color-border-subtle, #{colors.$color-neutral-100});
+  --sct-muted: var(--syn-color-text-muted, #{colors.$color-neutral-500});
+  // El respaldo del molde es el valor de la línea de diseño (`$color-skeleton-*` de `tokens/semantic`, que emite el tema).
+  --sct-skeleton-base: var(--syn-skeleton-base, #d1d3d5);
+  --sct-skeleton-highlight: var(--syn-skeleton-sheen, #bbbcbe);
 
   display: block;
 }
@@ -16,21 +25,21 @@
 .syn-cthread__list {
   display: flex;
   flex-direction: column;
-  gap: syn.$space-3;
+  gap: space.$space-3;
   margin: 0;
   padding: 0;
   list-style: none;
 
   &--replies {
-    margin-top: syn.$space-3;
-    padding-left: syn.$space-5;
-    border-left: syn.px-to-rem(2) solid var(--sct-border-subtle);
+    margin-top: space.$space-3;
+    padding-left: space.$space-5;
+    border-left: fn.px-to-rem(2) solid var(--sct-border-subtle);
   }
 }
 
 .syn-cthread__comment {
   display: flex;
-  gap: syn.$space-3;
+  gap: space.$space-3;
 }
 
 .syn-cthread__avatar {
@@ -38,14 +47,14 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: syn.px-to-rem(36);
-  height: syn.px-to-rem(36);
-  border-radius: syn.$radius-full;
+  width: fn.px-to-rem(36);
+  height: fn.px-to-rem(36);
+  border-radius: radius.$radius-full;
   background: var(--sct-accent-soft);
   color: var(--sct-accent);
-  font-size: syn.$font-size-xs;
-  font-weight: syn.$font-weight-bold;
-  letter-spacing: syn.$letter-spacing-tight;
+  font-size: type.$font-size-xs;
+  font-weight: type.$font-weight-bold;
+  letter-spacing: type.$letter-spacing-tight;
 }
 
 .syn-cthread__body {
@@ -57,49 +66,49 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: syn.$space-1;
+  gap: space.$space-1;
 }
 
 .syn-cthread__author {
-  font-weight: syn.$font-weight-bold;
-  font-size: syn.$font-size-sm;
+  font-weight: type.$font-weight-bold;
+  font-size: type.$font-size-sm;
 }
 
 .syn-cthread__handle {
   color: var(--sct-muted);
-  font-size: syn.$font-size-xs;
+  font-size: type.$font-size-xs;
 }
 
 .syn-cthread__time {
   color: var(--sct-muted);
-  font-size: syn.$font-size-xs;
+  font-size: type.$font-size-xs;
   white-space: nowrap;
 }
 
 .syn-cthread__text {
-  margin: syn.$space-3 0;
-  font-size: syn.$font-size-base;
-  line-height: syn.$line-height-relaxed;
+  margin: space.$space-3 0;
+  font-size: type.$font-size-base;
+  line-height: type.$line-height-relaxed;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .syn-cthread__actions {
-  margin-top: syn.$space-1;
+  margin-top: space.$space-1;
 }
 
 .syn-cthread__icon {
   flex: 0 0 auto;
-  inline-size: syn.px-to-rem(18);
-  block-size: syn.px-to-rem(18);
+  inline-size: fn.px-to-rem(18);
+  block-size: fn.px-to-rem(18);
   vertical-align: middle;
 }
 
 .syn-cthread__reply-form {
   display: flex;
   align-items: flex-end;
-  gap: syn.$space-2;
-  margin: syn.$space-3 0;
+  gap: space.$space-2;
+  margin: space.$space-3 0;
 }
 
 .syn-cthread__reply-input {
@@ -107,14 +116,14 @@
 }
 
 .syn-cthread__empty {
-  padding: syn.$space-8 syn.$space-4;
+  padding: space.$space-8 space.$space-4;
   color: var(--sct-muted);
   text-align: center;
-  font-size: syn.$font-size-sm;
+  font-size: type.$font-size-sm;
 }
 
 .syn-cthread__sr-only {
-  @include syn.visually-hidden;
+  @include vh.visually-hidden;
 }
 
 // ─── El molde ───────────────────────────────────────────────────────────────────
@@ -122,7 +131,7 @@
 // comentario —cabecera, cuerpo, acción y caja de respuesta— para que el paso a los datos no mueva el layout.
 .syn-cthread__bone {
   display: block;
-  border-radius: syn.$radius-md;
+  border-radius: radius.$radius-md;
   background: linear-gradient(
     90deg,
     var(--sct-skeleton-base) 0%,
@@ -130,36 +139,36 @@
     var(--sct-skeleton-base) 100%
   );
   background-size: 200% 100%;
-  animation: syn-cthread-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
+  animation: syn-cthread-shimmer var(--syn-duration-shimmer, #{motion.$duration-shimmer}) motion.$easing-smooth infinite;
 
   // El mismo diámetro que el avatar, que es quien fija la altura de la fila.
   &--avatar {
     flex: 0 0 auto;
-    inline-size: syn.px-to-rem(36);
-    block-size: syn.px-to-rem(36);
-    border-radius: syn.$radius-full;
+    inline-size: fn.px-to-rem(36);
+    block-size: fn.px-to-rem(36);
+    border-radius: radius.$radius-full;
   }
 
   &--head {
     inline-size: 45%;
-    block-size: syn.px-to-rem(16);
+    block-size: fn.px-to-rem(16);
   }
 
   &--text {
     inline-size: 100%;
-    block-size: syn.px-to-rem(40);
-    margin-block: syn.$space-3;
+    block-size: fn.px-to-rem(40);
+    margin-block: space.$space-3;
   }
 
   &--action {
-    inline-size: syn.px-to-rem(96);
-    block-size: syn.px-to-rem(28);
+    inline-size: fn.px-to-rem(96);
+    block-size: fn.px-to-rem(28);
   }
 
   &--form {
     inline-size: 100%;
-    block-size: syn.px-to-rem(40);
-    margin-block-start: syn.$space-3;
+    block-size: fn.px-to-rem(40);
+    margin-block-start: space.$space-3;
   }
 }
 
