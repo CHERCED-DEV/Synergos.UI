@@ -79,6 +79,17 @@ describe(TextareaComponent.name, () => {
   });
 
   // 014-despiece-tienda: cada instancia tiene su id; antes todas acababan con el último número y cada <label for> apuntaba a la misma.
+  it('limits the length only when told so', () => {
+    const fixture = TestBed.createComponent(TextareaComponent);
+    fixture.detectChanges();
+    const textarea = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    expect(textarea.hasAttribute('maxlength')).toBe(false);
+
+    fixture.componentRef.setInput('maxlength', 500);
+    fixture.detectChanges();
+    expect(textarea.getAttribute('maxlength')).toBe('500');
+  });
+
   it('gives each instance its own id', () => {
     const a = TestBed.createComponent(TextareaComponent);
     const b = TestBed.createComponent(TextareaComponent);

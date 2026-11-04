@@ -149,6 +149,14 @@ a.syn-button {
   background: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
 }
 
+// ── El contenido al comienzo (`align="start"`) — 012-blogs-social, T009 ─────────────────────────────────────────────
+// Un elemento de una barra de navegación vertical, o un disparador que se lee como un campo: el icono y el texto
+// arrancan en el borde, como en la fila de una lista. Lo demás (el alto, el foco, los estados) es el del botón.
+.syn-button--start {
+  justify-content: flex-start;
+  text-align:      start;
+}
+
 // The sm box stays at 32px — on the 8pt grid, per `--syn-control-h-sm`. Only the
 // pointer target grows to 44px (WCAG 2.5.5, AAA). See `_touch-target.scss`.
 .syn-button--sm { @include syn.button-size(sm); @include syn.touch-target; }

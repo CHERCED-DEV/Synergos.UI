@@ -227,6 +227,14 @@ describe(ButtonComponent.name, () => {
       expect(button.getAttribute('aria-label')).toBe('Ver Audífonos de diadema');
     });
 
+    it('centres its content unless told to start at the edge, like an item of a navigation rail', () => {
+      const centrado = render({ label: 'Inicio' });
+      expect(centrado.button.classList.contains('syn-button--start')).toBe(false);
+
+      const { button } = render({ label: 'Inicio', align: 'start' });
+      expect(button.classList.contains('syn-button--start')).toBe(true);
+    });
+
     it('takes the full width of its container', () => {
       const { fixture, button } = render({ label: 'Agregar al carrito', block: true });
       expect(button.classList.contains('syn-button--block')).toBe(true);
