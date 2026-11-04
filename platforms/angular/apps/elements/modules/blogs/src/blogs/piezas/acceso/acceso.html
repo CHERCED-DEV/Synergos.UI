@@ -1,0 +1,8 @@
+<div class="blogs__signin" tabindex="-1" #panel>
+  <!-- El título y el texto los pone cada vista: son suyos, y así siguen a la vista del detector de literales. -->
+  <ng-content />
+  <div class="blogs__signin-actions">
+    <syn-button [href]="navegacion.loginUrl()">Iniciar sesión</syn-button>
+    <syn-button variant="ghost" (pressed)="navegacion.go('feed')">Volver al feed</syn-button>
+  </div>
+</div>

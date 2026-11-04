@@ -1,0 +1,51 @@
+<!-- ═══ POST DETAIL / THREAD ═══════════════════════════════════════════════ -->
+<syn-button class="blogs__back" variant="ghost" size="sm" (pressed)="navegacion.backToFeed()">
+  <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+  Volver al feed
+</syn-button>
+
+@if (publicacion.activePost(); as post) {
+  <sg-blogs-tarjeta [publicacion]="post" [detalle]="true" />
+
+  <!-- Reuse the published comments-widget custom element (progressive enhancement;
+       hydrates in the CMS via the CDN bundle, degrades to the native thread below). -->
+  <synergos-comments-widget
+    class="blogs__comments-embed"
+    provider="rest"
+    [attr.thread-id]="post.id"
+    title="Comentarios"
+    submitLabel="Comentar"
+    replyLabel="Responder"
+    placeholder="Escribe un comentario…"
+    locale="es-CO"
+    [attr.comments-endpoint]="red.apiBase() + '/post/' + post.id"
+  ></synergos-comments-widget>
+
+  <!-- Native optimistic thread (source of truth for this SPA's state) -->
+  <form class="blogs__comment-form" (submit)="$event.preventDefault(); publicacion.submitComment()">
+    <syn-textarea class="blogs__comment-input" [id]="presentacion.fieldId + '-comment'" [rows]="2" ariaLabel="Escribe un comentario"
+      placeholder="Escribe un comentario…" [value]="publicacion.commentDraft()" (valueChange)="publicacion.commentDraft.set($event)" />
+    <syn-button type="submit" [disabled]="!publicacion.commentValid() || publicacion.commentSending()">Comentar</syn-button>
+  </form>
+  @if (publicacion.commentNotice()) {
+    <!-- Visual: el anuncio va por la región compartida (`announce`), para no decirlo dos veces. -->
+    <p class="blogs__notice">{{ publicacion.commentNotice() }}</p>
+  }
+
+  <h2 class="blogs__thread-title">Comentarios ({{ post.commentCount }})</h2>
+  <!-- El hilo es el organismo SH-15 de `libs/shells` (T016): el molde de carga, el vacío y los comentarios con sus
+       respuestas. La red le pasa lo que ya dijo —quién, cuándo, cuántos «me gusta»— y contesta sus salidas con la
+       fachada: el borrador de cada respuesta es de la red, que sabe si el servidor lo guardó. -->
+  <syn-comment-thread
+    [entries]="hilo()"
+    [drafts]="publicacion.commentDrafts()"
+    [loading]="red.loading()"
+    [skeletons]="presentacion.commentSkeletons.length"
+    [idPrefix]="presentacion.fieldId"
+    [config]="hiloConfig"
+    (like)="meGusta($event)"
+    (reply)="responder($event)"
+    (draftChange)="publicacion.setCommentDraft($event.entry.id, $event.value)"
+    (authorSelect)="abrirAutor($event)"
+  />
+}

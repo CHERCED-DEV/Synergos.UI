@@ -34,3 +34,39 @@ export { ExplorarApi } from './lib/explorar/explorar-api.client';
 export { MensajesApi } from './lib/mensajes/mensajes-api.client';
 export { GuardadosApi } from './lib/guardados/guardados-api.client';
 export { EstudioApi } from './lib/estudio/estudio-api.client';
+
+// La fachada: el estado de la red por caso de uso (T013). Se provee por elemento —cada red de la página tiene la suya— y
+// la app le da sus textos (`TEXTOS_DE_BLOGS`), su navegación, su región viva y sus CustomEvents; los adaptadores, en
+// cambio, son de la app entera.
+export { TEXTOS_DE_BLOGS, type TextosDeBlogs } from './lib/comun/textos';
+export {
+  RedDeBlogs,
+  SIN_CIFRAS,
+  VISTAS_CON_PANEL,
+  type ConexionDeLaRed,
+  type EventosDeLaRed,
+  type NavegacionDeLaRed,
+} from './lib/comun/red-de-blogs';
+export { InicioDeBlogs } from './lib/contenido/inicio';
+export { CompositorDeBlogs, MAXIMO_DE_UNA_NOTA } from './lib/contenido/compositor';
+export {
+  ArticuloDeBlogs,
+  MINIMO_DEL_CUERPO,
+  type AsistenteDelArticulo,
+  type BorradorDelArticulo,
+} from './lib/contenido/articulo';
+export { PublicacionDeBlogs } from './lib/comentarios/publicacion';
+export { ReaccionesDeBlogs } from './lib/reacciones/reacciones';
+export { SeguidoresDeBlogs } from './lib/seguidores/seguidores';
+export { PerfilDeBlogs } from './lib/perfil/perfil';
+export { GuardadosDeBlogs } from './lib/guardados/guardados';
+export { NotificacionesDeBlogs } from './lib/notificaciones/notificaciones';
+export { ExplorarDeBlogs, PESTANAS_DE_EXPLORAR, type CriteriosDeExplorar } from './lib/explorar/explorar';
+export { MensajesDeBlogs } from './lib/mensajes/mensajes';
+export { EstudioDeBlogs, SECCIONES_DEL_ESTUDIO } from './lib/estudio/estudio';
+export {
+  SUSCRIPCION_ENCENDIDA,
+  SuscripcionDeBlogs,
+  type BusDeBlogs,
+  type ResultadoDeLaSuscripcion,
+} from './lib/suscripcion/suscripcion';

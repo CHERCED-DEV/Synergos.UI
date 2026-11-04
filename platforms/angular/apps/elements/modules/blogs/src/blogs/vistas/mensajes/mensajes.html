@@ -1,0 +1,76 @@
+<!-- ═══ DMs — SH-7 message-center ══════════════════════════════════════════ -->
+@if (red.sessionAccess() === 'anon') {
+  <!-- El backend pidió sesión. NO se pinta la bandeja con datos de ejemplo: sería
+       mostrarle al anónimo conversaciones que no son de nadie. -->
+  <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">Inicia sesión para ver tus mensajes</h1>
+    <p class="blogs__signin-text">Tus conversaciones son privadas y están asociadas a tu cuenta. Las verás aquí en cuanto entres.</p>
+  </sg-blogs-acceso>
+} @else {
+  @if (red.threadAccess() === 'forbidden') {
+    <!-- 403: hay sesión, pero el hilo es de otras dos personas. Antes se caía al mock
+         y se abría OTRA conversación en su lugar. -->
+    <p class="blogs__notice blogs__notice--error" role="alert">
+      Esa conversación no es tuya. Elige una de tus conversaciones.
+    </p>
+  }
+  <syn-message-center
+    [config]="messageConfig"
+    [threads]="mensajes.threads()"
+    [activeThread]="mensajes.activeThread()"
+    [loading]="red.loading() && !mensajes.threadsLoaded()"
+    [sending]="mensajes.sendingMessage()"
+    [threadTemplate]="threadRowTpl"
+    [detailTemplate]="threadDetailTpl"
+    (threadselect)="mensajes.onThreadSelect($event)"
+    (send)="mensajes.onSendMessage($event)"
+  ></syn-message-center>
+}
+
+<!-- ─── SH-7 conversation-list row + thread pane ───────────────────────────────── -->
+<ng-template #threadRowTpl let-thread let-selected="selected">
+  <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(thread.participant) }}</span>
+  <span class="blogs__thread-row">
+    <span class="blogs__thread-row-top">
+      <span class="blogs__thread-row-name">{{ thread.participant.displayName }}</span>
+      <span class="blogs__meta-time">{{ presentacion.relativeTime(thread.lastAtUtc) }}</span>
+    </span>
+    <span class="blogs__thread-row-last">{{ thread.lastMessage || 'Nueva conversación' }}</span>
+  </span>
+  @if (thread.unread > 0) {
+    <syn-badge tone="brand" [text]="thread.unread + ''" [ariaLabel]="thread.unread + ' sin leer'" />
+  }
+</ng-template>
+
+<ng-template #threadDetailTpl let-thread>
+  <header class="blogs__dm-head">
+    <syn-button variant="plain" (pressed)="navegacion.openProfile(thread.participant.handle)">
+      <span class="blogs__dm-peer">
+        <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(thread.participant) }}</span>
+        <span class="blogs__dm-peer-name">
+          {{ thread.participant.displayName }}
+          @if (thread.participant.verified) {<span class="blogs__verified" aria-label="Verificada"><sg-blogs-verificada /></span>}
+        </span>
+      </span>
+    </syn-button>
+    <span class="blogs__dm-peer-handle">&#64;{{ thread.participant.handle }}</span>
+  </header>
+  <ol class="blogs__dm-messages">
+    @for (message of thread.messages; track presentacion.trackMessage($index, message)) {
+      <li class="blogs__dm-bubble" [class.is-outgoing]="message.outgoing" [class.is-failed]="message.failed">
+        <span class="blogs__dm-text">{{ message.body }}</span>
+        <!-- Un mensaje que no salió NO lleva hora de envío: sería el acuse que no existe.
+             Lleva su marca y su reintento, y el texto no se pierde (UI#92, regla 18). -->
+        @if (message.failed) {
+          <span class="blogs__dm-failed">
+            No enviado
+            <syn-button variant="ghost" size="sm" (pressed)="mensajes.retryMessage(thread, message)">Reintentar</syn-button>
+          </span>
+        } @else {
+          <span class="blogs__dm-time">{{ presentacion.relativeTime(message.createdAtUtc) }}</span>
+        }
+      </li>
+    }
+  </ol>
+</ng-template>

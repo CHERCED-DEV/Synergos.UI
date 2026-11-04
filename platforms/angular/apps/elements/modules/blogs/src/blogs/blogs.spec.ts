@@ -1,5 +1,6 @@
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, type Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { LiveAnnouncerService } from '@synergos/shared';
 import {
   FULFILLMENT_STRATEGIES,
@@ -8,8 +9,22 @@ import {
   SessionStore,
   TransactionEventBusService,
 } from '@synergos/transaction-engine';
-import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
+import {
+  BordeDeBlogs,
+  ContenidoApi,
+  EstudioApi,
+  ExplorarApi,
+  GuardadosApi,
+  MensajesApi,
+  NotificacionesApi,
+  ReaccionesApi,
+  SeguidoresApi,
+  isBlogsForbidden,
+  isBlogsUnauthorized,
+} from '@synergos/dominio/blogs';
 import { BlogsElementComponent } from './blogs';
+import { BlogsEscribirComponent } from './vistas/escribir/escribir';
+import { BlogsEstudioComponent } from './vistas/estudio/estudio';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from '@synergos/dominio/blogs';
 import { asentar } from '../../../../../../tools/asentar';
@@ -250,7 +265,6 @@ describe('BlogsElementComponent', () => {
       imports: [BlogsElementComponent],
       providers: [
         provideZonelessChangeDetection(),
-        BlogsApiClient,
         // Engine services the v2 shell injects (monetization edge + orchestration).
         SessionStore,
         OrchestratorService,
@@ -282,6 +296,14 @@ describe('BlogsElementComponent', () => {
     document.querySelectorAll('[data-syn-live-announcer]').forEach((node) => node.remove());
   });
 
+  /** La vista pintada de ese tipo: lo que pinta una vista (las cifras del estudio, el asistente) es suyo (012, I2). */
+  function vista<T>(tipo: Type<T>): T {
+    fixture.detectChanges();
+    const nodo = fixture.debugElement.query(By.directive(tipo));
+    expect(nodo).not.toBeNull();
+    return nodo.componentInstance as T;
+  }
+
   /** La región aria-live COMPARTIDA (`@synergos/shared`), o null si nadie la creó. */
   function lastLiveRegion(): HTMLElement | null {
     const regions = document.querySelectorAll<HTMLElement>('[data-syn-live-announcer]');
@@ -306,7 +328,7 @@ describe('BlogsElementComponent', () => {
     await createComponent('', {});
 
     expect(red).not.toHaveBeenCalled();
-    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.inicio.posts().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
@@ -321,10 +343,10 @@ describe('BlogsElementComponent', () => {
     expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/explorar');
     await flushMicrotasks();
     fixture.detectChanges();
-    expect(component.view()).toBe('search');
+    expect(component.red.view()).toBe('search');
 
     // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
-    component.go('notifications');
+    component.navegacion.go('notifications');
     await flushMicrotasks();
     expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/notificaciones');
   });
@@ -334,10 +356,10 @@ describe('BlogsElementComponent', () => {
     await createComponent();
 
     expect(component).toBeTruthy();
-    expect(component.view()).toBe('feed');
-    expect(component.feedScope()).toBe('foryou');
+    expect(component.red.view()).toBe('feed');
+    expect(component.inicio.feedScope()).toBe('foryou');
     // Mock catalogue loaded → posts present, degradation surfaced.
-    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.inicio.posts().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
@@ -383,8 +405,8 @@ describe('BlogsElementComponent', () => {
       expect(tarjeta()).toEqual(['CR', 'Camila Restrepo', '']);
       // El correo ya no hace de llave (012-blogs-social, I0): salía a la vista de todos. Sin la
       // llave pública que contesta /me, la llave va vacía y no se le inventa otra.
-      expect(component.viewer()?.actorKey).toBe('');
-      expect(JSON.stringify(component.viewer())).not.toContain('camila@ejemplo.co');
+      expect(component.red.viewer()?.actorKey).toBe('');
+      expect(JSON.stringify(component.red.viewer())).not.toContain('camila@ejemplo.co');
       // Sin handle no hay perfil que abrir: el de `tu` no existe en el servidor.
       expect(hayPerfil()).toBe(false);
     });
@@ -403,10 +425,10 @@ describe('BlogsElementComponent', () => {
       await createComponent();
       fixture.detectChanges();
 
-      expect(component.viewer()?.actorKey).toBe('0123abcdef456789');
-      expect(component.viewer()?.handle).toBe('camila-restrepo-0123ab');
+      expect(component.red.viewer()?.actorKey).toBe('0123abcdef456789');
+      expect(component.red.viewer()?.handle).toBe('camila-restrepo-0123ab');
       expect(tarjeta()).toEqual(['CR', 'Camila Restrepo', '@camila-restrepo-0123ab']);
-      expect(JSON.stringify(component.viewer())).not.toContain('camila@ejemplo.co');
+      expect(JSON.stringify(component.red.viewer())).not.toContain('camila@ejemplo.co');
       expect(hayPerfil()).toBe(true);
     });
 
@@ -415,7 +437,7 @@ describe('BlogsElementComponent', () => {
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
 
-      expect(component.viewer()).toBeNull();
+      expect(component.red.viewer()).toBeNull();
       const host: HTMLElement = fixture.nativeElement;
       const entrar = host.querySelector<HTMLAnchorElement>('.blogs__rail-me--signin');
       expect(entrar?.textContent?.trim()).toBe('Inicia sesión');
@@ -433,21 +455,21 @@ describe('BlogsElementComponent', () => {
   // — el servidor acepta el POST y el resto sigue en modo demo.
   it('publishes a post and inserts it optimistically at the top (happy case)', async () => {
     await createComponent();
-    const before = component.posts().length;
+    const before = component.inicio.posts().length;
 
     fetchQuePublica(
       postDeServidor({ body: 'Mi primer post en Synergos Social #hola', hashtags: ['hola'] }),
     );
-    component.draftBody.set('Mi primer post en Synergos Social #hola');
-    expect(component.draftValid()).toBe(true);
+    component.compositor.draftBody.set('Mi primer post en Synergos Social #hola');
+    expect(component.compositor.draftValid()).toBe(true);
 
-    component.publish();
+    component.compositor.publish();
     await flushMicrotasks();
 
-    expect(component.posts().length).toBe(before + 1);
-    expect(component.posts()[0].body).toContain('Mi primer post');
-    expect(component.posts()[0].hashtags).toContain('hola');
-    expect(component.draftBody()).toBe('');
+    expect(component.inicio.posts().length).toBe(before + 1);
+    expect(component.inicio.posts()[0].body).toContain('Mi primer post');
+    expect(component.inicio.posts()[0].hashtags).toContain('hola');
+    expect(component.compositor.draftBody()).toBe('');
   });
 
   // ── filter: "Siguiendo" scope narrows the feed to followed authors ───────────
@@ -455,14 +477,14 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const forYouCount = component.posts().length;
-    component.setFeedScope('following');
+    const forYouCount = component.inicio.posts().length;
+    component.inicio.setFeedScope('following');
     await flushMicrotasks();
 
-    expect(component.feedScope()).toBe('following');
+    expect(component.inicio.feedScope()).toBe('following');
     // Following is a subset of For-you (the demo graph excludes some authors).
-    expect(component.posts().length).toBeLessThanOrEqual(forYouCount);
-    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.inicio.posts().length).toBeLessThanOrEqual(forYouCount);
+    expect(component.inicio.posts().length).toBeGreaterThan(0);
   });
 
   // ── idempotent: reacting twice with the same type toggles off, net zero ──────
@@ -473,20 +495,20 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', bordeDeBlogs().fetchDoble);
     await createComponent();
 
-    const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
+    const post = component.inicio.posts().find((p) => p.reactions.mine === null) ?? component.inicio.posts()[0];
 
-    component.react(post, 'like');
+    component.reacciones.react(post, 'like');
     await flushMicrotasks();
-    let current = component.posts().find((p) => p.id === post.id)!;
-    expect(component.isReacted(current, 'like')).toBe(true);
-    expect(component.reactionCount(current, 'like')).toBe(42);
+    let current = component.inicio.posts().find((p) => p.id === post.id)!;
+    expect(component.reacciones.isReacted(current, 'like')).toBe(true);
+    expect(component.reacciones.reactionCount(current, 'like')).toBe(42);
 
     // Same type again → removed (idempotent toggle, back to the server's baseline).
-    component.react(current, 'like');
+    component.reacciones.react(current, 'like');
     await flushMicrotasks();
-    current = component.posts().find((p) => p.id === post.id)!;
-    expect(component.isReacted(current, 'like')).toBe(false);
-    expect(component.reactionCount(current, 'like')).toBe(41);
+    current = component.inicio.posts().find((p) => p.id === post.id)!;
+    expect(component.reacciones.isReacted(current, 'like')).toBe(false);
+    expect(component.reacciones.reactionCount(current, 'like')).toBe(41);
   });
 
   // ── UI#92: una reacción que no se guardó vuelve atrás y se dice ───────────────
@@ -496,17 +518,17 @@ describe('BlogsElementComponent', () => {
     const anunciadas: unknown[] = [];
     component.postreacted.subscribe((payload) => anunciadas.push(payload));
 
-    const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
-    const baseline = component.reactionCount(post, 'like');
-    component.react(post, 'like');
+    const post = component.inicio.posts().find((p) => p.reactions.mine === null) ?? component.inicio.posts()[0];
+    const baseline = component.reacciones.reactionCount(post, 'like');
+    component.reacciones.react(post, 'like');
     await flushMicrotasks();
     fixture.detectChanges();
 
-    const current = component.posts().find((p) => p.id === post.id)!;
-    expect(component.isReacted(current, 'like')).toBe(false);
-    expect(component.reactionCount(current, 'like')).toBe(baseline);
+    const current = component.inicio.posts().find((p) => p.id === post.id)!;
+    expect(component.reacciones.isReacted(current, 'like')).toBe(false);
+    expect(component.reacciones.reactionCount(current, 'like')).toBe(baseline);
     expect(anunciadas).toEqual([]);
-    expect(component.errorMessage()).toBe('No pudimos guardar tu reacción. Intenta de nuevo.');
+    expect(component.red.errorMessage()).toBe('No pudimos guardar tu reacción. Intenta de nuevo.');
   });
 
   // ── reaction switch: love replaces like (one active reaction per user) ────────
@@ -514,16 +536,16 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', bordeDeBlogs().fetchDoble);
     await createComponent();
 
-    const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
-    component.react(post, 'like');
+    const post = component.inicio.posts().find((p) => p.reactions.mine === null) ?? component.inicio.posts()[0];
+    component.reacciones.react(post, 'like');
     await flushMicrotasks();
-    let current = component.posts().find((p) => p.id === post.id)!;
-    component.react(current, 'love');
+    let current = component.inicio.posts().find((p) => p.id === post.id)!;
+    component.reacciones.react(current, 'love');
     await flushMicrotasks();
-    current = component.posts().find((p) => p.id === post.id)!;
+    current = component.inicio.posts().find((p) => p.id === post.id)!;
 
-    expect(component.isReacted(current, 'like')).toBe(false);
-    expect(component.isReacted(current, 'love')).toBe(true);
+    expect(component.reacciones.isReacted(current, 'like')).toBe(false);
+    expect(component.reacciones.isReacted(current, 'love')).toBe(true);
   });
 
   // ── follow: optimistic toggle + follower count recalc on the profile ─────────
@@ -531,9 +553,9 @@ describe('BlogsElementComponent', () => {
   async function abrirPerfilConBorde(caidas: readonly string[] = []): Promise<boolean> {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    component.openProfile('valeria.code');
+    component.navegacion.openProfile('valeria.code');
     await flushMicrotasks();
-    const wasFollowing = component.profileViewerFollows();
+    const wasFollowing = component.perfil.profileViewerFollows();
     // El borde parte de lo mismo que pinta el perfil: alterna desde ahí, como el de verdad.
     vi.stubGlobal('fetch', bordeDeBlogs({ caidas, siguiendoAlEmpezar: wasFollowing }).fetchDoble);
     return wasFollowing;
@@ -544,14 +566,14 @@ describe('BlogsElementComponent', () => {
     const anunciados: unknown[] = [];
     component.authorfollowed.subscribe((payload) => anunciados.push(payload));
 
-    const profile = component.profile()!;
+    const profile = component.perfil.profile()!;
     const before = profile.followersCount;
 
-    component.toggleFollow(profile);
+    component.seguidores.toggleFollow(profile);
     await flushMicrotasks();
 
-    expect(component.profileViewerFollows()).toBe(!wasFollowing);
-    expect(component.profile()!.followersCount).toBe(before + (wasFollowing ? -1 : 1));
+    expect(component.perfil.profileViewerFollows()).toBe(!wasFollowing);
+    expect(component.perfil.profile()!.followersCount).toBe(before + (wasFollowing ? -1 : 1));
     // Se anuncia lo que el SERVIDOR dejó.
     expect(anunciados).toEqual([{ actorKey: profile.actorKey, following: !wasFollowing }]);
   });
@@ -562,19 +584,19 @@ describe('BlogsElementComponent', () => {
     const anunciados: unknown[] = [];
     component.authorfollowed.subscribe((payload) => anunciados.push(payload));
 
-    const profile = component.profile()!;
+    const profile = component.perfil.profile()!;
     const before = profile.followersCount;
-    component.toggleFollow(profile);
+    component.seguidores.toggleFollow(profile);
     // El optimista se pinta…
-    expect(component.profileViewerFollows()).toBe(!wasFollowing);
+    expect(component.perfil.profileViewerFollows()).toBe(!wasFollowing);
     await flushMicrotasks();
 
     // …y el fallo lo revierte.
-    expect(component.profileViewerFollows()).toBe(wasFollowing);
-    expect(component.isFollowing(profile.actorKey)).toBe(wasFollowing);
-    expect(component.profile()!.followersCount).toBe(before);
+    expect(component.perfil.profileViewerFollows()).toBe(wasFollowing);
+    expect(component.seguidores.isFollowing(profile.actorKey)).toBe(wasFollowing);
+    expect(component.perfil.profile()!.followersCount).toBe(before);
     expect(anunciados).toEqual([]);
-    expect(component.errorMessage()).toBe('No pudimos actualizar a quién sigues. Intenta de nuevo.');
+    expect(component.red.errorMessage()).toBe('No pudimos actualizar a quién sigues. Intenta de nuevo.');
   });
 
   // ── thread: comentar va al servidor y se pinta lo que guardó (012-blogs-social, I0) ──
@@ -605,49 +627,49 @@ describe('BlogsElementComponent', () => {
   it('comentar manda el comentario y pinta el que guardó el servidor', async () => {
     const fetchMock = servidorQueComenta();
     await createComponent();
-    component.openPost(component.posts()[0]);
+    component.navegacion.openPost(component.inicio.posts()[0]);
     await flushMicrotasks();
-    const before = component.comments().length;
+    const before = component.publicacion.comments().length;
 
-    component.commentDraft.set('¡Excelente!');
-    await component.submitComment();
+    component.publicacion.commentDraft.set('¡Excelente!');
+    await component.publicacion.submitComment();
 
     const pedido = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/comments'));
     expect(pedido).toBeDefined();
     expect(JSON.parse(String((pedido![1] as RequestInit).body))).toEqual({ body: '¡Excelente!', parentId: null });
-    expect(component.comments().length).toBe(before + 1);
-    expect(component.comments()[component.comments().length - 1].id).toBe('c-srv');
-    expect(component.commentDraft()).toBe('');
+    expect(component.publicacion.comments().length).toBe(before + 1);
+    expect(component.publicacion.comments()[component.publicacion.comments().length - 1].id).toBe('c-srv');
+    expect(component.publicacion.commentDraft()).toBe('');
   });
 
   it('si el comentario no llega al servidor, no se pinta y el borrador se queda', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    component.openPost(component.posts()[0]);
+    component.navegacion.openPost(component.inicio.posts()[0]);
     await flushMicrotasks();
-    const before = component.comments().length;
+    const before = component.publicacion.comments().length;
 
-    component.commentDraft.set('¡Excelente!');
-    await component.submitComment();
+    component.publicacion.commentDraft.set('¡Excelente!');
+    await component.publicacion.submitComment();
 
-    expect(component.comments().length).toBe(before);
-    expect(component.commentDraft()).toBe('¡Excelente!');
-    expect(component.errorMessage()).toContain('NO se publicó');
+    expect(component.publicacion.comments().length).toBe(before);
+    expect(component.publicacion.commentDraft()).toBe('¡Excelente!');
+    expect(component.red.errorMessage()).toContain('NO se publicó');
   });
 
   it('un comentario en revisión no se pinta como publicado y se dice', async () => {
     servidorQueComenta(false);
     await createComponent();
-    component.openPost(component.posts()[0]);
+    component.navegacion.openPost(component.inicio.posts()[0]);
     await flushMicrotasks();
-    const before = component.comments().length;
+    const before = component.publicacion.comments().length;
 
-    component.commentDraft.set('Espera tu turno');
-    await component.submitComment();
+    component.publicacion.commentDraft.set('Espera tu turno');
+    await component.publicacion.submitComment();
     fixture.detectChanges();
 
-    expect(component.comments().length).toBe(before);
-    expect(component.commentNotice()).toContain('en revisión');
+    expect(component.publicacion.comments().length).toBe(before);
+    expect(component.publicacion.commentNotice()).toContain('en revisión');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('en revisión');
   });
 
@@ -656,12 +678,12 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.searchHashtag('design');
+    component.explorar.searchHashtag('design');
     await flushMicrotasks();
 
-    expect(component.view()).toBe('search');
-    expect(component.searchResult()).not.toBeNull();
-    expect(component.searchResult()!.posts.length).toBeGreaterThan(0);
+    expect(component.red.view()).toBe('search');
+    expect(component.explorar.searchResult()).not.toBeNull();
+    expect(component.explorar.searchResult()!.posts.length).toBeGreaterThan(0);
   });
 
   // ── composer a11y gate: media without alt text blocks publishing ─────────────
@@ -669,12 +691,12 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.draftBody.set('Mira esta foto');
-    component.draftMediaUrl.set('https://example.com/x.jpg');
-    expect(component.draftValid()).toBe(false);
+    component.compositor.draftBody.set('Mira esta foto');
+    component.compositor.draftMediaUrl.set('https://example.com/x.jpg');
+    expect(component.compositor.draftValid()).toBe(false);
 
-    component.draftMediaAlt.set('Una foto de ejemplo');
-    expect(component.draftValid()).toBe(true);
+    component.compositor.draftMediaAlt.set('Una foto de ejemplo');
+    expect(component.compositor.draftValid()).toBe(true);
   });
 
   // ── v2 DMs (SH-7): loading the inbox + optimistic send appends to the thread ──
@@ -683,25 +705,25 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
-    expect(component.view()).toBe('messages');
-    expect(component.threads().length).toBeGreaterThan(0);
+    expect(component.red.view()).toBe('messages');
+    expect(component.mensajes.threads().length).toBeGreaterThan(0);
 
-    const thread = component.threads()[0];
-    component.onThreadSelect(thread);
+    const thread = component.mensajes.threads()[0];
+    component.mensajes.onThreadSelect(thread);
     await flushMicrotasks();
-    expect(component.activeThread()!.id).toBe(thread.id);
+    expect(component.mensajes.activeThread()!.id).toBe(thread.id);
     vi.stubGlobal('fetch', borde.fetchDoble);
-    return component.activeThread()!.messages.length;
+    return component.mensajes.activeThread()!.messages.length;
   }
 
   it('loads the DM inbox and appends a sent message optimistically', async () => {
     const before = await abrirHiloConBorde(bordeDeBlogs());
 
-    component.onSendMessage({ thread: component.activeThread()!, body: '¡Hola desde el test!' });
+    component.mensajes.onSendMessage({ thread: component.mensajes.activeThread()!, body: '¡Hola desde el test!' });
     await flushMicrotasks();
-    const after = component.activeThread()!;
+    const after = component.mensajes.activeThread()!;
     expect(after.messages.length).toBe(before + 1);
     // La burbuja optimista se reconcilia con la que guardó el SERVIDOR.
     expect(after.messages.at(-1)).toMatchObject({ id: 'dm_77', body: '¡Hola desde el test!' });
@@ -713,23 +735,23 @@ describe('BlogsElementComponent', () => {
     const borde = bordeDeBlogs({ caidas: ['POST /message'] });
     const before = await abrirHiloConBorde(borde);
 
-    component.onSendMessage({ thread: component.activeThread()!, body: '¡Hola desde el test!' });
+    component.mensajes.onSendMessage({ thread: component.mensajes.activeThread()!, body: '¡Hola desde el test!' });
     await flushMicrotasks();
 
-    const marcado = component.activeThread()!.messages.at(-1)!;
-    expect(component.activeThread()!.messages.length).toBe(before + 1);
+    const marcado = component.mensajes.activeThread()!.messages.at(-1)!;
+    expect(component.mensajes.activeThread()!.messages.length).toBe(before + 1);
     expect(marcado).toMatchObject({ body: '¡Hola desde el test!', failed: true });
-    expect(component.errorMessage()).toBe('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
+    expect(component.red.errorMessage()).toBe('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
 
     borde.encender('POST /message');
-    component.retryMessage(component.activeThread()!, marcado);
+    component.mensajes.retryMessage(component.mensajes.activeThread()!, marcado);
     await flushMicrotasks();
 
-    const after = component.activeThread()!;
+    const after = component.mensajes.activeThread()!;
     expect(after.messages.length).toBe(before + 1);
     expect(after.messages.at(-1)).toMatchObject({ id: 'dm_77', body: '¡Hola desde el test!' });
     expect(after.messages.at(-1)?.failed).toBeUndefined();
-    expect(component.errorMessage()).toBe('');
+    expect(component.red.errorMessage()).toBe('');
   });
 
   // ── v2 explore (SH-1): hashtag facet drives the discovery criteria + results ──
@@ -737,11 +759,11 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.onSearchCriteria({ term: '', facets: { hashtag: ['design'] }, sort: 'top', page: 1 });
+    component.explorar.onSearchCriteria({ term: '', facets: { hashtag: ['design'] }, sort: 'top', page: 1 });
     await flushMicrotasks();
-    expect(component.searchTag()).toBe('design');
-    expect(component.searchResult()).not.toBeNull();
-    expect(component.searchResult()!.posts.length).toBeGreaterThan(0);
+    expect(component.explorar.searchTag()).toBe('design');
+    expect(component.explorar.searchResult()).not.toBeNull();
+    expect(component.explorar.searchResult()!.posts.length).toBeGreaterThan(0);
   });
 
   // ── v2 guardados: el marcador PERSISTE (no solo se enciende) ─────────────────
@@ -783,10 +805,10 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    const post = component.posts()[0];
-    expect(component.isSaved(post.id)).toBe(false);
+    const post = component.inicio.posts()[0];
+    expect(component.guardados.isSaved(post.id)).toBe(false);
 
-    component.toggleSave(post);
+    component.guardados.toggleSave(post);
     await flushMicrotasks();
 
     // Lo que se mide NO es que el icono se encienda —eso ya lo hacía mintiendo—, sino que
@@ -795,17 +817,17 @@ describe('BlogsElementComponent', () => {
     expect(calls[0].method).toBe('POST');
     expect(calls[0].url).toContain('/saved');
     expect(JSON.parse(calls[0].body ?? '{}')).toEqual({ postId: post.id });
-    expect(component.isSaved(post.id)).toBe(true);
-    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(true);
+    expect(component.guardados.isSaved(post.id)).toBe(true);
+    expect(component.guardados.savedPosts().some((p) => p.id === post.id)).toBe(true);
 
-    component.toggleSave(post);
+    component.guardados.toggleSave(post);
     await flushMicrotasks();
 
     expect(calls).toHaveLength(2);
     expect(calls[1].method).toBe('DELETE');
     expect(calls[1].url).toContain(`postId=${encodeURIComponent(post.id)}`);
-    expect(component.isSaved(post.id)).toBe(false);
-    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
+    expect(component.guardados.isSaved(post.id)).toBe(false);
+    expect(component.guardados.savedPosts().some((p) => p.id === post.id)).toBe(false);
   });
 
   // ── el fallo DESHACE, y deja la lista exactamente como estaba ────────────────
@@ -827,26 +849,26 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    component.go('saved');
+    component.navegacion.go('saved');
     await flushMicrotasks();
     // Control: la lista llega ORDENADA del servidor — hay una posición que respetar.
-    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
+    expect(component.guardados.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
 
     failWrites = true;
-    const middle = component.savedPosts()[1];
-    component.toggleSave(middle);
+    const middle = component.guardados.savedPosts()[1];
+    component.guardados.toggleSave(middle);
     // Optimista: desaparece al instante, sin esperar al servidor.
-    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-3']);
+    expect(component.guardados.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-3']);
 
     await flushMicrotasks();
 
     // Y vuelve a SU sitio, no al principio: reinsertar al frente sería otra forma de
     // mentir sobre una lista que el servidor ordenó.
-    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
-    expect(component.isSaved('p-2')).toBe(true);
-    expect(component.errorMessage()).toContain('No pudimos');
+    expect(component.guardados.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
+    expect(component.guardados.isSaved('p-2')).toBe(true);
+    expect(component.red.errorMessage()).toContain('No pudimos');
     // Un 500 no es un hueco de sesión: la invitación a iniciar sesión NO aparece.
-    expect(component.sessionAccess()).toBe('ok');
+    expect(component.red.sessionAccess()).toBe('ok');
   });
 
   // ── 401 al guardar: revierte Y lleva a la invitación de sesión que ya existe ──
@@ -859,16 +881,16 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    const post = component.posts()[0];
-    component.toggleSave(post);
-    expect(component.isSaved(post.id)).toBe(true);
+    const post = component.inicio.posts()[0];
+    component.guardados.toggleSave(post);
+    expect(component.guardados.isSaved(post.id)).toBe(true);
 
     await flushMicrotasks();
     await settleAnnouncer();
 
-    expect(component.isSaved(post.id)).toBe(false);
-    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
-    expect(component.sessionAccess()).toBe('anon');
+    expect(component.guardados.isSaved(post.id)).toBe(false);
+    expect(component.guardados.savedPosts().some((p) => p.id === post.id)).toBe(false);
+    expect(component.red.sessionAccess()).toBe('anon');
     expect(lastLiveRegion()?.textContent ?? '').toContain('Inicia sesión');
 
     // El botón de guardar vive en la TARJETA DE POST, o sea en el feed — y el panel
@@ -877,8 +899,8 @@ describe('BlogsElementComponent', () => {
     // que quien pulsaba desde el feed no veía NADA: el marcador parpadeaba y se acabó.
     // Solo se enteraba quien usa lector de pantalla — el arreglo funcionaba justo para
     // quien no mira y fallaba para todos los demás.
-    expect(component.view()).not.toBe('saved');
-    expect(component.errorMessage()).toContain('Inicia sesión');
+    expect(component.red.view()).not.toBe('saved');
+    expect(component.red.errorMessage()).toContain('Inicia sesión');
 
     // Y que esté PINTADO, no solo en la señal.
     fixture.detectChanges();
@@ -905,16 +927,16 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    const post = component.posts()[0];
-    component.toggleSave(post); // guardar
-    component.toggleSave(post); // quitar, sin esperar a la primera
+    const post = component.inicio.posts()[0];
+    component.guardados.toggleSave(post); // guardar
+    component.guardados.toggleSave(post); // quitar, sin esperar a la primera
     await flushMicrotasks();
 
     // CONTROL: sin cola habría DOS peticiones en vuelo y el servidor podría aplicarlas al
     // revés — quedaría guardado justo lo que el usuario acaba de quitar. Solo salió una.
     expect(writes.map((w) => w.method)).toEqual(['POST']);
     // La UI, en cambio, ya muestra la última intención: no espera al servidor.
-    expect(component.isSaved(post.id)).toBe(false);
+    expect(component.guardados.isSaved(post.id)).toBe(false);
 
     writes[0].release();
     await flushMicrotasks();
@@ -924,8 +946,8 @@ describe('BlogsElementComponent', () => {
     writes[1].release();
     await flushMicrotasks();
 
-    expect(component.isSaved(post.id)).toBe(false);
-    expect(component.errorMessage()).toBe('');
+    expect(component.guardados.isSaved(post.id)).toBe(false);
+    expect(component.red.errorMessage()).toBe('');
   });
 
   it('el fallo de una pulsación ya superada NO revierte la más reciente', async () => {
@@ -945,17 +967,17 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    const post = component.posts()[0];
-    component.toggleSave(post); // guardar — fallará
-    component.toggleSave(post); // quitar — esta es la intención vigente
+    const post = component.inicio.posts()[0];
+    component.guardados.toggleSave(post); // guardar — fallará
+    component.guardados.toggleSave(post); // quitar — esta es la intención vigente
     await flushMicrotasks();
 
     expect(methods).toEqual(['POST', 'DELETE']);
     // Revertir el POST caído habría vuelto a ENCENDER el marcador que el usuario acababa
     // de apagar, y encima con un error que ya no describe nada.
-    expect(component.isSaved(post.id)).toBe(false);
-    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
-    expect(component.errorMessage()).toBe('');
+    expect(component.guardados.isSaved(post.id)).toBe(false);
+    expect(component.guardados.savedPosts().some((p) => p.id === post.id)).toBe(false);
+    expect(component.red.errorMessage()).toBe('');
   });
 
   it('marcar dos posts distintos no encola uno detrás del otro', async () => {
@@ -971,9 +993,9 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    const [first, second] = component.posts();
-    component.toggleSave(first);
-    component.toggleSave(second);
+    const [first, second] = component.inicio.posts();
+    component.guardados.toggleSave(first);
+    component.guardados.toggleSave(second);
     await flushMicrotasks();
 
     // La cola es POR POST: serializar TODO haría que marcar rápido dos posts distintos se
@@ -984,8 +1006,8 @@ describe('BlogsElementComponent', () => {
     release.forEach((resolve) => resolve());
     await flushMicrotasks();
 
-    expect(component.isSaved(first.id)).toBe(true);
-    expect(component.isSaved(second.id)).toBe(true);
+    expect(component.guardados.isSaved(first.id)).toBe(true);
+    expect(component.guardados.isSaved(second.id)).toBe(true);
   });
 
   // ── v2 long-form: el editor de artículo sobre SH-6 (#26) ─────────────────────
@@ -999,67 +1021,67 @@ describe('BlogsElementComponent', () => {
   const CUERPO = 'Un cuerpo suficientemente largo para pasar la validación del editor.';
 
   function escribirArticulo(): void {
-    component.articleTitle.set(TITULO);
-    component.articleBody.set(CUERPO);
+    component.articulo.articleTitle.set(TITULO);
+    component.articulo.articleBody.set(CUERPO);
   }
 
   it('publica un artículo y lo inserta arriba del feed cuando el servidor lo ACEPTA', async () => {
     await createComponent();
-    const before = component.posts().length;
+    const before = component.inicio.posts().length;
     escribirArticulo();
-    expect(component.articleValid()).toBe(true);
+    expect(component.articulo.articleValid()).toBe(true);
 
     fetchQuePublica(postDeServidor({ id: 'art-1', objectKind: 'postPage', body: CUERPO }));
     const publicados: string[] = [];
     component.articlepublished.subscribe((e) => publicados.push(e.id));
 
-    component.publishArticle();
+    component.articulo.publishArticle();
     await flushMicrotasks();
 
-    expect(component.posts().length).toBe(before + 1);
-    expect(component.posts()[0].objectKind).toBe('postPage');
+    expect(component.inicio.posts().length).toBe(before + 1);
+    expect(component.inicio.posts()[0].objectKind).toBe('postPage');
     expect(publicados).toEqual(['art-1']);
     // Ahora sí se limpia: hay confirmación del servidor.
-    expect(component.articleTitle()).toBe('');
-    expect(component.articleBody()).toBe('');
-    expect(component.articleNotSaved()).toBe(false);
+    expect(component.articulo.articleTitle()).toBe('');
+    expect(component.articulo.articleBody()).toBe('');
+    expect(component.articulo.articleNotSaved()).toBe(false);
   });
 
   // ── EL caso: el servidor no lo acepta ────────────────────────────────────────
   it('si el servidor NO lo acepta, el texto se queda y NO se da por publicado', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    const before = component.posts().length;
+    const before = component.inicio.posts().length;
     escribirArticulo();
 
     const publicados: string[] = [];
     component.articlepublished.subscribe((e) => publicados.push(e.id));
 
-    component.publishArticle();
+    component.articulo.publishArticle();
     await flushMicrotasks();
 
     // Lo que antes pasaba y ya no: el texto se borraba, el artículo aparecía en
     // el feed como publicado y el CMS recibía un id inventado.
-    expect(component.articleTitle()).toBe(TITULO);
-    expect(component.articleBody()).toBe(CUERPO);
-    expect(component.posts().length).toBe(before);
+    expect(component.articulo.articleTitle()).toBe(TITULO);
+    expect(component.articulo.articleBody()).toBe(CUERPO);
+    expect(component.inicio.posts().length).toBe(before);
     expect(publicados).toEqual([]);
     // Y se dice, en vez de dejar la pantalla como si nada hubiera pasado.
-    expect(component.articleNotSaved()).toBe(true);
+    expect(component.articulo.articleNotSaved()).toBe(true);
   });
 
   it('el post corto tampoco se da por publicado si el servidor no lo acepta', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    const before = component.posts().length;
-    component.draftBody.set('Un post corto que no va a llegar a ninguna parte.');
+    const before = component.inicio.posts().length;
+    component.compositor.draftBody.set('Un post corto que no va a llegar a ninguna parte.');
 
-    component.publish();
+    component.compositor.publish();
     await flushMicrotasks();
 
-    expect(component.draftBody()).toBe('Un post corto que no va a llegar a ninguna parte.');
-    expect(component.posts().length).toBe(before);
-    expect(component.errorMessage()).toContain('sigue acá');
+    expect(component.compositor.draftBody()).toBe('Un post corto que no va a llegar a ninguna parte.');
+    expect(component.inicio.posts().length).toBe(before);
+    expect(component.red.errorMessage()).toContain('sigue acá');
   });
 
   it('el doble clic no publica dos veces', async () => {
@@ -1077,8 +1099,8 @@ describe('BlogsElementComponent', () => {
     );
     escribirArticulo();
 
-    component.publishArticle();
-    component.publishArticle();
+    component.articulo.publishArticle();
+    component.articulo.publishArticle();
     await flushMicrotasks();
 
     // La guarda es sincrónica (`publishing.set(true)` corre en el mismo tick), al
@@ -1088,7 +1110,7 @@ describe('BlogsElementComponent', () => {
 
   it('monta SH-6 en la vista de escribir, no el formulario a mano', async () => {
     await createComponent();
-    component.go('write');
+    component.navegacion.go('write');
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('syn-authoring-wizard')).not.toBeNull();
@@ -1098,10 +1120,10 @@ describe('BlogsElementComponent', () => {
   it('un borrador rehidratado siembra el espejo y deja CONTINUAR, no un botón muerto', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    component.go('write');
+    component.navegacion.go('write');
     fixture.detectChanges();
 
-    const wizard = component.articleWizard();
+    const wizard = vista(BlogsEscribirComponent).articleWizard();
     expect(wizard).toBeTruthy();
 
     // Así llega un borrador restaurado: el wizard lo tiene y el espejo del
@@ -1109,21 +1131,21 @@ describe('BlogsElementComponent', () => {
     wizard!.patchDraft({ title: TITULO, body: CUERPO });
     fixture.detectChanges();
 
-    expect(component.articleTitle()).toBe(TITULO);
-    expect(component.articleBody()).toBe(CUERPO);
+    expect(component.articulo.articleTitle()).toBe(TITULO);
+    expect(component.articulo.articleBody()).toBe(CUERPO);
     // Lo que de verdad importa: sin la siembra, el autor vería su texto en los
     // campos y el botón de continuar gris, porque `validity` sale del espejo.
-    expect(component.articleValidity()['contenido']).toBe(true);
+    expect(component.articulo.articleValidity()['contenido']).toBe(true);
   });
 
   it('quitar la portada limpia su texto alternativo', async () => {
     await createComponent();
-    component.articleCover.set('https://ejemplo.test/portada.jpg');
-    component.articleCoverAlt.set('Una portada');
-    expect(component.articleValid()).toBe(false); // falta título y cuerpo
+    component.articulo.articleCover.set('https://ejemplo.test/portada.jpg');
+    component.articulo.articleCoverAlt.set('Una portada');
+    expect(component.articulo.articleValid()).toBe(false); // falta título y cuerpo
 
     const patched: Record<string, unknown>[] = [];
-    component.onArticleField(
+    component.articulo.onArticleField(
       (v) => patched.push(v as Record<string, unknown>),
       'coverUrl',
       '',
@@ -1132,7 +1154,7 @@ describe('BlogsElementComponent', () => {
     // Antes el alt se quedaba rancio: el input vive dentro de un `@if` que lo
     // oculta sin borrar la señal, así que el POST salía con `coverAlt` y sin
     // `coverUrl`.
-    expect(component.articleCoverAlt()).toBe('');
+    expect(component.articulo.articleCoverAlt()).toBe('');
     expect(patched).toEqual([{ coverUrl: '', coverAlt: '' }]);
   });
 
@@ -1141,12 +1163,12 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.go('studio');
+    component.navegacion.go('studio');
     await flushMicrotasks();
-    expect(component.view()).toBe('studio');
-    expect(component.studio()).not.toBeNull();
-    expect(component.studioKpis().length).toBeGreaterThan(0);
-    expect(component.studioRows().length).toBeGreaterThan(0);
+    expect(component.red.view()).toBe('studio');
+    expect(component.estudio.studio()).not.toBeNull();
+    expect(vista(BlogsEstudioComponent).studioKpis().length).toBeGreaterThan(0);
+    expect(component.estudio.studioRows().length).toBeGreaterThan(0);
   });
 
   // ── La suscripción, declarada y apagada (012-blogs-social, I0, P5 A) ──────────
@@ -1157,24 +1179,24 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.go('studio');
+    component.navegacion.go('studio');
     await flushMicrotasks();
     expect(component.suscripcionEncendida).toBe(false);
-    expect(component.studioConfig().sections.map((s) => s.id)).not.toContain('monetization');
-    expect(component.studioKpis().map((k) => k.id)).not.toContain('revenue');
+    expect(vista(BlogsEstudioComponent).studioConfig().sections.map((s) => s.id)).not.toContain('monetization');
+    expect(vista(BlogsEstudioComponent).studioKpis().map((k) => k.id)).not.toContain('revenue');
 
-    const tier = component.studio()!.tiers[0];
-    component.startSubscribe(component.autorLocal(), tier);
+    const tier = component.estudio.studio()!.tiers[0];
+    component.suscripcion.startSubscribe(component.red.autorLocal(), tier);
     await flushMicrotasks();
-    expect(component.view()).toBe('studio');
-    expect(component.subscribeTier()).toBeNull();
+    expect(component.red.view()).toBe('studio');
+    expect(component.suscripcion.subscribeTier()).toBeNull();
   });
 
   it('un enlace a #/suscribir lleva al inicio y no a un pago que no cobra', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent('#/blogs/suscribir');
 
-    expect(component.view()).toBe('feed');
+    expect(component.red.view()).toBe('feed');
   });
 
   // ═══ Ola de seguridad: lo del usuario NO se degrada a datos sembrados ═════════
@@ -1208,31 +1230,31 @@ describe('BlogsElementComponent', () => {
   it('un 401 en la bandeja pide iniciar sesión y NO pinta los DMs sembrados', async () => {
     const fetchMock = await bootWith401On('/messages');
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
     fixture.detectChanges();
 
     expectRequested(fetchMock, '/messages');
-    expect(component.sessionAccess()).toBe('anon');
+    expect(component.red.sessionAccess()).toBe('anon');
     // EL CORAZÓN DE LA OLA: cero conversaciones sembradas a la vista.
-    expect(component.threads()).toEqual([]);
-    expect(component.activeThread()).toBeNull();
+    expect(component.mensajes.threads()).toEqual([]);
+    expect(component.mensajes.activeThread()).toBeNull();
     // Y se dice con palabras, no con un banner de "datos de ejemplo".
     const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
     expect(title?.textContent).toContain('Inicia sesión para ver tus mensajes');
-    expect(component.loginUrl()).toContain('/account/login?returnUrl=');
+    expect(component.navegacion.loginUrl()).toContain('/account/login?returnUrl=');
   });
 
   it('un 401 en notificaciones no pinta la actividad sembrada', async () => {
     const fetchMock = await bootWith401On('/notifications');
 
-    component.go('notifications');
+    component.navegacion.go('notifications');
     await flushMicrotasks();
     fixture.detectChanges();
 
     expectRequested(fetchMock, '/notifications');
-    expect(component.sessionAccess()).toBe('anon');
-    expect(component.notifications()).toEqual([]);
+    expect(component.red.sessionAccess()).toBe('anon');
+    expect(component.notificaciones.notifications()).toEqual([]);
     const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
     expect(title?.textContent).toContain('Inicia sesión para ver tus notificaciones');
   });
@@ -1240,13 +1262,13 @@ describe('BlogsElementComponent', () => {
   it('un 401 en guardados no pinta la colección sembrada', async () => {
     const fetchMock = await bootWith401On('/saved');
 
-    component.go('saved');
+    component.navegacion.go('saved');
     await flushMicrotasks();
     fixture.detectChanges();
 
     expectRequested(fetchMock, '/saved');
-    expect(component.sessionAccess()).toBe('anon');
-    expect(component.savedPosts()).toEqual([]);
+    expect(component.red.sessionAccess()).toBe('anon');
+    expect(component.guardados.savedPosts()).toEqual([]);
     const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
     expect(title?.textContent).toContain('Inicia sesión para ver tus guardados');
   });
@@ -1254,15 +1276,15 @@ describe('BlogsElementComponent', () => {
   it('un 401 en el estudio no pinta alcance ni ingresos sembrados', async () => {
     const fetchMock = await bootWith401On('/studio');
 
-    component.go('studio');
+    component.navegacion.go('studio');
     await flushMicrotasks();
     fixture.detectChanges();
 
     expectRequested(fetchMock, '/studio');
-    expect(component.sessionAccess()).toBe('anon');
+    expect(component.red.sessionAccess()).toBe('anon');
     // Métricas de otro leídas como propias: la mentira más cara de las cuatro.
-    expect(component.studio()).toBeNull();
-    expect(component.studioKpis()).toEqual([]);
+    expect(component.estudio.studio()).toBeNull();
+    expect(vista(BlogsEstudioComponent).studioKpis()).toEqual([]);
     const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
     expect(title?.textContent).toContain('Inicia sesión para ver tu estudio');
   });
@@ -1274,7 +1296,7 @@ describe('BlogsElementComponent', () => {
   it('un 401 mueve el foco al CONTENEDOR del panel, no al botón de login', async () => {
     const fetchMock = await bootWith401On('/messages');
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
     fixture.detectChanges();
     await flushMicrotasks();
@@ -1294,7 +1316,7 @@ describe('BlogsElementComponent', () => {
   it('un re-render posterior NO le roba el foco al usuario dentro del panel', async () => {
     await bootWith401On('/notifications');
 
-    component.go('notifications');
+    component.navegacion.go('notifications');
     await flushMicrotasks();
     fixture.detectChanges();
     await flushMicrotasks();
@@ -1320,7 +1342,7 @@ describe('BlogsElementComponent', () => {
   it('navegar entre superficies ya denegadas NO vuelve a robar el foco', async () => {
     const fetchMock = await bootWith401On('/messages');
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
     fixture.detectChanges();
     await flushMicrotasks();
@@ -1330,7 +1352,7 @@ describe('BlogsElementComponent', () => {
     const callsAfterDenial = fetchMock.mock.calls.length;
 
     // El usuario navega él mismo a otra superficie del panel.
-    component.go('notifications');
+    component.navegacion.go('notifications');
     await flushMicrotasks();
     fixture.detectChanges();
     await flushMicrotasks();
@@ -1362,7 +1384,7 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
     fixture.detectChanges();
     await settleAnnouncer();
@@ -1377,11 +1399,11 @@ describe('BlogsElementComponent', () => {
 
     // `handleUnauthenticated` ya marcó las cuatro como cargadas, así que la segunda negativa
     // se fuerza volviendo a pedir la bandeja: mismo 401, MISMO texto.
-    component.sessionAccess.set('ok');
-    component.threadsLoaded.set(false);
-    component.go('messages');
+    component.red.sessionAccess.set('ok');
+    component.mensajes.threadsLoaded.set(false);
+    component.navegacion.go('messages');
     await flushMicrotasks();
-    expect(component.sessionAccess()).toBe('anon'); // control: el 401 volvió a ocurrir
+    expect(component.red.sessionAccess()).toBe('anon'); // control: el 401 volvió a ocurrir
 
     await settleAnnouncer();
     expect(lastLiveRegion()?.textContent).toContain('Inicia sesión para ver tus mensajes');
@@ -1440,35 +1462,35 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
-    component.go('saved');
+    component.navegacion.go('saved');
     await flushMicrotasks();
-    component.go('notifications');
+    component.navegacion.go('notifications');
     await flushMicrotasks();
-    component.go('studio');
+    component.navegacion.go('studio');
     await flushMicrotasks();
 
     // Control: las CUATRO están POBLADAS con lo suyo — hay algo real que borrar.
-    expect(component.sessionAccess()).toBe('ok');
-    expect(component.threads().map((t) => t.id)).toEqual(['t-mio']);
-    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-mio']);
-    expect(component.notifications().map((n) => n.id)).toEqual(['n-mia']);
-    expect(component.studio()?.followers).toBe(1234);
+    expect(component.red.sessionAccess()).toBe('ok');
+    expect(component.mensajes.threads().map((t) => t.id)).toEqual(['t-mio']);
+    expect(component.guardados.savedPosts().map((p) => p.id)).toEqual(['p-mio']);
+    expect(component.notificaciones.notifications().map((n) => n.id)).toEqual(['n-mia']);
+    expect(component.estudio.studio()?.followers).toBe(1234);
 
     // La sesión expira y el usuario manda un DM: el servidor responde 401.
     sessionValid = false;
-    component.onSendMessage({ thread: component.threads()[0], body: '¿Hola?' });
+    component.mensajes.onSendMessage({ thread: component.mensajes.threads()[0], body: '¿Hola?' });
     await flushMicrotasks();
 
-    expect(component.sessionAccess()).toBe('anon');
+    expect(component.red.sessionAccess()).toBe('anon');
     // NADA personal sobrevive: ni en pantalla ni en los contadores del nav.
-    expect(component.threads()).toEqual([]);
-    expect(component.activeThread()).toBeNull();
-    expect(component.notifications()).toEqual([]);
-    expect(component.savedPosts()).toEqual([]);
-    expect(component.isSaved('p-mio')).toBe(false);
-    expect(component.studio()).toBeNull();
+    expect(component.mensajes.threads()).toEqual([]);
+    expect(component.mensajes.activeThread()).toBeNull();
+    expect(component.notificaciones.notifications()).toEqual([]);
+    expect(component.guardados.savedPosts()).toEqual([]);
+    expect(component.guardados.isSaved('p-mio')).toBe(false);
+    expect(component.estudio.studio()).toBeNull();
   });
 
   // ── 403 de hilo AJENO: se cierra el hilo, la bandeja propia queda INTACTA ──────
@@ -1497,14 +1519,14 @@ describe('BlogsElementComponent', () => {
     await createComponent('#/blogs/mensajes/t-valeria');
     fixture.detectChanges();
 
-    expect(component.view()).toBe('messages');
+    expect(component.red.view()).toBe('messages');
     expectRequested(fetchMock, '/thread/');
-    expect(component.threadAccess()).toBe('forbidden');
+    expect(component.red.threadAccess()).toBe('forbidden');
     // Ninguna conversación abierta bajo el id ajeno (antes se servía OTRA del mock).
-    expect(component.activeThread()).toBeNull();
+    expect(component.mensajes.activeThread()).toBeNull();
     // No se le pide iniciar sesión: YA la tiene. Y su bandeja sigue en pie.
-    expect(component.sessionAccess()).toBe('ok');
-    expect(component.threads().map((t) => t.id)).toEqual(['t-mio']);
+    expect(component.red.sessionAccess()).toBe('ok');
+    expect(component.mensajes.threads().map((t) => t.id)).toEqual(['t-mio']);
     const notice = (fixture.nativeElement as HTMLElement).querySelector('.blogs__notice--error');
     expect(notice?.textContent).toContain('no es tuya');
   });
@@ -1520,11 +1542,11 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', fetchMock);
     await createComponent('#/blogs/mensajes/t-valeria'); // sembrado: ver nota arriba
 
-    expect(component.threadAccess()).toBe('forbidden'); // control
+    expect(component.red.threadAccess()).toBe('forbidden'); // control
 
-    component.go('messages');
+    component.navegacion.go('messages');
     await flushMicrotasks();
-    expect(component.threadAccess()).toBe('ok');
+    expect(component.red.threadAccess()).toBe('ok');
   });
 
   // ── Regresión en la dirección CONTRARIA: lo público debe SEGUIR degradando ─────
@@ -1534,17 +1556,17 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.inicio.posts().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
     // Una caída de red NO es un hueco de sesión.
-    expect(component.sessionAccess()).toBe('ok');
+    expect(component.red.sessionAccess()).toBe('ok');
 
-    component.openPost(component.posts()[0]);
+    component.navegacion.openPost(component.inicio.posts()[0]);
     await flushMicrotasks();
 
-    expect(component.view()).toBe('post');
-    expect(component.comments().length).toBeGreaterThan(0);
-    expect(component.sessionAccess()).toBe('ok');
+    expect(component.red.view()).toBe('post');
+    expect(component.publicacion.comments().length).toBeGreaterThan(0);
+    expect(component.red.sessionAccess()).toBe('ok');
   });
 
   // ── Deep-link a un hilo que no existe: 404/500 NO puede abrir otra conversación ──
@@ -1560,18 +1582,18 @@ describe('BlogsElementComponent', () => {
     await createComponent('#/blogs/mensajes/t-que-no-existe');
 
     // Control: la bandeja SÍ se sembró — hay hilos que el `?? [0]` podría haber servido.
-    expect(component.threads().length).toBeGreaterThan(0);
+    expect(component.mensajes.threads().length).toBeGreaterThan(0);
     // Lo que cierra el bug: nada abierto bajo el id pedido.
-    expect(component.activeThread()).toBeNull();
-    expect(component.threadAccess()).toBe('ok'); // no es un 403: es un fallo del backend
-    expect(component.sessionAccess()).toBe('ok'); // ni un 401
+    expect(component.mensajes.activeThread()).toBeNull();
+    expect(component.red.threadAccess()).toBe('ok'); // no es un 403: es un fallo del backend
+    expect(component.red.sessionAccess()).toBe('ok'); // ni un 401
   });
 
   it('offline, un hilo SÍ sembrado sigue abriéndose (la demo no se rompió)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent('#/blogs/mensajes/t-valeria');
 
-    expect(component.activeThread()?.id).toBe('t-valeria');
+    expect(component.mensajes.activeThread()?.id).toBe('t-valeria');
   });
 
   // ─── Moldes de carga (doc 24) ───────────────────────────────────────────────
@@ -1584,24 +1606,25 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.view.set('post');
-    component.activePost.set(POST_FOR_SKELETON);
-    component.comments.set([]);
-    component.loading.set(true);
+    component.red.view.set('post');
+    component.publicacion.activePost.set(POST_FOR_SKELETON);
+    component.publicacion.comments.set([]);
+    component.red.loading.set(true);
     fixture.detectChanges();
 
     const host: HTMLElement = fixture.nativeElement;
 
     // 1. El molde tiene la FORMA real del comentario: avatar + cabecera + cuerpo +
-    //    acción + caja de respuesta, uno por cada fila anunciada.
-    const rows = component.commentSkeletons.length;
-    expect(host.querySelectorAll('.blogs__bone--avatar-sm').length).toBe(rows);
-    expect(host.querySelectorAll('.blogs__bone--comment-head').length).toBe(rows);
-    expect(host.querySelectorAll('.blogs__bone--comment-text').length).toBe(rows);
-    expect(host.querySelectorAll('.blogs__bone--comment-form').length).toBe(rows);
+    //    acción + caja de respuesta, uno por cada fila anunciada. Es el del hilo de
+    //    `libs/shells` (SH-15, T016), con las mismas clases que su comentario.
+    const rows = component.presentacion.commentSkeletons.length;
+    expect(host.querySelectorAll('.syn-cthread__bone--avatar').length).toBe(rows);
+    expect(host.querySelectorAll('.syn-cthread__bone--head').length).toBe(rows);
+    expect(host.querySelectorAll('.syn-cthread__bone--text').length).toBe(rows);
+    expect(host.querySelectorAll('.syn-cthread__bone--form').length).toBe(rows);
 
     // 2. Los huesos son decorativos: viven bajo un contenedor `aria-hidden`.
-    const bone = host.querySelector('.blogs__bone--avatar-sm');
+    const bone = host.querySelector('.syn-cthread__bone--avatar');
     expect(bone?.closest('[aria-hidden="true"]')).not.toBeNull();
 
     // 3. …y el aviso sigue existiendo, con TEXTO, FUERA del aria-hidden. Sin esto el
@@ -1623,15 +1646,15 @@ describe('BlogsElementComponent', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.sessionAccess.set('ok');
-    component.view.set('notifications');
-    component.notificationsLoaded.set(false);
-    component.loading.set(true);
+    component.red.sessionAccess.set('ok');
+    component.red.view.set('notifications');
+    component.notificaciones.notificationsLoaded.set(false);
+    component.red.loading.set(true);
     fixture.detectChanges();
 
     const host: HTMLElement = fixture.nativeElement;
 
-    const rows = component.notificationSkeletons.length;
+    const rows = component.presentacion.notificationSkeletons.length;
     expect(host.querySelectorAll('.blogs__bone--notif-text').length).toBe(rows);
     expect(host.querySelectorAll('.blogs__bone--notif-time').length).toBe(rows);
 
@@ -1762,7 +1785,7 @@ describe('BlogsElementComponent', () => {
   it('la pista del cuerpo del artículo se describe y sólo avisa al llegar al mínimo', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-    component.go('write');
+    component.navegacion.go('write');
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -1790,10 +1813,37 @@ describe('BlogsElementComponent', () => {
   });
 });
 
-describe('BlogsApiClient', () => {
-  function createClient(): BlogsApiClient {
-    TestBed.configureTestingModule({ providers: [BlogsApiClient] });
-    return TestBed.inject(BlogsApiClient);
+// El borde de la red: era `BlogsApiClient`, y desde I2 son los adaptadores de `@synergos/dominio/blogs`, uno por
+// capacidad, sobre un solo `BordeDeBlogs`. El contrato que prueban estos casos no cambia: cada llamada se le pide al
+// adaptador que la tiene ahora.
+describe('el borde de la red (los adaptadores de @synergos/dominio/blogs)', () => {
+  function createClient() {
+    TestBed.configureTestingModule({});
+    const borde = TestBed.inject(BordeDeBlogs);
+    const contenido = TestBed.inject(ContenidoApi);
+    const reacciones = TestBed.inject(ReaccionesApi);
+    const seguidores = TestBed.inject(SeguidoresApi);
+    const explorar = TestBed.inject(ExplorarApi);
+    const mensajes = TestBed.inject(MensajesApi);
+    const notificaciones = TestBed.inject(NotificacionesApi);
+    const guardados = TestBed.inject(GuardadosApi);
+    const estudio = TestBed.inject(EstudioApi);
+    return {
+      get degraded(): boolean {
+        return borde.degraded;
+      },
+      feed: contenido.feed.bind(contenido),
+      react: reacciones.react.bind(reacciones),
+      follow: seguidores.follow.bind(seguidores),
+      explore: explorar.explore.bind(explorar),
+      trending: explorar.trending.bind(explorar),
+      messages: mensajes.messages.bind(mensajes),
+      thread: mensajes.thread.bind(mensajes),
+      sendMessage: mensajes.sendMessage.bind(mensajes),
+      notifications: notificaciones.notifications.bind(notificaciones),
+      saved: guardados.saved.bind(guardados),
+      studio: estudio.studio.bind(estudio),
+    };
   }
 
   afterEach(() => {

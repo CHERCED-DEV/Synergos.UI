@@ -1,0 +1,73 @@
+<!-- ═══ SUBSCRIBE / TIP — SH-3 checkout-wizard over the engine ═════════════ -->
+<syn-button class="blogs__back" variant="ghost" size="sm" (pressed)="suscripcion.onSubscribeExit()">
+  <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+  Volver
+</syn-button>
+@if (suscripcion.confirmedMembership()) {
+  <div class="blogs__confirm" role="status">
+    <p class="blogs__confirm-glyph" aria-hidden="true">
+      <svg class="blogs__ic blogs__ic--xl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
+    </p>
+    <h1 class="blogs__view-title">¡Ya eres miembro!</h1>
+    <p class="blogs__confirm-text">
+      Tu suscripción {{ suscripcion.subscribeTier()?.name }} a &#64;{{ suscripcion.subscribeCreator()?.handle }} está activa.
+      Referencia <strong>{{ suscripcion.confirmedMembership() }}</strong>.
+    </p>
+    <syn-button (pressed)="navegacion.go('feed')">Ir al feed</syn-button>
+  </div>
+} @else {
+  <h1 class="blogs__view-title">Apoya a &#64;{{ suscripcion.subscribeCreator()?.handle }}</h1>
+  <syn-checkout-wizard
+    [config]="subscribeConfig"
+    [stepTemplate]="subscribeStepTpl"
+    [validity]="suscripcion.subscribeValidity()"
+    [instrument]="suscripcion.subscribeInstrument()"
+    (completed)="suscripcion.onSubscribeCompleted($event)"
+    (exit)="suscripcion.onSubscribeExit()"
+  ></syn-checkout-wizard>
+}
+
+<!-- ─── SH-3 subscribe wizard step ─────────────────────────────────────────────── -->
+<ng-template #subscribeStepTpl let-step>
+  @switch (step.id) {
+    @case ('plan') {
+      <div class="blogs__sub-plans">
+        <p class="blogs__sub-lead">Elige tu plan de apoyo a &#64;{{ suscripcion.subscribeCreator()?.handle }}.</p>
+        <ul class="blogs__tiers">
+          @for (tier of (estudio.studio()?.tiers ?? []); track presentacion.trackTier($index, tier)) {
+            <li class="blogs__tier" [class.is-selected]="suscripcion.subscribeTier()?.id === tier.id">
+              <div class="blogs__tier-head">
+                <span class="blogs__tier-name">{{ tier.name }}</span>
+                <span class="blogs__tier-price">{{ presentacion.formatMinor(tier.priceMinor, tier.currency) }}/mes</span>
+              </div>
+              <ul class="blogs__tier-perks">@for (perk of tier.perks; track perk) {<li>{{ perk }}</li>}</ul>
+              <syn-button size="sm" [variant]="suscripcion.subscribeTier()?.id === tier.id ? 'outline' : 'solid'"
+                [selected]="suscripcion.subscribeTier()?.id === tier.id" (pressed)="suscripcion.selectTier(tier)">
+                {{ suscripcion.subscribeTier()?.id === tier.id ? 'Seleccionado' : 'Elegir' }}
+              </syn-button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+    @case ('pago') {
+      <div class="blogs__sub-pay">
+        <p class="blogs__sub-lead">Pago simulado (PSP stub). No se cobra nada real en esta demo.</p>
+        <p class="blogs__sub-total">
+          Plan <strong>{{ suscripcion.subscribeTier()?.name }}</strong> ·
+          {{ presentacion.formatMinor(suscripcion.subscribeTier()?.priceMinor ?? 0, suscripcion.subscribeTier()?.currency ?? 'COP') }}/mes
+        </p>
+      </div>
+    }
+    @case ('revisar') {
+      <div class="blogs__sub-review">
+        <p class="blogs__sub-lead">Revisa tu membresía antes de confirmar.</p>
+        <dl class="blogs__sub-summary">
+          <div><dt>Creador</dt><dd>&#64;{{ suscripcion.subscribeCreator()?.handle }}</dd></div>
+          <div><dt>Plan</dt><dd>{{ suscripcion.subscribeTier()?.name }}</dd></div>
+          <div><dt>Precio mensual</dt><dd>{{ presentacion.formatMinor(suscripcion.subscribeTier()?.priceMinor ?? 0, suscripcion.subscribeTier()?.currency ?? 'COP') }}</dd></div>
+        </dl>
+      </div>
+    }
+  }
+</ng-template>

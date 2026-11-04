@@ -1,0 +1,91 @@
+@let post = publicacion();
+<article class="blogs__post" [class.blogs__post--detail]="detalle()">
+  <header class="blogs__post-head">
+    <syn-button class="blogs__post-author-open" variant="plain" (pressed)="navegacion.openProfile(post.author.handle)">
+      <span class="blogs__post-author">
+        <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(post.author) }}</span>
+        <span class="blogs__post-id">
+          <span class="blogs__post-name">
+            {{ post.author.displayName }}
+            @if (post.author.verified) {<span class="blogs__verified" aria-label="Verificada"><sg-blogs-verificada /></span>}
+          </span>
+          <span class="blogs__post-handle">&#64;{{ post.author.handle }}</span>
+        </span>
+      </span>
+    </syn-button>
+    <span class="blogs__meta-time" [attr.title]="post.createdAtUtc">{{ presentacion.relativeTime(post.createdAtUtc) }}</span>
+  </header>
+
+  @if (post.objectKind !== 'post') {
+    <span class="blogs__kind">{{ post.objectKind === 'lesson' ? 'Lección' : 'Artículo' }}</span>
+  }
+
+  <p class="blogs__post-body">{{ post.body }}</p>
+
+  @if (post.media.length > 0) {
+    <div class="blogs__post-media">
+      @for (media of post.media; track media.url) {
+        @if (media.kind === 'video') {
+          <video class="blogs__media-asset" controls [attr.aria-label]="media.alt"><source [src]="media.url" /></video>
+        } @else {
+          <img class="blogs__media-asset" [src]="media.url" [alt]="media.alt" red.loading="lazy" />
+        }
+      }
+    </div>
+  }
+
+  @if (post.hashtags.length > 0) {
+    <ul class="blogs__post-tags">
+      @for (tag of post.hashtags; track tag) {
+        <li><syn-button variant="outline" size="sm" (pressed)="explorar.searchHashtag(tag)">#{{ tag }}</syn-button></li>
+      }
+    </ul>
+  }
+
+  <footer class="blogs__actions">
+    <div class="blogs__reactions" role="group" aria-label="Reacciones">
+      @for (meta of presentacion.reactionMeta; track meta.type) {
+        <syn-button variant="ghost" size="sm" [selected]="reacciones.isReacted(post, meta.type)"
+          [ariaLabel]="meta.label + ' (' + reacciones.reactionCount(post, meta.type) + ')'"
+          (pressed)="reacciones.react(post, meta.type)">
+          @switch (meta.type) {
+            @case ('like') {
+              <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+            }
+            @case ('love') {
+              <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            }
+            @case ('celebrate') {
+              <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"/></svg>
+            }
+            @case ('insightful') {
+              <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+            }
+          }
+          @if (reacciones.reactionCount(post, meta.type) > 0) {
+            <span class="blogs__react-count">{{ presentacion.formatCount(reacciones.reactionCount(post, meta.type)) }}</span>
+          }
+        </syn-button>
+      }
+    </div>
+
+    <syn-button variant="ghost" size="sm" (pressed)="navegacion.openPost(post)"
+      [ariaLabel]="'Comentarios (' + post.commentCount + ')'">
+      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> {{ presentacion.formatCount(post.commentCount) }}
+    </syn-button>
+
+    <syn-button variant="ghost" size="sm" [selected]="post.reposted"
+      (pressed)="reacciones.toggleRepost(post)" [ariaLabel]="'Republicar (' + post.repostCount + ')'">
+      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg> {{ presentacion.formatCount(post.repostCount) }}
+    </syn-button>
+
+    <syn-button variant="ghost" size="sm" [selected]="guardados.isSaved(post.id)"
+      (pressed)="guardados.toggleSave(post)" [ariaLabel]="guardados.isSaved(post.id) ? 'Quitar de guardados' : 'Guardar'">
+      @if (guardados.isSaved(post.id)) {
+        <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      } @else {
+        <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      }
+    </syn-button>
+  </footer>
+</article>
