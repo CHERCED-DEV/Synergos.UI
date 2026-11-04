@@ -41,21 +41,36 @@ name: Despliegue del CDN
 # el mismo Worker es dos builds del mismo commit pisándose: no rompe nada, y
 # deja sin saber cuál de los dos publicó lo que está arriba. Este workflow es el
 # que lleva la puerta y el humo; el otro no lleva ninguno de los dos.
+#
+# SÓLO UN RELEASE SE PUBLICA (R-2 del CMS, D-002-P12, 2026-11-04)
+#
+# Hasta hoy cada push a master publicaba. El arquitecto pidió un único release
+# con todo completo, y la CDN es parte de producción: se PUBLICA sólo con la
+# etiqueta de un release —`release-AAAA-MM-DD`, la misma que el director pone a
+# la vez en el CMS— o con el disparo manual de un release ya etiquetado (volver a
+# uno bueno). Un push a master la sigue CONSTRUYENDO y COMPROBANDO —contratos y
+# `build:cdn`, con o sin credenciales— y no publica. En un release, el commit
+# tiene que estar en master y los contratos se cruzan con el CMS del MISMO
+# release, no con su master del momento. Un gate (`cdn-sale-con-un-release`) se
+# pone rojo si algo publica sin release.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
+  # Construir y comprobar, sin publicar.
   push:
     branches:
       - main
       - master
+    # Publicar: la etiqueta del release.
+    tags: ['release-*']
 
-  # Para volver a publicar sin empujar nada — típicamente, republicar un commit
-  # bueno después de un despliegue malo.
+  # Volver a publicar un release que ya salió, sin inventar una etiqueta nueva.
+  # Pide el NOMBRE del release, no un SHA: lo que llega a producción es siempre un release.
   workflow_dispatch:
     inputs:
-      sha:
-        description: 'SHA a publicar (vacío = el commit de este ref)'
-        required: false
+      release:
+        description: 'Etiqueta del release a publicar (p. ej. release-2026-11-20)'
+        required: true
 
 # NUNCA dos a la vez: dos `wrangler deploy` sobre el mismo Worker se pisan, y el
 # que termine último gana sin que nada lo diga. Se encolan, no se cancelan — un
@@ -72,7 +87,32 @@ jobs:
       contents: read
 
     steps:
-      # ── 0. ¿Hay a dónde publicar? ────────────────────────────────────────
+      # ── 0. ¿Es un release, o sólo se comprueba? ──────────────────────────
+      #
+      # Un push a una rama no es un release: construye y comprueba, y nada más.
+      - id: release
+        name: ¿Es un release?
+        env:
+          RELEASE: ${{ github.event.inputs.release || (github.ref_type == 'tag' && github.ref_name) || '' }}
+        run: |
+          if [ -z "$RELEASE" ]; then
+            echo "publicar=no" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Push a master: se construye y se comprueba, no se publica"
+              echo
+              echo "La CDN de producción se publica sólo con la etiqueta de un release (R-2)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          case "$RELEASE" in
+            release-*) ;;
+            *) echo "✗ «$RELEASE» no es una etiqueta de release (release-AAAA-MM-DD): la CDN sólo publica releases (R-2)."
+               exit 1 ;;
+          esac
+          echo "publicar=si" >> "$GITHUB_OUTPUT"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+
+      # ── 0.bis ¿Hay a dónde publicar? ─────────────────────────────────────
       #
       # Mientras falten las credenciales esto NO se pone rojo en cada push: es
       # el defecto que este workflow viene a cerrar, y repetirlo acá sería
@@ -80,6 +120,7 @@ jobs:
       # enciende solo el día que existan. Es el mismo patrón que `deploy.yml`
       # del CMS, que espera a que alguien compre un VPS.
       - id: config
+        if: steps.release.outputs.publicar == 'si'
         name: ¿Está configurado el destino?
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -103,12 +144,28 @@ jobs:
             echo "listo=si" >> "$GITHUB_OUTPUT"
           fi
 
-      - if: steps.config.outputs.listo == 'si'
-        name: Checkout UI (este repo)
+      - name: Checkout UI (este repo)
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.sha || github.sha }}
+          ref: ${{ steps.release.outputs.release || github.sha }}
           path: Synergos.UI
+          # Toda la historia sólo en un release: hace falta para saber si su commit está en master.
+          fetch-depth: ${{ steps.release.outputs.publicar == 'si' && '0' || '1' }}
+
+      - if: steps.release.outputs.publicar == 'si'
+        name: Es un release, y su commit está en master
+        working-directory: Synergos.UI
+        env:
+          RELEASE: ${{ steps.release.outputs.release }}
+        run: |
+          set -euo pipefail
+          git rev-parse -q --verify "refs/tags/$RELEASE" >/dev/null \
+            || { echo "✗ no existe la etiqueta $RELEASE en el UI."; exit 1; }
+          SHA="$(git rev-parse "refs/tags/$RELEASE^{commit}")"
+          git fetch --no-tags --quiet origin master
+          git merge-base --is-ancestor "$SHA" FETCH_HEAD \
+            || { echo "✗ $RELEASE apunta a ${SHA:0:7}, que no está en master: un release sale de lo integrado."; exit 1; }
+          echo "✓ $RELEASE → ${SHA:0:7}, en master"
 
       # `cms:validate` cruza el `element-registry.json` de acá contra los
       # DocTypes de allá, y **falla si no encuentra su entrada** — con razón: un
@@ -123,23 +180,25 @@ jobs:
       # `CHERCED-DEV/Synergos.CMS` es público y el `GITHUB_TOKEN` del job basta.
       # Un `secrets.X` sin configurar le llega a `checkout` como cadena vacía y
       # aborta con «Input required and not supplied: token».
-      - if: steps.config.outputs.listo == 'si'
-        name: Checkout CMS (hermano — la otra mitad del contrato)
+      #
+      # En un release, el CMS del MISMO release: los contratos se cruzan con lo que
+      # va a correr en producción, no con el master del CMS del momento. Si el CMS
+      # no tiene esa etiqueta, esto falla, y está bien: el release va en los dos.
+      - name: Checkout CMS (hermano — la otra mitad del contrato)
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/Synergos.CMS
+          ref: ${{ steps.release.outputs.release }}
           path: Synergos.CMS
 
-      - if: steps.config.outputs.listo == 'si'
-        name: Setup Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       # La raíz NO es un workspace de npm (#70): la lista de plataformas se
       # deriva del disco, no se escribe acá.
-      - if: steps.config.outputs.listo == 'si'
-        name: Dependencias
+      - name: Dependencias
         working-directory: Synergos.UI
         run: npm run setup
 
@@ -150,8 +209,7 @@ jobs:
       # corre el presupuesto de tamaño por dentro; esto añade los contratos,
       # que son los que cruzan con el CMS: un registry que el CMS no puede
       # resolver deja el sitio sin hidratar y la página se ve igual de bien.
-      - if: steps.config.outputs.listo == 'si'
-        name: Contratos
+      - name: Contratos
         working-directory: Synergos.UI
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
@@ -169,15 +227,14 @@ jobs:
       # las baja del CDN vivo y verifica cada huella; sin la variable va al CDN
       # público por defecto. Se le pasa el MISMO origen que mira el humo, para
       # que un `SYNERGOS_CDN_URL` propio conserve de donde se publica.
-      - if: steps.config.outputs.listo == 'si'
-        name: Construir el CDN
+      - name: Construir el CDN
         working-directory: Synergos.UI
         env:
           SYNERGOS_CDN_CONSERVAR_DESDE: ${{ vars.SYNERGOS_CDN_URL || 'https://synergos-ui.synergos-labs.workers.dev' }}
         run: npm run build:cdn
 
-      # ── 3. Publicar ──────────────────────────────────────────────────────
-      - if: steps.config.outputs.listo == 'si'
+      # ── 3. Publicar: sólo un release, y sólo con credenciales ────────────
+      - if: steps.release.outputs.publicar == 'si' && steps.config.outputs.listo == 'si'
         name: wrangler deploy
         working-directory: Synergos.UI
         env:
@@ -195,7 +252,7 @@ jobs:
       # Acá el `--sha` SÍ tiene sentido, y ésa es la diferencia con lo que hacía
       # `humo-cdn.yml`: este workflow acaba de publicar ese commit, así que
       # esperarlo es esperar algo que va a llegar.
-      - if: steps.config.outputs.listo == 'si'
+      - if: steps.release.outputs.publicar == 'si' && steps.config.outputs.listo == 'si'
         name: Humo contra la URL pública
         working-directory: Synergos.UI
         env:
