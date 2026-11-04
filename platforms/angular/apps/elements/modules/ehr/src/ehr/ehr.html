@@ -1033,7 +1033,7 @@
     @case ('slot') {
       <p class="ehr__field-label">Elige fecha y hora</p>
       @if (avisoDeLaAgenda(); as aviso) {
-        <p class="ehr__panel-text" role="status">{{ aviso }}</p>
+        <syn-live-region class="ehr__panel-text" [message]="aviso" [visuallyHidden]="false" announceInitial />
       }
       <div class="ehr__slots">
         @for (day of availableDays(); track trackString($index, day)) {
