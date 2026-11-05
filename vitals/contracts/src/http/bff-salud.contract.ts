@@ -28,6 +28,17 @@ export interface SaludCitaCotizacion {
   readonly datos: { readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
 }
 
+export interface SaludCitaDisponibilidad {
+  readonly flujo: string;
+  readonly datos: { readonly franjas: readonly { readonly inicio: string; readonly fin: string; readonly libres: number; }[] | null; };
+}
+
+export interface SaludCitaDisponibilidadEntrada {
+  readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; };
+  readonly desde: string;
+  readonly hasta: string;
+}
+
 export interface SaludCitaEntrada {
   readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; };
   readonly ventana: { readonly start: string; readonly end: string; };
@@ -46,6 +57,46 @@ export interface SaludCitaRespuesta {
   readonly numero: string;
   readonly estado: string;
   readonly datos: { readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export type SaludConsentimientoEntrada = Record<string, never>;
+
+export interface SaludConsentimientoPagina {
+  readonly items: readonly SaludConsentimientoRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface SaludConsentimientoRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: Record<string, never>;
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
+export type SaludConsentimientoRetiroEntrada = Record<string, never>;
+
+export interface SaludConsentimientoRetiroPagina {
+  readonly items: readonly SaludConsentimientoRetiroRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface SaludConsentimientoRetiroRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: Record<string, never>;
   readonly compensacionesPendientes: number;
   readonly error: string | null;
   readonly deshaciendo: boolean;
@@ -73,7 +124,20 @@ export interface OperacionesDeLaPuerta {
     readonly cerrar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludCitaRespuesta, "ninguna">;
     readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludCitaRespuesta, "ninguna">;
     readonly cotizar: OperacionDeLaPuerta<"POST", undefined, SaludCitaEntrada, SaludCitaCotizacion, "ninguna">;
+    readonly disponibilidad: OperacionDeLaPuerta<"POST", undefined, SaludCitaDisponibilidadEntrada, SaludCitaDisponibilidad, "ninguna">;
     readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludCitaPagina, "ninguna">;
+  };
+  readonly "salud.consentimiento": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludConsentimientoEntrada, SaludConsentimientoRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludConsentimientoRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludConsentimientoRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludConsentimientoPagina, "ninguna">;
+  };
+  readonly "salud.consentimiento-retiro": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludConsentimientoRetiroEntrada, SaludConsentimientoRetiroRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludConsentimientoRetiroRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludConsentimientoRetiroRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludConsentimientoRetiroPagina, "ninguna">;
   };
 }
 
@@ -105,6 +169,19 @@ export const OPERACIONES_DE_LA_PUERTA = {
     cerrar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
     consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     cotizar: { metodo: "POST", llave: "ninguna", consulta: [] },
+    disponibilidad: { metodo: "POST", llave: "ninguna", consulta: [] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "salud.consentimiento": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
+  "salud.consentimiento-retiro": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
     listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
   },
 } as const satisfies TablaDeLaPuerta<OperacionesDeLaPuerta>;

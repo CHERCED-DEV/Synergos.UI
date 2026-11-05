@@ -1,0 +1,21 @@
+@if (modo() === 'dar') {
+  @if (pedir()) {
+    <!-- Sin el permiso de datos de salud no hay copago ni cita; se da aquí, con el texto que declara el CMS. -->
+    <section class="salud-permiso" [attr.aria-label]="permiso.textos.titulo">
+      <h3 class="salud-permiso__titulo">{{ permiso.textos.titulo }}</h3>
+      <p class="salud-permiso__texto">{{ permiso.textos.proposito }}</p>
+      <p class="salud-permiso__texto">{{ permiso.textos.uso }}</p>
+      <p class="salud-permiso__texto">{{ permiso.textos.responsable }}</p>
+      <syn-button [label]="permiso.textos.aceptar" [loading]="permiso.moviendo()" (pressed)="aceptar.emit()" />
+    </section>
+  }
+} @else {
+  <!-- El permiso se retira desde «Mis citas», cuando quiera el paciente. -->
+  <div class="salud-permiso__acciones">
+    <syn-button variant="ghost" size="sm" [label]="permiso.textos.retirar" [loading]="permiso.moviendo()"
+      (pressed)="retirar.emit()" />
+  </div>
+}
+@if (permiso.aviso()) {
+  <syn-live-region class="salud-permiso__texto" [message]="permiso.aviso()" [visuallyHidden]="false" announceInitial />
+}

@@ -516,6 +516,8 @@ export interface TrackStage {
 export interface AppointmentSlot {
   readonly date: string;
   readonly time: string;
+  /** Cuántos minutos dura: el de la franja de la agenda por la puerta (T046); sin él, el de siempre. */
+  readonly minutes?: number;
 }
 
 /** Payload the schedule wizard hands the fulfillment strategy on `select`. */

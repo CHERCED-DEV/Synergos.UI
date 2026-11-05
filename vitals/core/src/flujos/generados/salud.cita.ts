@@ -57,6 +57,15 @@ export function cotizarSaludCita(
   return pedirAlFlujo(desde, FLUJO_SALUD_CITA, "cotizar", args, opciones);
 }
 
+/** `disponibilidad`: POST con cuerpo; llave ninguna. */
+export function disponibilidadSaludCita(
+  desde: Element,
+  args: ArgsDe<Operaciones["disponibilidad"]>,
+  opciones?: OpcionesDePedido,
+): Promise<ResultadoDelFlujo<RespuestaDe<Operaciones["disponibilidad"]>>> {
+  return pedirAlFlujo(desde, FLUJO_SALUD_CITA, "disponibilidad", args, opciones);
+}
+
 /** `listar`: GET con consulta; llave ninguna. */
 export function listarSaludCita(
   desde: Element,

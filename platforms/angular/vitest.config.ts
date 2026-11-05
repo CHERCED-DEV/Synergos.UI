@@ -47,6 +47,7 @@ export default defineConfig({
       '@synergos/shells': emitido('platforms/angular/libs/shells/src/index.ts'),
       '@synergos/shop': emitido('platforms/angular/libs/shop/src/index.ts'),
       '@synergos/dominio/tienda': emitido('platforms/angular/libs/dominio/tienda/src/index.ts'),
+      '@synergos/dominio/salud': emitido('platforms/angular/libs/dominio/salud/src/index.ts'),
       // core-assets es SCSS: no se emite JS y ningún spec lo importa. Si algún
       // día lo hace, el fallo será un import que no resuelve — ruidoso, que es
       // como tiene que fallar.

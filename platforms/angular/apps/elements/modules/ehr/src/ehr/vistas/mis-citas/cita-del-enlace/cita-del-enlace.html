@@ -1,0 +1,21 @@
+<section class="salud-cita">
+  <h2 class="salud-cita__titulo">{{ encabezado() }}</h2>
+  <p class="salud-cita__texto">{{ estado() }}</p>
+  @if (profesional()) {
+    <p class="salud-cita__texto">{{ profesional() }}</p>
+  }
+  @if (hora()) {
+    <p class="salud-cita__texto">{{ hora() }}</p>
+  }
+  @if (importe()) {
+    <p class="salud-cita__texto">{{ importe() }}</p>
+  }
+  @if (cancelable()) {
+    <div class="salud-cita__acciones">
+      <syn-button variant="outline" [label]="textoCancelar" [loading]="cancelando()" (pressed)="cancelar.emit(cita().id)" />
+    </div>
+  }
+  @if (aviso()) {
+    <syn-live-region class="salud-cita__texto" [message]="aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

@@ -16,6 +16,8 @@ export * from './propiedades.visita';
 export * from './propiedades.visita-cancelacion';
 export * from './reservas.servicio';
 export * from './salud.cita';
+export * from './salud.consentimiento';
+export * from './salud.consentimiento-retiro';
 export * from './tienda.compra';
 export * from './tienda.devolucion';
 export * from './tienda.entrega';

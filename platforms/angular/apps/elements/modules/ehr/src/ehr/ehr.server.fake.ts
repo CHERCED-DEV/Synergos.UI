@@ -168,6 +168,35 @@ function medicos(options: FakeServerOptions): readonly Record<string, unknown>[]
   );
 }
 
+/**
+ * Los mismos médicos, como los da la lectura genérica de Salud (`GET /api/lecturas/salud/catalogo`): la forma del
+ * servidor (`LecturaDeProfesionalesContractTests`), con el nombre en `titulo` y lo demás en `atributos`, sin precio ni
+ * calificación.
+ */
+function listadoDeProfesionales(options: FakeServerOptions): Record<string, unknown> {
+  const elementos = medicos(options).map((m) => ({
+    id: m['id'],
+    titulo: m['name'],
+    imagen: null,
+    precio: null,
+    precioAntes: null,
+    calificacion: null,
+    disponibles: null,
+    atributos: {
+      especialidad: m['specialty'],
+      registro: m['license'],
+      telefono: m['phone'],
+      correo: m['email'],
+      dias: '1,2,3,4,5',
+      desde: '8',
+      hasta: '16',
+      minutos: '30',
+      ...(m['acceptingPatients'] === true ? { aceptaPacientes: 'si' } : {}),
+    },
+  }));
+  return { elementos, facetas: [], total: elementos.length, pagina: 1, porPagina: 100 };
+}
+
 function paciente(id: string): FakePatient | undefined {
   return PACIENTES.find((entry) => entry.id === id);
 }
@@ -323,6 +352,9 @@ export function servidorFalso(
     if (ruta.includes('/doctors')) {
       return Promise.resolve(respuesta(200, { doctors: medicos(options) }));
     }
+    if (ruta.includes('/api/lecturas/salud/catalogo')) {
+      return Promise.resolve(respuesta(200, listadoDeProfesionales(options)));
+    }
     if (ruta.includes('/portal/home')) {
       return Promise.resolve(
         respuesta(200, {
@@ -459,7 +491,8 @@ export function servidorFalso(
  * que el controlador: la sesión primero; luego el rol (clínica) o la historia (portal).
  */
 function negativaDe(ruta: string, metodo: string, sesion: FakeSession | 'anonimo'): Response | null {
-  const publica = ruta.includes('/doctors') || ruta.includes('/copay');
+  // La lectura genérica del directorio es pública, como `LecturaDelCatalogoController`.
+  const publica = ruta.includes('/doctors') || ruta.includes('/copay') || ruta.includes('/api/lecturas/salud/catalogo');
   if (publica) {
     return null;
   }
