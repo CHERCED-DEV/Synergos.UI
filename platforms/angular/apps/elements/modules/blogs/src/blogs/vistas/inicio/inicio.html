@@ -1,0 +1,51 @@
+<!-- ═══ FEED ═══════════════════════════════════════════════════════════════ -->
+<!-- El feed era la ÚNICA vista sin `blogs__view-title`, así que /blogs cargaba sin
+     un solo <h1>: el documento no tenía nivel superior y su esquema arrancaba en h2
+     (WCAG 1.3.1). No es diseño, es la asimetría de una vista que se quedó sin lo que
+     las otras cinco sí traen. El texto lo compone el CMS. -->
+<header class="blogs__view-head">
+  <h1 class="blogs__view-title">{{ heading() }}</h1>
+  @if (subheading()) {
+    <p class="blogs__view-sub">{{ subheading() }}</p>
+  }
+</header>
+
+<syn-tabs
+  class="blogs__tabctl"
+  [tabs]="feedTabs"
+  [activeId]="inicio.feedScope()"
+  ariaLabel="Tipo de feed"
+  (activeIdChange)="inicio.setFeedScope($any($event))"
+/>
+
+<article class="blogs__composer-inline">
+  <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
+  <syn-button class="blogs__composer-open" variant="outline" align="start" block (pressed)="inicio.toggleComposer()">¿Qué estás pensando?</syn-button>
+</article>
+
+@if (inicio.composerOpen()) {
+  <sg-blogs-compositor />
+}
+
+@if (red.loading() && inicio.posts().length === 0) {
+  <syn-skeleton variant="card" [rows]="4" />
+} @else if (inicio.posts().length === 0) {
+  <syn-empty-state
+    kind="first-use"
+    title="Tu feed está vacío"
+    message="Sigue cuentas o publica algo."
+    actionLabel="Publicar"
+    (action)="inicio.toggleComposer()"
+  />
+} @else {
+  <ul class="blogs__feed">
+    @for (post of inicio.posts(); track presentacion.trackPost($index, post)) {
+      <li><sg-blogs-tarjeta [publicacion]="post" /></li>
+    }
+  </ul>
+  @if (inicio.nextCursor()) {
+    <syn-button class="blogs__more" variant="outline" block [disabled]="inicio.loadingMore()" (pressed)="inicio.loadMore()">
+      {{ inicio.loadingMore() ? 'Cargando…' : 'Cargar más' }}
+    </syn-button>
+  }
+}

@@ -306,6 +306,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // contra quién lo publica. No resuelve ninguna ruta de CDN, así que no tiene
   // dónde cablear un framework.
   'lib/humo-tras-desplegar.mjs',
+  // La regla del release en `despliegue-cdn.yml` (D-002-P12): como el humo, lee
+  // el YAML de los workflows y no resuelve ninguna ruta de CDN.
+  'lib/cdn-sale-con-un-release.mjs',
   // RECORRE las apps de cada plataforma buscando `mortgage.calc.ts` en vez de escribir
   // su ruta (#76). Escribirla habría sido una excepción «legítimamente de Angular»
   // —hoy sólo Angular implementa Propiedades— o sea la misma que la regla 26 vio

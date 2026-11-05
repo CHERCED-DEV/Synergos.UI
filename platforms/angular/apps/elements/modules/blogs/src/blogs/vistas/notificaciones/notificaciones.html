@@ -1,0 +1,78 @@
+<!-- ═══ NOTIFICATIONS ══════════════════════════════════════════════════════ -->
+@if (red.sessionAccess() === 'anon') {
+  <!-- WCAG 2.4.3 (Focus Order): el panel sustituye la vista sin mover el foco, así que
+       el usuario de teclado no se entera de que hay un "Iniciar sesión" nuevo y tiene
+       que tabular desde el principio. `tabindex="-1"` + la ref son el enganche para que
+       el componente enfoque el CONTENEDOR — no el botón: enfocando el contenedor el
+       lector lee título y texto antes que las acciones. Solo enfocar si el 401 vino de
+       una acción del usuario, y nunca en cada re-render. Mismo enganche en los otros
+       tres paneles (mensajes, guardados, estudio). -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">Inicia sesión para ver tus notificaciones</h1>
+    <p class="blogs__signin-text">Aquí verás quién te siguió, te mencionó o respondió a tus publicaciones.</p>
+  </sg-blogs-acceso>
+} @else {
+<header class="blogs__view-head">
+  <h1 class="blogs__view-title">Notificaciones</h1>
+  <syn-button variant="ghost" size="sm" (pressed)="notificaciones.markAllRead()">Marcar todo como leído</syn-button>
+</header>
+
+<!-- Reuse the published notification-center custom element (progressive enhancement;
+     hydrates in the CMS via the CDN bundle, degrades to the native list below).
+     Vive DENTRO del `@else` a propósito: hace su propio fetch a /notifications, y
+     montarlo sin sesión dispararía un 401 que este componente no controla. -->
+<synergos-notification-center
+  class="blogs__notif-embed"
+  title="Actividad reciente"
+  emptyLabel="No tienes notificaciones."
+  markAllLabel="Marcar todo como leído"
+  [attr.fetch-endpoint]="red.apiBase() + '/notifications'"
+></synergos-notification-center>
+
+<syn-tabs
+  class="blogs__tabctl"
+  [tabs]="notificationTabs"
+  [activeId]="notificaciones.notificationFilter()"
+  ariaLabel="Filtro de notificaciones"
+  (activeIdChange)="notificaciones.setNotificationFilter($any($event))"
+/>
+
+@if (red.loading() && !notificaciones.notificationsLoaded()) {
+  <!-- Molde de la lista de notificaciones: reusa `blogs__notif` (el mismo padding y
+       gap que la fila real) sobre un `div`, NO un `button`: un esqueleto no se enfoca
+       ni se pulsa. El aviso, con texto, viaja aparte. -->
+  <ul class="blogs__notifs" aria-hidden="true">
+    @for (bone of presentacion.notificationSkeletons; track bone) {
+      <li>
+        <div class="blogs__notif blogs__notif--skeleton">
+          <span class="blogs__bone blogs__bone--avatar-sm"></span>
+          <span class="blogs__notif-body">
+            <span class="blogs__bone blogs__bone--notif-text"></span>
+            <span class="blogs__bone blogs__bone--notif-time"></span>
+          </span>
+        </div>
+      </li>
+    }
+  </ul>
+  <p class="blogs__sr-only" role="status">Cargando notificaciones…</p>
+} @else if (notificaciones.filteredNotifications().length === 0) {
+  <p class="blogs__empty">No tienes notificaciones aquí.</p>
+} @else {
+  <ul class="blogs__notifs">
+    @for (n of notificaciones.filteredNotifications(); track presentacion.trackNotification($index, n)) {
+      <li>
+        <syn-button variant="plain" block (pressed)="notificaciones.openNotification(n)">
+          <span class="blogs__notif" [class.is-unread]="!n.read">
+            <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(n.actor) }}</span>
+            <span class="blogs__notif-body">
+              <span class="blogs__notif-text"><strong>{{ n.actor.displayName }}</strong> {{ n.summary }}</span>
+              <span class="blogs__meta-time">{{ presentacion.relativeTime(n.createdAtUtc) }}</span>
+            </span>
+            @if (!n.read) {<span class="blogs__notif-dot" aria-label="Sin leer"></span>}
+          </span>
+        </syn-button>
+      </li>
+    }
+  </ul>
+}
+}

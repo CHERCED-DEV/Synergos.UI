@@ -1,6 +1,8 @@
 @use 'scss' as syn;
 
-:host {
+// Sin encapsulación (012-blogs-social, I2): la hoja pinta también las vistas y las piezas, que son componentes hijos.
+// El anfitrión es `.sg-blogs`, y cada clase lleva el prefijo `blogs__`.
+.sg-blogs {
   // Theme bridge: prefer the CMS runtime tokens, fall back to the design-line defaults.
   --bl-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --bl-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
@@ -42,6 +44,13 @@
 
   &__sr-only {
     @include syn.visually-hidden;
+  }
+
+  // El anfitrión de cada vista y de cada pieza no pinta caja: sus hijos son los de la columna o de la lista, como
+  // cuando vivían en la plantilla única, así el `gap` y la rejilla los siguen viendo (lección de la tienda en 014).
+  &__vista,
+  &__pieza {
+    display: contents;
   }
 }
 
@@ -92,36 +101,13 @@
   animation: blogs-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
 
   // Mismo diámetro que `.blogs__avatar--sm` (36px), que es quien fija la altura de
-  // la fila tanto en el hilo de comentarios como en las notificaciones.
+  // la fila de las notificaciones. El molde del hilo de comentarios es del organismo
+  // SH-15 (`libs/shells`), con las mismas clases que su comentario.
   &--avatar-sm {
     flex: 0 0 auto;
     inline-size: syn.px-to-rem(36);
     block-size: syn.px-to-rem(36);
     border-radius: syn.$radius-full;
-  }
-
-  // Hilo de comentarios: cabecera (autor + handle + hora), cuerpo, acción y caja de
-  // respuesta — los mismos cuatro bloques que pinta `commentTpl`.
-  &--comment-head {
-    inline-size: 45%;
-    block-size: syn.px-to-rem(16);
-  }
-
-  &--comment-text {
-    inline-size: 100%;
-    block-size: syn.px-to-rem(40);
-    margin-block: syn.$space-3;
-  }
-
-  &--comment-action {
-    inline-size: syn.px-to-rem(96);
-    block-size: syn.px-to-rem(28);
-  }
-
-  &--comment-form {
-    inline-size: 100%;
-    block-size: syn.px-to-rem(40);
-    margin-block-start: syn.$space-3;
   }
 
   // Notificaciones: texto + hora apilados; 20 + 2 (gap) + 14 = 36 = el avatar.
@@ -403,7 +389,7 @@
    * only the accessible tablist — roving tabindex + Arrow/Home/End + focus are
    * inherited. Styling comes from the primitive's own --syn-tabs-* tokens.
    */
-  ::ng-deep .syn-tabs__panel {
+  .syn-tabs__panel {
     display: none;
   }
 }
@@ -548,8 +534,7 @@
   letter-spacing: syn.$letter-spacing-eyebrow;
 }
 
-.blogs__post-body,
-.blogs__comment-text {
+.blogs__post-body {
   margin: syn.$space-3 0;
   font-size: syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
@@ -617,16 +602,14 @@
 }
 
 // ─── Comment thread ────────────────────────────────────────────────────────────────
-.blogs__comment-form,
-.blogs__reply-form {
+.blogs__comment-form {
   display: flex;
   align-items: flex-end;
   gap: syn.$space-2;
   margin: syn.$space-3 0;
 }
 
-.blogs__comment-input,
-.blogs__reply-input {
+.blogs__comment-input {
   flex: 1;
 }
 
@@ -636,52 +619,7 @@
   font-weight: syn.$font-weight-bold;
 }
 
-.blogs__thread,
-.blogs__replies {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-3;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.blogs__replies {
-  margin-top: syn.$space-3;
-  padding-left: syn.$space-5;
-  border-left: syn.px-to-rem(2) solid var(--bl-border-subtle);
-}
-
-.blogs__comment {
-  display: flex;
-  gap: syn.$space-3;
-}
-
-.blogs__comment-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.blogs__comment-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: syn.$space-1;
-}
-
-.blogs__comment-author {
-  font-weight: syn.$font-weight-bold;
-  font-size: syn.$font-size-sm;
-}
-
-.blogs__comment-handle {
-  color: var(--bl-muted);
-  font-size: syn.$font-size-xs;
-}
-
-.blogs__comment-actions {
-  margin-top: syn.$space-1;
-}
+// El hilo (sus comentarios, respuestas y molde) es el organismo SH-15 de `libs/shells` (012, I2, T016).
 
 // ─── Profile ────────────────────────────────────────────────────────────────────────
 .blogs__profile {
@@ -1215,7 +1153,8 @@
 
 // ─── Reduced motion ────────────────────────────────────────────────────────────────────
 @media (prefers-reduced-motion: reduce) {
-  * {
+  // Acotado a la red: sin encapsulación (I2), un `*` suelto frenaría la página entera.
+  .sg-blogs * {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }

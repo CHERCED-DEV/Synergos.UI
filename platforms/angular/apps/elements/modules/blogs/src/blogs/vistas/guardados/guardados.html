@@ -1,0 +1,38 @@
+<!-- ═══ GUARDADOS / LISTAS — SH-4 account-shell ════════════════════════════ -->
+@if (red.sessionAccess() === 'anon') {
+  <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">Inicia sesión para ver tus guardados</h1>
+    <p class="blogs__signin-text">Lo que guardas queda en tu cuenta. Entra y encontrarás aquí tus publicaciones.</p>
+  </sg-blogs-acceso>
+} @else {
+  <syn-account-shell
+    [config]="savedConfig()"
+    [items]="guardados.savedPosts()"
+    [loading]="red.loading() && !guardados.savedLoaded()"
+    [itemTemplate]="savedRowTpl"
+    [detailTemplate]="savedDetailTpl"
+    [sectionTemplate]="savedSectionTpl"
+    (sectionchange)="guardados.onSavedSectionChange($event)"
+  ></syn-account-shell>
+}
+
+<!-- ─── SH-4 guardados row + detail + list section ─────────────────────────────── -->
+<ng-template #savedRowTpl let-post>
+  <span class="blogs__saved-row">
+    <span class="blogs__saved-row-author">{{ post.author.displayName }}</span>
+    <span class="blogs__saved-row-excerpt">{{ post.body }}</span>
+  </span>
+</ng-template>
+
+<ng-template #savedDetailTpl let-post>
+  <sg-blogs-tarjeta [publicacion]="post" [detalle]="true" />
+</ng-template>
+
+<ng-template #savedSectionTpl let-section>
+  @if (section.id === 'lists') {
+    <div class="blogs__lists-empty">
+      <p class="blogs__empty">Crea listas para organizar cuentas y colecciones (próximamente).</p>
+    </div>
+  }
+</ng-template>

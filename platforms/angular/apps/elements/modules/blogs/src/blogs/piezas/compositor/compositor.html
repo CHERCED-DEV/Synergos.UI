@@ -1,0 +1,25 @@
+<form class="blogs__composer" (submit)="$event.preventDefault(); compositor.publish()">
+  <div class="blogs__composer-row">
+    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
+    <syn-textarea class="blogs__composer-input" [id]="presentacion.fieldId + '-body'" [rows]="3" ariaLabel="Texto de la publicación"
+      placeholder="¿Qué estás pensando? Usa #hashtags y @menciones" [maxlength]="compositor.maxChars"
+      [describedBy]="presentacion.fieldId + '-count'" [value]="compositor.draftBody()" (valueChange)="compositor.draftBody.set($event)" />
+  </div>
+  <div class="blogs__composer-media">
+    <syn-input [id]="presentacion.fieldId + '-media'" type="url" label="URL de imagen (opcional)" placeholder="https://…"
+      [value]="compositor.draftMediaUrl()" (valueChange)="compositor.draftMediaUrl.set($event)" />
+    @if (compositor.draftMediaUrl().trim()) {
+      <syn-input [id]="presentacion.fieldId + '-alt'" label="Texto alternativo (requerido)"
+        placeholder="Describe la imagen para lectores de pantalla" [value]="compositor.draftMediaAlt()"
+        (valueChange)="compositor.draftMediaAlt.set($event)" />
+    }
+  </div>
+  <div class="blogs__composer-foot">
+    <!-- El contador se DESCRIBE y no habla en cada tecla; los hitos los dice syn-live-region (#87). -->
+    <span class="blogs__char-count" [class.is-over]="compositor.draftRemaining() < 0" [id]="presentacion.fieldId + '-count'">{{ compositor.draftRemaining() }}<span class="blogs__sr-only"> caracteres disponibles</span></span>
+    <syn-live-region [message]="draftCountMilestone()" />
+    <syn-button type="submit" [disabled]="!compositor.draftValid() || red.publishing()">
+      {{ red.publishing() ? 'Publicando…' : 'Publicar' }}
+    </syn-button>
+  </div>
+</form>

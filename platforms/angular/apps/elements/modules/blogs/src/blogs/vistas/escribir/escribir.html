@@ -1,0 +1,92 @@
+<!-- ═══ LONG-FORM EDITOR (`/write`) ════════════════════════════════════════ -->
+<!-- ═══ ESCRIBIR: SH-6 syn-authoring-wizard (#26) ══════════════════════════
+     Lo que aporta y el editor no tenía: BORRADOR PERSISTENTE con scope y TTL
+     de 24 h, así que un artículo a medias sobrevive a recargar la página. -->
+<syn-button class="blogs__back" variant="ghost" size="sm" (pressed)="onArticleExit()">
+  <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+  Volver
+</syn-button>
+
+@if (articulo.articleNotSaved()) {
+  <!-- Se pudo escribir y NO se guardó. Se dice, y el texto sigue donde
+       estaba: antes esto se borraba y se enseñaba la pantalla de publicado. -->
+  <p class="blogs__article-unsaved" role="alert">
+    No pudimos publicar tu artículo — el servidor no respondió.
+    <strong>Tu borrador está a salvo</strong>: se queda acá y sigue disponible
+    si recargas. Intenta publicar de nuevo en un momento.
+  </p>
+}
+
+<syn-authoring-wizard
+  [config]="articleWizardConfig()"
+  [stepTemplate]="articleStepTpl"
+  [validity]="articulo.articleValidity()"
+  [publishing]="red.publishing()"
+  (published)="articulo.publishArticle()"
+  (exit)="onArticleExit()"
+></syn-authoring-wizard>
+
+<!-- ─── Pasos del artículo (SH-6) ─────────────────────────────────────────────── -->
+<!-- El contenido de los tres pasos. Título y cuerpo van JUNTOS a propósito: son la
+     superficie de escritura, y partirlos sería hostil con quien escribe largo. -->
+<ng-template #articleStepTpl let-step let-patch="patch">
+  @switch (step.id) {
+    @case ('contenido') {
+      <div class="blogs__article-step">
+        <syn-input class="blogs__editor-title" [id]="presentacion.fieldId + '-art-title'" label="Título"
+          placeholder="Un título que enganche" [value]="articulo.articleTitle()"
+          [invalid]="!!articulo.articleTitle() && articulo.articleTitle().trim().length < 3"
+          (valueChange)="articulo.onArticleField(patch, 'title', $event)" />
+        @if (articulo.articleTitle() && articulo.articleTitle().trim().length < 3) {
+          <p class="blogs__field-error" role="alert">El título necesita al menos 3 caracteres.</p>
+        }
+
+        <syn-textarea class="blogs__editor-body" [id]="presentacion.fieldId + '-art-body'" label="Cuerpo" [rows]="14"
+          placeholder="Escribe tu historia… usa #hashtags y @menciones" [value]="articulo.articleBody()"
+          [describedBy]="presentacion.fieldId + '-art-body-hint'"
+          (valueChange)="articulo.onArticleField(patch, 'body', $event)" />
+        <!-- Se DESCRIBE y no habla en cada tecla; el hito lo dice syn-live-region (#87). -->
+        <p class="blogs__editor-hint" [id]="presentacion.fieldId + '-art-body-hint'">
+          {{ articulo.articleBody().length }} caracteres
+          @if (articulo.articleBody().trim().length < 20) {
+            · faltan {{ 20 - articulo.articleBody().trim().length }} para poder continuar
+          }
+        </p>
+        <syn-live-region [message]="articleBodyMilestone()" />
+      </div>
+    }
+
+    @case ('portada') {
+      <div class="blogs__article-step">
+        <syn-input [id]="presentacion.fieldId + '-art-cover'" type="url" label="URL de portada (opcional)"
+          placeholder="https://…" [value]="articulo.articleCover()"
+          (valueChange)="articulo.onArticleField(patch, 'coverUrl', $event)" />
+
+        @if (articulo.articleCover().trim()) {
+          <syn-input [id]="presentacion.fieldId + '-art-alt'" label="Texto alternativo (requerido)"
+            placeholder="Describe la portada" [value]="articulo.articleCoverAlt()"
+            [invalid]="!articulo.articleCoverAlt().trim()"
+            (valueChange)="articulo.onArticleField(patch, 'coverAlt', $event)" />
+          @if (!articulo.articleCoverAlt().trim()) {
+            <p class="blogs__field-error" role="alert">
+              Una portada sin texto alternativo no se puede leer con lector de pantalla.
+            </p>
+          }
+        } @else {
+          <p class="blogs__editor-hint">Sin portada también se publica.</p>
+        }
+      </div>
+    }
+
+    @case ('revisar') {
+      <div class="blogs__article-step">
+        @if (articulo.articleCover().trim()) {
+          <img class="blogs__article-preview-cover" [src]="articulo.articleCover()"
+            [attr.alt]="articulo.articleCoverAlt() || null" />
+        }
+        <h2 class="blogs__article-preview-title">{{ articulo.articleTitle() }}</h2>
+        <p class="blogs__article-preview-body">{{ articulo.articleBody() }}</p>
+      </div>
+    }
+  }
+</ng-template>

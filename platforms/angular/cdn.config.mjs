@@ -72,4 +72,6 @@ export const BUNDLED_SYNERGOS = [
   'dominio/tienda',
   // El dominio de Salud (003-salud-cita, I1 de producción): `ehr` lo compone.
   'dominio/salud',
+  // El dominio de la red social (012-blogs-social): `blogs` lo compone.
+  'dominio/blogs',
 ];

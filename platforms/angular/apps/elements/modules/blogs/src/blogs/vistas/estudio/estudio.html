@@ -1,0 +1,91 @@
+<!-- ═══ CREATOR STUDIO — SH-5 console-shell ════════════════════════════════ -->
+@if (red.sessionAccess() === 'anon') {
+  <!-- El estudio expone borradores, alcance e ingresos del autor: sin sesión no se
+       pinta con datos de ejemplo, que se leerían como métricas propias. -->
+  <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">Inicia sesión para ver tu estudio</h1>
+    <p class="blogs__signin-text">Tus borradores, tu alcance y tus ingresos están asociados a tu cuenta.</p>
+  </sg-blogs-acceso>
+} @else {
+  <syn-console-shell
+    [config]="studioConfig()"
+    [kpis]="studioKpis()"
+    [rows]="estudio.studioRows()"
+    [columns]="studioColumns"
+    [actions]="studioActions"
+    [loading]="red.loading() && !estudio.studioLoaded()"
+    [cellTemplate]="studioCellTpl"
+    [sectionTemplate]="studioSectionTpl"
+    (sectionchange)="estudio.onStudioSectionChange($event)"
+    (rowaction)="onStudioAction($event)"
+  ></syn-console-shell>
+}
+
+<!-- ─── SH-5 studio cell + custom sections ─────────────────────────────────────── -->
+<ng-template #studioCellTpl let-row let-column="column">
+  @switch (column.key) {
+    @case ('excerpt') { <span class="blogs__studio-excerpt">{{ row.excerpt }}…</span> }
+    @case ('impressions') { {{ presentacion.formatCount(row.impressions) }} }
+    @case ('engagements') { {{ presentacion.formatCount(row.engagements) }} }
+    @case ('reactions') { {{ presentacion.formatCount(row.reactions) }} }
+    @case ('comments') { {{ presentacion.formatCount(row.comments) }} }
+    @default { {{ row[column.key] }} }
+  }
+</ng-template>
+
+<ng-template #studioSectionTpl let-section>
+  @if (estudio.studio(); as data) {
+    @switch (section.id) {
+      @case ('overview') {
+        <div class="blogs__studio-overview">
+          <p class="blogs__studio-lead">
+            Tu contenido llegó a <strong>{{ presentacion.formatCount(data.reach) }}</strong> personas este mes,
+            con un engagement del <strong>{{ data.engagementRate.toFixed(1) }}%</strong>.
+          </p>
+          <ng-container [ngTemplateOutlet]="audienceChartTpl"></ng-container>
+        </div>
+      }
+      @case ('audience') {
+        <div class="blogs__studio-audience">
+          <h3 class="blogs__studio-sub">Crecimiento de seguidores (7 días)</h3>
+          <ng-container [ngTemplateOutlet]="audienceChartTpl"></ng-container>
+        </div>
+      }
+      @case ('monetization') {
+        <div class="blogs__studio-monetization">
+          <h3 class="blogs__studio-sub">Planes de membresía</h3>
+          <ul class="blogs__tiers">
+            @for (tier of data.tiers; track presentacion.trackTier($index, tier)) {
+              <li class="blogs__tier">
+                <div class="blogs__tier-head">
+                  <span class="blogs__tier-name">{{ tier.name }}</span>
+                  <span class="blogs__tier-price">{{ presentacion.formatMinor(tier.priceMinor, tier.currency) }}/mes</span>
+                </div>
+                <ul class="blogs__tier-perks">
+                  @for (perk of tier.perks; track perk) {<li>{{ perk }}</li>}
+                </ul>
+                <p class="blogs__tier-subs">{{ presentacion.formatCount(tier.subscribers) }} suscriptores</p>
+                <syn-button size="sm" (pressed)="suscripcion.startSubscribe(red.autorLocal(), tier)">Probar suscripción</syn-button>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  }
+</ng-template>
+
+<!-- Tiny pure-CSS bar chart for the audience series -->
+<ng-template #audienceChartTpl>
+  @if (estudio.studio(); as data) {
+    <div class="blogs__chart" role="img" aria-label="Serie de audiencia de la semana">
+      @for (point of data.audience; track point.label) {
+        <div class="blogs__chart-col">
+          <span class="blogs__chart-bar" [style.height.%]="estudio.audiencePct(point.value)"></span>
+          <span class="blogs__chart-label">{{ point.label }}</span>
+        </div>
+      }
+    </div>
+  }
+</ng-template>

@@ -1,6 +1,5 @@
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
-import { BlogsApiClient } from './blogs/blogs-api.client';
 import { BlogsFulfillmentStrategy } from './blogs/blogs-fulfillment.strategy';
 
 /**
@@ -18,13 +17,13 @@ import { BlogsFulfillmentStrategy } from './blogs/blogs-fulfillment.strategy';
  * decisión D4). The module never branches on "tier/tip"; it asks the
  * <c>FulfillmentContext</c>, which routes by `flow === 'blogs'`.
  *
- * A single shared <c>BlogsApiClient</c> instance backs every store so the
- * <c>degraded</c> flag (mock fallback) is read consistently across the shell.
+ * Los adaptadores de `@synergos/dominio/blogs` comparten un solo `BordeDeBlogs` (de la app entera, `providedIn:
+ * 'root'`), así el aviso de «datos de ejemplo» se lee igual en toda la red (012-blogs-social, I2). La fachada, en
+ * cambio, es de cada elemento: la provee el propio `<sg-blogs>`.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZonelessChangeDetection(),
-    BlogsApiClient,
     { provide: FULFILLMENT_STRATEGIES, useClass: BlogsFulfillmentStrategy, multi: true },
   ],
 };
