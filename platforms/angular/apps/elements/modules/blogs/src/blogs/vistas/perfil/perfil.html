@@ -1,0 +1,67 @@
+<!-- ═══ PROFILE ════════════════════════════════════════════════════════════ -->
+@if (red.loading() && !perfil.profile()) {
+  <syn-skeleton variant="card" [rows]="1" />
+} @else if (perfil.profile(); as author) {
+  <header class="blogs__profile">
+    <div class="blogs__profile-banner" aria-hidden="true"></div>
+    <div class="blogs__profile-head">
+      <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">{{ presentacion.initials(author) }}</span>
+      @if (author.actorKey !== red.viewer()?.actorKey) {
+        <div class="blogs__profile-actions">
+          <syn-button variant="ghost" (pressed)="mensajes.messageAuthor(author)">Mensaje</syn-button>
+          <syn-button [variant]="perfil.profileViewerFollows() ? 'outline' : 'solid'" [selected]="perfil.profileViewerFollows()"
+            (pressed)="seguidores.toggleFollow(author)">
+            {{ perfil.profileViewerFollows() ? 'Siguiendo' : 'Seguir' }}
+          </syn-button>
+        </div>
+      }
+    </div>
+    <h1 class="blogs__profile-name">
+      {{ author.displayName }}
+      @if (author.verified) {<span class="blogs__verified" aria-label="Cuenta verificada"><sg-blogs-verificada /></span>}
+    </h1>
+    <p class="blogs__profile-handle">&#64;{{ author.handle }}</p>
+    @if (author.bio) {<p class="blogs__profile-bio">{{ author.bio }}</p>}
+    <dl class="blogs__profile-stats">
+      <div><dt>Publicaciones</dt><dd>{{ presentacion.formatCount(author.postsCount) }}</dd></div>
+      <div><dt>Seguidores</dt><dd>{{ presentacion.formatCount(author.followersCount) }}</dd></div>
+      <div><dt>Siguiendo</dt><dd>{{ presentacion.formatCount(author.followingCount) }}</dd></div>
+    </dl>
+  </header>
+
+  <!-- Keyed by author so the primitive's internal selection resets when a
+       different profile loads (loadProfile resets profileTab to 'posts'). -->
+  @for (tabKey of [author.actorKey]; track tabKey) {
+    <syn-tabs
+      class="blogs__tabctl"
+      [tabs]="profileTabs"
+      [activeId]="perfil.profileTab()"
+      ariaLabel="Secciones del perfil"
+      (activeIdChange)="perfil.setProfileTab($any($event))"
+    />
+  }
+
+  @if (perfil.profileTab() === 'media') {
+    @if (perfil.profileMediaPosts().length === 0) {
+      <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
+    } @else {
+      <ul class="blogs__feed">
+        @for (post of perfil.profileMediaPosts(); track presentacion.trackPost($index, post)) {
+          <li><sg-blogs-tarjeta [publicacion]="post" /></li>
+        }
+      </ul>
+    }
+  } @else if (perfil.profileTab() === 'replies') {
+    <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
+  } @else {
+    @if (perfil.profilePosts().length === 0) {
+      <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
+    } @else {
+      <ul class="blogs__feed">
+        @for (post of perfil.profilePosts(); track presentacion.trackPost($index, post)) {
+          <li><sg-blogs-tarjeta [publicacion]="post" /></li>
+        }
+      </ul>
+    }
+  }
+}

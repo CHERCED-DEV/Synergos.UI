@@ -19,6 +19,15 @@
 //  - SH-12 `syn-cart-shell`       — el carrito: líneas, grupos, resumen y el reloj del apartado
 //  - SH-13 `syn-review-panel`    — prueba social: resumen, lista, captura verificada y reporte
 //  - SH-14 `syn-compare-table`   — comparar: eje por atributo, techo de selección y qué difiere
+//  - SH-15 `syn-comment-thread`  — el hilo: comentarios con respuestas, «me gusta» y responder
+
+// ─── SH-15 Hilo de comentarios ───────────────────────────────────────────────
+export {
+  CommentThreadComponent,
+  type CommentThreadConfig,
+  type CommentThreadDraftChange,
+  type CommentThreadEntry,
+} from './comments/comment-thread';
 
 // ─── SH-14 Comparar ──────────────────────────────────────────────────────────
 export {

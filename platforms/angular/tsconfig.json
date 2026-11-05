@@ -17,7 +17,8 @@
       "@synergos/shells": ["./libs/shells/src/index.ts"],
       "@synergos/shop": ["./libs/shop/src/index.ts"],
       "@synergos/dominio/tienda": ["./libs/dominio/tienda/src/index.ts"],
-      "@synergos/dominio/salud": ["./libs/dominio/salud/src/index.ts"]
+      "@synergos/dominio/salud": ["./libs/dominio/salud/src/index.ts"],
+      "@synergos/dominio/blogs": ["./libs/dominio/blogs/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

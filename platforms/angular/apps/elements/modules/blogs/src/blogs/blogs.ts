@@ -1,88 +1,62 @@
-import { NgTemplateOutlet } from '@angular/common';
 import {
   CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  type OnInit,
-  ElementRef,
+  ViewEncapsulation,
   computed,
-  effect,
   inject,
   input,
   output,
-  signal,
-  viewChild,
-  untracked,
+  type OnInit,
 } from '@angular/core';
+import type { BlogsProps } from '@synergos/contracts';
 import {
-  FulfillmentContext,
-  OrchestratorService,
-  SessionStore,
-  TransactionEventBusService,
-} from '@synergos/transaction-engine';
-import {
-  AccountShellComponent,
-  CheckoutWizardComponent,
-  AuthoringWizardComponent,
-  type AuthoringDraft,
-  type AuthoringWizardConfig,
-  ConsoleShellComponent,
-  DiscoveryShellComponent,
-  MessageCenterComponent,
-  type AccountShellConfig,
-  type CheckoutWizardConfig,
-  type CheckoutWizardResult,
-  type ConsoleColumn,
-  type ConsoleKpi,
-  type ConsoleRowAction,
-  type ConsoleRowActionEvent,
-  type ConsoleShellConfig,
-  type DiscoveryCriteria,
-  type DiscoveryFacet,
-  type DiscoverySortOption,
-  type MessageCenterConfig,
-} from '@synergos/shells';
+  ArticuloDeBlogs,
+  BordeDeBlogs,
+  CompositorDeBlogs,
+  EstudioDeBlogs,
+  ExplorarDeBlogs,
+  GuardadosDeBlogs,
+  InicioDeBlogs,
+  MensajesDeBlogs,
+  NotificacionesDeBlogs,
+  PerfilDeBlogs,
+  PublicacionDeBlogs,
+  ReaccionesDeBlogs,
+  RedDeBlogs,
+  SUSCRIPCION_ENCENDIDA,
+  SeguidoresDeBlogs,
+  SuscripcionDeBlogs,
+  TEXTOS_DE_BLOGS,
+  type BlogsView,
+  type BusDeBlogs,
+  type ReactionType,
+} from '@synergos/dominio/blogs';
 import {
   BadgeComponent,
   ButtonComponent,
-  InputComponent,
   LiveAnnouncerService,
-  LiveRegionComponent,
-  SynEmptyStateComponent,
-  SynSkeletonComponent,
-  TabsComponent,
-  TextareaComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
-import type { BlogsProps } from '@synergos/contracts';
-import { HostIdentityService } from '@synergos/core';
-import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
+import { OrchestratorService, SessionStore, TransactionEventBusService } from '@synergos/transaction-engine';
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
-import { mockViewer, reactionStateFor } from './blogs.mock';
-import {
-  type Author,
-  type BlogsView,
-  type Comment,
-  type CreatorTier,
-  type DirectMessage,
-  type FeedScope,
-  type MessageThread,
-  type Notification,
-  type Post,
-  type ReactionState,
-  type ReactionType,
-  type SearchResult,
-  type SearchTab,
-  type StudioPayload,
-  type StudioPostStat,
-  type StudioSection,
-  type TrendingTag,
-} from './blogs.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores, t } from '@synergos/vitals-core';
+import { NavegacionDeBlogs } from './estado/navegacion';
+import { INSTANCIA_DE_BLOGS, PresentacionDeBlogs } from './estado/presentacion';
+import { textosDeEstaRed } from './textos-de-blogs';
+import { BlogsEscribirComponent } from './vistas/escribir/escribir';
+import { BlogsEstudioComponent } from './vistas/estudio/estudio';
+import { BlogsExplorarComponent } from './vistas/explorar/explorar';
+import { BlogsGuardadosComponent } from './vistas/guardados/guardados';
+import { BlogsInicioComponent } from './vistas/inicio/inicio';
+import { BlogsMensajesComponent } from './vistas/mensajes/mensajes';
+import { BlogsNotificacionesComponent } from './vistas/notificaciones/notificaciones';
+import { BlogsPerfilComponent } from './vistas/perfil/perfil';
+import { BlogsPublicacionComponent } from './vistas/publicacion/publicacion';
+import { BlogsSuscripcionComponent } from './vistas/suscripcion/suscripcion';
 
 /**
  * Runtime config for the CMS element <c>elementSynBlogs</c>.
@@ -109,75 +83,14 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores,
  */
 export type BlogsConfig = Partial<BlogsProps>;
 
-/** Typed event map for the transaction bus (blogs ↔ monetización). */
-interface BlogsBus extends Record<string, unknown> {
-  readonly subscribed: { readonly creatorKey: string; readonly tierId: string };
-}
-
-/** Vistas que SÍ renderizan el panel `.blogs__signin`. En el resto, un 401 debe dejar
- *  su aviso en el canal global o el usuario no ve absolutamente nada. */
-const VISTAS_CON_PANEL: readonly string[] = ['notifications', 'messages', 'saved', 'studio'];
-
 const DEFAULT_SCOPE = 'blogs';
 
-/** El fallo del asistente de suscripción: el `pay` es local, así que nunca hubo cobro (UI#91). */
-const SUSCRIPCION_NO_PROCESADA = 'No pudimos procesar la suscripción. Intenta de nuevo.';
-
 const DEFAULT_VIEW: BlogsView = 'feed';
-// `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html:14),
+// `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html),
 // igual que `Explorar` o `Notificaciones` titulan las suyas. Es el fallback cuando el CMS
 // no compone nada; con CMS delante gana el texto del editor.
 const DEFAULT_HEADING = 'Inicio';
 const SESSION_TTL_MS = 30 * 60 * 1000;
-/** Quien lee sin perfil conocido: ni handle, ni cifras, ni el nombre de nadie (CMS#197). */
-const SIN_CIFRAS: Author = {
-  actorKey: '',
-  handle: '',
-  displayName: 'Tú',
-  bio: '',
-  avatarUrl: '',
-  bannerUrl: '',
-  verified: false,
-  followersCount: 0,
-  followingCount: 0,
-  postsCount: 0,
-};
-/** Login del CMS — mismo destino que usa Gobierno para el hueco de identidad. */
-const LOGIN_PATH = '/account/login';
-
-// Icons render as inline Lucide-style SVG in the template (@switch on `type`),
-// so no per-OS emoji glyph is baked here — only the semantic type + a11y label.
-const REACTION_META: readonly { type: ReactionType; label: string }[] = [
-  { type: 'like', label: 'Me gusta' },
-  { type: 'love', label: 'Me encanta' },
-  { type: 'celebrate', label: 'Celebrar' },
-  { type: 'insightful', label: 'Interesante' },
-];
-
-const SEARCH_SORT: readonly DiscoverySortOption[] = [
-  { key: 'top', label: 'Top' },
-  { key: 'recent', label: 'Recientes' },
-];
-
-const SEARCH_TABS: readonly { key: SearchTab; label: string }[] = [
-  { key: 'top', label: 'Top' },
-  { key: 'accounts', label: 'Cuentas' },
-  { key: 'posts', label: 'Publicaciones' },
-  { key: 'hashtags', label: 'Hashtags' },
-];
-
-/**
- * La suscripción y la propina, **declaradas y apagadas** (012-blogs-social, I0, P5 A). Su pago es local —el asistente
- * aceptaba con una referencia inventada— y no hay cobro real detrás, así que la pantalla no las ofrece: ni el estudio
- * enseña la monetización, ni `#/suscribir` abre el asistente. El código se queda (superset) para cuando la capacidad de
- * pagos cobre de verdad.
- */
-const SUSCRIPCION_ENCENDIDA = false;
-
-/** The addressable sections inside the SH-5 creator studio (order = sidebar). */
-const STUDIO_SECTIONS: readonly StudioSection[] = SUSCRIPCION_ENCENDIDA
-  ? ['overview', 'content', 'audience', 'monetization']
-  : ['overview', 'content', 'audience'];
 
 const VALID_VIEWS: readonly BlogsView[] = [
   'feed',
@@ -211,47 +124,90 @@ function coerceView(value: unknown): BlogsView | undefined {
 
 let blogsInstanceId = 0;
 
-/** Desde cuántos caracteres restantes el compositor avisa (una vez) de que quedan pocos. */
-const DRAFT_FEW_CHARS = 20;
-/** El mínimo del cuerpo de un artículo; es el mismo que pide `articleValid`. */
-const ARTICLE_MIN_BODY = 20;
-
+/**
+ * La red social como composición (012-blogs-social, I2, T015): el elemento lee su `config`, conecta la fachada de
+ * `@synergos/dominio/blogs` —un caso de uso por vista— y pinta el riel, los avisos, la vista en curso y las
+ * tendencias. Cada vista es su componente, como en la tienda (014): el inicio, la publicación con su hilo, el perfil,
+ * las notificaciones, Explorar, los mensajes, los guardados, escribir, el estudio y la suscripción.
+ */
 @Component({
   selector: 'sg-blogs',
   standalone: true,
   imports: [
-    NgTemplateOutlet,
-    DiscoveryShellComponent,
-    MessageCenterComponent,
-    AccountShellComponent,
-    ConsoleShellComponent,
-    AuthoringWizardComponent,
-    CheckoutWizardComponent,
-    TabsComponent,
-    SynSkeletonComponent,
-    SynEmptyStateComponent,
-    LiveRegionComponent,
-    // Los controles son los átomos del design system: ningún botón, campo ni área de texto a mano (012, I1).
-    ButtonComponent,
-    InputComponent,
-    TextareaComponent,
     BadgeComponent,
+    ButtonComponent,
+    BlogsInicioComponent,
+    BlogsPublicacionComponent,
+    BlogsPerfilComponent,
+    BlogsNotificacionesComponent,
+    BlogsExplorarComponent,
+    BlogsMensajesComponent,
+    BlogsGuardadosComponent,
+    BlogsEscribirComponent,
+    BlogsEstudioComponent,
+    BlogsSuscripcionComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // Embedded published custom elements (<synergos-avatar>, <synergos-comments-widget>,
-  // <synergos-notification-center>, <synergos-tag> …).
+  // Sin encapsulación (012-blogs-social, I2, como la tienda en 014): la hoja de la red pinta también las vistas y las
+  // piezas, que son sus componentes hijos. Sus clases van con el prefijo `blogs__` y su anfitrión con `.sg-blogs`.
+  encapsulation: ViewEncapsulation.None,
+  // Embedded published custom elements (<synergos-comments-widget>, <synergos-notification-center> …).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-blogs' },
+  // La fachada de la red, una por elemento: cada red de la página tiene su feed, su hilo y su bandeja. Los servicios de
+  // la app (la navegación por hash y la presentación) también, porque son de ESTA red.
+  providers: [
+    { provide: INSTANCIA_DE_BLOGS, useFactory: () => (blogsInstanceId += 1) },
+    { provide: TEXTOS_DE_BLOGS, useFactory: textosDeEstaRed },
+    RedDeBlogs,
+    InicioDeBlogs,
+    CompositorDeBlogs,
+    ArticuloDeBlogs,
+    PublicacionDeBlogs,
+    ReaccionesDeBlogs,
+    PerfilDeBlogs,
+    SeguidoresDeBlogs,
+    GuardadosDeBlogs,
+    NotificacionesDeBlogs,
+    ExplorarDeBlogs,
+    MensajesDeBlogs,
+    EstudioDeBlogs,
+    SuscripcionDeBlogs,
+    NavegacionDeBlogs,
+    PresentacionDeBlogs,
+  ],
 })
 export class BlogsElementComponent implements OnInit {
+  // Todas las fachadas se piden aquí, también las que el riel no lee: cada caso de uso del usuario se apunta al nacer
+  // para vaciarse cuando el servidor dice que no hay sesión (`alPerderLaSesion`), y uno que no naciera se quedaría
+  // con lo de antes en pantalla.
+  readonly red = inject(RedDeBlogs);
+  readonly inicio = inject(InicioDeBlogs);
+  readonly compositor = inject(CompositorDeBlogs);
+  readonly articulo = inject(ArticuloDeBlogs);
+  readonly publicacion = inject(PublicacionDeBlogs);
+  readonly reacciones = inject(ReaccionesDeBlogs);
+  readonly perfil = inject(PerfilDeBlogs);
+  readonly seguidores = inject(SeguidoresDeBlogs);
+  readonly guardados = inject(GuardadosDeBlogs);
+  readonly notificaciones = inject(NotificacionesDeBlogs);
+  readonly explorar = inject(ExplorarDeBlogs);
+  readonly mensajes = inject(MensajesDeBlogs);
+  readonly estudio = inject(EstudioDeBlogs);
+  readonly suscripcion = inject(SuscripcionDeBlogs);
+  readonly navegacion = inject(NavegacionDeBlogs);
+  readonly presentacion = inject(PresentacionDeBlogs);
+
+  /** El número de ESTA red en la página: el ámbito de su sesión y de su bus. */
+  readonly instanceId = this.presentacion.instancia;
+
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
-  readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
-  readonly #bus = inject<TransactionEventBusService<BlogsBus>>(TransactionEventBusService);
-  readonly #api = inject(BlogsApiClient);
+  readonly #bus = inject<TransactionEventBusService<BusDeBlogs>>(TransactionEventBusService);
+  readonly #borde = inject(BordeDeBlogs);
   /**
    * Región `aria-live` COMPARTIDA del design system. Reemplaza al `signal` + `<p role=status>`
    * de esta plantilla: una señal compara con `Object.is`, así que re-anunciar el MISMO texto
@@ -260,7 +216,6 @@ export class BlogsElementComponent implements OnInit {
    * un `setTimeout`, fuera del sistema de señales, que es lo único que fuerza la repetición.
    */
   readonly #announcer = inject(LiveAnnouncerService);
-  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<BlogsConfig | undefined, unknown>(undefined, {
@@ -290,43 +245,8 @@ export class BlogsElementComponent implements OnInit {
     return view === 'subscribe' && !SUSCRIPCION_ENCENDIDA ? DEFAULT_VIEW : view;
   });
 
-  /** Si se ofrece la suscripción (P5 A): apagada hasta que haya cobro real. La plantilla lo lee. */
+  /** Si se ofrece la suscripción (P5 A): apagada hasta que haya cobro real. */
   readonly suscripcionEncendida = SUSCRIPCION_ENCENDIDA;
-
-  readonly instanceId = (blogsInstanceId += 1);
-  readonly fieldId = `syn-blogs-${this.instanceId}`;
-  readonly reactionMeta = REACTION_META;
-  readonly searchTabs = SEARCH_TABS;
-  readonly searchSort = SEARCH_SORT;
-
-  /**
-   * Repeat counts for the loading skeletons. They mirror the typical first page of
-   * each list so the mould reserves the real footprint and the swap to data does not
-   * shift the layout (doc 24, patrón de `data-grid`). The bones themselves are
-   * `aria-hidden`; the announcement travels in a sibling `role="status"`.
-   */
-  readonly commentSkeletons = [0, 1, 2];
-  readonly notificationSkeletons = [0, 1, 2, 3, 4];
-
-  /**
-   * Content-tab descriptors fed to the shared `syn-tabs` primitive. We consume it as
-   * the accessible tablist only (roving tabindex + Arrow/Home/End + focus come for
-   * free); each view keeps its own rich content below, so `content` is intentionally
-   * empty and the primitive's own text panel is hidden in the SCSS.
-   */
-  readonly feedTabs: readonly { readonly id: FeedScope; readonly label: string; readonly content: string }[] = [
-    { id: 'foryou', label: 'Para ti', content: '' },
-    { id: 'following', label: 'Siguiendo', content: '' },
-  ];
-  readonly profileTabs: readonly { readonly id: 'posts' | 'replies' | 'media'; readonly label: string; readonly content: string }[] = [
-    { id: 'posts', label: 'Publicaciones', content: '' },
-    { id: 'replies', label: 'Respuestas', content: '' },
-    { id: 'media', label: 'Media', content: '' },
-  ];
-  readonly notificationTabs: readonly { readonly id: 'all' | 'mentions'; readonly label: string; readonly content: string }[] = [
-    { id: 'all', label: 'Todas', content: '' },
-    { id: 'mentions', label: 'Menciones', content: '' },
-  ];
 
   readonly heading = computed(() =>
     resolveConfigValue(
@@ -343,47 +263,6 @@ export class BlogsElementComponent implements OnInit {
     resolveConfigValue(coerceTrimmedStringInput(this.subheadingInput()), this.config()?.subheading, ''),
   );
 
-  /** La cara pública de quien lee, tal como la contesta `GET /me`; `null` hasta que contesta. */
-  readonly #yo = signal<Author | null>(null);
-
-  /**
-   * Quién lee: lo dice la SESIÓN del host (CMS#197), no el editor.
-   *
-   * Eran `viewerHandle`/`viewerName` (y un `user` que nadie leía), que sólo entraban por el JSON
-   * libre del editor y caían a la identidad de muestra «Tú · @tu»: con el CMS delante, cada
-   * lector se veía como el mismo demo y «Perfil» abría el de `tu`, que el servidor no tiene.
-   *
-   *  - **Sin host** (standalone, tests): la identidad de muestra, como siempre.
-   *  - **Con sesión**: el miembro, por su cara pública, la que contesta `GET /me` (012-blogs-social, I0). Su
-   *    `actorKey` es su llave pública, la misma que el servidor pone en lo que publica, así que «esto es tuyo» casa
-   *    con ella. **Nunca su correo**: hacía de llave y salía a la vista de cualquiera. Mientras `/me` no contesta, la
-   *    llave y el handle van vacíos, y lo que los necesita no se ofrece.
-   *  - **Con host y sin sesión**: `null`. No se inventa a nadie.
-   */
-  readonly viewer = computed<Author | null>(() => {
-    if (!this.#identity.hasHost()) {
-      return mockViewer();
-    }
-    const miembro = this.#identity.member();
-    if (!miembro) {
-      return null;
-    }
-    const yo = this.#yo();
-    return {
-      ...SIN_CIFRAS,
-      actorKey: yo?.actorKey ?? '',
-      handle: yo?.handle ?? '',
-      displayName: yo?.displayName || miembro.displayName,
-    };
-  });
-
-  /**
-   * El autor de lo que esta pantalla pinta en local antes de que vuelva el del servidor (un
-   * comentario, un mensaje, el avatar del compositor). Sin sesión, «Tú» sin cifras: el servidor contesta 401 y el
-   * borrador no se queda, pero lo que se ve entretanto no lleva el nombre de nadie.
-   */
-  readonly autorLocal = computed<Author>(() => this.viewer() ?? SIN_CIFRAS);
-
   // ─── Outputs (CustomEvents) ────────────────────────────────────────────────
   readonly postpublished = output<{ id: string }>();
   readonly postreacted = output<{ id: string; type: ReactionType; active: boolean }>();
@@ -393,493 +272,40 @@ export class BlogsElementComponent implements OnInit {
   readonly subscribed = output<{ creatorKey: string; tierId: string }>();
   readonly viewchanged = output<BlogsView>();
 
-  // ─── Shell / navigation state ───────────────────────────────────────────────
-  readonly view = signal<BlogsView>('feed');
-  readonly loading = signal(false);
-  readonly errorMessage = signal('');
-  readonly composerOpen = signal(false);
+  /** Multi-tab live-session notice (monetization cart). */
   readonly liveConflict = this.#store.liveSessionConflict;
-  #suppressedHash = '';
-
-  // ─── Social session (optimistic UI source of truth) ─────────────────────────
-  /** Actor keys the viewer follows. */
-  readonly following = signal<ReadonlySet<string>>(new Set());
-  /** Post ids the viewer bookmarked (guardados). */
-  readonly savedIds = signal<ReadonlySet<string>>(new Set());
-
-  // ─── Feed ────────────────────────────────────────────────────────────────────
-  readonly feedScope = signal<FeedScope>('foryou');
-  readonly posts = signal<readonly Post[]>([]);
-  readonly nextCursor = signal<string | null>(null);
-  readonly loadingMore = signal(false);
-  readonly feedLoaded = signal(false);
-
-  // ─── Composer (inline short post) ──────────────────────────────────────────────
-  readonly draftBody = signal('');
-  readonly draftMediaUrl = signal('');
-  readonly draftMediaAlt = signal('');
-  readonly publishing = signal(false);
-  readonly maxChars = 500;
-  readonly draftRemaining = computed(() => this.maxChars - this.draftBody().length);
-  /**
-   * Lo que el contador dice EN VOZ ALTA: sólo los hitos (#87). El contador era una región
-   * viva y hablaba en cada tecla —«487», «486», «485»…—, encima de lo que la persona
-   * escribe. Hoy el número se DESCRIBE (`aria-describedby` del campo, se oye al entrar) y
-   * se anuncian los umbrales: quedan pocos, y el límite. Es la regla 42(c) del reloj:
-   * la pregunta no es «¿tiene aria-live?» sino «¿cuántas veces habla mientras escribo?».
-   * Un `computed` de TEXTO: mientras la banda no cambia, la cadena es la misma y la
-   * fachada no vuelve a hablar.
-   */
-  readonly draftCountMilestone = computed(() => {
-    const quedan = this.draftRemaining();
-    if (quedan <= 0) return `Llegaste al límite de ${this.maxChars} caracteres.`;
-    if (quedan <= DRAFT_FEW_CHARS) return `Quedan ${DRAFT_FEW_CHARS} caracteres o menos.`;
-    return '';
-  });
-  readonly draftValid = computed(() => {
-    const len = this.draftBody().trim().length;
-    if (len < 1 || len > this.maxChars) {
-      return false;
-    }
-    // Media requires alt text (a11y gate).
-    return !this.draftMediaUrl().trim() || this.draftMediaAlt().trim().length > 0;
-  });
-
-  // ─── Long-form editor (`/write`) — SH-6 `syn-authoring-wizard` (#26) ────────────
-  //
-  // Las cuatro señales siguen siendo la fuente de verdad de la validez, y además
-  // son el ESPEJO del borrador persistente de SH-6: el wizard guarda en su propio
-  // `SessionStore` con scope y TTL de 24 h, así que un artículo a medias sobrevive
-  // a recargar la página — que es lo que el editor no tenía.
-  readonly articleTitle = signal('');
-  readonly articleBody = signal('');
-  readonly articleCover = signal('');
-  readonly articleCoverAlt = signal('');
-  /** El hito del cuerpo del artículo: llegar al mínimo, una vez por cruce (#87). */
-  readonly articleBodyMilestone = computed(() =>
-    this.articleBody().trim().length >= ARTICLE_MIN_BODY
-      ? 'El cuerpo ya tiene la extensión mínima: puedes continuar.'
-      : '',
-  );
-  readonly articleValid = computed(() => {
-    const titleOk = this.articleTitle().trim().length >= 3;
-    const bodyOk = this.articleBody().trim().length >= ARTICLE_MIN_BODY;
-    const coverOk = !this.articleCover().trim() || this.articleCoverAlt().trim().length > 0;
-    return titleOk && bodyOk && coverOk;
-  });
-  /** Se pudo escribir, pero el servidor no lo aceptó. El texto sigue en su sitio. */
-  readonly articleNotSaved = signal(false);
-
-  readonly articleWizard = viewChild(AuthoringWizardComponent);
-
-  readonly articleWizardConfig = computed<AuthoringWizardConfig>(() => ({
-    heading: 'Escribe un artículo',
-    steps: [
-      { id: 'contenido', label: 'Contenido' },
-      { id: 'portada', label: 'Portada' },
-      { id: 'revisar', label: 'Revisar' },
-    ],
-    stepsLabel: 'Pasos del artículo',
-    backLabel: 'Atrás',
-    nextLabel: 'Continuar',
-    publishLabel: 'Publicar artículo',
-    publishingLabel: 'Publicando…',
-    // Disjunto del carrito de suscripción a propósito: SH-6 usa el scope VERBATIM
-    // como llave de `localStorage`, y `startSubscribe` hace `reset()` — con el
-    // mismo scope, abrir la suscripción borraría el artículo a medias.
-    draftScope: `blogs-write.${this.instanceId}`,
-  }));
-
-  #articleSeeded = false;
-
-  /**
-   * Siembra el espejo desde el borrador rehidratado.
-   *
-   * **SH-6 NO emite `draftchange` al rehidratar** —sólo lo hace `patchDraft`—, así
-   * que sin esto el espejo arrancaría vacío tras recargar: el autor vería su texto
-   * restaurado en los campos (los `[value]` leen el draft del contexto) y el botón
-   * de continuar MUERTO, porque `validity` se calcula del espejo. Es el agujero que
-   * tienen los cuatro consumidores de SH-6.
-   */
-  private seedArticleMirror(): void {
-    if (this.#articleSeeded) {
-      return;
-    }
-    const draft = this.articleWizard()?.draft();
-    if (!draft || Object.keys(draft).length === 0) {
-      return;
-    }
-    this.#articleSeeded = true;
-    this.articleTitle.set(readDraftString(draft, 'title'));
-    this.articleBody.set(readDraftString(draft, 'body'));
-    this.articleCover.set(readDraftString(draft, 'coverUrl'));
-    this.articleCoverAlt.set(readDraftString(draft, 'coverAlt'));
-  }
-
-  /** Un campo del artículo (lo que emite su átomo): escribe el espejo Y el borrador persistente. */
-  onArticleField(
-    patch: (values: AuthoringDraft) => void,
-    field: 'title' | 'body' | 'coverUrl' | 'coverAlt',
-    value: string,
-  ): void {
-    this.articleNotSaved.set(false);
-    switch (field) {
-      case 'title':
-        this.articleTitle.set(value);
-        break;
-      case 'body':
-        this.articleBody.set(value);
-        break;
-      case 'coverUrl':
-        this.articleCover.set(value);
-        // Quitar la portada limpia su alt. Antes se quedaba rancio: el input vive
-        // dentro de un `@if` que lo OCULTA sin borrar la señal, así que el POST
-        // salía con `coverAlt` y sin `coverUrl`. En SH-6 sería peor, porque
-        // `patchDraft` sólo fusiona y nunca borra claves.
-        if (!value.trim()) {
-          this.articleCoverAlt.set('');
-          patch({ coverUrl: '', coverAlt: '' });
-          return;
-        }
-        break;
-      case 'coverAlt':
-        this.articleCoverAlt.set(value);
-        break;
-    }
-    patch({ [field]: value });
-  }
-
-  /** El autor volvió atrás desde el primer paso. */
-  onArticleExit(): void {
-    this.go('feed');
-  }
-
-  /**
-   * Validez por paso. Es `articleValid()` repartida, y las llaves tienen que
-   * coincidir con los ids de arriba: `validity` de SH-6 falla ABIERTO —una llave
-   * que no cuadra se lee como válida— así que un renombre silencioso quitaría el
-   * gating sin romper nada.
-   */
-  readonly articleValidity = computed<Readonly<Record<string, boolean>>>(() => ({
-    contenido:
-      this.articleTitle().trim().length >= 3 && this.articleBody().trim().length >= 20,
-    portada: !this.articleCover().trim() || this.articleCoverAlt().trim().length > 0,
-    revisar: this.articleValid(),
-  }));
-
-  // ─── Post detail / thread ─────────────────────────────────────────────────────
-  readonly activePost = signal<Post | null>(null);
-  readonly comments = signal<readonly Comment[]>([]);
-  readonly commentDraft = signal('');
-  /** Si un comentario va camino del servidor: no se manda otro encima. */
-  readonly commentSending = signal(false);
-  /** Lo que se le dice a quien comentó cuando su comentario quedó en revisión. */
-  readonly commentNotice = signal('');
-  readonly commentDrafts = signal<Readonly<Record<string, string>>>({});
-  readonly commentValid = computed(() => this.commentDraft().trim().length > 0);
-
-  // ─── Profile ───────────────────────────────────────────────────────────────────
-  readonly profile = signal<Author | null>(null);
-  readonly profilePosts = signal<readonly Post[]>([]);
-  readonly profileFollowing = signal(false);
-  readonly profileTab = signal<'posts' | 'replies' | 'media'>('posts');
-  readonly profileMediaPosts = computed(() =>
-    this.profilePosts().filter((post) => post.media.length > 0),
-  );
-  readonly profileViewerFollows = computed(() => {
-    const profile = this.profile();
-    return profile ? this.following().has(profile.actorKey) : false;
-  });
-
-  // ─── Notifications ─────────────────────────────────────────────────────────────
-  readonly notifications = signal<readonly Notification[]>([]);
-  readonly notificationsLoaded = signal(false);
-  readonly notificationFilter = signal<'all' | 'mentions'>('all');
-  readonly unreadCount = computed(
-    () => this.notifications().filter((notification) => !notification.read).length,
-  );
-  readonly filteredNotifications = computed(() => {
-    if (this.notificationFilter() === 'mentions') {
-      return this.notifications().filter((notification) => notification.verb === 'mention');
-    }
-    return this.notifications();
-  });
-
-  // ─── Explore / search / hashtag (SH-1) ────────────────────────────────────────────
-  readonly searchTerm = signal('');
-  readonly searchTag = signal('');
-  readonly searchResult = signal<SearchResult | null>(null);
-  readonly searchTab = signal<SearchTab>('top');
-  readonly searchCriteria = signal<DiscoveryCriteria>({ term: '', facets: {}, sort: 'top', page: 1 });
-  readonly trending = signal<readonly TrendingTag[]>([]);
-  readonly searching = signal(false);
-
-  /** SH-1 facets: the tab (top/accounts/posts/hashtags) + trending hashtags. */
-  readonly discoveryFacets = computed<readonly DiscoveryFacet[]>(() => [
-    {
-      key: 'tab',
-      // Una pestaña es una pestaña: marcar dos no tiene sentido, y el cliente ya
-      // se quedaba con la primera. Declararlo pinta radios en vez de casillas (#18).
-      kind: 'SingleSelect',
-      label: 'Mostrar',
-      values: SEARCH_TABS.map((tab) => ({ value: tab.key, label: tab.label })),
-    },
-    {
-      key: 'hashtag',
-      // La búsqueda por tendencia viaja de a una al backend.
-      kind: 'SingleSelect',
-      label: 'Tendencias',
-      values: this.trending().map((tag) => ({
-        value: tag.tag,
-        label: `#${tag.tag}`,
-        count: tag.postCount,
-      })),
-    },
-  ]);
-
-  /** The posts SH-1 renders as its result grid — derived from the active tab. */
-  readonly searchItems = computed<readonly Post[]>(() => {
-    const result = this.searchResult();
-    if (!result) {
-      return [];
-    }
-    return this.searchTab() === 'accounts' || this.searchTab() === 'hashtags' ? [] : result.posts;
-  });
-
-  // ─── DMs (SH-7 message-center) ────────────────────────────────────────────────
-  readonly threads = signal<readonly MessageThread[]>([]);
-  readonly activeThread = signal<MessageThread | null>(null);
-  readonly threadsLoaded = signal(false);
-  readonly sendingMessage = signal(false);
-  readonly inboxUnread = computed(() =>
-    this.threads().reduce((sum, thread) => sum + thread.unread, 0),
-  );
-
-  // ─── Guardados / listas (SH-4) ──────────────────────────────────────────────────
-  readonly savedPosts = signal<readonly Post[]>([]);
-  readonly savedLoaded = signal(false);
-  readonly savedSection = signal<'saved' | 'lists'>('saved');
-  /**
-   * Cola de persistencia POR POST: la siguiente llamada de un mismo post espera a que la
-   * anterior termine, para que el servidor las aplique en el orden en que se pulsaron.
-   * Ver {@link toggleSave}.
-   */
-  readonly #saveChains = new Map<string, Promise<void>>();
-  /** Última intención por post; una respuesta con token caducado no toca la UI. */
-  readonly #saveTokens = new Map<string, number>();
-  /** Último estado que el SERVIDOR confirmó por post. La vuelta atrás va aquí, no a la
-   *  foto optimista de pantalla. */
-  readonly #saveConfirmed = new Map<string, boolean>();
-
-  // ─── Creator studio (SH-5) ────────────────────────────────────────────────────
-  readonly studio = signal<StudioPayload | null>(null);
-  readonly studioLoaded = signal(false);
-  readonly studioSection = signal<StudioSection>('overview');
-
-  // ─── Monetization (SH-3 subscribe/tip over the engine) ─────────────────────────
-  readonly subscribeTier = signal<CreatorTier | null>(null);
-  readonly subscribeCreator = signal<Author | null>(null);
-  readonly confirmedMembership = signal<string>('');
-
-  // ─── Acceso (401/403) — estado, NO degradación ──────────────────────────────────
-  /**
-   * Acceso a lo que es DEL USUARIO: bandeja de mensajes, notificaciones, guardados y
-   * estudio. Un 401 en cualquiera de esas cuatro dice lo mismo —no hay sesión—, así que
-   * un solo estado las cubre y evita cuatro round-trips para recibir cuatro veces el
-   * mismo 401. NO es `degraded`: ahí no hay nada que degradar, hay que iniciar sesión.
-   */
-  readonly sessionAccess = signal<'ok' | 'anon'>('ok');
-  /**
-   * Acceso a la conversación ABIERTA (403 = el hilo es de otras dos personas). Es un
-   * estado del detalle, no de la sesión: la bandeja propia sigue siendo legítima y se
-   * mantiene a la vista; lo único que se cierra es el hilo ajeno. Solo se llega aquí por
-   * deep-link `#/…/mensajes/<id-ajeno>`.
-   */
-  readonly threadAccess = signal<'ok' | 'forbidden'>('ok');
-  /**
-   * Contenedor del panel "Inicia sesión". Las CUATRO superficies del usuario (mensajes,
-   * notificaciones, guardados, estudio) declaran la misma ref `#signinPanel`, pero cada una
-   * vive bajo un `view()` distinto y son mutuamente excluyentes: a lo sumo hay uno pintado,
-   * y la query resuelve a ese.
-   */
-  readonly signinPanel = viewChild<ElementRef<HTMLElement>>('signinPanel');
-  /**
-   * "Al usuario acaban de negarle algo; enfoca el panel en cuanto exista." Latch de una sola
-   * vez — no un `effect()` sobre `sessionAccess`, que correría en cada re-render con el panel
-   * puesto y le robaría el foco al usuario mientras tabula dentro del propio panel.
-   */
-  readonly #panelFocusPending = signal(false);
 
   // ─── Degradation flag (mock fallback surfaced to the shell) ─────────────────────
   readonly degraded = computed(() => {
     // Recompute whenever a fetch path could have flipped the flag.
-    void this.feedLoaded();
-    void this.view();
-    void this.activePost();
-    void this.profile();
-    void this.searchResult();
-    void this.notificationsLoaded();
-    void this.threadsLoaded();
-    void this.savedLoaded();
-    void this.studioLoaded();
-    return this.#api.degraded;
+    void this.inicio.feedLoaded();
+    void this.red.view();
+    void this.publicacion.activePost();
+    void this.perfil.profile();
+    void this.explorar.searchResult();
+    void this.notificaciones.notificationsLoaded();
+    void this.mensajes.threadsLoaded();
+    void this.guardados.savedLoaded();
+    void this.estudio.studioLoaded();
+    return this.#borde.degraded;
   });
-
-  // ─── Shell configs (SH-1/4/5/7/3) ─────────────────────────────────────────────
-  readonly searchConfig = computed(() => ({
-    searchPlaceholder: 'Busca personas, publicaciones o #hashtags',
-    searchButtonLabel: 'Buscar',
-    filtersHeading: 'Explorar',
-    clearLabel: 'Limpiar',
-    sortLabel: 'Ordenar',
-    layout: 'list' as const,
-    emptyMessage: 'No encontramos resultados. Prueba otro término o #hashtag.',
-    loadingMessage: 'Buscando…',
-    resultsNoun: { one: 'publicación', many: 'publicaciones' },
-    showSearch: true,
-  }));
-
-  readonly messageConfig: MessageCenterConfig = {
-    heading: 'Mensajes',
-    listLabel: 'Conversaciones',
-    emptyMessage: 'No tienes conversaciones todavía.',
-    loadingMessage: 'Cargando conversaciones…',
-    detailPlaceholder: 'Selecciona una conversación para ver el hilo.',
-    composerPlaceholder: 'Escribe un mensaje…',
-    sendLabel: 'Enviar',
-    sendingLabel: 'Enviando…',
-  };
-
-  readonly savedConfig = computed<AccountShellConfig>(() => ({
-    heading: 'Guardados',
-    navLabel: 'Secciones de guardados',
-    inboxEmptyMessage: 'Aún no has guardado publicaciones.',
-    inboxLoadingMessage: 'Cargando tus guardados…',
-    detailPlaceholder: 'Selecciona una publicación guardada para verla.',
-    sections: [
-      { id: 'saved', label: 'Guardados', kind: 'inbox', badge: this.savedPosts().length || undefined },
-      { id: 'lists', label: 'Listas' },
-    ],
-  }));
-
-  readonly studioConfig = computed<ConsoleShellConfig>(() => {
-    const studio = this.studio();
-    return {
-      heading: 'Creator Studio',
-      navLabel: 'Secciones del estudio',
-      kpisLabel: 'Indicadores del creador',
-      filtersLabel: 'Filtros',
-      actionsLabel: 'Acciones',
-      emptyMessage: 'No hay datos en esta sección.',
-      loadingMessage: 'Cargando analítica…',
-      sections: [
-        { id: 'overview', label: 'Resumen', kind: 'custom' },
-        { id: 'content', label: 'Contenido', kind: 'table', badge: studio?.topPosts.length || undefined },
-        { id: 'audience', label: 'Audiencia', kind: 'custom' },
-        // La suscripción está apagada (P5 A): sin ella, la monetización no se ofrece.
-        ...(SUSCRIPCION_ENCENDIDA
-          ? [{ id: 'monetization', label: 'Monetización', kind: 'custom' as const, badge: studio?.tiers.length || undefined }]
-          : []),
-      ],
-    };
-  });
-
-  readonly studioKpis = computed<readonly ConsoleKpi[]>(() => {
-    const studio = this.studio();
-    if (!studio) {
-      return [];
-    }
-    return [
-      {
-        id: 'followers',
-        label: 'Seguidores',
-        value: this.formatCount(studio.followers),
-        trend: studio.followersDelta >= 0 ? 'up' : 'down',
-        delta: `${studio.followersDelta >= 0 ? '+' : ''}${this.formatCount(studio.followersDelta)}`,
-      },
-      {
-        id: 'reach',
-        label: 'Alcance (30 d)',
-        value: this.formatCount(studio.reach),
-        trend: studio.reachDelta >= 0 ? 'up' : 'down',
-        delta: `${studio.reachDelta >= 0 ? '+' : ''}${this.formatCount(studio.reachDelta)}`,
-      },
-      {
-        id: 'engagement',
-        label: 'Engagement',
-        value: `${studio.engagementRate.toFixed(1)}%`,
-        hint: 'reacciones + comentarios / alcance',
-      },
-      // Ingresos y suscriptores son de la suscripción, que está apagada (P5 A): un «$ 0» no es un dato, es la
-      // promesa de algo que no hay.
-      ...(SUSCRIPCION_ENCENDIDA
-        ? [
-            {
-              id: 'revenue',
-              label: 'Ingresos del mes',
-              value: this.formatMinor(studio.monthlyRevenueMinor, studio.currency),
-              hint: `${this.subscriberTotal()} suscriptores`,
-            },
-          ]
-        : []),
-    ];
-  });
-
-  readonly subscriberTotal = computed(() =>
-    (this.studio()?.tiers ?? []).reduce((sum, tier) => sum + tier.subscribers, 0),
-  );
-
-  readonly studioColumns: readonly ConsoleColumn[] = [
-    { key: 'excerpt', label: 'Publicación' },
-    { key: 'impressions', label: 'Impresiones', align: 'end' },
-    { key: 'engagements', label: 'Interacciones', align: 'end' },
-    { key: 'reactions', label: 'Reacciones', align: 'end' },
-    { key: 'comments', label: 'Comentarios', align: 'end' },
-  ];
-
-  readonly studioActions: readonly ConsoleRowAction[] = [{ id: 'open', label: 'Ver', kind: 'default' }];
-
-  readonly studioRows = computed<readonly StudioPostStat[]>(() => this.studio()?.topPosts ?? []);
-
-  readonly audienceMax = computed(() => {
-    const points = this.studio()?.audience ?? [];
-    return points.reduce((max, point) => Math.max(max, point.value), 1);
-  });
-
-  // ─── Subscribe checkout (SH-3 over engine — monetización) ──────────────────────
-  readonly subscribeConfig: CheckoutWizardConfig = {
-    steps: [
-      { id: 'plan', label: 'Plan' },
-      { id: 'pago', label: 'Pago' },
-      { id: 'revisar', label: 'Confirmar' },
-    ],
-    stepsLabel: 'Pasos de la suscripción',
-    summaryHeading: 'Tu membresía',
-    submitLabel: 'Suscribirme',
-    processingLabel: 'Procesando…',
-    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `SUB-…` del `pay` es local y no
-    // es un cobro.
-    payFailedMessage: SUSCRIPCION_NO_PROCESADA,
-    confirmFailedMessage: SUSCRIPCION_NO_PROCESADA,
-    nextLabel: 'Continuar',
-    backLabel: 'Atrás',
-    totalLabel: 'Total mensual',
-  };
-
-  readonly subscribeValidity = computed<Readonly<Record<string, boolean>>>(() => ({
-    plan: this.subscribeTier() !== null,
-    pago: true,
-    revisar: this.subscribeTier() !== null,
-  }));
-
-  readonly subscribeInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
-    provider: 'blogs-subscription',
-    creatorKey: this.subscribeCreator()?.actorKey ?? '',
-    tierId: this.subscribeTier()?.id ?? '',
-  }));
 
   constructor() {
-    this.feedScope.set('foryou');
+    this.navegacion.alCambiarDeVista = (view) => this.viewchanged.emit(view);
+    this.red.conectar({
+      apiBase: this.apiBase,
+      scope: this.scope,
+      navegacion: this.navegacion,
+      eventos: {
+        postpublished: (evento) => this.postpublished.emit(evento),
+        postreacted: (evento) => this.postreacted.emit(evento),
+        authorfollowed: (evento) => this.authorfollowed.emit(evento),
+        messagesent: (evento) => this.messagesent.emit(evento),
+        articlepublished: (evento) => this.articlepublished.emit(evento),
+        subscribed: (evento) => this.subscribed.emit(evento),
+      },
+      anunciar: (mensaje) => this.#announcer.announce(mensaje),
+    });
 
     // Bind the unified session (subscription cart) to this origin and rehydrate.
     this.#store.init({
@@ -889,55 +315,15 @@ export class BlogsElementComponent implements OnInit {
     });
     this.#bus.scope(`blogs-${this.instanceId}`);
 
-    // Siembra el espejo del artículo en cuanto el wizard existe. Corre en un
-    // effect porque `viewChild` se resuelve después del primer render y el
-    // borrador rehidratado no avisa por sí solo (SH-6 no emite `draftchange` al
-    // rehidratar): sin esto, tras recargar el autor vería su texto y el botón de
-    // continuar muerto.
-    effect(() => {
-      // Depende del BORRADOR, no sólo de que el wizard exista: la rehidratación
-      // de SH-6 corre en su propio effect y el orden entre los dos no está
-      // garantizado, así que mirar sólo `articleWizard()` podía leer el borrador
-      // antes de que se llenara. Comprobado: sin esta dependencia el caso de la
-      // siembra pasa en verde con la siembra quitada.
-      const draft = this.articleWizard()?.draft();
-      if (draft && Object.keys(draft).length > 0) {
-        untracked(() => this.seedArticleMirror());
-      }
-    });
-
     const widget = this.#orchestrator.register('blogs-feed', { order: 0 });
     this.#orchestrator.setStatus(widget, 'ready');
 
-    // Hash router: deep-linkable views (#/<scope>/post/<id>, #/<scope>/mensajes…).
-    const onHashChange = (): void => this.applyHash();
-    if (typeof window !== 'undefined') {
-      window.addEventListener('hashchange', onHashChange);
-    }
+    // Hash router: deep-linkable views (#/<scope>/post/<id>, #/<scope>/mensajes…). La escucha es de la navegación.
+    this.navegacion.escucharElHash(this.#destroyRef);
 
     this.#destroyRef.onDestroy(() => {
       this.#orchestrator.unregister(widget);
       this.#bus.destroy();
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('hashchange', onHashChange);
-      }
-    });
-
-    // WCAG 2.4.3 (Focus Order). El panel de acceso está tras un `@if`, así que cuando
-    // `handleUnauthenticated` pide el foco el <div> todavía no existe. Este effect es el
-    // punto de reunión de las dos señales: corre al encenderse el latch y otra vez cuando la
-    // query resuelve al elemento recién pintado. El latch se apaga al enfocar, así que los
-    // re-renders posteriores entran y salen por el early-return sin tocar el foco.
-    effect(() => {
-      const panel = this.signinPanel();
-      if (!this.#panelFocusPending() || !panel) {
-        return;
-      }
-      this.#panelFocusPending.set(false);
-      // El CONTENEDOR, no el botón "Iniciar sesión": así el lector lee el título y el texto
-      // (el porqué) ANTES que las acciones. De ahí el `tabindex="-1"` del markup, que lo hace
-      // enfocable por código sin meterlo en el orden de tabulación.
-      panel.nativeElement.focus();
     });
   }
 
@@ -949,1345 +335,10 @@ export class BlogsElementComponent implements OnInit {
    * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
    */
   ngOnInit(): void {
-    this.view.set(this.initialView());
-    void this.loadFeed();
-    void this.loadTrending();
-    void this.loadYo();
-    this.applyHash();
+    this.red.view.set(this.initialView());
+    void this.inicio.loadFeed();
+    void this.explorar.loadTrending();
+    void this.red.loadYo();
+    this.navegacion.applyHash();
   }
-
-  /** La cara pública de quien lee, si hay sesión en el host. Sin ella no hay a quién preguntar. */
-  private async loadYo(): Promise<void> {
-    if (!this.#identity.hasHost() || !this.#identity.member()) {
-      return;
-    }
-    this.#yo.set(await this.#api.me(this.apiBase()));
-  }
-
-  /**
-   * Pide mover el foco al panel de acceso. Se llama SOLO desde el traductor del 401, es
-   * decir cuando la negativa es consecuencia de una acción del usuario — nunca desde un
-   * effect de render.
-   */
-  private requestAccessPanelFocus(): void {
-    this.#panelFocusPending.set(true);
-  }
-
-
-  // ─── Navigation (signals + hash deep-links) ──────────────────────────────────
-  go(view: BlogsView): void {
-    this.applyRoute(view, '');
-    this.writeHash(view, '');
-  }
-
-  private applyRoute(view: BlogsView, param: string): void {
-    this.view.set(view);
-    this.errorMessage.set('');
-    this.viewchanged.emit(view);
-    switch (view) {
-      case 'notifications':
-        if (!this.notificationsLoaded()) {
-          void this.loadNotifications();
-        }
-        return;
-      case 'search':
-        if (!this.searchResult()) {
-          void this.runSearch();
-        }
-        return;
-      case 'messages':
-        if (!this.threadsLoaded()) {
-          void this.loadThreads();
-        }
-        if (param) {
-          void this.openThread(param);
-        } else {
-          // Entrar a la bandeja sin hilo: el veredicto del 403 anterior ya no aplica a
-          // nada abierto, y dejarlo pintado sería un reproche colgado sin conversación.
-          this.threadAccess.set('ok');
-        }
-        return;
-      case 'saved':
-        if (!this.savedLoaded()) {
-          void this.loadSaved();
-        }
-        return;
-      case 'studio':
-        if (!this.studioLoaded()) {
-          void this.loadStudio();
-        }
-        return;
-      case 'profile':
-        if (param) {
-          void this.loadProfile(param);
-        }
-        return;
-      case 'post':
-        if (param) {
-          void this.loadPost(param);
-        }
-        return;
-      default:
-        return;
-    }
-  }
-
-  private routeHash(view: BlogsView, param: string): string {
-    const base = baseDeRuta(this.scope());
-    switch (view) {
-      case 'feed':
-        return base;
-      case 'post':
-        return `${base}/post/${encodeURIComponent(param)}`;
-      case 'profile':
-        return `${base}/@${encodeURIComponent(param)}`;
-      case 'notifications':
-        return `${base}/notificaciones`;
-      case 'search':
-        return `${base}/explorar`;
-      case 'messages':
-        return `${base}/mensajes${param ? `/${encodeURIComponent(param)}` : ''}`;
-      case 'saved':
-        return `${base}/guardados`;
-      case 'write':
-        return `${base}/escribir`;
-      case 'studio':
-        return `${base}/studio`;
-      case 'subscribe':
-        return `${base}/suscribir`;
-      default:
-        return base;
-    }
-  }
-
-  private writeHash(view: BlogsView, param: string): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const hash = this.routeHash(view, param);
-    if (!mismaRuta(window.location.hash, hash)) {
-      this.#suppressedHash = hash;
-      window.location.hash = hash;
-    }
-  }
-
-  private applyHash(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const hash = window.location.hash;
-    if (mismaRuta(hash, this.#suppressedHash)) {
-      this.#suppressedHash = '';
-      return;
-    }
-    const segments = segmentosDeRuta(hash, this.scope());
-    if (!segments) {
-      return;
-    }
-    const [head = '', tail = ''] = segments;
-    switch (head) {
-      case '':
-        this.applyRoute('feed', '');
-        return;
-      case 'post':
-        this.applyRoute('post', tail);
-        return;
-      case 'notificaciones':
-        this.applyRoute('notifications', '');
-        return;
-      case 'explorar':
-        this.applyRoute('search', '');
-        return;
-      case 'mensajes':
-        this.applyRoute('messages', tail);
-        return;
-      case 'guardados':
-        this.applyRoute('saved', '');
-        return;
-      case 'escribir':
-        this.applyRoute('write', '');
-        return;
-      case 'studio':
-        this.applyRoute('studio', '');
-        return;
-      case 'suscribir':
-        // Apagada (P5 A): el enlace lleva al inicio en vez de abrir un pago que no cobra.
-        this.applyRoute(SUSCRIPCION_ENCENDIDA ? 'subscribe' : 'feed', '');
-        return;
-      default:
-        if (head.startsWith('@')) {
-          this.applyRoute('profile', head.slice(1));
-          return;
-        }
-        this.applyRoute('feed', '');
-    }
-  }
-
-  // ─── Feed ──────────────────────────────────────────────────────────────────────
-  setFeedScope(scope: FeedScope): void {
-    if (this.feedScope() === scope) {
-      return;
-    }
-    this.feedScope.set(scope);
-    void this.loadFeed();
-  }
-
-  private async loadFeed(): Promise<void> {
-    this.loading.set(true);
-    this.errorMessage.set('');
-    try {
-      const page = await this.#orchestrator.callApi(`feed:${this.feedScope()}`, () =>
-        this.#api.feed(this.apiBase(), this.feedScope(), null),
-      );
-      this.posts.set(page.posts);
-      this.nextCursor.set(page.nextCursor);
-      this.feedLoaded.set(true);
-      this.seedFollowingFromPosts(page.posts);
-    } catch (error) {
-      this.errorMessage.set('No pudimos cargar el feed. Intenta de nuevo.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  async loadMore(): Promise<void> {
-    const cursor = this.nextCursor();
-    if (!cursor || this.loadingMore()) {
-      return;
-    }
-    this.loadingMore.set(true);
-    try {
-      const page = await this.#api.feed(this.apiBase(), this.feedScope(), cursor);
-      this.posts.update((current) => [...current, ...page.posts]);
-      this.nextCursor.set(page.nextCursor);
-    } catch (error) {
-      void error;
-    } finally {
-      this.loadingMore.set(false);
-    }
-  }
-
-  refreshFeed(): void {
-    void this.loadFeed();
-  }
-
-  // ─── Composer (inline short post) ───────────────────────────────────────────────
-  toggleComposer(): void {
-    this.composerOpen.update((open) => !open);
-  }
-
-  publish(): void {
-    if (!this.draftValid() || this.publishing()) {
-      return;
-    }
-    this.publishing.set(true);
-    const draft = {
-      body: this.draftBody().trim(),
-      mediaUrl: this.draftMediaUrl().trim() || undefined,
-      mediaAlt: this.draftMediaAlt().trim() || undefined,
-    };
-    this.#api
-      .publish(this.apiBase(), draft, this.autorLocal())
-      .then(({ post, persisted }) => {
-        // Mismo criterio que el artículo (#26): un post que el servidor no aceptó
-        // no se mete en el feed ni vacía el compositor.
-        if (!persisted) {
-          this.errorMessage.set('No pudimos publicar. Tu texto sigue acá — intenta de nuevo.');
-          return;
-        }
-        // Optimistic insert at the top of the feed.
-        this.posts.update((current) => [post, ...current]);
-        this.draftBody.set('');
-        this.draftMediaUrl.set('');
-        this.draftMediaAlt.set('');
-        this.composerOpen.set(false);
-        this.go('feed');
-        this.postpublished.emit({ id: post.id });
-      })
-      .catch((error: unknown) => {
-        this.errorMessage.set('No pudimos publicar. Intenta de nuevo.');
-        void error;
-      })
-      .finally(() => this.publishing.set(false));
-  }
-
-  // ─── Long-form editor (`/write`) ────────────────────────────────────────────────
-  /**
-   * Publica el artículo, y **no da por publicado lo que el servidor no aceptó** (#26).
-   *
-   * Antes vaciaba los cuatro campos, mandaba al feed y emitía `articlepublished`
-   * dentro del `.then()`, contra un cliente que atrapaba TODOS los errores y
-   * devolvía un artículo fabricado en local: con el backend caído o sin sesión, el
-   * texto se BORRABA y se enseñaba la pantalla de publicado con un id inventado.
-   * El `.catch` de abajo era código muerto para cualquier fallo de la API.
-   *
-   * La guarda de la primera línea es sincrónica a propósito —`publishing.set(true)`
-   * corre en el mismo tick— así que el doble clic no publica dos veces. Los cuatro
-   * consumidores de SH-6 no tienen esta guarda; acá ya estaba y se conserva.
-   */
-  publishArticle(): void {
-    if (!this.articleValid() || this.publishing()) {
-      return;
-    }
-    this.publishing.set(true);
-    this.articleNotSaved.set(false);
-    const draft = {
-      title: this.articleTitle().trim(),
-      body: this.articleBody().trim(),
-      coverUrl: this.articleCover().trim() || undefined,
-      coverAlt: this.articleCoverAlt().trim() || undefined,
-    };
-    this.#api
-      .publishArticle(this.apiBase(), draft, this.autorLocal())
-      .then(({ post, persisted }) => {
-        if (!persisted) {
-          // Nada de esto ocurre: no se mete en el feed, no se limpia el borrador y
-          // no se le cuenta al CMS. Lo único que cambia es que se dice.
-          this.articleNotSaved.set(true);
-          return;
-        }
-        this.posts.update((current) => [post, ...current]);
-        this.articleTitle.set('');
-        this.articleBody.set('');
-        this.articleCover.set('');
-        this.articleCoverAlt.set('');
-        // El borrador persistente se tira con el artículo ya guardado, no antes.
-        // `resetDraft()` no emite `draftchange`, así que el espejo se limpia acá.
-        this.articleWizard()?.resetDraft();
-        this.#articleSeeded = false;
-        this.go('feed');
-        this.articlepublished.emit({ id: post.id });
-        this.postpublished.emit({ id: post.id });
-      })
-      .catch((error: unknown) => {
-        this.errorMessage.set('No pudimos publicar el artículo. Intenta de nuevo.');
-        void error;
-      })
-      .finally(() => this.publishing.set(false));
-  }
-
-  // ─── Reactions (optimistic, idempotent toggle) ──────────────────────────────────
-  react(post: Post, type: ReactionType): void {
-    const optimistic = toggleReaction(post.reactions, type);
-    this.patchPost(post.id, (current) => ({ ...current, reactions: optimistic }));
-
-    this.#api
-      .react(this.apiBase(), post.id, type)
-      .then((reactions) => {
-        this.patchPost(post.id, (current) => ({ ...current, reactions }));
-        // Se anuncia lo que el SERVIDOR guardó, no lo que se pintó (UI#92): antes salía
-        // antes de la respuesta, y un fallo dejaba al host creyendo en una reacción que no
-        // existía.
-        this.postreacted.emit({ id: post.id, type, active: reactions.mine === type });
-      })
-      .catch((error: unknown) => {
-        // Antes el cliente devolvía el optimista cuando el `POST` no llegaba, así que este
-        // `catch` no corría nunca: la reacción se quedaba pintada sin estar guardada.
-        this.patchPost(post.id, (current) => ({ ...current, reactions: post.reactions }));
-        this.errorMessage.set('No pudimos guardar tu reacción. Intenta de nuevo.');
-        void error;
-      });
-  }
-
-  reactionCount(post: Post, type: ReactionType): number {
-    return post.reactions.counts.find((entry) => entry.type === type)?.count ?? 0;
-  }
-
-  isReacted(post: Post, type: ReactionType): boolean {
-    return post.reactions.mine === type;
-  }
-
-  toggleRepost(post: Post): void {
-    const reposted = !post.reposted;
-    this.patchPost(post.id, (current) => ({
-      ...current,
-      reposted,
-      repostCount: Math.max(0, current.repostCount + (reposted ? 1 : -1)),
-    }));
-  }
-
-  // ─── Bookmark (guardados) ────────────────────────────────────────────────────────
-  isSaved(id: string): boolean {
-    return this.savedIds().has(id);
-  }
-
-  /**
-   * Marcador optimista CON vuelta atrás: se pinta, se persiste y, si el servidor dice que
-   * no, se deshace y se dice. Antes solo se pintaba — el post "guardado" desaparecía al
-   * recargar porque nunca salió una petición.
-   *
-   * Las dos señales se mueven SIEMPRE juntas (`savedIds` manda el icono, `savedPosts` la
-   * lista y el badge del nav): deshacer una sola dejaría el marcador encendido sobre una
-   * lista que ya no lo contiene, que es peor que la mentira original.
-   */
-  toggleSave(post: Post): void {
-    const saved = !this.savedIds().has(post.id);
-
-    // Foto EXACTA de lo que habría que deshacer. El índice importa: la lista de guardados
-    // llega ORDENADA del servidor, y reinsertar al frente tras un fallo dejaría el post en
-    // una posición donde nunca estuvo — "revertir" tiene que devolverlo a su sitio, no al
-    // primero. Se guarda la entrada que ya estaba (la de la lista, más rica que la del
-    // feed), no el `post` que llega por parámetro.
-    // ⚠️ La foto se toma del estado CONFIRMADO por el servidor, no del que hay en
-    // pantalla. El de pantalla puede llevar pintado lo que una pulsación anterior aún no
-    // ha persistido, y entonces "revertir" restauraba un estado que el servidor NUNCA
-    // tuvo — el defecto original reintroducido por el camino de vuelta atrás: marcador
-    // encendido, nada guardado, se pierde al recargar. Medido en las dos direcciones con
-    // doble pulsación y el backend caído.
-    const confirmado = this.#saveConfirmed.get(post.id);
-    const previousIndex = this.savedPosts().findIndex((entry) => entry.id === post.id);
-    const previousEntry = previousIndex >= 0 ? this.savedPosts()[previousIndex] : post;
-    const estadoPrevio = confirmado ?? previousIndex >= 0;
-
-    this.applySaved(post, saved);
-
-    // Token = la ÚLTIMA intención del usuario para ESTE post. Una respuesta cuyo token ya
-    // caducó no toca la UI: el usuario volvió a pulsar y esa pulsación es la dueña.
-    const token = (this.#saveTokens.get(post.id) ?? 0) + 1;
-    this.#saveTokens.set(post.id, token);
-
-    // Y la cola SERIALIZA por post: la petición N+1 no sale hasta que la N termina, así el
-    // servidor las aplica en el orden en que se pulsaron. Sin esto, un doble clic rápido
-    // puede llegar cruzado y el servidor queda guardando lo que el usuario acababa de
-    // quitar. Posts distintos = colas distintas: marcar dos seguidos sigue yendo en
-    // paralelo, no se estorban.
-    const previousCall = this.#saveChains.get(post.id) ?? Promise.resolve();
-    const chain = previousCall
-      // El fallo del anterior ya lo trató su propio `catch`; no debe romper la cola.
-      .catch(() => undefined)
-      .then(() => this.#api.setSaved(this.apiBase(), post.id, saved))
-      // El servidor lo aceptó: ESTE es el estado al que hay que volver si una pulsación
-      // posterior falla. Sin anotarlo, la vuelta atrás usaba la foto de pantalla, que
-      // puede llevar pintado algo que nadie ha persistido.
-      .then(() => {
-        this.#saveConfirmed.set(post.id, saved);
-      })
-      .catch((error: unknown) => {
-        if (this.#saveTokens.get(post.id) !== token) {
-          // Llegó tarde. Revertir aquí pelearía contra la pulsación más reciente, que ya
-          // pintó lo suyo y tiene su propia petición en la cola.
-          return;
-        }
-        // Un 401 no es "falló la red": es que no hay sesión. El panel de "Inicia sesión"
-        // que la app ya tiene vacía TODO lo personal (incluidos los guardados), así que el
-        // marcador optimista se va con ello — la reversión está incluida. Y anuncia por su
-        // cuenta: escribir además `errorMessage` metería un segundo aviso contradictorio.
-        const invitacion = saved
-          ? 'Inicia sesión para guardar este post.'
-          : 'Inicia sesión para gestionar tus guardados.';
-        if (this.handleUnauthenticated(error, invitacion)) {
-          // ⚠️ `handleUnauthenticated` enciende el panel "Inicia sesión", PERO ese panel
-          // solo se pinta dentro de las cuatro vistas personales (notificaciones,
-          // mensajes, guardados, estudio). El botón de guardar vive en la TARJETA DE
-          // POST, o sea en el feed — donde no hay panel. Sin esto, quien pulsa desde el
-          // feed ve el marcador encenderse, apagarse, y NADA más: la acción vuelve a
-          // mentir, ahora por omisión, y solo se entera quien usa lector de pantalla.
-          // Así que en las vistas sin panel la invitación se pinta en el aviso global,
-          // que ya existe y es `role="alert"`.
-          if (!VISTAS_CON_PANEL.includes(this.view())) {
-            this.errorMessage.set(invitacion);
-          }
-          return;
-        }
-        this.applySaved(previousEntry, estadoPrevio, previousIndex);
-        // Un único canal: `errorMessage` ya se pinta en un `role="alert"` vivo, que el
-        // lector anuncia solo. Llamar además a `announce()` lo diría dos veces.
-        this.errorMessage.set(
-          saved
-            ? 'No pudimos guardar el post. Intenta de nuevo.'
-            : 'No pudimos quitarlo de guardados. Intenta de nuevo.',
-        );
-      });
-
-    this.#saveChains.set(post.id, chain);
-    void chain.then(() => {
-      // Si nadie encadenó detrás, este post está quieto: se sueltan sus entradas para que
-      // los mapas no crezcan con cada post que el usuario toca en una sesión larga.
-      if (this.#saveChains.get(post.id) === chain) {
-        this.#saveChains.delete(post.id);
-        this.#saveTokens.delete(post.id);
-      }
-    });
-  }
-
-  /**
-   * Mueve las DOS señales del marcador a la vez. `at` solo se usa al revertir un
-   * "quitar": reinserta la entrada en el índice del que salió.
-   */
-  private applySaved(post: Post, saved: boolean, at?: number): void {
-    this.savedIds.update((current) => {
-      const next = new Set(current);
-      if (saved) {
-        next.add(post.id);
-      } else {
-        next.delete(post.id);
-      }
-      return next;
-    });
-    this.savedPosts.update((current) => {
-      if (!saved) {
-        return current.filter((entry) => entry.id !== post.id);
-      }
-      if (current.some((entry) => entry.id === post.id)) {
-        return current;
-      }
-      // Se inserta sobre la lista ACTUAL, no sobre una copia congelada al pulsar: así una
-      // reacción o un patch que hayan llegado entretanto sobreviven a la reversión.
-      const next = [...current];
-      next.splice(Math.min(Math.max(at ?? 0, 0), next.length), 0, post);
-      return next;
-    });
-  }
-
-  // ─── Follow (optimistic toggle + count recalc) ──────────────────────────────────
-  toggleFollow(author: Author): void {
-    const isFollowing = this.following().has(author.actorKey);
-    const next = !isFollowing;
-    const profileBefore = this.profile()?.actorKey === author.actorKey ? this.profile() : null;
-    this.setFollowing(author.actorKey, next);
-
-    if (profileBefore) {
-      this.profile.update((current) =>
-        current
-          ? { ...current, followersCount: Math.max(0, current.followersCount + (next ? 1 : -1)) }
-          : current,
-      );
-      this.profileFollowing.set(next);
-    }
-
-    this.#api
-      .follow(this.apiBase(), author.actorKey)
-      .then((confirmed) => {
-        if (confirmed !== next) {
-          this.setFollowing(author.actorKey, confirmed);
-          if (this.profile()?.actorKey === author.actorKey) {
-            this.profileFollowing.set(confirmed);
-          }
-        }
-        // Se anuncia lo que el SERVIDOR dejó (UI#92), no lo que se pintó.
-        this.authorfollowed.emit({ actorKey: author.actorKey, following: confirmed });
-      })
-      .catch((error: unknown) => {
-        // No se guardó (UI#92): el botón y el contador vuelven a como estaban, y se dice.
-        // Antes el cliente devolvía `next` como si el servidor lo hubiera confirmado.
-        this.setFollowing(author.actorKey, isFollowing);
-        if (profileBefore && this.profile()?.actorKey === author.actorKey) {
-          this.profile.update((current) =>
-            current ? { ...current, followersCount: profileBefore.followersCount } : current,
-          );
-          this.profileFollowing.set(isFollowing);
-        }
-        this.errorMessage.set('No pudimos actualizar a quién sigues. Intenta de nuevo.');
-        void error;
-      });
-  }
-
-  isFollowing(actorKey: string): boolean {
-    return this.following().has(actorKey);
-  }
-
-  // ─── Post detail / thread ───────────────────────────────────────────────────────
-  openPost(post: Post): void {
-    this.activePost.set(post);
-    this.comments.set([]);
-    this.applyRoute('post', '');
-    this.writeHash('post', post.id);
-    void this.loadPost(post.id);
-  }
-
-  backToFeed(): void {
-    this.go('feed');
-    this.activePost.set(null);
-  }
-
-  private async loadPost(id: string): Promise<void> {
-    this.loading.set(true);
-    try {
-      const detail = await this.#orchestrator.callApi(`post:${id}`, () =>
-        this.#api.post(this.apiBase(), id),
-      );
-      this.activePost.set(detail.post);
-      this.comments.set(detail.comments);
-    } catch (error) {
-      this.errorMessage.set('No pudimos abrir la publicación.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  reactActive(type: ReactionType): void {
-    const post = this.activePost();
-    if (post) {
-      this.react(post, type);
-    }
-  }
-
-  setCommentDraft(parentId: string, value: string): void {
-    this.commentDrafts.update((current) => ({ ...current, [parentId]: value }));
-  }
-
-  setCommentDraftBound(parentId: string): (value: string) => void {
-    return (value: string) => this.setCommentDraft(parentId, value);
-  }
-
-  commentDraftFor(parentId: string): string {
-    return this.commentDrafts()[parentId] ?? '';
-  }
-
-  // ─── Comentar (012-blogs-social, I0) ────────────────────────────────────────────
-  //
-  // El comentario se pintaba en local y no se mandaba a ninguna parte: al recargar, no estaba.
-  // Ahora va al hilo de la publicación —el de su página, si es un artículo del CMS— y se pinta
-  // lo que el SERVIDOR guardó, no lo que se tecleó. Si queda esperando a un moderador, se dice
-  // y no se pinta como publicado; si no llegó, el borrador se queda para reintentarlo.
-
-  async submitComment(): Promise<void> {
-    const post = this.activePost();
-    const body = this.commentDraft().trim();
-    if (!post || !body || this.commentSending()) {
-      return;
-    }
-    const sent = await this.sendComment(post, body, null);
-    if (sent) {
-      this.commentDraft.set('');
-    }
-  }
-
-  async submitReply(parent: Comment): Promise<void> {
-    const post = this.activePost();
-    const body = this.commentDraftFor(parent.id).trim();
-    if (!post || !body || this.commentSending()) {
-      return;
-    }
-    const sent = await this.sendComment(post, body, parent);
-    if (sent) {
-      this.setCommentDraft(parent.id, '');
-    }
-  }
-
-  /** Manda el comentario y pinta el del servidor. `true` si el servidor lo guardó. */
-  private async sendComment(post: Post, body: string, parent: Comment | null): Promise<boolean> {
-    this.commentSending.set(true);
-    this.commentNotice.set('');
-    this.errorMessage.set('');
-    try {
-      const { comment, approved } = await this.#api.comment(this.apiBase(), post.id, body, parent?.id ?? null);
-      if (!approved || !comment) {
-        // Del diccionario, sección `Blogs.Comentarios` (ADR 0136): lo que se ve y lo que se anuncia es lo mismo.
-        const enRevision = t(
-          'Blogs.Comentarios.EnRevision',
-          'Tu comentario quedó en revisión: se verá cuando lo apruebe un moderador.',
-        );
-        this.commentNotice.set(enRevision);
-        this.announce(enRevision);
-        return true;
-      }
-      this.comments.update((current) =>
-        parent
-          ? current.map((entry) => (entry.id === parent.id ? { ...entry, replies: [...entry.replies, comment] } : entry))
-          : [...current, comment],
-      );
-      this.patchPost(post.id, (current) => ({ ...current, commentCount: current.commentCount + 1 }));
-      return true;
-    } catch (error) {
-      if (!this.handleUnauthenticated(error, t('Blogs.Comentarios.SinSesion', 'Inicia sesión para comentar.'))) {
-        this.errorMessage.set(
-          t('Blogs.Comentarios.NoPublicado', 'Tu comentario NO se publicó. Sigue en la caja para reintentarlo.'),
-        );
-      }
-      return false;
-    } finally {
-      this.commentSending.set(false);
-    }
-  }
-
-  /**
-   * «Me gusta» a un comentario. Suma uno en el servidor, como en la página del post, y no se
-   * deshace: el almacén no recuerda quién lo dio, así que un «ya no me gusta» sería pintar un
-   * número que el servidor no tiene. Una reacción por persona llega con Engagement (I5).
-   */
-  async likeComment(comment: Comment): Promise<void> {
-    const post = this.activePost();
-    if (!post || comment.liked) {
-      return;
-    }
-    this.errorMessage.set('');
-    try {
-      const likeCount = await this.#api.likeComment(this.apiBase(), post.id, comment.id);
-      const apply = (entry: Comment): Comment =>
-        entry.id === comment.id ? { ...entry, liked: true, likeCount } : { ...entry, replies: entry.replies.map(apply) };
-      this.comments.update((current) => current.map(apply));
-    } catch (error) {
-      if (!this.handleUnauthenticated(error, t('Blogs.Comentarios.MeGustaSinSesion', 'Inicia sesión para dar me gusta.'))) {
-        this.errorMessage.set(t('Blogs.Comentarios.MeGustaNoGuardado', 'No pudimos guardar tu me gusta. Intenta de nuevo.'));
-      }
-    }
-  }
-
-  // ─── Profile ─────────────────────────────────────────────────────────────────────
-  openProfile(handle: string): void {
-    this.profile.set(null);
-    this.profilePosts.set([]);
-    this.applyRoute('profile', '');
-    this.writeHash('profile', handle);
-    void this.loadProfile(handle);
-  }
-
-  setProfileTab(tab: 'posts' | 'replies' | 'media'): void {
-    this.profileTab.set(tab);
-  }
-
-  private async loadProfile(handle: string): Promise<void> {
-    this.loading.set(true);
-    try {
-      const payload = await this.#orchestrator.callApi(`profile:${handle}`, () =>
-        this.#api.profile(this.apiBase(), handle),
-      );
-      this.profile.set(payload.author);
-      this.profilePosts.set(payload.posts);
-      this.profileFollowing.set(payload.following);
-      this.setFollowing(payload.author.actorKey, payload.following);
-      this.profileTab.set('posts');
-    } catch (error) {
-      this.errorMessage.set('No pudimos cargar el perfil.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  /** Start a DM with the profiled author (creates/opens a thread). */
-  messageAuthor(author: Author): void {
-    const threadId = `t-${author.handle}`;
-    const existing = this.threads().find((thread) => thread.participant.actorKey === author.actorKey);
-    if (!existing) {
-      this.threads.update((current) => [
-        {
-          id: threadId,
-          participant: author,
-          lastMessage: '',
-          lastAtUtc: new Date().toISOString(),
-          unread: 0,
-          messages: [],
-        },
-        ...current,
-      ]);
-    }
-    this.threadsLoaded.set(true);
-    this.applyRoute('messages', '');
-    this.writeHash('messages', existing?.id ?? threadId);
-    void this.openThread(existing?.id ?? threadId);
-  }
-
-  // ─── Notifications ────────────────────────────────────────────────────────────────
-  setNotificationFilter(filter: 'all' | 'mentions'): void {
-    this.notificationFilter.set(filter);
-  }
-
-  markAllRead(): void {
-    this.notifications.update((current) =>
-      current.map((notification) => ({ ...notification, read: true })),
-    );
-  }
-
-  markRead(notification: Notification): void {
-    this.notifications.update((current) =>
-      current.map((entry) => (entry.id === notification.id ? { ...entry, read: true } : entry)),
-    );
-  }
-
-  openNotification(notification: Notification): void {
-    this.markRead(notification);
-    if (notification.postId) {
-      const post = this.posts().find((entry) => entry.id === notification.postId);
-      if (post) {
-        this.openPost(post);
-        return;
-      }
-      this.applyRoute('post', '');
-      this.writeHash('post', notification.postId);
-      void this.loadPost(notification.postId);
-      return;
-    }
-    this.openProfile(notification.actor.handle);
-  }
-
-  private async loadNotifications(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const list = await this.#api.notifications(this.apiBase());
-      this.notifications.set(list);
-      this.notificationsLoaded.set(true);
-      this.sessionAccess.set('ok');
-    } catch (error) {
-      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus notificaciones.')) {
-        return;
-      }
-      this.errorMessage.set('No pudimos cargar las notificaciones.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  // ─── Explore / search / hashtag (SH-1) ─────────────────────────────────────────────
-  onSearchCriteria(criteria: DiscoveryCriteria): void {
-    this.searchCriteria.set(criteria);
-    this.searchTerm.set(criteria.term);
-    const tab = (criteria.facets['tab'] ?? [])[0];
-    if (tab && (SEARCH_TABS as readonly { key: string }[]).some((entry) => entry.key === tab)) {
-      this.searchTab.set(tab as SearchTab);
-    }
-    const tag = (criteria.facets['hashtag'] ?? [])[0] ?? '';
-    this.searchTag.set(tag);
-    void this.runSearch();
-  }
-
-  setSearchTab(tab: SearchTab): void {
-    this.searchTab.set(tab);
-  }
-
-  searchHashtag(tag: string): void {
-    this.searchTerm.set('');
-    this.searchTag.set(tag);
-    this.searchTab.set('posts');
-    this.searchCriteria.set({ term: '', facets: { hashtag: [tag] }, sort: 'top', page: 1 });
-    this.applyRoute('search', '');
-    this.writeHash('search', '');
-    void this.runSearch();
-  }
-
-  private async runSearch(): Promise<void> {
-    this.searching.set(true);
-    this.errorMessage.set('');
-    try {
-      const result = await this.#api.explore(this.apiBase(), this.searchTerm(), this.searchTag());
-      this.searchResult.set(result);
-    } catch (error) {
-      this.errorMessage.set('No pudimos buscar. Intenta de nuevo.');
-      void error;
-    } finally {
-      this.searching.set(false);
-    }
-  }
-
-  private async loadTrending(): Promise<void> {
-    try {
-      this.trending.set(await this.#api.trending(this.apiBase()));
-    } catch (error) {
-      void error;
-    }
-  }
-
-  // ─── Acceso: traducir 401/403 a estado (nunca a datos inventados) ───────────────
-  /**
-   * Traduce un 401 al estado que la UI sabe pintar: el panel "Inicia sesión" en las
-   * cuatro superficies del usuario. Devuelve `true` si el error era ese, para que quien
-   * llama corte ahí sin escribir un `errorMessage` que contradiga al panel.
-   *
-   * **Vacía TODO lo personal ya cargado**, no solo lo de la vista actual: si el usuario
-   * abrió su bandeja con sesión y esta expiró, dejar los hilos en pantalla mientras el
-   * panel pide iniciar sesión es la misma mentira, y los badges del nav seguirían
-   * contando mensajes que ya no podemos leer. Marca las cuatro como "cargadas" para que
-   * navegar entre ellas no dispare tres 401 más: el primero ya dijo que no hay sesión.
-   */
-  private handleUnauthenticated(error: unknown, announcement?: string): boolean {
-    if (!isBlogsUnauthorized(error)) {
-      return false;
-    }
-    this.sessionAccess.set('anon');
-    this.errorMessage.set('');
-    // Mensajes directos — lo más sensible: sin esto el anónimo veía una bandeja sembrada.
-    this.threads.set([]);
-    this.activeThread.set(null);
-    this.threadAccess.set('ok');
-    this.threadsLoaded.set(true);
-    // Notificaciones, guardados y estudio.
-    this.notifications.set([]);
-    this.notificationsLoaded.set(true);
-    this.savedPosts.set([]);
-    this.savedIds.set(new Set());
-    this.savedLoaded.set(true);
-    this.studio.set(null);
-    this.studioLoaded.set(true);
-    this.requestAccessPanelFocus();
-    this.announce(announcement ?? 'Inicia sesión para ver esta sección.');
-    return true;
-  }
-
-  /**
-   * 403 en `GET /thread/{id}`: hay sesión, pero la conversación es de otras dos personas.
-   * Se cierra SOLO el hilo (la bandeja propia sigue siendo legítima) y se dice con esas
-   * palabras — antes se caía al mock y se abría OTRA conversación en su lugar.
-   */
-  private handleThreadForbidden(error: unknown): boolean {
-    if (!isBlogsForbidden(error)) {
-      return false;
-    }
-    this.threadAccess.set('forbidden');
-    this.activeThread.set(null);
-    this.errorMessage.set('');
-    // NO se pide foco de panel: este 403 no pinta un `.blogs__signin` (la sesión vale y la
-    // bandeja propia sigue en pantalla), sino un `role="alert"` sobre el message-center. Ese
-    // rol ya interrumpe al lector, y mover el foco robaría el que el usuario tiene en su
-    // lista de conversaciones, que sigue siendo suya y navegable.
-    this.announce('Esa conversación no es tuya.');
-    return true;
-  }
-
-  /**
-   * Publica en la región `aria-live` compartida (WCAG 4.1.3: estado sin recarga).
-   *
-   * GOV-BL-A11Y-05: esto era `this.announcement.set(message)`. Las señales comparan con
-   * `Object.is`, así que repetir el MISMO string no notificaba, el DOM no cambiaba y el
-   * lector no lo repetía. El arreglo NO es `set('')` + `set(msg)`: las dos escrituras
-   * colapsan en un render y el '' nunca alcanza el DOM. Se necesita que estén separadas por
-   * un turno del event loop, que es justo lo que hace `LiveAnnouncerService` — se reutiliza
-   * en vez de escribir un tercer mecanismo.
-   */
-  private announce(message: string): void {
-    this.#announcer.announce(message);
-  }
-
-  /**
-   * Login del CMS de vuelta a ESTA página (con su hash, para caer en la misma vista).
-   * Es un método y no un `computed` a propósito: el hash cambia con la navegación y un
-   * computed cacheado devolvería el de la primera lectura.
-   */
-  loginUrl(): string {
-    if (typeof window === 'undefined') {
-      return LOGIN_PATH;
-    }
-    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
-  }
-
-  // ─── DMs (SH-7 message-center) ──────────────────────────────────────────────────
-  private async loadThreads(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const threads = await this.#orchestrator.callApi('messages', () =>
-        this.#api.messages(this.apiBase()),
-      );
-      this.threads.set(threads);
-      this.threadsLoaded.set(true);
-      this.sessionAccess.set('ok');
-    } catch (error) {
-      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus mensajes.')) {
-        return;
-      }
-      this.errorMessage.set('No pudimos cargar tus mensajes.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  onThreadSelect(thread: MessageThread): void {
-    this.writeHash('messages', thread.id);
-    void this.openThread(thread.id);
-  }
-
-  private async openThread(threadId: string): Promise<void> {
-    // Se intenta un hilo nuevo: el veredicto del anterior no aplica a este.
-    this.threadAccess.set('ok');
-    // Optimistically clear unread on the selected row.
-    this.threads.update((current) =>
-      current.map((thread) => (thread.id === threadId ? { ...thread, unread: 0 } : thread)),
-    );
-    try {
-      const thread = await this.#api.thread(this.apiBase(), threadId);
-      this.activeThread.set(thread);
-      this.threadAccess.set('ok');
-      this.sessionAccess.set('ok');
-      this.threads.update((current) =>
-        current.some((entry) => entry.id === thread.id)
-          ? current.map((entry) => (entry.id === thread.id ? { ...thread, unread: 0 } : entry))
-          : [{ ...thread, unread: 0 }, ...current],
-      );
-    } catch (error) {
-      // Antes este catch se tragaba TODO en silencio (`void error`): un 403 por deep-link
-      // a un hilo ajeno caía al mock y abría otra conversación como si fuera esa.
-      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus mensajes.')) {
-        return;
-      }
-      if (this.handleThreadForbidden(error)) {
-        return;
-      }
-      this.errorMessage.set('No pudimos abrir la conversación.');
-      void error;
-    }
-  }
-
-  onSendMessage(event: { thread: MessageThread; body: string }): void {
-    const body = event.body.trim();
-    if (!body || this.sendingMessage()) {
-      return;
-    }
-    const threadId = event.thread.id;
-    // Optimistic append.
-    const local: DirectMessage = {
-      id: `local-m-${Date.now().toString(36)}`,
-      threadId,
-      author: this.autorLocal(),
-      body,
-      createdAtUtc: new Date().toISOString(),
-      outgoing: true,
-    };
-    this.patchThread(threadId, (thread) => ({
-      ...thread,
-      messages: [...thread.messages, local],
-      lastMessage: body,
-      lastAtUtc: local.createdAtUtc,
-    }));
-    this.sendingMessage.set(true);
-    this.errorMessage.set('');
-    this.#api
-      .sendMessage(this.apiBase(), { threadId, body })
-      .then((message) => {
-        // Reconcile the optimistic message id with the server's.
-        this.patchThread(threadId, (thread) => ({
-          ...thread,
-          messages: thread.messages.map((entry) => (entry.id === local.id ? message : entry)),
-        }));
-        this.messagesent.emit({ threadId });
-      })
-      .catch((error: unknown) => {
-        // Sin sesión o en un hilo ajeno, la burbuja se RETIRA: en el caso del 401 el
-        // handler además vacía la bandeja, así que el hilo ya no existe.
-        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.') || this.handleThreadForbidden(error)) {
-          this.patchThread(threadId, (thread) => ({
-            ...thread,
-            messages: thread.messages.filter((entry) => entry.id !== local.id),
-          }));
-          return;
-        }
-        // Con el servidor caído tampoco salió (UI#92) —antes el cliente sintetizaba una
-        // burbuja «enviada»—, pero el hilo sigue siendo suyo: el mensaje se queda MARCADO,
-        // sin hora de envío y con su reintento. Borrarlo se llevaría lo que acaba de
-        // escribir, porque el compositor ya se vació (regla 18b, la forma de EHR).
-        this.patchThread(threadId, (thread) => ({
-          ...thread,
-          messages: thread.messages.map((entry) => (entry.id === local.id ? { ...entry, failed: true } : entry)),
-        }));
-        this.errorMessage.set('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
-      })
-      .finally(() => this.sendingMessage.set(false));
-  }
-
-  /** Reintenta un mensaje marcado, sin volver a teclearlo (UI#92). */
-  retryMessage(thread: MessageThread, message: DirectMessage): void {
-    if (!message.failed || this.sendingMessage()) {
-      return;
-    }
-    this.sendingMessage.set(true);
-    this.errorMessage.set('');
-    this.#api
-      .sendMessage(this.apiBase(), { threadId: thread.id, body: message.body })
-      .then((sent) => {
-        this.patchThread(thread.id, (entry) => ({
-          ...entry,
-          messages: entry.messages.map((item) => (item.id === message.id ? sent : item)),
-        }));
-        this.messagesent.emit({ threadId: thread.id });
-      })
-      .catch((error: unknown) => {
-        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.') || this.handleThreadForbidden(error)) {
-          return;
-        }
-        this.errorMessage.set('Tu mensaje sigue sin enviarse. Queda en el hilo.');
-      })
-      .finally(() => this.sendingMessage.set(false));
-  }
-
-  // ─── Guardados / listas (SH-4) ────────────────────────────────────────────────────
-  private async loadSaved(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const posts = await this.#api.saved(this.apiBase());
-      this.savedPosts.set(posts);
-      this.savedIds.set(new Set(posts.map((post) => post.id)));
-      this.savedLoaded.set(true);
-      this.sessionAccess.set('ok');
-    } catch (error) {
-      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus guardados.')) {
-        return;
-      }
-      this.errorMessage.set('No pudimos cargar tus guardados.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  onSavedSectionChange(sectionId: string): void {
-    if (sectionId === 'saved' || sectionId === 'lists') {
-      this.savedSection.set(sectionId);
-    }
-  }
-
-  // ─── Creator studio (SH-5) ────────────────────────────────────────────────────────
-  private async loadStudio(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const studio = await this.#orchestrator.callApi('studio', () =>
-        this.#api.studio(this.apiBase()),
-      );
-      this.studio.set(studio);
-      this.studioLoaded.set(true);
-      this.sessionAccess.set('ok');
-    } catch (error) {
-      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tu estudio.')) {
-        return;
-      }
-      this.errorMessage.set('No pudimos cargar el estudio.');
-      void error;
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  onStudioSectionChange(sectionId: string): void {
-    if ((STUDIO_SECTIONS as readonly string[]).includes(sectionId)) {
-      this.studioSection.set(sectionId as StudioSection);
-    }
-  }
-
-  onStudioAction(event: ConsoleRowActionEvent<StudioPostStat>): void {
-    if (event.actionId === 'open') {
-      const post = this.posts().find((entry) => entry.id === event.row.postId);
-      if (post) {
-        this.openPost(post);
-        return;
-      }
-      this.applyRoute('post', '');
-      this.writeHash('post', event.row.postId);
-      void this.loadPost(event.row.postId);
-    }
-  }
-
-  audiencePct(value: number): number {
-    return Math.round((value / this.audienceMax()) * 100);
-  }
-
-  // ─── Monetization (SH-3 subscribe/tip over engine) ─────────────────────────────────
-  /** Open the subscribe wizard for a creator's tier (called from studio or profile). */
-  startSubscribe(creator: Author, tier: CreatorTier): void {
-    if (!SUSCRIPCION_ENCENDIDA) {
-      // Apagada (P5 A): su pago es local y no cobra; la pantalla no la ofrece, y aquí tampoco se abre.
-      return;
-    }
-    this.subscribeCreator.set(creator);
-    this.subscribeTier.set(tier);
-    this.confirmedMembership.set('');
-    this.#store.reset();
-    void this.selectTierIntoCart(creator, tier);
-    this.applyRoute('subscribe', '');
-    this.writeHash('subscribe', '');
-  }
-
-  private async selectTierIntoCart(creator: Author, tier: CreatorTier): Promise<void> {
-    const session = this.#store.getValidSession();
-    const selection = await this.#fulfillment.select(
-      {
-        productRef: `${creator.actorKey}:${tier.id}`,
-        kind: 'subscription',
-        label: `${tier.name} · @${creator.handle}`,
-        amount: tier.priceMinor,
-        selection: {
-          creatorKey: creator.actorKey,
-          creatorName: creator.displayName,
-          tierId: tier.id,
-          tierName: tier.name,
-          kind: 'subscription',
-        },
-      },
-      session,
-    );
-    this.#store.reset();
-    this.#store.addItem(selection.item);
-    this.#store.setPricing({
-      currency: tier.currency,
-      totalAmount: tier.priceMinor,
-      balanceDue: tier.priceMinor,
-      breakdown: [{ code: 'base', label: `Membresía ${tier.name}`, amount: tier.priceMinor }],
-    });
-  }
-
-  selectTier(tier: CreatorTier): void {
-    const creator = this.subscribeCreator();
-    if (creator) {
-      this.subscribeTier.set(tier);
-      void this.selectTierIntoCart(creator, tier);
-    }
-  }
-
-  onSubscribeCompleted(result: CheckoutWizardResult): void {
-    const creator = this.subscribeCreator();
-    const tier = this.subscribeTier();
-    this.confirmedMembership.set(result.reference);
-    this.#store.reset();
-    if (creator && tier) {
-      const payload = { creatorKey: creator.actorKey, tierId: tier.id };
-      this.subscribed.emit(payload);
-      this.#bus.publish('subscribed', payload);
-    }
-  }
-
-  onSubscribeExit(): void {
-    this.go('studio');
-  }
-
-  // ─── Relative-time / formatting ─────────────────────────────────────────────────────
-  relativeTime(iso: string): string {
-    const then = Date.parse(iso);
-    if (!Number.isFinite(then)) {
-      return '';
-    }
-    const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
-    if (seconds < 60) {
-      return 'ahora';
-    }
-    const minutes = Math.round(seconds / 60);
-    if (minutes < 60) {
-      return `hace ${minutes} min`;
-    }
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) {
-      return `hace ${hours} h`;
-    }
-    const days = Math.round(hours / 24);
-    if (days < 7) {
-      return `hace ${days} d`;
-    }
-    try {
-      return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(then);
-    } catch {
-      return `hace ${days} d`;
-    }
-  }
-
-  formatCount(value: number): string {
-    const abs = Math.abs(value);
-    if (abs >= 1_000_000) {
-      return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')} M`;
-    }
-    if (abs >= 1_000) {
-      return `${(value / 1_000).toFixed(1).replace(/\.0$/, '')} k`;
-    }
-    return String(value);
-  }
-
-  formatMinor(minorUnits: number, currency: string): string {
-    return formatearImporte(desdeMenores(minorUnits, currency), currency);
-  }
-
-  initials(author: Author): string {
-    const name = author.displayName || author.handle;
-    return name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('');
-  }
-
-  trackPost = (_: number, post: Post): string => post.id;
-  trackComment = (_: number, comment: Comment): string => comment.id;
-  trackAuthor = (_: number, author: Author): string => author.actorKey;
-  trackTag = (_: number, tag: TrendingTag): string => tag.tag;
-  trackNotification = (_: number, notification: Notification): string => notification.id;
-  trackMessage = (_: number, message: DirectMessage): string => message.id;
-  trackTier = (_: number, tier: CreatorTier): string => tier.id;
-
-  // ─── Helpers ────────────────────────────────────────────────────────────────────────
-  /** Apply the same patch to a post wherever it currently lives in state. */
-  private patchPost(id: string, patch: (post: Post) => Post): void {
-    const map = (post: Post): Post => (post.id === id ? patch(post) : post);
-    this.posts.update((current) => current.map(map));
-    this.profilePosts.update((current) => current.map(map));
-    this.savedPosts.update((current) => current.map(map));
-    const active = this.activePost();
-    if (active?.id === id) {
-      this.activePost.set(patch(active));
-    }
-    const result = this.searchResult();
-    if (result) {
-      this.searchResult.set({ ...result, posts: result.posts.map(map) });
-    }
-  }
-
-  /** Apply the same patch to a thread in the inbox and to the active thread. */
-  private patchThread(id: string, patch: (thread: MessageThread) => MessageThread): void {
-    this.threads.update((current) =>
-      current.map((thread) => (thread.id === id ? patch(thread) : thread)),
-    );
-    const active = this.activeThread();
-    if (active?.id === id) {
-      this.activeThread.set(patch(active));
-    }
-  }
-
-  private setFollowing(actorKey: string, value: boolean): void {
-    this.following.update((current) => {
-      const next = new Set(current);
-      if (value) {
-        next.add(actorKey);
-      } else {
-        next.delete(actorKey);
-      }
-      return next;
-    });
-  }
-
-  /** Seed the follow set from the demo feed so follow buttons reflect a graph. */
-  private seedFollowingFromPosts(posts: readonly Post[]): void {
-    if (this.following().size > 0) {
-      return;
-    }
-    const seeded = new Set<string>();
-    for (const post of posts) {
-      if (post.reposted) {
-        seeded.add(post.author.actorKey);
-      }
-    }
-    if (seeded.size > 0) {
-      this.following.set(seeded);
-    }
-  }
-
-}
-
-/**
- * Idempotent reaction toggle: clicking the same type removes it, a different type
- * replaces it. Mirrors the `IReactionService` contract (unique per actor/object/type).
- */
-function toggleReaction(state: ReactionState, type: ReactionType): ReactionState {
-  const counts = new Map<ReactionType, number>();
-  for (const entry of state.counts) {
-    counts.set(entry.type, entry.count);
-  }
-  const previous = state.mine;
-  if (previous) {
-    counts.set(previous, Math.max(0, (counts.get(previous) ?? 0) - 1));
-  }
-  let mine: ReactionType | null;
-  if (previous === type) {
-    mine = null; // toggled off
-  } else {
-    counts.set(type, (counts.get(type) ?? 0) + 1);
-    mine = type;
-  }
-  const like = counts.get('like') ?? 0;
-  const love = counts.get('love') ?? 0;
-  const celebrate = counts.get('celebrate') ?? 0;
-  const insightful = counts.get('insightful') ?? 0;
-  return reactionStateFor(like, love, celebrate, insightful, mine);
-}
-
-/** Lee una clave del borrador opaco de SH-6 como cadena. */
-function readDraftString(draft: AuthoringDraft, key: string): string {
-  const value = draft[key];
-  return typeof value === 'string' ? value : '';
 }

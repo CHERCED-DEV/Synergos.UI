@@ -1,0 +1,186 @@
+// Sólo los parciales que dan variables, funciones y mixins: el índice (`scss`) carga también los tokens semánticos y
+// de marca, que EMITEN las reglas del tema (`:root`, `[data-theme]`…, ~10 KB), y cada hoja que lo usa las repite.
+@use '../../../../../../vitals/core-assets/src/scss/functions/px-to-rem' as fn;
+@use '../../../../../../vitals/core-assets/src/scss/mixins/visually-hidden' as vh;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/colors' as colors;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/motion' as motion;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/radius' as radius;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/spacing' as space;
+@use '../../../../../../vitals/core-assets/src/scss/tokens/typography' as type;
+
+// SH-15 — el hilo de comentarios. Las medidas son las que tenía el hilo de la red social (012-blogs-social, I2), y
+// los colores salen de los tokens del sitio, con los de la línea de diseño como respaldo: los siete temas lo repintan.
+:host {
+  --sct-accent: var(--syn-color-action-primary, #{colors.$color-brand-500});
+  --sct-accent-soft: var(--syn-color-state-brand-soft, #{colors.$color-brand-100});
+  --sct-border-subtle: var(--syn-color-border-subtle, #{colors.$color-neutral-100});
+  --sct-muted: var(--syn-color-text-muted, #{colors.$color-neutral-500});
+  // El respaldo del molde es el valor de la línea de diseño (`$color-skeleton-*` de `tokens/semantic`, que emite el tema).
+  --sct-skeleton-base: var(--syn-skeleton-base, #d1d3d5);
+  --sct-skeleton-highlight: var(--syn-skeleton-sheen, #bbbcbe);
+
+  display: block;
+}
+
+.syn-cthread__list {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &--replies {
+    margin-top: space.$space-3;
+    padding-left: space.$space-5;
+    border-left: fn.px-to-rem(2) solid var(--sct-border-subtle);
+  }
+}
+
+.syn-cthread__comment {
+  display: flex;
+  gap: space.$space-3;
+}
+
+.syn-cthread__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: fn.px-to-rem(36);
+  height: fn.px-to-rem(36);
+  border-radius: radius.$radius-full;
+  background: var(--sct-accent-soft);
+  color: var(--sct-accent);
+  font-size: type.$font-size-xs;
+  font-weight: type.$font-weight-bold;
+  letter-spacing: type.$letter-spacing-tight;
+}
+
+.syn-cthread__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.syn-cthread__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: space.$space-1;
+}
+
+.syn-cthread__author {
+  font-weight: type.$font-weight-bold;
+  font-size: type.$font-size-sm;
+}
+
+.syn-cthread__handle {
+  color: var(--sct-muted);
+  font-size: type.$font-size-xs;
+}
+
+.syn-cthread__time {
+  color: var(--sct-muted);
+  font-size: type.$font-size-xs;
+  white-space: nowrap;
+}
+
+.syn-cthread__text {
+  margin: space.$space-3 0;
+  font-size: type.$font-size-base;
+  line-height: type.$line-height-relaxed;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.syn-cthread__actions {
+  margin-top: space.$space-1;
+}
+
+.syn-cthread__icon {
+  flex: 0 0 auto;
+  inline-size: fn.px-to-rem(18);
+  block-size: fn.px-to-rem(18);
+  vertical-align: middle;
+}
+
+.syn-cthread__reply-form {
+  display: flex;
+  align-items: flex-end;
+  gap: space.$space-2;
+  margin: space.$space-3 0;
+}
+
+.syn-cthread__reply-input {
+  flex: 1;
+}
+
+.syn-cthread__empty {
+  padding: space.$space-8 space.$space-4;
+  color: var(--sct-muted);
+  text-align: center;
+  font-size: type.$font-size-sm;
+}
+
+.syn-cthread__sr-only {
+  @include vh.visually-hidden;
+}
+
+// ─── El molde ───────────────────────────────────────────────────────────────────
+// Un hueso es DECORATIVO: no lleva texto ni rol, y su lista va marcada `aria-hidden`. Las medidas replican el
+// comentario —cabecera, cuerpo, acción y caja de respuesta— para que el paso a los datos no mueva el layout.
+.syn-cthread__bone {
+  display: block;
+  border-radius: radius.$radius-md;
+  background: linear-gradient(
+    90deg,
+    var(--sct-skeleton-base) 0%,
+    var(--sct-skeleton-highlight) 50%,
+    var(--sct-skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: syn-cthread-shimmer var(--syn-duration-shimmer, #{motion.$duration-shimmer}) motion.$easing-smooth infinite;
+
+  // El mismo diámetro que el avatar, que es quien fija la altura de la fila.
+  &--avatar {
+    flex: 0 0 auto;
+    inline-size: fn.px-to-rem(36);
+    block-size: fn.px-to-rem(36);
+    border-radius: radius.$radius-full;
+  }
+
+  &--head {
+    inline-size: 45%;
+    block-size: fn.px-to-rem(16);
+  }
+
+  &--text {
+    inline-size: 100%;
+    block-size: fn.px-to-rem(40);
+    margin-block: space.$space-3;
+  }
+
+  &--action {
+    inline-size: fn.px-to-rem(96);
+    block-size: fn.px-to-rem(28);
+  }
+
+  &--form {
+    inline-size: 100%;
+    block-size: fn.px-to-rem(40);
+    margin-block-start: space.$space-3;
+  }
+}
+
+@keyframes syn-cthread-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+// El shimmer es `infinite`: acortarlo lo vuelve un parpadeo, justo lo que este usuario pidió no ver. Se apaga.
+@media (prefers-reduced-motion: reduce) {
+  .syn-cthread__bone {
+    animation: none !important;
+    background: var(--sct-skeleton-base);
+  }
+}
