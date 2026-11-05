@@ -46,6 +46,8 @@ describe('La vista del permiso de datos de salud (T051)', () => {
     expect(seccion?.getAttribute('aria-label')).toBe('Autorización para tratar tus datos de salud');
     expect(seccion?.textContent).toContain('Son datos sensibles.');
     expect(seccion?.textContent).toContain('Política de tratamiento de datos');
+    // ADR 0142 del CMS: quien da el permiso sabe que su historia se conserva por ley aunque borre la cuenta.
+    expect(seccion?.textContent).toContain('aunque borres tu cuenta o pidas suprimir tus datos');
     expect(botones().map((b) => b.textContent?.trim())).toEqual(['Autorizo']);
   });
 

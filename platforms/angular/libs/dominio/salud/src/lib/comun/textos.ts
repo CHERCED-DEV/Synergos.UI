@@ -6,6 +6,8 @@ export interface TextosDelPermiso {
   readonly proposito: string;
   readonly uso: string;
   readonly responsable: string;
+  /** Que la historia clínica se conserva por ley aunque se borre la cuenta (ADR 0142 del CMS). */
+  readonly conservacion: string;
   readonly aceptar: string;
   readonly retirar: string;
   readonly dado: string;

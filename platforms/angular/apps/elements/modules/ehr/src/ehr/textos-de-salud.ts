@@ -79,6 +79,12 @@ export function textosDeSaludDelPortal(): TextosDeSalud {
         'Los usamos sólo para agendar y prestarte la atención que pediste. Los guardamos cifrados, y sólo los ve el personal del consultorio que te atiende. Puedes retirar esta autorización cuando quieras desde tu portal; retirarla no borra lo que la ley obliga a conservar de tu historia clínica.',
       ),
       responsable: t('Health.Consent.Responsible', 'El detalle está en la Política de tratamiento de datos.'),
+      // La historia se conserva por ley aunque se borre la cuenta (ADR 0142 del CMS). BORRADOR: lo aprueba el
+      // arquitecto antes del release, con el resto de la sección.
+      conservacion: t(
+        'Health.Consent.Retention',
+        'Tu historia clínica se conserva el tiempo que la ley obliga (hoy, al menos quince años desde tu última atención), aunque borres tu cuenta o pidas suprimir tus datos. En ese caso la cuenta se borra y la historia deja de estar ligada a ella; sigue cifrada y sólo se usa para lo que la ley pide.',
+      ),
       aceptar: t('Health.Consent.Accept', 'Autorizo'),
       retirar: t('Health.Consent.Revoke', 'Retirar mi autorización'),
       dado: t('Health.Consent.Granted', 'Diste tu autorización. Ya puedes agendar.'),

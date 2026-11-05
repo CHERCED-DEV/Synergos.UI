@@ -10,6 +10,7 @@ const TEXTOS: TextosDeSalud = {
     proposito: 'proposito',
     uso: 'uso',
     responsable: 'responsable',
+    conservacion: 'conservacion',
     aceptar: 'aceptar',
     retirar: 'retirar',
     dado: 'dado',
