@@ -28,7 +28,7 @@
         @if (media.kind === 'video') {
           <video class="blogs__media-asset" controls [attr.aria-label]="media.alt"><source [src]="media.url" /></video>
         } @else {
-          <img class="blogs__media-asset" [src]="media.url" [alt]="media.alt" red.loading="lazy" />
+          <img class="blogs__media-asset" [src]="media.url" [alt]="media.alt" loading="lazy" />
         }
       }
     </div>
