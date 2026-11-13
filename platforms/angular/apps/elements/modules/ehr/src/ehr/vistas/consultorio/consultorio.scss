@@ -1,0 +1,66 @@
+// Las dos vistas del personal (I2 T063) comparten hoja. Sólo la grilla y la tipografía; los colores, los `--eh-*`.
+@use 'scss/tokens/spacing' as space;
+@use 'scss/tokens/typography' as type;
+
+.salud-consultorio,
+.salud-consultorio__form {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-3;
+}
+
+.salud-consultorio__titulo {
+  margin: 0;
+  font-size: type.$font-size-lg;
+  font-weight: type.$font-weight-semibold;
+}
+
+.salud-consultorio__grupo {
+  margin: space.$space-md 0 0;
+  font-size: type.$font-size-base;
+  font-weight: type.$font-weight-semibold;
+}
+
+.salud-consultorio__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: space.$space-2;
+}
+
+.salud-consultorio__campo {
+  flex: 1 1 16rem;
+}
+
+.salud-consultorio__nombre {
+  font-weight: type.$font-weight-medium;
+}
+
+.salud-consultorio__texto {
+  margin: 0;
+  color: var(--eh-text-secondary);
+}
+
+.salud-consultorio__datos {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.salud-consultorio__pre {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: space.$space-2 space.$space-3;
+  margin: 0;
+
+  dt {
+    color: var(--eh-text-secondary);
+  }
+
+  dd {
+    margin: 0;
+  }
+}

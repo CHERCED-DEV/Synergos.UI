@@ -5,6 +5,7 @@
       <h3 class="salud-permiso__titulo">{{ permiso.textos.titulo }}</h3>
       <p class="salud-permiso__texto">{{ permiso.textos.proposito }}</p>
       <p class="salud-permiso__texto">{{ permiso.textos.uso }}</p>
+      <p class="salud-permiso__texto">{{ permiso.textos.conservacion }}</p>
       <p class="salud-permiso__texto">{{ permiso.textos.responsable }}</p>
       <syn-button [label]="permiso.textos.aceptar" [loading]="permiso.moviendo()" (pressed)="aceptar.emit()" />
     </section>

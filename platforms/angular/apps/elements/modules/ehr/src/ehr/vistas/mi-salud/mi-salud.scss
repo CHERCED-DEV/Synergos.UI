@@ -1,0 +1,85 @@
+// Sólo la grilla y la tipografía, como las demás vistas de Salud (T051); los colores son los `--eh-*` de `.sg-ehr`.
+@use 'scss/tokens/spacing' as space;
+@use 'scss/tokens/typography' as type;
+
+.salud-mi-salud {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-3;
+}
+
+.salud-mi-salud__titulo {
+  margin: 0;
+  font-size: type.$font-size-lg;
+  font-weight: type.$font-weight-semibold;
+}
+
+.salud-mi-salud__grupo {
+  margin: space.$space-md 0 0;
+  font-size: type.$font-size-base;
+  font-weight: type.$font-weight-semibold;
+}
+
+.salud-mi-salud__texto,
+.salud-mi-salud__aviso {
+  margin: 0;
+  color: var(--eh-text-secondary);
+}
+
+.salud-mi-salud__aviso {
+  padding: space.$space-3;
+  border-radius: space.$space-2;
+  background: var(--eh-surface-muted, transparent);
+}
+
+.salud-mi-salud__datos {
+  display: flex;
+  flex-direction: column;
+  gap: space.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.salud-mi-salud__dato {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: space.$space-2;
+}
+
+.salud-mi-salud__descripcion {
+  font-weight: type.$font-weight-medium;
+}
+
+.salud-mi-salud__fecha {
+  color: var(--eh-text-secondary);
+  font-size: type.$font-size-sm;
+}
+
+.salud-mi-salud__pre {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: space.$space-2 space.$space-3;
+  margin: 0;
+
+  dt {
+    color: var(--eh-text-secondary);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.salud-mi-salud__ilegible {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: space.$space-2;
+}
+
+.salud-mi-salud__acciones {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -1,0 +1,76 @@
+<section class="salud-mi-salud" [attr.aria-label]="textos.title">
+  @switch (historia.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="4" />
+    }
+    @case ('sin-historia') {
+      <syn-empty-state [title]="textos.noRecordTitle" [message]="textos.noRecordText" />
+    }
+    @case ('sin-sesion') {
+      <syn-empty-state [title]="textos.signInTitle" [message]="textos.signInText" />
+    }
+    @case ('negada') {
+      <syn-empty-state [title]="textos.deniedTitle" [message]="textos.deniedText" />
+    }
+    @case ('ilegible') {
+      <!-- Una lista de alergias que no se pudo leer NO es una persona sin alergias. -->
+      <div class="salud-mi-salud__ilegible">
+        <h2 class="salud-mi-salud__titulo">{{ textos.unreadableTitle }}</h2>
+        <p class="salud-mi-salud__texto">{{ textos.unreadableText }}</p>
+        <syn-button [label]="textos.retry" (pressed)="reintentar.emit()" />
+      </div>
+    }
+    @case ('lista') {
+      @if (historia.resumen(); as resumen) {
+        @if (historia.faltaElPermiso()) {
+          <p class="salud-mi-salud__aviso">{{ textos.consentMissing }}</p>
+        }
+        @if (!resumen.hayResumen) {
+          <syn-empty-state [title]="textos.emptyTitle" [message]="textos.emptyText" [actionLabel]="textos.startCheckIn"
+            (action)="checkIn.emit()" />
+        } @else {
+          @for (tipo of tipos; track tipo) {
+            @let datos = datosDe(tipo);
+            <h3 class="salud-mi-salud__grupo">{{ tituloDe(tipo) }}</h3>
+            @if (datos.length) {
+              <ul class="salud-mi-salud__datos">
+                @for (dato of datos; track dato.id) {
+                  <li class="salud-mi-salud__dato">
+                    <span class="salud-mi-salud__descripcion">{{ dato.descripcion }}</span>
+                    @if (dato.fecha) {
+                      <span class="salud-mi-salud__fecha">{{ dato.fecha }}</span>
+                    }
+                    <syn-badge [text]="dato.estado === 'validado' ? textos.validated : textos.pending"
+                      [tone]="dato.estado === 'validado' ? 'brand' : 'neutral'" />
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="salud-mi-salud__texto">{{ textos.noneRecorded }}</p>
+            }
+          }
+        }
+        @if (resumen.preRegistro; as pre) {
+          <h3 class="salud-mi-salud__grupo">{{ textos.checkIn }}</h3>
+          <dl class="salud-mi-salud__pre">
+            @if (pre.aseguradora) {
+              <dt>{{ textos.insurer }}</dt><dd>{{ pre.aseguradora }}</dd>
+            }
+            @if (pre.motivoDeLaVisita) {
+              <dt>{{ textos.reason }}</dt><dd>{{ pre.motivoDeLaVisita }}</dd>
+            }
+            @if (pre.medicamentos.length) {
+              <dt>{{ textos.medications }}</dt><dd>{{ pre.medicamentos.join(', ') }}</dd>
+            }
+          </dl>
+        }
+        @if (resumen.hayResumen || resumen.preRegistro) {
+          <div class="salud-mi-salud__acciones">
+            <syn-button variant="ghost" [label]="resumen.preRegistro ? textos.updateCheckIn : textos.startCheckIn"
+              (pressed)="checkIn.emit()" />
+          </div>
+        }
+      }
+    }
+  }
+</section>

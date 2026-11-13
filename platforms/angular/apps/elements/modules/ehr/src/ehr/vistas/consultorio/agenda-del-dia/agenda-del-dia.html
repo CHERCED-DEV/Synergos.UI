@@ -1,0 +1,52 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.agendaTitle">
+  <h2 class="salud-consultorio__titulo">{{ textos.agendaTitle }}</h2>
+  <form class="salud-consultorio__fila" (submit)="$event.preventDefault(); verLaAgenda()">
+    <syn-select class="salud-consultorio__campo" [label]="textos.professional" [options]="opciones()"
+      [value]="profesional()" (valueChange)="profesional.set($event)" />
+    <syn-input [label]="textos.day" [hint]="textos.dayHint" [maxlength]="10" [value]="dia()" (valueChange)="dia.set($event)" />
+    <syn-button type="submit" [label]="textos.viewAgenda" [loading]="consulta.estadoDeLaAgenda() === 'cargando'" />
+  </form>
+
+  @switch (consulta.estadoDeLaAgenda()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('lista') {
+      @if (consulta.citas().length) {
+        <ul class="salud-consultorio__datos">
+          @for (cita of consulta.citas(); track cita.reservaId) {
+            @let paso = siguiente(cita.llegada);
+            <li class="salud-consultorio__fila">
+              <span class="salud-consultorio__nombre">{{ hora(cita.inicio) }}</span>
+              <span>{{ cita.paciente.nombre ?? textos.noRecordYet }}</span>
+              <syn-badge [text]="estado(cita.llegada)" [tone]="cita.llegada === 'atendido' ? 'brand' : 'neutral'" />
+              @if (paso) {
+                <syn-button variant="ghost" size="sm" [label]="accion(paso)" [loading]="consulta.moviendo()"
+                  (pressed)="marcar.emit({ reservaId: cita.reservaId, paso })" />
+              }
+              @if (cita.llegada === 'agendada') {
+                <syn-button variant="ghost" size="sm" [label]="textos.stateNoShow"
+                  (pressed)="marcar.emit({ reservaId: cita.reservaId, paso: 'no-vino' })" />
+              }
+              @if (cita.paciente.patientKey) {
+                <syn-button variant="ghost" size="sm" [label]="textos.notes" (pressed)="abrirNotas.emit(cita)" />
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="salud-consultorio__texto">{{ textos.noAppointments }}</p>
+      }
+    }
+    @case ('ilegible') {
+      <p class="salud-consultorio__texto">{{ textos.agendaUnreadable }}</p>
+    }
+    @case ('inicio') {}
+    @default {
+      <p class="salud-consultorio__texto">{{ textos.agendaDenied }}</p>
+    }
+  }
+  @if (consulta.aviso() && !consulta.paciente()) {
+    <syn-live-region class="salud-consultorio__texto" [message]="consulta.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

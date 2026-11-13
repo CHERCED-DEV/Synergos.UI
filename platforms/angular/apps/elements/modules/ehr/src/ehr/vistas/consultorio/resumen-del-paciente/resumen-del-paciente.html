@@ -1,0 +1,60 @@
+@switch (consultorio.estadoDelResumen()) {
+  @case ('cargando') {
+    <syn-skeleton variant="list" [rows]="3" />
+  }
+  @case ('negada') {
+    <p class="salud-consultorio__texto">{{ textos.validateNoConsent }}</p>
+  }
+  @case ('ilegible') {
+    <p class="salud-consultorio__texto">{{ textos.summaryUnreadable }}</p>
+  }
+  @case ('lista') {
+    @if (consultorio.resumen(); as resumen) {
+      <section class="salud-consultorio" [attr.aria-label]="textos.patientRecord">
+        @if (!resumen.hayResumen) {
+          <p class="salud-consultorio__texto">{{ textos.summaryEmpty }}</p>
+        } @else {
+          @for (tipo of tipos; track tipo) {
+            @let datos = datosDe(tipo);
+            <h3 class="salud-consultorio__grupo">{{ tituloDe(tipo) }}</h3>
+            @if (datos.length) {
+              <ul class="salud-consultorio__datos">
+                @for (dato of datos; track dato.id) {
+                  <li class="salud-consultorio__fila">
+                    <span class="salud-consultorio__nombre">{{ dato.descripcion }}</span>
+                    @if (dato.fecha) {
+                      <span class="salud-consultorio__texto">{{ dato.fecha }}</span>
+                    }
+                    @if (dato.estado === 'validado') {
+                      <syn-badge [text]="textos.validated" tone="brand" />
+                    } @else {
+                      <syn-badge [text]="textos.pending" tone="neutral" />
+                      <syn-button variant="ghost" size="sm" [label]="textos.validate" [loading]="consultorio.moviendo()"
+                        (pressed)="validar.emit(dato.id)" />
+                    }
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="salud-consultorio__texto">{{ textos.noneRecorded }}</p>
+            }
+          }
+        }
+        @if (resumen.preRegistro; as pre) {
+          <h3 class="salud-consultorio__grupo">{{ textos.checkIn }}</h3>
+          <dl class="salud-consultorio__pre">
+            @if (pre.aseguradora) {
+              <dt>{{ textos.insurer }}</dt><dd>{{ pre.aseguradora }} {{ pre.numeroDeAfiliacion }}</dd>
+            }
+            @if (pre.motivoDeLaVisita) {
+              <dt>{{ textos.reason }}</dt><dd>{{ pre.motivoDeLaVisita }}</dd>
+            }
+            @if (pre.medicamentos.length) {
+              <dt>{{ textos.medications }}</dt><dd>{{ pre.medicamentos.join(', ') }}</dd>
+            }
+          </dl>
+        }
+      </section>
+    }
+  }
+}

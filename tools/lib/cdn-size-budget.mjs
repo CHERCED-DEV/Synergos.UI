@@ -139,7 +139,12 @@ export const EXCEPCIONES = {
   // 327,0 (UI `1270bfb`) con el techo al 99,7 %. Lo que entró en T034 (+1,3 KB) es «Mis citas» por `listar` de la
   // puerta, el profesional en el enlace del correo y el rechazo de cotizar que ya no se queda en caché: funcionalidad,
   // no código muerto. El margen, el ~8 % de la regla de arriba.
-  ehr: { techo: 354 * KB, razon: 'vertical completa: historia clínica, agenda, recetas y la cita por la puerta con «Mis citas». 328 KB medidos el 2026-10-30' },
+  // Resubido el 2026-11-13 (003-salud-cita, I2 T062–T063): 395,0 KB medidos, contra 345,4 de la misma línea sin I2 (UI
+  // `1979116`, medido con `build --solo=ehr` las dos veces): +49,6 KB. Lo que entró son cuatro vistas —«Mi salud» y el
+  // pre-registro desde la historia de producción, y recepción y el médico en el consultorio, ~35 KB de plantillas—, sus
+  // textos de `Health.Record` (~7,5 KB) y la fachada de la historia (~5 KB): funcionalidad, no código muerto. Las vistas
+  // de demostración se quedan como vuelta atrás con `HistoriaBase` vacía. El margen, el ~8 % de la regla de arriba.
+  ehr: { techo: 427 * KB, razon: 'vertical completa: historia clínica de producción (Mi salud, pre-registro, recepción y el médico), agenda, recetas y la cita por la puerta con «Mis citas». 395 KB medidos el 2026-11-13' },
   // Resubido el 2026-10-22 (ADR 0140, 004-tienda-compra): 459,1 KB medidos en el CI de master
   // `87724914`, 459,5 (470 570 bytes) sobre el merge con 003, que le suma 424 de `salud.cita`, y 254
   // de shells (55 %). Lo que entró desde los 426 que daba el mismo build justo antes de la línea es
