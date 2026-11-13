@@ -24,6 +24,12 @@ const HISTORIA: TextosDeLaHistoria = {
   notaRevisa: 'notaRevisa',
   notaSinLlave: 'notaSinLlave',
   notaFallo: 'notaFallo',
+  ordenGuardada: 'ordenGuardada',
+  ordenRevisa: 'ordenRevisa',
+  resultadoCargado: 'resultadoCargado',
+  resultadoRevisa: 'resultadoRevisa',
+  resultadoLiberado: 'resultadoLiberado',
+  guardarFallo: 'guardarFallo',
 };
 
 function fachada<T>(tipo: Type<T>): T {

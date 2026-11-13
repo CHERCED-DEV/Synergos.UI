@@ -347,7 +347,11 @@
         }
 
         <!-- ─── RESULTS ─── -->
-        @if (view() === 'results') {
+        @if (view() === 'results' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.myResultsTitle }}</h1>
+          <sg-salud-mis-resultados [base]="historiaBase()" />
+        }
+        @if (view() === 'results' && !historiaBase()) {
           <h1 class="ehr__view-title">Resultados de laboratorio</h1>
           <p class="ehr__view-sub">Tus resultados liberados con su rango de referencia y una nota de tu médico.</p>
           @if (loading() && !resultsLoaded()) {
@@ -621,6 +625,8 @@
               (marcar)="marcarLlegada($event)" (abrirNotas)="abrirNotas($event)" />
             <sg-salud-nota-de-la-consulta (guardar)="guardarNota($event)" (firmar)="firmarNota($event)"
               (comprobar)="comprobarNota($event)" />
+            <sg-salud-ordenes-del-paciente [base]="historiaBase()" (ordenar)="ordenarExamenes($event)"
+              (cargar)="cargarResultado($event)" (liberar)="liberarResultado($event)" />
           }
           @if (view() === 'patients' && historiaBase()) {
             <!-- Recepción abre la historia; el médico ve y valida el resumen (I2 T063). -->

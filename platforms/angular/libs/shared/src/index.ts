@@ -92,6 +92,7 @@ export {
 } from './components/primitives/status-tag/status-tag';
 export { StepperComponent } from './components/primitives/stepper/stepper';
 export { TextareaComponent } from './components/primitives/textarea/textarea';
+export { FileInputComponent } from './components/primitives/file-input/file-input';
 export {
   ToggleComponent,
   type ToggleSize,

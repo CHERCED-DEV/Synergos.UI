@@ -56,6 +56,8 @@ import {
   ConsultaDelDia,
   HistoriaEnElConsultorio,
   MiHistoria,
+  MisResultados,
+  OrdenesDelPaciente,
   PermisoDeSalud,
   TEXTOS_DE_SALUD,
   cancelarCita,
@@ -69,6 +71,8 @@ import {
   type CitaDelDia,
   type CitaLeida,
   type NotaEscrita,
+  type OrdenEscrita,
+  type ResultadoCargado,
   type PasoDeLlegada,
 } from '@synergos/dominio/salud';
 import {
@@ -87,6 +91,8 @@ import { SaludAbrirHistoriaComponent } from './vistas/consultorio/abrir-historia
 import { SaludResumenDelPacienteComponent } from './vistas/consultorio/resumen-del-paciente/resumen-del-paciente';
 import { SaludAgendaDelDiaComponent } from './vistas/consultorio/agenda-del-dia/agenda-del-dia';
 import { SaludNotaDeLaConsultaComponent } from './vistas/consultorio/nota-de-la-consulta/nota-de-la-consulta';
+import { SaludOrdenesDelPacienteComponent } from './vistas/consultorio/ordenes-del-paciente/ordenes-del-paciente';
+import { SaludMisResultadosComponent } from './vistas/mis-resultados/mis-resultados';
 import {
   EHR_FLOW,
   MINUTOS_DE_LA_CITA,
@@ -313,6 +319,8 @@ let ehrInstanceId = 0;
     SaludResumenDelPacienteComponent,
     SaludAgendaDelDiaComponent,
     SaludNotaDeLaConsultaComponent,
+    SaludOrdenesDelPacienteComponent,
+    SaludMisResultadosComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -323,7 +331,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -428,6 +436,9 @@ export class EhrElementComponent implements OnInit {
   readonly #consultorio = inject(HistoriaEnElConsultorio);
   /** La consulta del día (I3): la agenda con la llegada y las notas firmadas. */
   readonly #consultaDelDia = inject(ConsultaDelDia);
+  /** Órdenes y resultados (I4): los del paciente que se atiende y los del paciente de la sesión. */
+  readonly #ordenes = inject(OrdenesDelPaciente);
+  readonly #misResultados = inject(MisResultados);
   readonly profesionalesDeLaAgenda = computed(() => this.doctors().map((d) => ({ id: d.id, nombre: d.name })));
   /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
   readonly textosDeLaHistoria = textosDeLaHistoria();
@@ -1435,6 +1446,10 @@ export class EhrElementComponent implements OnInit {
         }
         return;
       case 'results':
+        if (this.historiaBase()) {
+          void this.#misResultados.cargar(this.historiaBase());
+          return;
+        }
         if (!this.resultsLoaded()) {
           void this.conElPaciente(() => this.loadResults());
         }
@@ -1758,11 +1773,36 @@ export class EhrElementComponent implements OnInit {
     return this.#consultaDelDia.marcar(this.historiaBase(), marca.reservaId, marca.paso);
   }
 
-  abrirNotas(cita: CitaDelDia): Promise<void> {
+  async abrirNotas(cita: CitaDelDia): Promise<void> {
     const key = cita.paciente.patientKey;
-    return key
-      ? this.#consultaDelDia.abrirNotas(this.historiaBase(), key, cita.paciente.nombre ?? '', cita.reservaId)
-      : Promise.resolve();
+    if (!key) {
+      return;
+    }
+    await Promise.all([
+      this.#consultaDelDia.abrirNotas(this.historiaBase(), key, cita.paciente.nombre ?? '', cita.reservaId),
+      this.#ordenes.cargar(this.historiaBase(), key),
+    ]);
+  }
+
+  async ordenarExamenes(orden: OrdenEscrita): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#ordenes.ordenar(this.historiaBase(), key, orden);
+    }
+  }
+
+  async cargarResultado(carga: { readonly ordenId: string; readonly resultado: ResultadoCargado }): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#ordenes.cargarResultado(this.historiaBase(), key, carga.ordenId, carga.resultado);
+    }
+  }
+
+  async liberarResultado(resultadoId: string): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#ordenes.liberar(this.historiaBase(), key, resultadoId);
+    }
   }
 
   async guardarNota(escrita: NotaEscrita): Promise<void> {

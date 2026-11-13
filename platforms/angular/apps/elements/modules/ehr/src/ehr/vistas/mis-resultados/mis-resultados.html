@@ -1,0 +1,48 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.myResultsTitle">
+  @switch (resultados.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('lista') {
+      @if (resultados.ordenes().length) {
+        <ul class="salud-consultorio__datos">
+          @for (orden of resultados.ordenes(); track orden.id) {
+            <li class="salud-consultorio__form">
+              <div class="salud-consultorio__fila">
+                <span class="salud-consultorio__nombre">{{ tipo(orden.tipo) }}</span>
+                <syn-badge [text]="orden.estado === 'cumplida' ? textos.orderDone : textos.orderOpen"
+                  [tone]="orden.estado === 'cumplida' ? 'brand' : 'neutral'" />
+              </div>
+              @for (examen of orden.examenes; track examen.id) {
+                <div class="salud-consultorio__fila">
+                  <span>{{ examen.nombre }}</span>
+                  @if (examen.resultado; as r) {
+                    <span class="salud-consultorio__nombre">{{ r.valor }} {{ r.unidad }}</span>
+                    @if (r.rango) {
+                      <span class="salud-consultorio__texto">{{ textos.range }}: {{ r.rango }}</span>
+                    }
+                    <syn-badge [text]="marca(r.marca)" [tone]="r.marca === 'normal' ? 'neutral' : 'brand'" />
+                    @if (r.tieneInforme) {
+                      <syn-button variant="ghost" size="sm" [label]="textos.downloadReport" [href]="informe(r.id)" />
+                    }
+                  } @else {
+                    <span class="salud-consultorio__texto">{{ textos.noResult }}</span>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <syn-empty-state [title]="textos.noResultsYet" />
+      }
+    }
+    @case ('sin-historia') {
+      <syn-empty-state [title]="textos.noRecordTitle" [message]="textos.noRecordText" />
+    }
+    @case ('inicio') {}
+    @default {
+      <p class="salud-consultorio__texto">{{ textos.resultsUnreadable }}</p>
+    }
+  }
+</section>

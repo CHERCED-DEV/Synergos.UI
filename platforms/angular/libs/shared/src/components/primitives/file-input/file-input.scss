@@ -1,0 +1,38 @@
+// Sin los temas: los pinta la hoja global del sitio (la receta de 012).
+@use '../../../../../../../../vitals/core-assets/src/scss/sin-temas' as syn;
+
+.syn-file-input {
+  --syn-file-input-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --syn-file-input-hint-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-file-input-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --syn-file-input-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-file-input__label {
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  color: var(--syn-file-input-label-color);
+}
+
+.syn-file-input__field {
+  width: 100%;
+  padding: syn.$space-xs syn.$space-sm;
+  border: syn.px-to-rem(1) dashed var(--syn-file-input-border);
+  border-radius: syn.$radius-md;
+  background: var(--syn-file-input-background);
+  font-size: syn.$font-size-sm;
+}
+
+.syn-file-input__field:focus-visible {
+  outline: syn.px-to-rem(2) solid var(--syn-color-focus-ring, currentColor);
+  outline-offset: syn.px-to-rem(2);
+}
+
+.syn-file-input__hint {
+  margin: 0;
+  font-size: syn.$font-size-xs;
+  color: var(--syn-file-input-hint-color);
+}
