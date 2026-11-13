@@ -1,0 +1,19 @@
+// El design system SIN el CSS de los temas, para la hoja de un componente (012-blogs-social, I3).
+//
+// El índice (`scss`) reenvía `tokens/brand`, el único módulo que EMITE CSS: los bloques `:root[data-theme=…]` de los
+// siete temas, unos 7,4 KB comprimidos. Cada hoja que usa el índice los copia en su bundle, y en una hoja con
+// encapsulación emulada ni siquiera aplican: Angular los reescribe a `[_ngcontent-…]:root`, que no casa con nada.
+// Los temas los pinta una sola vez la hoja global del sitio. Aquí va todo lo demás, con los mismos nombres: cambiar
+// `@use '…/scss' as syn;` por `@use '…/scss/sin-temas' as syn;` no toca ninguna otra línea de la hoja.
+@forward 'tokens/colors';
+@forward 'tokens/spacing';
+@forward 'tokens/typography';
+@forward 'tokens/breakpoints';
+@forward 'tokens/elevation';
+@forward 'tokens/radius';
+@forward 'tokens/motion';
+@forward 'tokens/semantic';
+@forward 'tokens/layout';
+@forward 'tokens/card';
+@forward 'functions';
+@forward 'mixins';
