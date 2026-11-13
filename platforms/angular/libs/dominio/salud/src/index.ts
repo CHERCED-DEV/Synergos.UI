@@ -60,3 +60,14 @@ export {
   marcarLaLlegada,
 } from './lib/consulta/consulta-api.client';
 export { ConsultaDelDia } from './lib/consulta/consulta';
+
+export * from './lib/ordenes/ordenes.model';
+export {
+  cargarElResultado,
+  leerLasOrdenes,
+  leerMisOrdenes,
+  liberarElResultado,
+  ordenar,
+  urlDelInforme,
+} from './lib/ordenes/ordenes-api.client';
+export { MisResultados, OrdenesDelPaciente } from './lib/ordenes/ordenes';

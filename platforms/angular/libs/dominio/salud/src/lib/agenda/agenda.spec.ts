@@ -38,6 +38,12 @@ const TEXTOS: TextosDeSalud = {
     notaRevisa: 'notaRevisa',
     notaSinLlave: 'notaSinLlave',
     notaFallo: 'notaFallo',
+    ordenGuardada: 'ordenGuardada',
+    ordenRevisa: 'ordenRevisa',
+    resultadoCargado: 'resultadoCargado',
+    resultadoRevisa: 'resultadoRevisa',
+    resultadoLiberado: 'resultadoLiberado',
+    guardarFallo: 'guardarFallo',
   },
 };
 

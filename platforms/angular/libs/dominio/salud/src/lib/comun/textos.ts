@@ -36,6 +36,13 @@ export interface TextosDeLaHistoria {
   readonly notaRevisa: string;
   readonly notaSinLlave: string;
   readonly notaFallo: string;
+  // Órdenes y resultados (I4).
+  readonly ordenGuardada: string;
+  readonly ordenRevisa: string;
+  readonly resultadoCargado: string;
+  readonly resultadoRevisa: string;
+  readonly resultadoLiberado: string;
+  readonly guardarFallo: string;
 }
 
 /**

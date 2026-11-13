@@ -1,0 +1,83 @@
+@if (consulta.paciente(); as paciente) {
+  <section class="salud-consultorio" [attr.aria-label]="textos.ordersTitle">
+    <h2 class="salud-consultorio__titulo">{{ textos.ordersTitle }}</h2>
+
+    <form class="salud-consultorio__form" (submit)="$event.preventDefault(); ordenarLaOrden()">
+      <h3 class="salud-consultorio__grupo">{{ textos.newOrder }}</h3>
+      <syn-select [label]="textos.orderType" [options]="tipos" [value]="tipo()" (valueChange)="tipo.set($any($event))" />
+      <syn-textarea [label]="textos.exams" [hint]="textos.onePerLine" [rows]="3" [value]="examenes()" (valueChange)="examenes.set($event)" />
+      <syn-textarea [label]="textos.indication" [rows]="2" [maxlength]="1000" [value]="indicacion()" (valueChange)="indicacion.set($event)" />
+      <syn-button type="submit" [label]="textos.placeOrder" [loading]="ordenes.moviendo()" />
+    </form>
+
+    @switch (ordenes.estado()) {
+      @case ('cargando') {
+        <syn-skeleton variant="list" [rows]="2" />
+      }
+      @case ('lista') {
+        @if (ordenes.ordenes().length) {
+          <ul class="salud-consultorio__datos">
+            @for (orden of ordenes.ordenes(); track orden.id) {
+              <li class="salud-consultorio__form">
+                <div class="salud-consultorio__fila">
+                  <span class="salud-consultorio__nombre">{{ nombreDelTipo(orden.tipo) }}</span>
+                  <syn-badge [text]="orden.estado === 'cumplida' ? textos.orderDone : textos.orderOpen"
+                    [tone]="orden.estado === 'cumplida' ? 'brand' : 'neutral'" />
+                </div>
+                @if (orden.indicacion) {
+                  <p class="salud-consultorio__texto">{{ orden.indicacion }}</p>
+                }
+                @for (examen of orden.examenes; track examen.id) {
+                  <div class="salud-consultorio__fila">
+                    <span>{{ examen.nombre }}</span>
+                    @if (examen.resultado; as r) {
+                      <span class="salud-consultorio__nombre">{{ r.valor }} {{ r.unidad }}</span>
+                      @if (r.rango) {
+                        <span class="salud-consultorio__texto">{{ r.rango }}</span>
+                      }
+                      <syn-badge [text]="nombreDeLaMarca(r.marca)" [tone]="r.marca === 'normal' ? 'neutral' : 'brand'" />
+                      <syn-badge [text]="r.liberado ? textos.released : textos.unreleased" tone="neutral" />
+                      @if (r.tieneInforme) {
+                        <syn-button variant="ghost" size="sm" [label]="textos.downloadReport" [href]="informe(r.id, paciente.patientKey)" />
+                      }
+                      @if (!r.liberado) {
+                        <syn-button variant="ghost" size="sm" [label]="textos.release" [loading]="ordenes.moviendo()"
+                          (pressed)="liberar.emit(r.id)" />
+                      }
+                    } @else {
+                      <span class="salud-consultorio__texto">{{ textos.noResult }}</span>
+                    }
+                    <syn-button variant="ghost" size="sm" [label]="textos.loadResult" (pressed)="elegir(orden.id, examen.id)" />
+                  </div>
+                  @if (cargando()?.ordenId === orden.id && cargando()?.examenId === examen.id) {
+                    <form class="salud-consultorio__form" (submit)="$event.preventDefault(); cargarElResultado()">
+                      <syn-input [label]="textos.value" [maxlength]="100" [value]="valor()" (valueChange)="valor.set($event)" />
+                      <syn-input [label]="textos.unit" [value]="unidad()" (valueChange)="unidad.set($event)" />
+                      <syn-input [label]="textos.range" [value]="rango()" (valueChange)="rango.set($event)" />
+                      <syn-select [label]="textos.flag" [options]="marcas" [value]="marca()" (valueChange)="marca.set($any($event))" />
+                      <syn-textarea [label]="textos.resultNote" [rows]="2" [value]="nota()" (valueChange)="nota.set($event)" />
+                      <syn-file-input [label]="textos.report" accept="application/pdf" (fileChange)="archivo.set($event)" />
+                      <syn-button type="submit" [label]="textos.loadResult" [loading]="ordenes.moviendo()" />
+                    </form>
+                  }
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="salud-consultorio__texto">{{ textos.noOrders }}</p>
+        }
+      }
+      @case ('negada') {
+        <p class="salud-consultorio__texto">{{ textos.validateNoConsent }}</p>
+      }
+      @case ('inicio') {}
+      @default {
+        <p class="salud-consultorio__texto">{{ textos.ordersUnreadable }}</p>
+      }
+    }
+    @if (ordenes.aviso()) {
+      <syn-live-region class="salud-consultorio__texto" [message]="ordenes.aviso()" [visuallyHidden]="false" announceInitial />
+    }
+  </section>
+}
