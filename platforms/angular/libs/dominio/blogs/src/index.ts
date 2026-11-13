@@ -35,6 +35,8 @@ export { PerfilApi } from './lib/perfil/perfil-api.client';
 export { NotificacionesApi } from './lib/notificaciones/notificaciones-api.client';
 export { ExplorarApi } from './lib/explorar/explorar-api.client';
 export { MensajesApi } from './lib/mensajes/mensajes-api.client';
+export { ModeracionApi } from './lib/moderacion/moderacion-api.client';
+export * from './lib/moderacion/moderacion.model';
 export { GuardadosApi } from './lib/guardados/guardados-api.client';
 export { EstudioApi } from './lib/estudio/estudio-api.client';
 
@@ -66,6 +68,7 @@ export { GuardadosDeBlogs } from './lib/guardados/guardados';
 export { NotificacionesDeBlogs } from './lib/notificaciones/notificaciones';
 export { ExplorarDeBlogs, PESTANAS_DE_EXPLORAR, type CriteriosDeExplorar } from './lib/explorar/explorar';
 export { MensajesDeBlogs } from './lib/mensajes/mensajes';
+export { ModeracionDeBlogs, type AccesoALaCola } from './lib/moderacion/moderacion';
 export { EstudioDeBlogs, SECCIONES_DEL_ESTUDIO } from './lib/estudio/estudio';
 export {
   SUSCRIPCION_ENCENDIDA,

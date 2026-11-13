@@ -1,9 +1,10 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { GuardadosDeBlogs, ReaccionesDeBlogs, type Post } from '@synergos/dominio/blogs';
+import { GuardadosDeBlogs, ModeracionDeBlogs, ReaccionesDeBlogs, type Post } from '@synergos/dominio/blogs';
 import { ButtonComponent } from '@synergos/shared';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
+import { textosDeModeracion } from '../../textos-de-moderacion';
 import { BlogsVerificadaComponent } from '../verificada/verificada';
 
 /**
@@ -23,6 +24,8 @@ export class BlogsTarjetaComponent {
   protected readonly guardados = inject(GuardadosDeBlogs);
   protected readonly navegacion = inject(NavegacionDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
+  protected readonly moderacion = inject(ModeracionDeBlogs);
+  protected readonly textos = textosDeModeracion();
 
   readonly publicacion = input.required<Post>();
 

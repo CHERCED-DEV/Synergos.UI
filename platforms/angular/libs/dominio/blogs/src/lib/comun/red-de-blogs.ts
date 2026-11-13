@@ -42,6 +42,11 @@ export interface ConexionDeLaRed {
    * o ausente, Explorar, los guardados y los mensajes leen las rutas interinas de `apiBase`.
    */
   readonly lecturasBase?: Signal<string>;
+  /**
+   * Dónde se denuncia y vive la cola de moderación (`/api/moderacion`, 012-blogs-social, I5), sin la barra final. Vacía
+   * o ausente, la red no ofrece denunciar.
+   */
+  readonly moderacionBase?: Signal<string>;
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope: Signal<string>;
   readonly navegacion: NavegacionDeLaRed;
@@ -97,7 +102,7 @@ export class RedDeBlogs {
   readonly #perfil = inject(PerfilApi);
   readonly #textos = inject(TEXTOS_DE_BLOGS);
 
-  readonly #fuentes = signal<Pick<ConexionDeLaRed, 'apiBase' | 'lecturasBase' | 'scope'> | null>(null);
+  readonly #fuentes = signal<Pick<ConexionDeLaRed, 'apiBase' | 'lecturasBase' | 'moderacionBase' | 'scope'> | null>(null);
   #navegacion: NavegacionDeLaRed | null = null;
   #eventos: EventosDeLaRed = SIN_EVENTOS;
   #anunciar: (mensaje: string) => void = () => undefined;
@@ -109,6 +114,8 @@ export class RedDeBlogs {
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
   /** Dónde viven las lecturas genéricas de Blogs; vacía, las interinas (012-blogs-social, I4). */
   readonly lecturasBase = computed(() => this.#fuentes()?.lecturasBase?.() ?? '');
+  /** Dónde se modera; vacía, no se ofrece denunciar (012-blogs-social, I5). */
+  readonly moderacionBase = computed(() => this.#fuentes()?.moderacionBase?.() ?? '');
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope = computed(() => this.#fuentes()?.scope() ?? 'blogs');
 
@@ -199,7 +206,12 @@ export class RedDeBlogs {
 
   /** El elemento conecta la red al montarse: sus entradas, su navegación, sus CustomEvents y su región viva. */
   conectar(conexion: ConexionDeLaRed): void {
-    this.#fuentes.set({ apiBase: conexion.apiBase, lecturasBase: conexion.lecturasBase, scope: conexion.scope });
+    this.#fuentes.set({
+      apiBase: conexion.apiBase,
+      lecturasBase: conexion.lecturasBase,
+      moderacionBase: conexion.moderacionBase,
+      scope: conexion.scope,
+    });
     this.#navegacion = conexion.navegacion;
     this.#eventos = conexion.eventos;
     this.#anunciar = conexion.anunciar;

@@ -42,10 +42,11 @@
     [loading]="red.loading()"
     [skeletons]="presentacion.commentSkeletons.length"
     [idPrefix]="presentacion.fieldId"
-    [config]="hiloConfig"
+    [config]="hiloConfig()"
     (like)="meGusta($event)"
     (reply)="responder($event)"
     (draftChange)="publicacion.setCommentDraft($event.entry.id, $event.value)"
     (authorSelect)="abrirAutor($event)"
+    (report)="denunciar($event)"
   />
 }
