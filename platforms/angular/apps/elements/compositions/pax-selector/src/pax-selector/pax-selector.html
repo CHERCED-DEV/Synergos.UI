@@ -1,5 +1,8 @@
 <section class="pax-selector" [attr.aria-label]="'Selector de ocupación'">
   <header class="pax-selector__header">
+    <!-- La región viva existe desde el primer render y sólo cambia su texto. Desplegable, el resumen visible va en el
+         botón y esta región queda sólo para el lector de pantalla (016, I1.b). -->
+    <p class="pax-selector__summary" [class.pax-selector__summary--anuncio]="desplegable()" aria-live="polite">{{ summary() }}</p>
     @if (desplegable()) {
       <button
         type="button"
@@ -8,11 +11,9 @@
         [attr.aria-controls]="fieldId + '-panel'"
         (click)="alternar()"
       >
-        <span class="pax-selector__summary" aria-live="polite">{{ summary() }}</span>
+        <span class="pax-selector__resumen">{{ summary() }}</span>
         <span class="pax-selector__chevron" aria-hidden="true"></span>
       </button>
-    } @else {
-      <p class="pax-selector__summary" aria-live="polite">{{ summary() }}</p>
     }
   </header>
 

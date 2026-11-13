@@ -538,7 +538,8 @@ export class TravelShellElementComponent implements OnInit {
       return '';
     }
     const promedio = average.toLocaleString('es-CO', { maximumFractionDigits: 1 });
-    return `★ ${promedio} · ${count.toLocaleString('es-CO')} ${count === 1 ? 'opinión' : 'opiniones'}`;
+    // El rótulo es el del panel (`countLabel`): arriba se lee exactamente lo que dice el panel.
+    return `★ ${promedio} · ${count.toLocaleString('es-CO')} ${this.stayReviewConfig().countLabel}`;
   });
 
   readonly canReviewStay = computed(() => this.stay()?.canReview === true);
@@ -793,7 +794,10 @@ export class TravelShellElementComponent implements OnInit {
     }
     const specs: DetailSpec[] = [
       { label: 'Dirección', value: detail.address || '—' },
-      { label: 'Calificación', value: detail.rating ? `${detail.rating} / 5` : '—' },
+      // La misma cifra que el panel de opiniones, y la fila no sale si no hay ninguna (016, I1.b).
+      ...(this.stayReviewSummary().count > 0
+        ? [{ label: 'Calificación', value: this.stayRatingEyebrow().replace(/^★ /, '') }]
+        : []),
       ...detail.specs.map((spec) => ({ label: spec.label, value: spec.value })),
     ];
     return specs;

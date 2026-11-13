@@ -346,7 +346,11 @@
     @include syn.focus-visible(var(--px-focus-ring));
   }
 
-  .pax-selector__summary {
+  .pax-selector__summary--anuncio {
+    @include syn.visually-hidden;
+  }
+
+  .pax-selector__resumen {
     font-weight: syn.$font-weight-regular;
   }
 

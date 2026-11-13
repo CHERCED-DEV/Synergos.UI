@@ -845,7 +845,7 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     component.stay.set({ ...conResumen, reviewSummary: null, rating: 9.2, reviewCount: 418 });
     const n = conResumen.reviews.length;
     expect(component.stayReviewSummary().count).toBe(n);
-    expect(component.stayRatingEyebrow()).toContain(`· ${n} ${n === 1 ? 'opinión' : 'opiniones'}`);
+    expect(component.stayRatingEyebrow()).toContain(`· ${n} opiniones`);
   });
 
   it('un envío contra un endpoint que no existe NO dice «gracias»', async () => {
@@ -1526,6 +1526,39 @@ describe('El viaje por la puerta (línea 006)', () => {
     await asentar(12);
     // El carrito lleva el importe en unidades MENORES.
     expect(component.cartItems().map((i) => [i.kind, i.productRef, i.amount])).toEqual([['hotel', 'STD/STD-FLEX', 44_000_000]]);
+  });
+
+  it('la tarjeta y la ficha no anuncian el 9,2 del contenido como «9.2 / 5» (016, I1.b)', async () => {
+    const oferta = (id: string, rating: number) => ({
+      offerId: id, product: 'Hotel', roomTypeCode: 'STD', roomTypeName: 'Habitación Estándar', ratePlanCode: 'FLEX',
+      boardBasis: 'BB', refundable: true, roomsLeft: 6, price: 440_000, priceFormatted: '', currency: 'COP',
+      title: id, subtitle: 'Habitación Estándar · BB', stayId: 'ctg-getsemani', stayName: id, city: 'Cartagena',
+      geo: { lat: 10.42, lng: -75.54 }, rating,
+    });
+    const puerta = puertaDelViaje({
+      hoteles: {
+        busqueda: { offers: [oferta('Con promedio', 9.2), oferta('Con estrellas', 4)] },
+        estadia: { stay: { stayId: 'ctg-getsemani', name: 'Casa Getsemaní Boutique', city: 'Cartagena', rating: 9.2, reviewCount: 418, rates: [{ roomTypeCode: 'STD' }], images: [], amenities: [], specs: [] } },
+      },
+    });
+    await montar(puerta);
+    component.selectProduct('hotel');
+    component.hotelDestination.set('Cartagena');
+    component.hotelCheckIn.set('2026-12-20');
+    component.hotelCheckOut.set('2026-12-22');
+    component.search();
+    await asentar(12);
+
+    // Las estrellas (1 a 5) son la categoría del hotel; el 9,2 es un promedio de opiniones sin opiniones detrás.
+    expect(component.stayOffers().map((o) => [o.title, o.rating])).toEqual([
+      ['Con promedio', undefined],
+      ['Con estrellas', 4],
+    ]);
+
+    component.openStay(component.stayOffers()[0]);
+    await asentar(12);
+    expect(component.staySpecs().map((s) => s.label)).not.toContain('Calificación');
+    expect(component.stayRatingEyebrow()).toBe('');
   });
 
   it('ningún ítem confirmable (flow.nada_cumplido) lo dice por su code, con la plata devuelta', () => {
