@@ -1,0 +1,63 @@
+@if (consulta.paciente(); as paciente) {
+  <section class="salud-consultorio" [attr.aria-label]="textos.notesTitle">
+    <h2 class="salud-consultorio__titulo">{{ textos.notesFor(paciente.nombre) }}</h2>
+
+    @switch (consulta.estadoDeLasNotas()) {
+      @case ('cargando') {
+        <syn-skeleton variant="list" [rows]="3" />
+      }
+      @case ('lista') {
+        <form class="salud-consultorio__form" (submit)="$event.preventDefault(); guardarLaNota()">
+          <h3 class="salud-consultorio__grupo">{{ editando() ? textos.draft : textos.newNote }}</h3>
+          <syn-textarea [label]="textos.subjective" [rows]="3" [maxlength]="largo" [value]="subjetivo()" (valueChange)="subjetivo.set($event)" />
+          <syn-textarea [label]="textos.objective" [rows]="3" [maxlength]="largo" [value]="objetivo()" (valueChange)="objetivo.set($event)" />
+          <syn-textarea [label]="textos.assessment" [rows]="2" [maxlength]="largo" [value]="analisis()" (valueChange)="analisis.set($event)" />
+          <syn-textarea [label]="textos.planLabel" [rows]="2" [maxlength]="largo" [value]="plan()" (valueChange)="plan.set($event)" />
+          <div class="salud-consultorio__fila">
+            <syn-button type="submit" variant="ghost" [label]="textos.saveDraft" [loading]="consulta.moviendo()" />
+            @if (firmable()) {
+              <syn-button [label]="textos.sign" [loading]="consulta.moviendo()" (pressed)="firmar.emit(editando()!)" />
+            }
+            @if (editando()) {
+              <syn-button variant="ghost" [label]="textos.newNote" (pressed)="limpiar()" />
+            }
+          </div>
+        </form>
+
+        @if (consulta.notas().length) {
+          <ul class="salud-consultorio__datos">
+            @for (nota of consulta.notas(); track nota.id) {
+              @let comprobada = consulta.comprobadas()[nota.id];
+              <li class="salud-consultorio__form">
+                <div class="salud-consultorio__fila">
+                  <span class="salud-consultorio__nombre">{{ nota.analisis || nota.subjetivo }}</span>
+                  <syn-badge [text]="nota.firmada ? textos.signed : textos.draft" [tone]="nota.firmada ? 'brand' : 'neutral'" />
+                  @if (nota.firmada) {
+                    <syn-button variant="ghost" size="sm" [label]="textos.verify" (pressed)="comprobar.emit(nota.id)" />
+                  } @else {
+                    <syn-button variant="ghost" size="sm" [label]="textos.edit" (pressed)="editar(nota)" />
+                  }
+                </div>
+                @if (comprobada !== undefined) {
+                  <p class="salud-consultorio__texto">{{ comprobada ? textos.signatureValid : textos.signatureInvalid }}</p>
+                }
+                <p class="salud-consultorio__texto">{{ nota.plan }}</p>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="salud-consultorio__texto">{{ textos.noNotes }}</p>
+        }
+      }
+      @case ('negada') {
+        <p class="salud-consultorio__texto">{{ textos.validateNoConsent }}</p>
+      }
+      @default {
+        <p class="salud-consultorio__texto">{{ textos.notesUnreadable }}</p>
+      }
+    }
+    @if (consulta.aviso()) {
+      <syn-live-region class="salud-consultorio__texto" [message]="consulta.aviso()" [visuallyHidden]="false" announceInitial />
+    }
+  </section>
+}

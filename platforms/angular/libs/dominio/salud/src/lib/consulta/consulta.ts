@@ -31,6 +31,8 @@ export class ConsultaDelDia {
   readonly paciente = signal<{ readonly patientKey: string; readonly nombre: string; readonly reservaId: string | null } | null>(null);
   /** Las firmas comprobadas, por nota: `true` vale, `false` no cuadra con lo que dice hoy la nota. */
   readonly comprobadas = signal<Readonly<Record<string, boolean>>>({});
+  /** La última nota guardada: el formulario sigue sobre ese borrador y ofrece firmarlo. */
+  readonly guardada = signal<string | null>(null);
   readonly moviendo = signal(false);
   readonly aviso = signal('');
 
@@ -68,6 +70,7 @@ export class ConsultaDelDia {
   async abrirNotas(base: string, patientKey: string, nombre: string, reservaId: string | null): Promise<void> {
     this.paciente.set({ patientKey, nombre, reservaId });
     this.comprobadas.set({});
+    this.guardada.set(null);
     this.aviso.set('');
     this.estadoDeLasNotas.set('cargando');
     try {
@@ -90,6 +93,7 @@ export class ConsultaDelDia {
     try {
       const nota = await escribirLaNota(base, paciente.patientKey, { ...escrita, reservaId: paciente.reservaId ?? undefined });
       this.notas.update((notas) => [nota, ...notas.filter((n) => n.id !== nota.id)]);
+      this.guardada.set(nota.id);
       this.aviso.set(this.#textos.notaGuardada);
       return nota;
     } catch (error) {

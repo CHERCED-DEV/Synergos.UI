@@ -615,6 +615,13 @@
 
         <!-- ─── COCKPIT (board · patients · in basket) — SH-5 console-shell ─── -->
         @if (view() === 'board' || view() === 'patients' || view() === 'inbasket') {
+          @if (view() === 'board' && historiaBase()) {
+            <!-- La agenda del día con la llegada, y las notas firmadas del paciente que se atiende (I3). -->
+            <sg-salud-agenda-del-dia [profesionales]="profesionalesDeLaAgenda()" [zona]="zona()" (ver)="verAgenda($event)"
+              (marcar)="marcarLlegada($event)" (abrirNotas)="abrirNotas($event)" />
+            <sg-salud-nota-de-la-consulta (guardar)="guardarNota($event)" (firmar)="firmarNota($event)"
+              (comprobar)="comprobarNota($event)" />
+          }
           @if (view() === 'patients' && historiaBase()) {
             <!-- Recepción abre la historia; el médico ve y valida el resumen (I2 T063). -->
             <sg-salud-abrir-historia (buscar)="buscarHistoria($event)" (abrir)="abrirHistoria($event)"

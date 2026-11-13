@@ -53,6 +53,7 @@ import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
   AgendaDeSalud,
+  ConsultaDelDia,
   HistoriaEnElConsultorio,
   MiHistoria,
   PermisoDeSalud,
@@ -65,7 +66,10 @@ import {
   listarCitas,
   ventanaDeLaCita,
   type CheckInDelPaciente,
+  type CitaDelDia,
   type CitaLeida,
+  type NotaEscrita,
+  type PasoDeLlegada,
 } from '@synergos/dominio/salud';
 import {
   encabezadoDeLaCita,
@@ -81,6 +85,8 @@ import { SaludMiSaludComponent } from './vistas/mi-salud/mi-salud';
 import { SaludCheckInComponent } from './vistas/check-in/check-in';
 import { SaludAbrirHistoriaComponent } from './vistas/consultorio/abrir-historia/abrir-historia';
 import { SaludResumenDelPacienteComponent } from './vistas/consultorio/resumen-del-paciente/resumen-del-paciente';
+import { SaludAgendaDelDiaComponent } from './vistas/consultorio/agenda-del-dia/agenda-del-dia';
+import { SaludNotaDeLaConsultaComponent } from './vistas/consultorio/nota-de-la-consulta/nota-de-la-consulta';
 import {
   EHR_FLOW,
   MINUTOS_DE_LA_CITA,
@@ -305,6 +311,8 @@ let ehrInstanceId = 0;
     SaludCheckInComponent,
     SaludAbrirHistoriaComponent,
     SaludResumenDelPacienteComponent,
+    SaludAgendaDelDiaComponent,
+    SaludNotaDeLaConsultaComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -315,7 +323,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -418,6 +426,9 @@ export class EhrElementComponent implements OnInit {
   /** La historia de producción (I2 T062–T063): la del paciente de la sesión y la del consultorio. */
   readonly #miHistoria = inject(MiHistoria);
   readonly #consultorio = inject(HistoriaEnElConsultorio);
+  /** La consulta del día (I3): la agenda con la llegada y las notas firmadas. */
+  readonly #consultaDelDia = inject(ConsultaDelDia);
+  readonly profesionalesDeLaAgenda = computed(() => this.doctors().map((d) => ({ id: d.id, nombre: d.name })));
   /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
   readonly textosDeLaHistoria = textosDeLaHistoria();
   readonly textosDelPermiso = this.#permiso.textos;
@@ -1455,6 +1466,9 @@ export class EhrElementComponent implements OnInit {
         return;
       case 'board':
         this.consoleSection.set('board');
+        if (this.historiaBase()) {
+          void this.ensureDoctors();
+        }
         if (!this.boardLoaded()) {
           void this.loadBoard();
         }
@@ -1732,6 +1746,35 @@ export class EhrElementComponent implements OnInit {
 
   validarDatoDelPaciente(datoId: string): Promise<void> {
     return this.#consultorio.validar(this.historiaBase(), datoId);
+  }
+
+  // ─── La consulta del día (I3: P9, P10 y P6) ──────────────────────────────────
+
+  verAgenda(pedido: { readonly profesional: string; readonly dia: string }): Promise<void> {
+    return this.#consultaDelDia.cargarAgenda(this.historiaBase(), pedido.profesional, pedido.dia);
+  }
+
+  marcarLlegada(marca: { readonly reservaId: string; readonly paso: PasoDeLlegada }): Promise<void> {
+    return this.#consultaDelDia.marcar(this.historiaBase(), marca.reservaId, marca.paso);
+  }
+
+  abrirNotas(cita: CitaDelDia): Promise<void> {
+    const key = cita.paciente.patientKey;
+    return key
+      ? this.#consultaDelDia.abrirNotas(this.historiaBase(), key, cita.paciente.nombre ?? '', cita.reservaId)
+      : Promise.resolve();
+  }
+
+  async guardarNota(escrita: NotaEscrita): Promise<void> {
+    await this.#consultaDelDia.guardar(this.historiaBase(), escrita);
+  }
+
+  async firmarNota(id: string): Promise<void> {
+    await this.#consultaDelDia.firmar(this.historiaBase(), id);
+  }
+
+  comprobarNota(id: string): Promise<void> {
+    return this.#consultaDelDia.comprobar(this.historiaBase(), id);
   }
 
   // ─── PATIENT · e-Check-In wizard ─────────────────────────────────────────────
