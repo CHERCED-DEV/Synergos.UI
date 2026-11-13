@@ -145,7 +145,7 @@ export class GuardadosDeBlogs {
   async loadSaved(): Promise<void> {
     this.#red.loading.set(true);
     try {
-      const posts = await this.#api.saved(this.#red.apiBase());
+      const posts = await this.#api.saved(this.#red.apiBase(), this.#red.lecturasBase());
       this.savedPosts.set(posts);
       this.#red.savedIds.set(new Set(posts.map((post) => post.id)));
       this.savedLoaded.set(true);

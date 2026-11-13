@@ -89,7 +89,12 @@ export class ExplorarDeBlogs {
     this.searching.set(true);
     this.#red.errorMessage.set('');
     try {
-      const result = await this.#api.explore(this.#red.apiBase(), this.searchTerm(), this.searchTag());
+      const result = await this.#api.explore(
+        this.#red.apiBase(),
+        this.searchTerm(),
+        this.searchTag(),
+        this.#red.lecturasBase(),
+      );
       this.searchResult.set(result);
     } catch (error) {
       this.#red.errorMessage.set(this.#textos.busquedaFallo);

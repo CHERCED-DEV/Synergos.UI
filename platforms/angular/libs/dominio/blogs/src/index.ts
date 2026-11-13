@@ -9,6 +9,7 @@
 // (spec de 012, regla 4).
 
 export * from './lib/comun/blogs.model';
+export * from './lib/comun/lecturas-de-blogs';
 export {
   BlogsForbiddenError,
   BlogsNotFoundError,

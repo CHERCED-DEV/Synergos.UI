@@ -117,6 +117,7 @@ export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
     vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
     rutas: coerceRutasDeLasVistas(value.rutas),
   });
@@ -242,6 +243,11 @@ export class BlogsElementComponent implements OnInit {
       '',
     ),
   );
+  /**
+   * Dónde viven las lecturas genéricas de Blogs (`/api/lecturas/blogs`, 012-blogs-social, I4). La declara el CMS; vacía,
+   * Explorar, los guardados y los mensajes leen las rutas interinas de `apiBase` (la vuelta atrás).
+   */
+  readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').replace(/\/+$/, ''));
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
@@ -304,6 +310,7 @@ export class BlogsElementComponent implements OnInit {
     this.navegacion.conectar({ rutas: () => this.rutas(), vista: () => this.initialView() });
     this.red.conectar({
       apiBase: this.apiBase,
+      lecturasBase: this.lecturasBase,
       scope: this.scope,
       navegacion: this.navegacion,
       eventos: {

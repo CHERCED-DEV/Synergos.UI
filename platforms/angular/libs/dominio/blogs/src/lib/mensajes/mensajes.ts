@@ -35,7 +35,9 @@ export class MensajesDeBlogs {
   async loadThreads(): Promise<void> {
     this.#red.loading.set(true);
     try {
-      const threads = await this.#orchestrator.callApi('messages', () => this.#api.messages(this.#red.apiBase()));
+      const threads = await this.#orchestrator.callApi('messages', () =>
+        this.#api.messages(this.#red.apiBase(), this.#red.lecturasBase(), this.#red.autorLocal()),
+      );
       this.threads.set(threads);
       this.threadsLoaded.set(true);
       this.#red.sessionAccess.set('ok');
@@ -61,7 +63,12 @@ export class MensajesDeBlogs {
     // Optimistically clear unread on the selected row.
     this.threads.update((current) => current.map((thread) => (thread.id === threadId ? { ...thread, unread: 0 } : thread)));
     try {
-      const thread = await this.#api.thread(this.#red.apiBase(), threadId);
+      const thread = await this.#api.thread(
+        this.#red.apiBase(),
+        threadId,
+        this.#red.lecturasBase(),
+        this.#red.autorLocal(),
+      );
       this.activeThread.set(thread);
       this.#red.threadAccess.set('ok');
       this.#red.sessionAccess.set('ok');
@@ -87,7 +94,10 @@ export class MensajesDeBlogs {
   /** Start a DM with the profiled author (creates/opens a thread). */
   messageAuthor(author: Author): void {
     const threadId = `t-${author.handle}`;
-    const existing = this.threads().find((thread) => thread.participant.actorKey === author.actorKey);
+    // Por la llave o por el alias: la bandeja genérica nombra a la contraparte por su alias (012-blogs-social, I4).
+    const existing = this.threads().find(
+      (thread) => thread.participant.actorKey === author.actorKey || thread.participant.handle === author.handle,
+    );
     if (!existing) {
       this.threads.update((current) => [
         {

@@ -1,5 +1,16 @@
 import { Injectable, inject } from '@angular/core';
-import { esRegistro, leerBooleano, leerJsonDelBorde, leerNumero, leerTexto, leerTextos } from '@synergos/core';
+import {
+  esRegistro,
+  leerBooleano,
+  leerElementoDelCatalogo,
+  leerJsonDelBorde,
+  leerListadoDelCatalogo,
+  leerNumero,
+  leerTexto,
+  leerTextos,
+  type ElementoDelCatalogo,
+  type FacetaDelListado,
+} from '@synergos/core';
 import { LecturasDeLaTienda } from '../comun/lecturas';
 import type {
   Facet,
@@ -332,7 +343,8 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): ProductDetai
 // ─── La lectura genérica del catálogo (014-despiece-tienda, I4) ────────────────
 //
 // La forma es neutra de vertical: un `elemento` con su `precio`, su `calificacion` y sus `atributos` (la tienda manda
-// `marca` y `categoria`). Se lee a los MISMOS tipos de la tienda, así que las pantallas no cambian.
+// `marca` y `categoria`). La leen los lectores comunes de `@synergos/core` (012-blogs-social, I4) y aquí se pasa a los
+// MISMOS tipos de la tienda, así que las pantallas no cambian.
 
 /** La query del listado genérico: cada faceta va por su campo, `filtro.{campo}`, con sus valores separados por coma. */
 function consultaDelListado(criteria: SearchCriteria): string {
@@ -361,91 +373,59 @@ function leerRegistro(value: unknown): Record<string, unknown> {
   return esRegistro(value) ? value : {};
 }
 
-function leerElemento(value: unknown, monedaPorDefecto: string): ShopProduct | null {
-  if (!esRegistro(value)) {
+/** Un elemento del catálogo como producto de la tienda; sin título no lo es. */
+function comoProducto(elemento: ElementoDelCatalogo | null, monedaPorDefecto: string): ShopProduct | null {
+  if (!elemento || !elemento.titulo) {
     return null;
   }
-  const id = leerTexto(value['id']).trim();
-  const title = leerTexto(value['titulo']).trim();
-  if (!id || !title) {
-    return null;
-  }
-  const precio = leerRegistro(value['precio']);
-  const amount = leerNumero(precio['monto']);
+  const amount = elemento.precio?.monto ?? 0;
   // El precio de antes de una oferta (I5): lo que la tarjeta ya pinta tachado. Sólo si es mayor, como en la interina.
-  const antes = leerNumero(leerRegistro(value['precioAntes'])['monto']);
-  const calificacion = leerRegistro(value['calificacion']);
-  const atributos = leerRegistro(value['atributos']);
-  const imagen = leerTexto(value['imagen']).trim();
-  const disponibles = value['disponibles'];
+  const antes = elemento.precioAntes?.monto ?? 0;
   return {
-    id,
-    title,
+    id: elemento.id,
+    title: elemento.titulo,
     subtitle: '',
     amount,
     listAmount: antes > amount ? antes : undefined,
-    currency: leerTexto(precio['moneda']).trim() || monedaPorDefecto,
-    brand: leerTexto(atributos['marca']).trim(),
-    category: leerTexto(atributos['categoria']).trim(),
+    currency: elemento.precio?.moneda || monedaPorDefecto,
+    brand: (elemento.atributos['marca'] ?? '').trim(),
+    category: (elemento.atributos['categoria'] ?? '').trim(),
     seller: undefined,
     condition: 'new',
     freeShipping: false,
-    rating: leerNumero(calificacion['promedio']),
-    reviewCount: Math.trunc(leerNumero(calificacion['cantidad'])),
-    inStock: typeof disponibles === 'number' ? disponibles > 0 : true,
-    images: imagen ? [imagen] : [],
+    rating: elemento.calificacion?.promedio ?? 0,
+    reviewCount: Math.trunc(elemento.calificacion?.cantidad ?? 0),
+    inStock: elemento.disponibles === undefined ? true : elemento.disponibles > 0,
+    images: elemento.imagen ? [elemento.imagen] : [],
     badges: [],
   };
 }
 
-function leerValorDeFaceta(value: unknown): Facet['values'][number] | null {
-  if (!esRegistro(value)) {
-    return null;
-  }
-  const raw = leerTexto(value['valor']).trim();
-  if (!raw) {
-    return null;
-  }
-  return { value: raw, label: leerTexto(value['etiqueta']).trim() || raw, count: Math.trunc(leerNumero(value['cantidad'])) };
+function leerElemento(value: unknown, monedaPorDefecto: string): ShopProduct | null {
+  return comoProducto(leerElementoDelCatalogo(value), monedaPorDefecto);
 }
 
-function leerFacetas(value: unknown): readonly Facet[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry): Facet | null => {
-      if (!esRegistro(entry)) {
-        return null;
-      }
-      const key = leerTexto(entry['campo']).trim();
-      if (!key) {
-        return null;
-      }
-      const valores = Array.isArray(entry['valores']) ? entry['valores'] : [];
-      return {
-        key,
-        label: leerTexto(entry['titulo']).trim() || key,
-        kind: leerTexto(entry['tipo']).trim() || 'MultiSelect',
-        values: valores
-          .map((valor) => leerValorDeFaceta(valor))
-          .filter((valor): valor is Facet['values'][number] => valor !== null),
-      };
-    })
-    .filter((facet): facet is Facet => facet !== null);
+function comoFaceta(faceta: FacetaDelListado): Facet {
+  return {
+    key: faceta.campo,
+    label: faceta.titulo,
+    kind: faceta.tipo,
+    values: faceta.valores.map((valor) => ({ value: valor.valor, label: valor.etiqueta, count: valor.cantidad })),
+  };
 }
 
 function leerListado(value: unknown, monedaPorDefecto: string): SearchResult | null {
-  if (!esRegistro(value) || !Array.isArray(value['elementos'])) {
+  const listado = leerListadoDelCatalogo(value);
+  if (!listado) {
     return null;
   }
-  const products = value['elementos']
-    .map((entry) => leerElemento(entry, monedaPorDefecto))
+  const products = listado.elementos
+    .map((elemento) => comoProducto(elemento, monedaPorDefecto))
     .filter((product): product is ShopProduct => product !== null);
   return {
     products,
-    facets: leerFacetas(value['facetas']),
-    total: leerNumero(value['total']) || products.length,
+    facets: listado.facetas.map(comoFaceta),
+    total: listado.total || products.length,
   };
 }
 

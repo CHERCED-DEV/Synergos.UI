@@ -1,38 +1,35 @@
 import { Injectable, inject } from '@angular/core';
-import { enviarJsonAlBorde, esRegistro, leerJsonDelBorde, leerNumero, leerTexto } from '@synergos/core';
+import {
+  enviarJsonAlBorde,
+  esRegistro,
+  leerColeccionDelMiembro,
+  leerJsonDelBorde,
+  leerNumero,
+  leerTexto,
+} from '@synergos/core';
 import { LecturasDeLaTienda } from '../comun/lecturas';
 import type { WishlistEntry } from './deseos.model';
 
 /** La lista de deseos de quien compra (`GET` y `POST /wishlist`). */
 /**
- * La colección genérica (014-despiece-tienda, I4). Lo que el catálogo ya no tiene sale con su id y sin precio, como
- * en la interina: se muestra que estaba, no se inventa.
+ * La colección genérica (014-despiece-tienda, I4), leída con el lector común de `@synergos/core` (012-blogs-social,
+ * I4). Lo que el catálogo ya no tiene sale con su id y sin precio, como en la interina: se muestra que estaba, no se
+ * inventa.
  */
 function leerColeccion(value: unknown, monedaPorDefecto: string): readonly WishlistEntry[] | null {
-  if (!esRegistro(value) || !Array.isArray(value['elementos'])) {
+  const coleccion = leerColeccionDelMiembro(value);
+  if (!coleccion) {
     return null;
   }
-  return value['elementos']
-    .map((entry): WishlistEntry | null => {
-      if (!esRegistro(entry)) {
-        return null;
-      }
-      const productId = leerTexto(entry['id']).trim();
-      if (!productId) {
-        return null;
-      }
-      const elemento = esRegistro(entry['elemento']) ? entry['elemento'] : {};
-      const precio = esRegistro(elemento['precio']) ? elemento['precio'] : {};
-      const image = leerTexto(elemento['imagen']).trim();
-      return {
-        productId,
-        title: leerTexto(elemento['titulo']).trim() || productId,
-        amount: leerNumero(precio['monto']),
-        currency: leerTexto(precio['moneda']).trim() || monedaPorDefecto,
-        image: image || undefined,
-      };
-    })
-    .filter((entry): entry is WishlistEntry => entry !== null);
+  return coleccion.elementos.map(
+    ({ id, elemento }): WishlistEntry => ({
+      productId: id,
+      title: elemento?.titulo || id,
+      amount: elemento?.precio?.monto ?? 0,
+      currency: elemento?.precio?.moneda || monedaPorDefecto,
+      image: elemento?.imagen,
+    }),
+  );
 }
 
 /** La colección de la tienda que es la lista de deseos (la de `IUserCollection`). */
