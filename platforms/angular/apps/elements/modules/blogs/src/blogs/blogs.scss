@@ -542,6 +542,16 @@
   word-break: break-word;
 }
 
+// El extracto de un artículo del CMS enlaza su página (012, I3): se lee como el texto y se subraya al pasar.
+.blogs__post-link {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 .blogs__post-media {
   display: grid;
   gap: syn.$space-2;

@@ -340,6 +340,10 @@ export interface BlogsProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** decision */
+  readonly vista?: string;
+  /** sitio */
+  readonly rutas: readonly RutaDeUnaVista[];
 }
 
 /** <synergos-booking-wizard> · funcionalidad · diccionario: Travel.Booking */
@@ -1047,14 +1051,70 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   record: "BlogsProps",
   diccionario: ["Blogs.Comentarios"],
   claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion"],
-  campos: ["heading","subheading","apiBase"],
-  listas: {},
-  selectores: [],
+  campos: ["heading","subheading","apiBase","vista","rutas"],
+  listas: {"rutas":["vista","url"]},
+  selectores: [
+    {
+      "propiedad": "vista",
+      "dataType": "DTSelectVistaDeBlogs",
+      "multiple": false,
+      "campo": "vista",
+      "valores": [
+        {
+          "editor": "inicio",
+          "viaja": "inicio"
+        },
+        {
+          "editor": "explorar",
+          "viaja": "explorar"
+        },
+        {
+          "editor": "publicacion",
+          "viaja": "publicacion"
+        },
+        {
+          "editor": "perfil",
+          "viaja": "perfil"
+        },
+        {
+          "editor": "notificaciones",
+          "viaja": "notificaciones"
+        },
+        {
+          "editor": "mensajes",
+          "viaja": "mensajes"
+        },
+        {
+          "editor": "guardados",
+          "viaja": "guardados"
+        },
+        {
+          "editor": "escribir",
+          "viaja": "escribir"
+        },
+        {
+          "editor": "estudio",
+          "viaja": "estudio"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Conecta, publica y crece tu audiencia",
     "subheading": "Sigue autores, publica historias y reacciona en tiempo real",
-    "apiBase": "/api/blogs"
+    "apiBase": "/api/blogs",
+    "vista": "explorar",
+    "rutas": [
+      {
+        "vista": "inicio",
+        "url": "/tienda/"
+      },
+      {
+        "vista": "carrito",
+        "url": "/tienda/carrito/"
+      }
+    ]
   },
 };
 

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
   BlogsForbiddenError,
+  BlogsNotFoundError,
   BlogsUnauthorizedError,
   BlogsWriteFailedError,
   isBlogsForbidden,
@@ -116,6 +117,10 @@ export class BordeDeBlogs {
         // Autenticado, pero el recurso es de otro (conversación ajena). Taparlo con mock
         // le mostraría OTRA conversación — la mentira exacta que esto viene a cerrar.
         return Promise.reject(new BlogsForbiddenError(url));
+      }
+      if (response.status === 404) {
+        // Tipado como los dos de arriba: quien lea lo decide. Los que no lo miran siguen igual que con cualquier fallo.
+        return Promise.reject(new BlogsNotFoundError(url));
       }
       return response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`));
     });

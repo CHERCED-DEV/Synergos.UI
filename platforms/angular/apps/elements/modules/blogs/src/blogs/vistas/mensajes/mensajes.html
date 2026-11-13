@@ -45,7 +45,7 @@
 
 <ng-template #threadDetailTpl let-thread>
   <header class="blogs__dm-head">
-    <syn-button variant="plain" (pressed)="navegacion.openProfile(thread.participant.handle)">
+    <syn-button variant="plain" [href]="navegacion.urlDe('profile', thread.participant.handle)" (pressed)="navegacion.alPulsar('profile', thread.participant.handle)">
       <span class="blogs__dm-peer">
         <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(thread.participant) }}</span>
         <span class="blogs__dm-peer-name">

@@ -193,6 +193,15 @@ function normalizeMedia(value: unknown): Post['media'] {
     .filter((entry): entry is Post['media'][number] => entry !== null);
 }
 
+/**
+ * La página de un artículo del CMS (`pageUrl`): una ruta del sitio o una URL http(s). Cualquier otra cosa —un
+ * `javascript:`, un `//otro.sitio`— se descarta y la tarjeta abre la publicación dentro de la red.
+ */
+function readPageUrl(value: unknown): string {
+  const url = readString(value).trim();
+  return /^\/(?![/\\])/.test(url) || /^https?:\/\//i.test(url) ? url : '';
+}
+
 export function normalizePost(value: unknown): Post | null {
   if (!isRecord(value)) {
     return null;
@@ -204,7 +213,9 @@ export function normalizePost(value: unknown): Post | null {
   }
   const kindRaw = readString(value['objectKind']).trim();
   const objectKind = kindRaw === 'postPage' || kindRaw === 'lesson' ? kindRaw : 'post';
+  const pageUrl = readPageUrl(value['pageUrl']);
   return {
+    ...(pageUrl ? { pageUrl } : {}),
     id,
     author,
     objectKind,
