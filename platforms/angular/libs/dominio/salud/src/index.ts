@@ -49,3 +49,14 @@ export {
   type EstadoDeLaBusqueda,
   type EstadoDeLaHistoria,
 } from './lib/historia/historia';
+
+export * from './lib/consulta/consulta.model';
+export {
+  comprobarLaNota,
+  escribirLaNota,
+  firmarLaNota,
+  leerLaAgenda,
+  leerLasNotas,
+  marcarLaLlegada,
+} from './lib/consulta/consulta-api.client';
+export { ConsultaDelDia } from './lib/consulta/consulta';

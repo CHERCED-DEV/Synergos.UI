@@ -30,6 +30,14 @@ const TEXTOS: TextosDeSalud = {
     aperturaFallo: 'aperturaFallo',
     validarSinPermiso: 'validarSinPermiso',
     validarFallo: 'validarFallo',
+    llegadaNoSigue: 'llegadaNoSigue',
+    llegadaFallo: 'llegadaFallo',
+    notaGuardada: 'notaGuardada',
+    notaFirmada: 'notaFirmada',
+    notaYaFirmada: 'notaYaFirmada',
+    notaRevisa: 'notaRevisa',
+    notaSinLlave: 'notaSinLlave',
+    notaFallo: 'notaFallo',
   },
 };
 

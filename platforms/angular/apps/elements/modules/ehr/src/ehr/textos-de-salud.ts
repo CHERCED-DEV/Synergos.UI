@@ -105,6 +105,14 @@ export function textosDeSaludDelPortal(): TextosDeSalud {
       aperturaFallo: t('Health.Record.OpenFailed', 'No pudimos abrir la historia. Intenta de nuevo.'),
       validarSinPermiso: t('Health.Record.ValidateNoConsent', 'Sin el permiso del paciente para el consultorio no se ve ni se valida su historia. Lo da él, con el «Autorizo» de su cita o de su pre-registro.'),
       validarFallo: t('Health.Record.ValidateFailed', 'No pudimos validar el dato.'),
+      llegadaNoSigue: t('Health.Record.ArrivalNotNext', 'Ese paso no sigue al estado de la cita.'),
+      llegadaFallo: t('Health.Record.ArrivalFailed', 'No pudimos marcar la llegada. Intenta de nuevo.'),
+      notaGuardada: t('Health.Record.NoteSaved', 'Nota guardada como borrador.'),
+      notaFirmada: t('Health.Record.NoteSigned', 'Nota firmada con la llave del consultorio.'),
+      notaYaFirmada: t('Health.Record.NoteAlreadySigned', 'La nota está firmada: una corrección es otra nota.'),
+      notaRevisa: t('Health.Record.NoteInvalid', 'Revisa la nota: está vacía o alguna parte es demasiado larga.'),
+      notaSinLlave: t('Health.Record.NoteNoKey', 'No se pudo firmar: el consultorio todavía no tiene su llave de firma.'),
+      notaFallo: t('Health.Record.NoteFailed', 'No pudimos guardar la nota. Intenta de nuevo.'),
     },
   };
 }

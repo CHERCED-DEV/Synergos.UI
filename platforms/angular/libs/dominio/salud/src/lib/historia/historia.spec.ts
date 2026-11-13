@@ -16,6 +16,14 @@ const HISTORIA: TextosDeLaHistoria = {
   aperturaFallo: 'aperturaFallo',
   validarSinPermiso: 'validarSinPermiso',
   validarFallo: 'validarFallo',
+  llegadaNoSigue: 'llegadaNoSigue',
+  llegadaFallo: 'llegadaFallo',
+  notaGuardada: 'notaGuardada',
+  notaFirmada: 'notaFirmada',
+  notaYaFirmada: 'notaYaFirmada',
+  notaRevisa: 'notaRevisa',
+  notaSinLlave: 'notaSinLlave',
+  notaFallo: 'notaFallo',
 };
 
 function fachada<T>(tipo: Type<T>): T {

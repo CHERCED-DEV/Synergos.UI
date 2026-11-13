@@ -27,6 +27,15 @@ export interface TextosDeLaHistoria {
   readonly aperturaFallo: string;
   readonly validarSinPermiso: string;
   readonly validarFallo: string;
+  // La consulta (I3).
+  readonly llegadaNoSigue: string;
+  readonly llegadaFallo: string;
+  readonly notaGuardada: string;
+  readonly notaFirmada: string;
+  readonly notaYaFirmada: string;
+  readonly notaRevisa: string;
+  readonly notaSinLlave: string;
+  readonly notaFallo: string;
 }
 
 /**
