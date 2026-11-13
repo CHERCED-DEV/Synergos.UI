@@ -34,6 +34,7 @@ export type BlogsView =
   | 'saved' // guardados / listas
   | 'write' // long-form article editor (composer extendido)
   | 'studio' // creator studio — SH-5 console (analytics + monetización)
+  | 'moderation' // la cola de moderación — SH-5 console (012-blogs-social, I5)
   | 'subscribe'; // suscripción / tip — SH-3 checkout over the engine (opcional)
 
 /** Reaction verbs the UI surfaces. `IReactionService` keys idempotently on this. */

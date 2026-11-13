@@ -38,6 +38,13 @@ export interface TextosDeBlogs {
   readonly comentarioNoPublicado: string;
   readonly meGustaSinSesion: string;
   readonly meGustaNoGuardado: string;
+  /** Lo que dice la moderación (012-blogs-social, I5), de la sección `Blogs.Moderacion` del diccionario. */
+  readonly denunciaEnviada: string;
+  readonly denunciaSinSesion: string;
+  readonly denunciaYaNoEsta: string;
+  readonly denunciaNoEnviada: string;
+  readonly decisionGuardada: string;
+  readonly decisionNoGuardada: string;
   /** El nombre de quien lee sin sesión, en lo que la pantalla pinta en local («Tú»). */
   readonly quienLee: string;
   /** La línea del plan en el resumen de la suscripción («Membresía Fan»). */

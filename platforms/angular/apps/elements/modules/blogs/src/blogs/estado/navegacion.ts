@@ -5,6 +5,7 @@ import {
   GuardadosDeBlogs,
   InicioDeBlogs,
   MensajesDeBlogs,
+  ModeracionDeBlogs,
   NotificacionesDeBlogs,
   PerfilDeBlogs,
   PublicacionDeBlogs,
@@ -46,6 +47,7 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
   readonly #mensajes = inject(MensajesDeBlogs);
   readonly #guardados = inject(GuardadosDeBlogs);
   readonly #estudio = inject(EstudioDeBlogs);
+  readonly #moderacion = inject(ModeracionDeBlogs);
 
   #suppressedHash = '';
 
@@ -283,6 +285,9 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
       case 'studio':
         this.applyRoute('studio', '');
         return;
+      case 'moderacion':
+        this.applyRoute('moderation', '');
+        return;
       case 'suscribir':
         // Apagada (P5 A): el enlace lleva al inicio en vez de abrir un pago que no cobra.
         this.applyRoute(SUSCRIPCION_ENCENDIDA ? 'subscribe' : 'feed', '');
@@ -335,6 +340,11 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
           void this.#estudio.loadStudio();
         }
         return;
+      case 'moderation':
+        if (!this.#moderacion.colaCargada()) {
+          void this.#moderacion.cargarCola();
+        }
+        return;
       case 'profile':
         if (param) {
           this.#perfilPedido = param;
@@ -372,6 +382,8 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
         return `${base}/escribir`;
       case 'studio':
         return `${base}/studio`;
+      case 'moderation':
+        return `${base}/moderacion`;
       case 'subscribe':
         return `${base}/suscribir`;
       default:

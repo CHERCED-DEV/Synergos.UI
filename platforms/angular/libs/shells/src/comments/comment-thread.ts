@@ -59,6 +59,11 @@ export interface CommentThreadConfig {
   readonly loadingMessage?: string;
   /** Default «Sé el primero en comentar.». */
   readonly emptyMessage?: string;
+  /**
+   * La etiqueta de «Denunciar» un comentario (012-blogs-social, I5). Sin ella el hilo no lo ofrece: denunciar sólo tiene
+   * sentido donde alguien modera, y lo dice quien usa la pieza.
+   */
+  readonly reportLabel?: string;
 }
 
 /** Las filas del molde cuando quien usa la pieza no dice cuántas: la primera página típica de un hilo. */
@@ -122,6 +127,11 @@ const FILAS_DEL_MOLDE = 3;
               <svg class="syn-cthread__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
               {{ entry.likes }}
             </syn-button>
+            @if (reportLabel(); as etiqueta) {
+              <syn-button variant="ghost" size="sm" [ariaLabel]="etiqueta" (pressed)="report.emit(entry)">
+                <svg class="syn-cthread__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+              </syn-button>
+            }
           </div>
           @if (depth === 0) {
             <form class="syn-cthread__reply-form" (submit)="$event.preventDefault(); reply.emit(entry)">
@@ -178,9 +188,14 @@ export class CommentThreadComponent {
   /** Abrir a quien escribió el comentario. */
   readonly authorSelect = output<CommentThreadEntry>();
 
+  /** Denunciar un comentario; sólo se ofrece con `config.reportLabel` (012-blogs-social, I5). */
+  readonly report = output<CommentThreadEntry>();
+
   readonly bones = computed(() => Array.from({ length: Math.max(0, this.skeletons()) }, (_, index) => index));
 
   readonly replyLabel = computed(() => this.config().replyLabel || 'Responder');
+
+  readonly reportLabel = computed(() => this.config().reportLabel?.trim() || '');
 
   readonly replyPlaceholder = computed(() => this.config().replyPlaceholder || 'Responder…');
 

@@ -100,5 +100,13 @@
         <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
       }
     </syn-button>
+
+    <!-- Denunciar (012-blogs-social, I5): sólo si el despliegue dice dónde se modera. -->
+    @if (moderacion.disponible()) {
+      <syn-button variant="ghost" size="sm" [ariaLabel]="textos.denunciar"
+        (pressed)="moderacion.denunciar({ tipo: 'blogs.publicacion', id: post.id, resumen: post.body })">
+        <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+      </syn-button>
+    }
   </footer>
 </article>

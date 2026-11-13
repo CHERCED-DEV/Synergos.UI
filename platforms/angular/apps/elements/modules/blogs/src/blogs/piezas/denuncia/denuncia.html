@@ -1,0 +1,34 @@
+@if (moderacion.objetivo(); as objetivo) {
+  <section class="blogs__denuncia" tabindex="-1" aria-labelledby="blogs-denuncia-titulo" #panel>
+    <h2 class="blogs__denuncia-titulo" id="blogs-denuncia-titulo">{{ textos.titulo }}</h2>
+    <blockquote class="blogs__denuncia-cita">{{ objetivo.resumen }}</blockquote>
+    @if (moderacion.enviada()) {
+      <p class="blogs__denuncia-aviso">{{ moderacion.aviso() }}</p>
+      <div class="blogs__denuncia-acciones">
+        <syn-button variant="ghost" (pressed)="moderacion.cerrar()">{{ textos.cerrar }}</syn-button>
+      </div>
+    } @else {
+      <form class="blogs__denuncia-form" (submit)="enviar($event)">
+        <syn-textarea
+          id="blogs-denuncia-motivo"
+          [label]="textos.motivo"
+          [hint]="textos.ayuda"
+          [value]="moderacion.motivo()"
+          [maxlength]="largo"
+          [rows]="3"
+          [required]="true"
+          (valueChange)="moderacion.motivo.set($event)"
+        />
+        @if (moderacion.aviso()) {
+          <p class="blogs__denuncia-aviso">{{ moderacion.aviso() }}</p>
+        }
+        <div class="blogs__denuncia-acciones">
+          <syn-button type="submit" [disabled]="!moderacion.motivo().trim() || moderacion.enviando()">
+            {{ textos.enviar }}
+          </syn-button>
+          <syn-button variant="ghost" (pressed)="moderacion.cerrar()">{{ textos.cancelar }}</syn-button>
+        </div>
+      </form>
+    }
+  </section>
+}

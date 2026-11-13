@@ -20,6 +20,7 @@ import {
   GuardadosDeBlogs,
   InicioDeBlogs,
   MensajesDeBlogs,
+  ModeracionDeBlogs,
   NotificacionesDeBlogs,
   PerfilDeBlogs,
   PublicacionDeBlogs,
@@ -52,6 +53,8 @@ import { VALORES_DE_LA_VISTA, vistaDeLaApp } from './rutas-de-blogs';
 import { textosDeEstaRed } from './textos-de-blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
+import { BlogsModeracionComponent } from './vistas/moderacion/moderacion';
+import { BlogsDenunciaComponent } from './piezas/denuncia/denuncia';
 import { BlogsExplorarComponent } from './vistas/explorar/explorar';
 import { BlogsGuardadosComponent } from './vistas/guardados/guardados';
 import { BlogsInicioComponent } from './vistas/inicio/inicio';
@@ -105,6 +108,7 @@ const VALID_VIEWS: readonly BlogsView[] = [
   'saved',
   'write',
   'studio',
+  'moderation',
   'subscribe',
 ];
 
@@ -118,6 +122,7 @@ export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
+    moderacionBase: coerceTrimmedStringInput(value.moderacionBase),
     vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
     rutas: coerceRutasDeLasVistas(value.rutas),
   });
@@ -152,6 +157,8 @@ let blogsInstanceId = 0;
     BlogsEscribirComponent,
     BlogsEstudioComponent,
     BlogsSuscripcionComponent,
+    BlogsModeracionComponent,
+    BlogsDenunciaComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',
@@ -180,6 +187,7 @@ let blogsInstanceId = 0;
     ExplorarDeBlogs,
     MensajesDeBlogs,
     EstudioDeBlogs,
+    ModeracionDeBlogs,
     SuscripcionDeBlogs,
     NavegacionDeBlogs,
     PresentacionDeBlogs,
@@ -202,6 +210,7 @@ export class BlogsElementComponent implements OnInit {
   readonly explorar = inject(ExplorarDeBlogs);
   readonly mensajes = inject(MensajesDeBlogs);
   readonly estudio = inject(EstudioDeBlogs);
+  readonly moderacion = inject(ModeracionDeBlogs);
   readonly suscripcion = inject(SuscripcionDeBlogs);
   readonly navegacion = inject(NavegacionDeBlogs);
   readonly presentacion = inject(PresentacionDeBlogs);
@@ -248,6 +257,8 @@ export class BlogsElementComponent implements OnInit {
    * Explorar, los guardados y los mensajes leen las rutas interinas de `apiBase` (la vuelta atrás).
    */
   readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').replace(/\/+$/, ''));
+  /** Dónde se denuncia y vive la cola de moderación (012-blogs-social, I5); vacía, no se ofrece denunciar. */
+  readonly moderacionBase = computed(() => (this.config()?.moderacionBase ?? '').replace(/\/+$/, ''));
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
@@ -311,6 +322,7 @@ export class BlogsElementComponent implements OnInit {
     this.red.conectar({
       apiBase: this.apiBase,
       lecturasBase: this.lecturasBase,
+      moderacionBase: this.moderacionBase,
       scope: this.scope,
       navegacion: this.navegacion,
       eventos: {

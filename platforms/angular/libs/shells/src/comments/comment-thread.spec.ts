@@ -54,6 +54,7 @@ const COMENTARIO: CommentThreadEntry = {
       (reply)="replies.push($event)"
       (draftChange)="onDraft($event)"
       (authorSelect)="authors.push($event)"
+      (report)="reports.push($event)"
     />
   `,
 })
@@ -67,6 +68,7 @@ class AnfitrionComponent {
   readonly likes: CommentThreadEntry[] = [];
   readonly replies: CommentThreadEntry[] = [];
   readonly authors: CommentThreadEntry[] = [];
+  readonly reports: CommentThreadEntry[] = [];
   readonly cambios: CommentThreadDraftChange[] = [];
 
   onDraft(cambio: CommentThreadDraftChange): void {
@@ -219,6 +221,18 @@ describe('syn-comment-thread (SH-15)', () => {
     boton(respuesta.querySelector('.syn-cthread__head') as Element).click();
     await asentar();
     expect(anfitrion.authors).toEqual([RESPUESTA]);
+  });
+
+  it('«Denunciar» sólo aparece si quien usa la pieza da su etiqueta, y sale hacia el dominio (012, I5)', async () => {
+    const { anfitrion, host, asentar } = await montar();
+    expect(host.querySelector('button[aria-label="Denunciar"]')).toBeNull();
+
+    anfitrion.config.set({ reportLabel: 'Denunciar' });
+    await asentar();
+    (host.querySelector('button[aria-label="Denunciar"]') as HTMLButtonElement).click();
+    await asentar();
+
+    expect(anfitrion.reports).toEqual([COMENTARIO]);
   });
 
   it('un comentario sin alias no pinta una arroba suelta', async () => {

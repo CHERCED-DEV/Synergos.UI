@@ -332,7 +332,7 @@ export interface BadgeGroupProps {
   readonly layout?: string;
 }
 
-/** <synergos-blogs> · funcionalidad · diccionario: Blogs.Comentarios */
+/** <synergos-blogs> · funcionalidad · diccionario: Blogs.Comentarios, Blogs.Moderacion */
 export interface BlogsProps {
   /** contenido */
   readonly heading?: string;
@@ -342,6 +342,8 @@ export interface BlogsProps {
   readonly apiBase: string;
   /** negocio */
   readonly lecturasBase: string;
+  /** negocio */
+  readonly moderacionBase: string;
   /** decision */
   readonly vista?: string;
   /** sitio */
@@ -1053,9 +1055,9 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   nombre: "blogs",
   tipo: "funcionalidad",
   record: "BlogsProps",
-  diccionario: ["Blogs.Comentarios"],
-  claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion"],
-  campos: ["heading","subheading","apiBase","lecturasBase","vista","rutas"],
+  diccionario: ["Blogs.Comentarios","Blogs.Moderacion"],
+  claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion","Blogs.Moderacion.Ayuda","Blogs.Moderacion.Cancelar","Blogs.Moderacion.Cerrar","Blogs.Moderacion.Cola","Blogs.Moderacion.ColaNoCargo","Blogs.Moderacion.ColaVacia","Blogs.Moderacion.Comentario","Blogs.Moderacion.Confirmar","Blogs.Moderacion.Contenido","Blogs.Moderacion.Decidida","Blogs.Moderacion.Denunciar","Blogs.Moderacion.Denuncias","Blogs.Moderacion.Enviada","Blogs.Moderacion.Enviar","Blogs.Moderacion.Fecha","Blogs.Moderacion.Mantener","Blogs.Moderacion.Motivo","Blogs.Moderacion.NoDecidida","Blogs.Moderacion.NoEnviada","Blogs.Moderacion.PorQue","Blogs.Moderacion.Publicacion","Blogs.Moderacion.Que","Blogs.Moderacion.Retirar","Blogs.Moderacion.SesionParaModerar","Blogs.Moderacion.SinPermiso","Blogs.Moderacion.SinSesion","Blogs.Moderacion.Titulo","Blogs.Moderacion.YaNoEsta"],
+  campos: ["heading","subheading","apiBase","lecturasBase","moderacionBase","vista","rutas"],
   listas: {"rutas":["vista","url"]},
   selectores: [
     {
@@ -1099,6 +1101,10 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
         {
           "editor": "estudio",
           "viaja": "estudio"
+        },
+        {
+          "editor": "moderacion",
+          "viaja": "moderacion"
         }
       ]
     }
@@ -1109,6 +1115,7 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
     "subheading": "Sigue autores, publica historias y reacciona en tiempo real",
     "apiBase": "/api/blogs",
     "lecturasBase": "/api/lecturas/blogs",
+    "moderacionBase": "/api/moderacion",
     "vista": "explorar",
     "rutas": [
       {
