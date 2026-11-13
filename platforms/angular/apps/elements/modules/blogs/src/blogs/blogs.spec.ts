@@ -1742,8 +1742,11 @@ describe('BlogsElementComponent', () => {
       expect(url).toBe(`${MODERACION}/denuncias`);
       expect(JSON.parse(String((init as RequestInit).body))).toEqual({ tipo: 'blogs.publicacion', id: 'p-1', motivo: 'Es spam' });
       expect(component.moderacion.enviada()).toBe(true);
-      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__denuncia [role="status"]')?.textContent)
+      // El aviso se pinta en el panel y se dice por la región viva compartida (gate:regiones-vivas): no lleva rol propio.
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__denuncia .blogs__denuncia-aviso')?.textContent)
         .toContain('Gracias');
+      await settleAnnouncer();
+      expect(lastLiveRegion()?.textContent).toContain('Gracias');
     });
 
     it('sin sesión, o si no llegó, lo dice y deja el motivo en la caja para reintentar', async () => {
