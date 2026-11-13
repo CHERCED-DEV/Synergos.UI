@@ -340,6 +340,8 @@ export interface BlogsProps {
   readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
+  /** negocio */
+  readonly lecturasBase: string;
   /** decision */
   readonly vista?: string;
   /** sitio */
@@ -1051,7 +1053,7 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   record: "BlogsProps",
   diccionario: ["Blogs.Comentarios"],
   claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion"],
-  campos: ["heading","subheading","apiBase","vista","rutas"],
+  campos: ["heading","subheading","apiBase","lecturasBase","vista","rutas"],
   listas: {"rutas":["vista","url"]},
   selectores: [
     {
@@ -1104,6 +1106,7 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
     "heading": "Conecta, publica y crece tu audiencia",
     "subheading": "Sigue autores, publica historias y reacciona en tiempo real",
     "apiBase": "/api/blogs",
+    "lecturasBase": "/api/lecturas/blogs",
     "vista": "explorar",
     "rutas": [
       {

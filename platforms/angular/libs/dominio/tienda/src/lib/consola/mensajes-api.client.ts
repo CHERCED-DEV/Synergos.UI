@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { esRegistro, leerBooleano, leerTexto } from '@synergos/core';
+import { esRegistro, leerBooleano, leerHiloDeLaBandeja, leerTexto, type MensajeDelHilo } from '@synergos/core';
 import { LecturasDeLaConsola, type LecturaDeLaConsola } from './lecturas-de-la-consola';
 import { legibles, readList } from './lectores-de-la-consola';
 import {
@@ -101,16 +101,10 @@ function normalizeReply(value: unknown): SellerMessage | null {
 }
 
 /** Un mensaje del hilo genérico: lo escribió el personal si es de quien lee (`mio`), y si no, quien compra. */
-function leerMensaje(value: unknown): SellerMessage | null {
-  if (!esRegistro(value)) {
-    return null;
-  }
-  const id = leerTexto(value['id']).trim();
-  const body = leerTexto(value['texto']).trim();
-  if (!id || !body) {
-    return null;
-  }
-  return { id, from: value['mio'] === true ? 'seller' : 'buyer', body, date: leerTexto(value['fecha']).trim().slice(0, 10) };
+function comoMensaje(mensaje: MensajeDelHilo): SellerMessage | null {
+  return mensaje.texto
+    ? { id: mensaje.id, from: mensaje.mio ? 'seller' : 'buyer', body: mensaje.texto, date: mensaje.fecha.slice(0, 10) }
+    : null;
 }
 
 function leerHilos(value: unknown): readonly SellerThread[] | null {
@@ -118,24 +112,20 @@ function leerHilos(value: unknown): readonly SellerThread[] | null {
   if (!list) {
     return null;
   }
+  // Cada hilo, con el lector común de `@synergos/core` (012-blogs-social, I4); sin asunto no es de la tienda.
   const threads = list
     .map((entry): SellerThread | null => {
-      if (!esRegistro(entry)) {
+      const hilo = leerHiloDeLaBandeja(entry);
+      if (!hilo || !hilo.asunto) {
         return null;
       }
-      const id = leerTexto(entry['id']).trim();
-      const subject = leerTexto(entry['asunto']).trim();
-      if (!id || !subject) {
-        return null;
-      }
-      const date = leerTexto(entry['fecha']).trim().slice(0, 10);
-      const leidos = (Array.isArray(entry['mensajes']) ? entry['mensajes'] : [])
-        .map((mensaje) => leerMensaje(mensaje))
-        .filter((mensaje): mensaje is SellerMessage => mensaje !== null);
-      const ultimo = leerTexto(entry['ultimo']).trim();
+      const date = hilo.fecha.slice(0, 10);
+      const leidos = hilo.mensajes.map(comoMensaje).filter((mensaje): mensaje is SellerMessage => mensaje !== null);
       const messages: readonly SellerMessage[] =
-        leidos.length === 0 && ultimo ? [{ id: `${id}-ultimo`, from: 'buyer', body: ultimo, date }] : leidos;
-      return { id, subject, counterpart: leerTexto(entry['contraparte']).trim(), date, unread: false, messages };
+        leidos.length === 0 && hilo.ultimo
+          ? [{ id: `${hilo.id}-ultimo`, from: 'buyer', body: hilo.ultimo, date }]
+          : leidos;
+      return { id: hilo.id, subject: hilo.asunto, counterpart: hilo.contraparte, date, unread: false, messages };
     })
     .filter((thread): thread is SellerThread => thread !== null);
   return legibles(list, threads);

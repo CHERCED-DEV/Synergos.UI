@@ -1,13 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import {
   esRegistro as isRecord,
+  leerBandejaDelVertical,
   leerBooleano as readBoolean,
   leerNumero as readNumber,
   leerTexto as readString,
 } from '@synergos/core';
 import { BordeDeBlogs } from '../comun/borde-de-blogs';
-import type { DirectMessage, MessageThread, NewMessage } from '../comun/blogs.model';
+import type { Author, DirectMessage, MessageThread, NewMessage } from '../comun/blogs.model';
 import { buildMockThread, buildMockThreads } from '../comun/blogs.mock';
+import { hiloDeMensajes } from '../comun/lecturas-de-blogs';
 import { normalizeAuthor } from '../contenido/contenido-api.client';
 
 /** Los mensajes directos de quien lee (012-blogs-social, I2). */
@@ -23,9 +25,21 @@ export class MensajesApi {
    * Sin parámetro de identidad: el `?user=<handle>` era el IDOR (saber el handle de
    * alguien bastaba para leerle los mensajes directos) y el backend ya no lo mira.
    *
+   * Con `lecturasBase`, la bandeja genérica (`GET {lecturasBase}/mensajes`, 012-blogs-social, I4): sólo los mensajes
+   * directos, con la contraparte por su alias y su nombre; los míos, a nombre de `yo`.
+   *
    * @throws {BlogsUnauthorizedError} si no hay sesión.
    */
-  async messages(apiBase: string): Promise<readonly MessageThread[]> {
+  async messages(apiBase: string, lecturasBase = '', yo?: Author): Promise<readonly MessageThread[]> {
+    if (lecturasBase) {
+      try {
+        return await this.#bandeja(lecturasBase, yo);
+      } catch (error) {
+        this.#borde.rethrowIfAuthError(error);
+        this.#borde.markDegraded('GET /api/lecturas/{vertical}/mensajes', error);
+        return buildMockThreads();
+      }
+    }
     const url = `${apiBase}/messages`;
     try {
       const data = await this.#borde.getJson(apiBase, url);
@@ -45,9 +59,24 @@ export class MensajesApi {
    * `GET /api/blogs/thread/{id}` — the open conversation + materialised messages.
    *
    * @throws {BlogsUnauthorizedError} si no hay sesión.
+   * Con `lecturasBase`, el hilo sale de la bandeja genérica, que trae los mensajes de cada uno. Uno que no está ahí
+   * —el que se acaba de abrir desde un perfil, que sólo existe aquí hasta el primer mensaje— se pide a la interina,
+   * como siempre.
+   *
    * @throws {BlogsForbiddenError} si la conversación no es del viewer.
    */
-  async thread(apiBase: string, threadId: string): Promise<MessageThread> {
+  async thread(apiBase: string, threadId: string, lecturasBase = '', yo?: Author): Promise<MessageThread> {
+    if (lecturasBase) {
+      try {
+        const hilo = (await this.#bandeja(lecturasBase, yo)).find((entrada) => entrada.id === threadId);
+        if (hilo) {
+          return hilo;
+        }
+      } catch (error) {
+        this.#borde.rethrowIfAuthError(error);
+        this.#borde.markDegraded('GET /api/lecturas/{vertical}/mensajes', error);
+      }
+    }
     const url = `${apiBase}/thread/${encodeURIComponent(threadId)}`;
     try {
       const data = await this.#borde.getJson(apiBase, url);
@@ -100,6 +129,14 @@ export class MensajesApi {
       this.#borde.rethrowIfAuthError(error);
       this.#borde.writeFailed('POST /api/blogs/message', error);
     }
+  }
+
+  async #bandeja(lecturasBase: string, yo?: Author): Promise<readonly MessageThread[]> {
+    const hilos = leerBandejaDelVertical(await this.#borde.getJson(lecturasBase, `${lecturasBase}/mensajes`));
+    if (!hilos) {
+      throw new Error('mensajes-shape');
+    }
+    return hilos.map((hilo) => hiloDeMensajes(hilo, yo));
   }
 }
 

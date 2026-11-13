@@ -1678,6 +1678,166 @@ describe('BlogsElementComponent', () => {
     }
   });
 
+  // ─── Las lecturas genéricas (012, I4): Explorar, Guardados y Mensajes leen api/lecturas/blogs ──────────────────
+  describe('las lecturas genéricas', () => {
+    const LECTURAS = '/api/lecturas/blogs';
+    const CON_LECTURAS = { ...NEGOCIO_DEL_CMS, lecturasBase: `${LECTURAS}/` };
+    const ARTICULO = {
+      id: 'post-capas',
+      titulo: 'Arquitectura por capas',
+      imagen: '/media/capas.jpg',
+      precio: null,
+      precioAntes: null,
+      calificacion: null,
+      disponibles: null,
+      atributos: {
+        tipo: 'article',
+        cuerpo: 'Por qué separamos el dominio de la presentación. #arquitectura',
+        autor: 'Camila Ríos',
+        autorId: 'autor-camila-rios',
+        alias: 'camila-rios',
+        autorImagen: '/media/camila.jpg',
+        fecha: '2026-11-11T12:00:00.0000000Z',
+        categoria: 'Ingeniería',
+        etiquetas: 'arquitectura',
+        pagina: '/blogs/ingenieria/arquitectura-por-capas/',
+        imagenAlt: 'Las capas del sitio',
+        republicaciones: '3',
+        comentarios: '7',
+        reacciones: 'like:2,love:1',
+        miReaccion: 'like',
+      },
+    };
+    const BANDEJA = {
+      hilos: [
+        {
+          id: 'th-1',
+          contexto: 'dm',
+          asunto: 'Ana Autora',
+          contraparte: 'ana-autora-a1b2c3',
+          ultimo: '¡Nos vemos!',
+          fecha: '2026-11-13T10:00:00+00:00',
+          cantidad: 2,
+          mensajes: [
+            { id: 'm1', de: 'ana-autora-a1b2c3', mio: false, texto: '¿Leíste el artículo?', fecha: '2026-11-13T09:00:00+00:00' },
+            { id: 'm2', de: 'yo-0f1e2d', mio: true, texto: '¡Nos vemos!', fecha: '2026-11-13T10:00:00+00:00' },
+          ],
+        },
+      ],
+    };
+
+    /** Un borde que contesta esas rutas con ese JSON y rechaza todo lo demás. */
+    function bordeGenerico(rutas: Record<string, unknown>): ReturnType<typeof vi.fn> {
+      const fetchMock = vi.fn((url: string) => {
+        const ruta = Object.keys(rutas).find((entrada) => String(url).includes(entrada));
+        return ruta
+          ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(rutas[ruta]) } as Response)
+          : Promise.reject(new Error('offline'));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    const pedidas = (fetchMock: ReturnType<typeof vi.fn>): string[] =>
+      fetchMock.mock.calls.map(([url]) => String(url));
+
+    it('Explorar por etiqueta lee el catálogo de la red y pinta cada publicación como la interina', async () => {
+      const fetchMock = bordeGenerico({
+        [`${LECTURAS}/catalogo`]: {
+          elementos: [ARTICULO],
+          facetas: [
+            {
+              campo: 'etiqueta',
+              titulo: 'Etiqueta',
+              tipo: 'MultiSelect',
+              valores: [{ valor: 'arquitectura', etiqueta: 'arquitectura', cantidad: 1 }],
+            },
+          ],
+          total: 1,
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      component.explorar.searchHashtag('arquitectura');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100&filtro.etiqueta=arquitectura`);
+      expect(component.explorar.searchResult()?.posts[0]).toMatchObject({
+        id: 'post-capas',
+        objectKind: 'postPage',
+        pageUrl: '/blogs/ingenieria/arquitectura-por-capas/',
+        hashtags: ['arquitectura'],
+        commentCount: 7,
+        repostCount: 3,
+        author: { actorKey: 'autor-camila-rios', handle: 'camila-rios', displayName: 'Camila Ríos' },
+        reactions: { mine: 'like', total: 3 },
+        media: [{ url: '/media/capas.jpg', kind: 'image', alt: 'Las capas del sitio' }],
+      });
+      expect(component.explorar.searchResult()?.hashtags).toEqual([{ tag: 'arquitectura', postCount: 1 }]);
+      expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/explore'))).toBe(false);
+    });
+
+    it('Guardados lee la colección «saved»: cada publicación del catálogo, sin lo que ya no está', async () => {
+      const fetchMock = bordeGenerico({
+        [`${LECTURAS}/colecciones/saved`]: {
+          coleccion: 'saved',
+          elementos: [
+            { id: 'post-capas', guardado: '2026-11-12T10:00:00+00:00', elemento: ARTICULO },
+            { id: 'ya-no-existe', guardado: '2026-11-11T10:00:00+00:00', elemento: null },
+          ],
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      component.navegacion.go('saved');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/colecciones/saved`);
+      expect(component.guardados.savedPosts().map((post) => post.id)).toEqual(['post-capas']);
+      expect(component.guardados.savedPosts()[0]?.reactions.mine).toBe('like');
+      expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/saved'))).toBe(false);
+    });
+
+    it('la bandeja lee los mensajes directos genéricos: la contraparte por su alias y su nombre, y los míos salen míos', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/mensajes`]: BANDEJA });
+      await createComponent('', CON_LECTURAS);
+
+      component.navegacion.go('messages');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/mensajes`);
+      const [hilo] = component.mensajes.threads();
+      expect(hilo?.participant).toMatchObject({ handle: 'ana-autora-a1b2c3', displayName: 'Ana Autora' });
+      expect(hilo?.messages.map((mensaje) => mensaje.outgoing)).toEqual([false, true]);
+
+      await component.mensajes.openThread('th-1');
+      expect(component.mensajes.activeThread()?.messages.map((mensaje) => mensaje.body)).toEqual([
+        '¿Leíste el artículo?',
+        '¡Nos vemos!',
+      ]);
+
+      // «Mensaje» desde el perfil de Ana abre SU hilo, no uno local nuevo: la bandeja la nombra por su alias.
+      component.mensajes.messageAuthor({ ...AUTHOR, actorKey: 'a1b2c3d4e5f60718', handle: 'ana-autora-a1b2c3' });
+      await flushMicrotasks();
+      expect(component.mensajes.threads().map((entrada) => entrada.id)).toEqual(['th-1']);
+      expect(pedidas(fetchMock).some((url) => /\/api\/blogs\/(messages|thread\/)/.test(url))).toBe(false);
+    });
+
+    it('con la base vacía vuelve a las rutas interinas: es la vuelta atrás', async () => {
+      const fetchMock = bordeGenerico({});
+      await createComponent('', { ...NEGOCIO_DEL_CMS, lecturasBase: '' });
+
+      component.explorar.searchHashtag('arquitectura');
+      component.navegacion.go('saved');
+      await flushMicrotasks();
+
+      const urls = pedidas(fetchMock);
+      expect(urls.some((url) => url.includes('/explore'))).toBe(true);
+      expect(urls.some((url) => url.includes('/saved'))).toBe(true);
+      expect(urls.some((url) => url.includes('/api/lecturas/'))).toBe(false);
+    });
+  });
+
   // ─── La red por páginas (012, I3): cada vista en su página del sitio ────────
   describe('las páginas del sitio', () => {
     const RUTAS = [

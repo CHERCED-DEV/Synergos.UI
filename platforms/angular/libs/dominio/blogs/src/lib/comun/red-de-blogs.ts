@@ -37,6 +37,11 @@ export interface EventosDeLaRed {
 export interface ConexionDeLaRed {
   /** Dónde vive la API, sin la barra final. */
   readonly apiBase: Signal<string>;
+  /**
+   * La base de las lecturas genéricas de Blogs (`/api/lecturas/blogs`, 012-blogs-social, I4), sin la barra final. Vacía
+   * o ausente, Explorar, los guardados y los mensajes leen las rutas interinas de `apiBase`.
+   */
+  readonly lecturasBase?: Signal<string>;
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope: Signal<string>;
   readonly navegacion: NavegacionDeLaRed;
@@ -92,7 +97,7 @@ export class RedDeBlogs {
   readonly #perfil = inject(PerfilApi);
   readonly #textos = inject(TEXTOS_DE_BLOGS);
 
-  readonly #fuentes = signal<Pick<ConexionDeLaRed, 'apiBase' | 'scope'> | null>(null);
+  readonly #fuentes = signal<Pick<ConexionDeLaRed, 'apiBase' | 'lecturasBase' | 'scope'> | null>(null);
   #navegacion: NavegacionDeLaRed | null = null;
   #eventos: EventosDeLaRed = SIN_EVENTOS;
   #anunciar: (mensaje: string) => void = () => undefined;
@@ -102,6 +107,8 @@ export class RedDeBlogs {
    * no hay una base de respaldo compilada (ADR 0137). La declara el CMS en el `config` del elemento.
    */
   readonly apiBase = computed(() => this.#fuentes()?.apiBase() ?? '');
+  /** Dónde viven las lecturas genéricas de Blogs; vacía, las interinas (012-blogs-social, I4). */
+  readonly lecturasBase = computed(() => this.#fuentes()?.lecturasBase?.() ?? '');
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope = computed(() => this.#fuentes()?.scope() ?? 'blogs');
 
@@ -192,7 +199,7 @@ export class RedDeBlogs {
 
   /** El elemento conecta la red al montarse: sus entradas, su navegación, sus CustomEvents y su región viva. */
   conectar(conexion: ConexionDeLaRed): void {
-    this.#fuentes.set({ apiBase: conexion.apiBase, scope: conexion.scope });
+    this.#fuentes.set({ apiBase: conexion.apiBase, lecturasBase: conexion.lecturasBase, scope: conexion.scope });
     this.#navegacion = conexion.navegacion;
     this.#eventos = conexion.eventos;
     this.#anunciar = conexion.anunciar;
