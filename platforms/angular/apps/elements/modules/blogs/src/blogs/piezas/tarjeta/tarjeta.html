@@ -1,18 +1,26 @@
 @let post = publicacion();
+<ng-template #quien>
+  <span class="blogs__post-author">
+    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(post.author) }}</span>
+    <span class="blogs__post-id">
+      <span class="blogs__post-name">
+        {{ post.author.displayName }}
+        @if (post.author.verified) {<span class="blogs__verified" aria-label="Verificada"><sg-blogs-verificada /></span>}
+      </span>
+      <span class="blogs__post-handle">&#64;{{ post.author.handle }}</span>
+    </span>
+  </span>
+</ng-template>
 <article class="blogs__post" [class.blogs__post--detail]="detalle()">
   <header class="blogs__post-head">
-    <syn-button class="blogs__post-author-open" variant="plain" (pressed)="navegacion.openProfile(post.author.handle)">
-      <span class="blogs__post-author">
-        <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(post.author) }}</span>
-        <span class="blogs__post-id">
-          <span class="blogs__post-name">
-            {{ post.author.displayName }}
-            @if (post.author.verified) {<span class="blogs__verified" aria-label="Verificada"><sg-blogs-verificada /></span>}
-          </span>
-          <span class="blogs__post-handle">&#64;{{ post.author.handle }}</span>
-        </span>
-      </span>
-    </syn-button>
+    <!-- El autor de un artículo del CMS no es un miembro y no tiene perfil en la red: su nombre no enlaza (I3). -->
+    @if (post.pageUrl) {
+      <ng-container [ngTemplateOutlet]="quien" />
+    } @else {
+      <syn-button class="blogs__post-author-open" variant="plain" [href]="navegacion.urlDe('profile', post.author.handle)" (pressed)="navegacion.alPulsar('profile', post.author.handle)">
+        <ng-container [ngTemplateOutlet]="quien" />
+      </syn-button>
+    }
     <span class="blogs__meta-time" [attr.title]="post.createdAtUtc">{{ presentacion.relativeTime(post.createdAtUtc) }}</span>
   </header>
 
@@ -20,7 +28,12 @@
     <span class="blogs__kind">{{ post.objectKind === 'lesson' ? 'Lección' : 'Artículo' }}</span>
   }
 
-  <p class="blogs__post-body">{{ post.body }}</p>
+  <!-- Un artículo del CMS se lee en su página (T022): el extracto la enlaza. -->
+  @if (post.pageUrl) {
+    <p class="blogs__post-body"><a class="blogs__post-link" [href]="post.pageUrl">{{ post.body }}</a></p>
+  } @else {
+    <p class="blogs__post-body">{{ post.body }}</p>
+  }
 
   @if (post.media.length > 0) {
     <div class="blogs__post-media">
@@ -37,7 +50,7 @@
   @if (post.hashtags.length > 0) {
     <ul class="blogs__post-tags">
       @for (tag of post.hashtags; track tag) {
-        <li><syn-button variant="outline" size="sm" (pressed)="explorar.searchHashtag(tag)">#{{ tag }}</syn-button></li>
+        <li><syn-button variant="outline" size="sm" [href]="navegacion.urlDe('search', tag)" (pressed)="navegacion.alPulsar('search', tag)">#{{ tag }}</syn-button></li>
       }
     </ul>
   }
@@ -69,7 +82,7 @@
       }
     </div>
 
-    <syn-button variant="ghost" size="sm" (pressed)="navegacion.openPost(post)"
+    <syn-button variant="ghost" size="sm" [href]="navegacion.urlDeLaPublicacion(post)" (pressed)="navegacion.alPulsarLaPublicacion(post)"
       [ariaLabel]="'Comentarios (' + post.commentCount + ')'">
       <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> {{ presentacion.formatCount(post.commentCount) }}
     </syn-button>

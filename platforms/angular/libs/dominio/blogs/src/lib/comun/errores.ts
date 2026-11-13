@@ -40,6 +40,22 @@ export function isBlogsForbidden(error: unknown): error is BlogsForbiddenError {
 }
 
 /**
+ * El backend respondió 404: lo pedido no existe (un perfil que no es de ningún miembro). Es una NEGACIÓN, no una caída:
+ * quien lo lee no lo cambia por una muestra, que sería mostrar a otra persona (012, I3).
+ */
+export class BlogsNotFoundError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 404 ${url}`);
+    this.name = 'BlogsNotFoundError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isBlogsNotFound(error: unknown): error is BlogsNotFoundError {
+  return error instanceof Error && error.name === 'BlogsNotFoundError';
+}
+
+/**
  * Lo que devuelve publicar: el post **y si el servidor lo aceptó**.
  *
  * Existe porque devolver sólo el `Post` hacía indistinguible «publicado» de

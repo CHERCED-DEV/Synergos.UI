@@ -3,6 +3,6 @@
   <ng-content />
   <div class="blogs__signin-actions">
     <syn-button [href]="navegacion.loginUrl()">Iniciar sesión</syn-button>
-    <syn-button variant="ghost" (pressed)="navegacion.go('feed')">Volver al feed</syn-button>
+    <syn-button variant="ghost" [href]="navegacion.urlDe('feed')" (pressed)="navegacion.alPulsar('feed')">Volver al feed</syn-button>
   </div>
 </div>

@@ -4,6 +4,7 @@ import { BordeDeBlogs } from '../comun/borde-de-blogs';
 import type { Author, Post, ProfilePayload, ProfileStats } from '../comun/blogs.model';
 import { buildMockProfile } from '../comun/blogs.mock';
 import { normalizeAuthor, normalizePost } from '../contenido/contenido-api.client';
+import { isBlogsNotFound } from '../comun/errores';
 
 /** El perfil de una persona y la cara pública de quien lee (012-blogs-social, I0 e I2). */
 @Injectable({ providedIn: 'root' })
@@ -42,6 +43,11 @@ export class PerfilApi {
       }
       throw new Error('profile-shape');
     } catch (error) {
+      // Un 404 es el servidor diciendo que ese perfil no existe (el autor de un artículo del CMS no es un miembro). La
+      // muestra pintaría a OTRA persona con otro alias: la red dice que no pudo cargarlo.
+      if (isBlogsNotFound(error)) {
+        throw error;
+      }
       this.#borde.markDegraded('GET /api/blogs/profile/{handle}', error);
       return buildMockProfile(handle);
     }

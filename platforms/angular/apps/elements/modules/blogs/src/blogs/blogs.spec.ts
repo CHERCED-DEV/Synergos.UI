@@ -22,7 +22,7 @@ import {
   isBlogsForbidden,
   isBlogsUnauthorized,
 } from '@synergos/dominio/blogs';
-import { BlogsElementComponent } from './blogs';
+import { BlogsElementComponent, sanitizeBlogsConfig } from './blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
@@ -1677,6 +1677,109 @@ describe('BlogsElementComponent', () => {
       expect(e.visibility).not.toBe('hidden');
     }
   });
+
+  // ─── La red por páginas (012, I3): cada vista en su página del sitio ────────
+  describe('las páginas del sitio', () => {
+    const RUTAS = [
+      { vista: 'inicio', url: '/blogs/' },
+      { vista: 'explorar', url: '/blogs/explorar/' },
+      { vista: 'publicacion', url: '/blogs/publicacion/' },
+      { vista: 'perfil', url: '/blogs/perfil/' },
+      { vista: 'notificaciones', url: '/blogs/notificaciones/' },
+      { vista: 'mensajes', url: '/blogs/mensajes-directos/' },
+      { vista: 'guardados', url: '/blogs/guardados/' },
+      { vista: 'escribir', url: '/blogs/escribir/' },
+      { vista: 'estudio', url: '/blogs/estudio/' },
+    ];
+    const enLaPagina = (vista: string): object => ({ ...NEGOCIO_DEL_CMS, vista, rutas: RUTAS });
+    const ARTICULO: Post = { ...POST_FOR_SKELETON, id: 'cms-1', objectKind: 'postPage', pageUrl: '/blogs/mi-articulo/' };
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    });
+
+    it('sanea la vista y las rutas del bloque; una vista desconocida no pasa', () => {
+      expect(sanitizeBlogsConfig({ vista: 'explorar', rutas: RUTAS })).toMatchObject({ vista: 'explorar', rutas: RUTAS });
+      expect(sanitizeBlogsConfig({ vista: 'otra' }).vista).toBeUndefined();
+    });
+
+    it('la página abre la vista que eligió el editor', async () => {
+      await createComponent('', enLaPagina('notificaciones'));
+      expect(component.red.view()).toBe('notifications');
+    });
+
+    it('enlaza cada vista con su página, lo que abre va en el hash, y la vista de la página se abre aquí', async () => {
+      await createComponent('', enLaPagina('explorar'));
+      const nav = component.navegacion;
+      expect(nav.urlDe('feed')).toBe('/blogs/');
+      expect(nav.urlDe('feed', 'publicar')).toBe('/blogs/#/blogs/publicar');
+      expect(nav.urlDe('post', 'p 1')).toBe('/blogs/publicacion/#/blogs/post/p%201');
+      expect(nav.urlDe('profile', 'valeria')).toBe('/blogs/perfil/#/blogs/@valeria');
+      expect(nav.urlDe('messages')).toBe('/blogs/mensajes-directos/');
+      expect(nav.urlDe('search', 'ia')).toBe('');
+      expect(nav.urlDe('subscribe')).toBe('');
+    });
+
+    it('ir a una vista de otra página es ir a esa página; pulsar su enlace lo deja al navegador', async () => {
+      await createComponent('', enLaPagina('explorar'));
+      const abrir = vi.fn();
+      component.navegacion.abrirPagina = abrir;
+
+      component.navegacion.alPulsar('saved');
+      expect(abrir).not.toHaveBeenCalled();
+
+      component.navegacion.go('saved');
+      expect(abrir).toHaveBeenCalledWith('/blogs/guardados/');
+      expect(component.red.view()).toBe('search');
+    });
+
+    it('un artículo del CMS se abre en su página; una publicación, en la de las publicaciones', async () => {
+      await createComponent('', enLaPagina('inicio'));
+      const abrir = vi.fn();
+      component.navegacion.abrirPagina = abrir;
+
+      expect(component.navegacion.urlDeLaPublicacion(ARTICULO)).toBe('/blogs/mi-articulo/');
+      expect(component.navegacion.urlDeLaPublicacion(POST_FOR_SKELETON)).toBe('/blogs/publicacion/#/blogs/post/p-skeleton');
+      component.navegacion.openPost(ARTICULO);
+      expect(abrir).toHaveBeenCalledWith('/blogs/mi-articulo/');
+    });
+
+    it('sin rutas, la red sigue en una sola página', async () => {
+      await createComponent();
+      expect(component.navegacion.urlDe('saved')).toBe('');
+      component.navegacion.alPulsar('saved');
+      expect(component.red.view()).toBe('saved');
+    });
+
+    it('la etiqueta viaja en la ruta de Explorar', async () => {
+      await createComponent('#/blogs/explorar/ia', enLaPagina('explorar'));
+      expect(component.red.view()).toBe('search');
+      expect(component.explorar.searchTag()).toBe('ia');
+    });
+
+    it('un perfil que no existe (404) no se cambia por el de una muestra', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          /\/profile\//.test(url)
+            ? Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) } as Response)
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent('#/blogs/@equipo-synergoslabs', enLaPagina('perfil'));
+      expect(component.perfil.profile()).toBeNull();
+      expect(component.red.errorMessage()).not.toBe('');
+    });
+
+    it('atrás hasta la URL sin hash devuelve la página a su vista', async () => {
+      await createComponent('#/blogs/post/p-skeleton', enLaPagina('inicio'));
+      expect(component.red.view()).toBe('post');
+      window.location.hash = '';
+      component.navegacion.applyHash(true);
+      expect(component.red.view()).toBe('feed');
+    });
+  });
+
   // ─── El <h1> del feed: lo compone el CMS ────────────────────────────────────
   //
   // Dos defectos distintos se cruzaban aquí. (1) El feed era la ÚNICA de las seis

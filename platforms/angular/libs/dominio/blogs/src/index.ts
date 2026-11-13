@@ -11,9 +11,11 @@
 export * from './lib/comun/blogs.model';
 export {
   BlogsForbiddenError,
+  BlogsNotFoundError,
   BlogsUnauthorizedError,
   BlogsWriteFailedError,
   isBlogsForbidden,
+  isBlogsNotFound,
   isBlogsUnauthorized,
   type PublishOutcome,
 } from './lib/comun/errores';
