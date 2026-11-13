@@ -18,6 +18,19 @@ const TEXTOS: TextosDeSalud = {
   },
   mensajeDeLaCita: (code) => `rechazo ${code}`,
   sinHorasLibres: 'sin horas libres',
+  historia: {
+    checkInGuardado: 'checkInGuardado',
+    checkInRevisa: 'checkInRevisa',
+    checkInSinHistoria: 'checkInSinHistoria',
+    checkInSinSesion: 'checkInSinSesion',
+    checkInFallo: 'checkInFallo',
+    aperturaLista: 'aperturaLista',
+    aperturaSinRol: 'aperturaSinRol',
+    aperturaRevisa: 'aperturaRevisa',
+    aperturaFallo: 'aperturaFallo',
+    validarSinPermiso: 'validarSinPermiso',
+    validarFallo: 'validarFallo',
+  },
 };
 
 /** Lo que contesta la lectura `disponibilidad`: un lunes de 2027 en Bogotá, por franjas de 20 minutos. */

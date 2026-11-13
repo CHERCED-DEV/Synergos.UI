@@ -446,7 +446,7 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
-/** <synergos-ehr> · funcionalidad · diccionario: Health.Appointment, Health.Consent */
+/** <synergos-ehr> · funcionalidad · diccionario: Health.Appointment, Health.Consent, Health.Record */
 export interface EhrProps {
   /** negocio */
   readonly apiBase: string;
@@ -456,6 +456,8 @@ export interface EhrProps {
   readonly appointmentPath: string;
   /** negocio */
   readonly zona: string;
+  /** negocio */
+  readonly historiaBase: string;
 }
 
 /** <synergos-eventos> · funcionalidad · diccionario: Events.Sale, Events.Purchase */
@@ -1407,9 +1409,9 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
   nombre: "ehr",
   tipo: "funcionalidad",
   record: "EhrProps",
-  diccionario: ["Health.Appointment","Health.Consent"],
-  claves: ["Health.Appointment.BadRequest","Health.Appointment.BadWindow","Health.Appointment.Cancel","Health.Appointment.CancelledNoCharge","Health.Appointment.ConsentMissing","Health.Appointment.Copay","Health.Appointment.CopayUnavailable","Health.Appointment.Generic","Health.Appointment.Heading","Health.Appointment.Loading","Health.Appointment.NoAgenda","Health.Appointment.NoCopay","Health.Appointment.NoSlots","Health.Appointment.NotCancellable","Health.Appointment.NotConfirmable","Health.Appointment.NotFound","Health.Appointment.PaymentFailed","Health.Appointment.RefundIssued","Health.Appointment.SignInRequired","Health.Appointment.SlotExpired","Health.Appointment.SlotTaken","Health.Appointment.StateConfirmed","Health.Appointment.StatePending","Health.Appointment.StateReview","Health.Appointment.StateUndone","Health.Appointment.Unavailable","Health.Consent.Accept","Health.Consent.Granted","Health.Consent.Purpose","Health.Consent.Responsible","Health.Consent.Retention","Health.Consent.Revoke","Health.Consent.Revoked","Health.Consent.Title","Health.Consent.Use"],
-  campos: ["apiBase","lecturasBase","appointmentPath","zona"],
+  diccionario: ["Health.Appointment","Health.Consent","Health.Record"],
+  claves: ["Health.Appointment.BadRequest","Health.Appointment.BadWindow","Health.Appointment.Cancel","Health.Appointment.CancelledNoCharge","Health.Appointment.ConsentMissing","Health.Appointment.Copay","Health.Appointment.CopayUnavailable","Health.Appointment.Generic","Health.Appointment.Heading","Health.Appointment.Loading","Health.Appointment.NoAgenda","Health.Appointment.NoCopay","Health.Appointment.NoSlots","Health.Appointment.NotCancellable","Health.Appointment.NotConfirmable","Health.Appointment.NotFound","Health.Appointment.PaymentFailed","Health.Appointment.RefundIssued","Health.Appointment.SignInRequired","Health.Appointment.SlotExpired","Health.Appointment.SlotTaken","Health.Appointment.StateConfirmed","Health.Appointment.StatePending","Health.Appointment.StateReview","Health.Appointment.StateUndone","Health.Appointment.Unavailable","Health.Consent.Accept","Health.Consent.Granted","Health.Consent.Purpose","Health.Consent.Responsible","Health.Consent.Retention","Health.Consent.Revoke","Health.Consent.Revoked","Health.Consent.Title","Health.Consent.Use","Health.Record.Address","Health.Record.Allergies","Health.Record.Back","Health.Record.BirthDate","Health.Record.BirthDateHint","Health.Record.CheckIn","Health.Record.CheckInFailed","Health.Record.CheckInInvalid","Health.Record.CheckInSaved","Health.Record.Conditions","Health.Record.ConsentMissing","Health.Record.DeclaredNote","Health.Record.DeniedText","Health.Record.DeniedTitle","Health.Record.Document","Health.Record.EmergencyContact","Health.Record.EmptyText","Health.Record.EmptyTitle","Health.Record.FullName","Health.Record.Insurer","Health.Record.Loading","Health.Record.Medications","Health.Record.MemberNumber","Health.Record.NoMember","Health.Record.NoRecordText","Health.Record.NoRecordTitle","Health.Record.NoneRecorded","Health.Record.NotPreRegistered","Health.Record.OnePerLine","Health.Record.OpenDone","Health.Record.OpenFailed","Health.Record.OpenIntro","Health.Record.OpenInvalid","Health.Record.OpenNoRole","Health.Record.OpenRecord","Health.Record.PatientEmail","Health.Record.PatientRecord","Health.Record.Pending","Health.Record.Phone","Health.Record.PreRegistered","Health.Record.Reason","Health.Record.Retry","Health.Record.Search","Health.Record.SearchFailed","Health.Record.Send","Health.Record.SignInText","Health.Record.SignInTitle","Health.Record.StartCheckIn","Health.Record.SummaryEmpty","Health.Record.SummaryUnreadable","Health.Record.Title","Health.Record.UnreadableText","Health.Record.UnreadableTitle","Health.Record.UpdateCheckIn","Health.Record.Vaccines","Health.Record.Validate","Health.Record.ValidateFailed","Health.Record.ValidateNoConsent","Health.Record.Validated","Health.Record.ViewSummary","Health.Record.YourDetails","Health.Record.YourHealth"],
+  campos: ["apiBase","lecturasBase","appointmentPath","zona","historiaBase"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -1417,7 +1419,8 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
     "apiBase": "/api/ehr",
     "lecturasBase": "/api/lecturas/salud",
     "appointmentPath": "directa",
-    "zona": "America/Bogota"
+    "zona": "America/Bogota",
+    "historiaBase": "/api/healthcare"
   },
 };
 

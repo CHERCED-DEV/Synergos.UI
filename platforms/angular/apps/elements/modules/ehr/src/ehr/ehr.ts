@@ -38,6 +38,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  ButtonComponent,
   LiveRegionComponent,
   SegmentedComponent,
   SynEmptyStateComponent,
@@ -52,6 +53,8 @@ import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
   AgendaDeSalud,
+  HistoriaEnElConsultorio,
+  MiHistoria,
   PermisoDeSalud,
   TEXTOS_DE_SALUD,
   cancelarCita,
@@ -61,12 +64,23 @@ import {
   faltaElPermiso,
   listarCitas,
   ventanaDeLaCita,
+  type CheckInDelPaciente,
   type CitaLeida,
 } from '@synergos/dominio/salud';
-import { encabezadoDeLaCita, estadoDeLaCita, mensajeDeLaCita, textosDeSaludDelPortal } from './textos-de-salud';
+import {
+  encabezadoDeLaCita,
+  estadoDeLaCita,
+  mensajeDeLaCita,
+  textosDeLaHistoria,
+  textosDeSaludDelPortal,
+} from './textos-de-salud';
 import { SaludFranjasComponent, type DiaDeLaAgenda, type HoraElegida } from './vistas/agendar/franjas/franjas';
 import { SaludCitaDelEnlaceComponent } from './vistas/mis-citas/cita-del-enlace/cita-del-enlace';
 import { SaludPermisoComponent } from './vistas/permiso/permiso';
+import { SaludMiSaludComponent } from './vistas/mi-salud/mi-salud';
+import { SaludCheckInComponent } from './vistas/check-in/check-in';
+import { SaludAbrirHistoriaComponent } from './vistas/consultorio/abrir-historia/abrir-historia';
+import { SaludResumenDelPacienteComponent } from './vistas/consultorio/resumen-del-paciente/resumen-del-paciente';
 import {
   EHR_FLOW,
   MINUTOS_DE_LA_CITA,
@@ -246,6 +260,7 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
   return omitUndefinedProperties<EhrProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
     lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
+    historiaBase: coerceTrimmedStringInput(value.historiaBase),
     appointmentPath: normalizeAppointmentPath(value.appointmentPath),
     zona: zonaValida(value.zona) ? value.zona : undefined,
   });
@@ -281,10 +296,15 @@ let ehrInstanceId = 0;
     SegmentedComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
+    ButtonComponent,
     LiveRegionComponent,
     SaludPermisoComponent,
     SaludFranjasComponent,
     SaludCitaDelEnlaceComponent,
+    SaludMiSaludComponent,
+    SaludCheckInComponent,
+    SaludAbrirHistoriaComponent,
+    SaludResumenDelPacienteComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -295,7 +315,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -329,6 +349,11 @@ export class EhrElementComponent implements OnInit {
    * I1 de producción). Vacía, el directorio sale de `apiBase`, como antes: es la vuelta atrás sin desplegar.
    */
   readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').trim().replace(/\/+$/, ''));
+  /**
+   * Dónde vive la historia clínica de producción (`/api/healthcare`, I2 T062): con ella, «Mi salud», el check-in y las
+   * vistas del personal salen de lo real. Vacía, el portal sigue con lo de `apiBase`: la vuelta atrás sin desplegar.
+   */
+  readonly historiaBase = computed(() => (this.config()?.historiaBase ?? '').trim().replace(/\/+$/, ''));
   readonly clinic = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.clinicInput()), undefined, DEFAULT_CLINIC),
   );
@@ -390,6 +415,11 @@ export class EhrElementComponent implements OnInit {
    * Salud (S-4). Los nombres de antes quedan como alias de la fachada.
    */
   readonly #permiso = inject(PermisoDeSalud);
+  /** La historia de producción (I2 T062–T063): la del paciente de la sesión y la del consultorio. */
+  readonly #miHistoria = inject(MiHistoria);
+  readonly #consultorio = inject(HistoriaEnElConsultorio);
+  /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
+  readonly textosDeLaHistoria = textosDeLaHistoria();
   readonly textosDelPermiso = this.#permiso.textos;
   /** Si el copago no se cotizó porque falta el permiso: el paso pinta el texto del permiso y «Autorizo». */
   readonly necesitaPermiso = computed(() => faltaElPermiso(this.rechazoDelCopago()));
@@ -1404,6 +1434,10 @@ export class EhrElementComponent implements OnInit {
         }
         return;
       case 'health':
+        if (this.historiaBase()) {
+          void this.cargarMiHistoria();
+          return;
+        }
         this.healthTab.set('conditions');
         if (!this.healthLoaded()) {
           void this.conElPaciente(() => this.loadHealth());
@@ -1667,8 +1701,48 @@ export class EhrElementComponent implements OnInit {
     ];
   }
 
+  // ─── La historia de producción (I2 T062–T063) ────────────────────────────────
+
+  cargarMiHistoria(): Promise<void> {
+    return this.#miHistoria.cargar(this.historiaBase());
+  }
+
+  async enviarCheckIn(checkIn: CheckInDelPaciente): Promise<void> {
+    await this.#miHistoria.enviarCheckIn(this.historiaBase(), checkIn);
+  }
+
+  /** El mismo «Autorizo» de la cita da el permiso para que el consultorio vea la historia (D-003-I2-2). */
+  async darPermisoDeLaHistoria(): Promise<void> {
+    if (await this.#permiso.dar(this.#host)) {
+      this.#miHistoria.permisoDado();
+    }
+  }
+
+  buscarHistoria(correo: string): Promise<void> {
+    return this.#consultorio.buscar(this.historiaBase(), correo);
+  }
+
+  async abrirHistoria(apertura: { readonly nombre: string; readonly fechaDeNacimiento: string }): Promise<void> {
+    await this.#consultorio.abrir(this.historiaBase(), apertura.nombre, apertura.fechaDeNacimiento);
+  }
+
+  verResumenDelPaciente(): Promise<void> {
+    return this.#consultorio.leerResumen(this.historiaBase());
+  }
+
+  validarDatoDelPaciente(datoId: string): Promise<void> {
+    return this.#consultorio.validar(this.historiaBase(), datoId);
+  }
+
   // ─── PATIENT · e-Check-In wizard ─────────────────────────────────────────────
   startCheckin(): void {
+    if (this.historiaBase()) {
+      this.navigate('echeckin');
+      if (this.#miHistoria.estado() !== 'lista') {
+        void this.cargarMiHistoria();
+      }
+      return;
+    }
     this.checkinStep.set(0);
     this.checkinDone.set(false);
     this.checkinConsent.set(false);

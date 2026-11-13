@@ -25,9 +25,27 @@ export {
   listarCitas,
   ventanaDeLaCita,
 } from './lib/cita/cita-api.client';
-export { TEXTOS_DE_SALUD, type TextosDeSalud, type TextosDelPermiso } from './lib/comun/textos';
+export { TEXTOS_DE_SALUD, type TextosDeLaHistoria, type TextosDeSalud, type TextosDelPermiso } from './lib/comun/textos';
 
 export { darElPermiso, retirarElPermiso } from './lib/permiso/permiso-api.client';
 export { PermisoDeSalud, faltaElPermiso } from './lib/permiso/permiso';
 
 export { AgendaDeSalud, DIAS_DE_LA_AGENDA, franjasDelAsistente, type FranjaDelAsistente } from './lib/agenda/agenda';
+
+export * from './lib/historia/historia.model';
+export {
+  abrirLaHistoria,
+  buscarLaHistoria,
+  enviarElCheckIn,
+  leerElResumenDelPaciente,
+  leerMiResumen,
+  resumenDeLaHistoria,
+  validarElDato,
+} from './lib/historia/historia-api.client';
+export {
+  HistoriaEnElConsultorio,
+  MiHistoria,
+  estadoDelRechazo,
+  type EstadoDeLaBusqueda,
+  type EstadoDeLaHistoria,
+} from './lib/historia/historia';

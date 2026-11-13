@@ -1,0 +1,41 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.patientRecord">
+  <h2 class="salud-consultorio__titulo">{{ textos.patientRecord }}</h2>
+  <form class="salud-consultorio__fila" role="search" (submit)="$event.preventDefault(); buscar.emit(correo())">
+    <syn-input class="salud-consultorio__campo" [label]="textos.patientEmail" type="email" autocomplete="off"
+      [value]="correo()" (valueChange)="correo.set($event)" />
+    <syn-button type="submit" [label]="textos.search" [loading]="consultorio.busqueda() === 'buscando'" />
+  </form>
+
+  @switch (consultorio.busqueda()) {
+    @case ('encontrada') {
+      @if (consultorio.encontrada(); as historia) {
+        <div class="salud-consultorio__fila">
+          <span class="salud-consultorio__nombre">{{ historia.nombre }}</span>
+          <syn-badge [text]="historia.preRegistrado ? textos.preRegistered : textos.notPreRegistered"
+            [tone]="historia.preRegistrado ? 'brand' : 'neutral'" />
+          <syn-button variant="ghost" size="sm" [label]="textos.viewSummary" (pressed)="verResumen.emit()" />
+        </div>
+      }
+    }
+    @case ('sin-historia') {
+      <form class="salud-consultorio__form" (submit)="$event.preventDefault(); abrir.emit({ nombre: nombre(), fechaDeNacimiento: fechaDeNacimiento() })">
+        <p class="salud-consultorio__texto">{{ textos.openIntro }}</p>
+        <syn-input [label]="textos.fullName" autocomplete="off" [maxlength]="200" [value]="nombre()" (valueChange)="nombre.set($event)" />
+        <syn-input [label]="textos.birthDate" [hint]="textos.birthDateHint" [maxlength]="10" [value]="fechaDeNacimiento()" (valueChange)="fechaDeNacimiento.set($event)" />
+        <syn-button type="submit" [label]="textos.openRecord" [loading]="consultorio.moviendo()" />
+      </form>
+    }
+    @case ('sin-miembro') {
+      <p class="salud-consultorio__texto">{{ textos.noMember }}</p>
+    }
+    @case ('negada') {
+      <p class="salud-consultorio__texto">{{ textos.openNoRole }}</p>
+    }
+    @case ('ilegible') {
+      <p class="salud-consultorio__texto">{{ textos.searchFailed }}</p>
+    }
+  }
+  @if (consultorio.aviso()) {
+    <syn-live-region class="salud-consultorio__texto" [message]="consultorio.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

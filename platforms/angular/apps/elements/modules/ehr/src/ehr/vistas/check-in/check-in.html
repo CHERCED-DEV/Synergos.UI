@@ -1,0 +1,45 @@
+<section class="salud-check-in" [attr.aria-label]="textos.checkIn">
+  @switch (historia.estado()) {
+    @case ('cargando') {
+      <p class="salud-check-in__texto">{{ textos.loading }}</p>
+    }
+    @case ('sin-historia') {
+      <p class="salud-check-in__texto">{{ textos.noRecordTitle }}. {{ textos.noRecordText }}</p>
+    }
+    @case ('lista') {
+      @if (historia.faltaElPermiso()) {
+        <!-- El mismo «Autorizo» de la cita da el permiso para que el consultorio vea tu historia (D-003-I2-2). -->
+        <sg-salud-permiso modo="dar" [pedir]="true" (aceptar)="aceptarPermiso.emit()" />
+      }
+
+      <form class="salud-check-in__form" (submit)="$event.preventDefault(); enviarElCheckIn()">
+        <fieldset class="salud-check-in__grupo">
+          <legend class="salud-check-in__titulo">{{ textos.yourDetails }}</legend>
+          <syn-input [label]="textos.document" autocomplete="off" [maxlength]="largo" [value]="documento()" (valueChange)="documento.set($event)" />
+          <syn-input [label]="textos.phone" type="tel" autocomplete="tel" [maxlength]="largo" [value]="telefono()" (valueChange)="telefono.set($event)" />
+          <syn-input [label]="textos.address" autocomplete="street-address" [maxlength]="largo" [value]="direccion()" (valueChange)="direccion.set($event)" />
+          <syn-input [label]="textos.emergencyContact" [maxlength]="largo" [value]="contactoDeEmergencia()" (valueChange)="contactoDeEmergencia.set($event)" />
+          <syn-input [label]="textos.insurer" [maxlength]="largo" [value]="aseguradora()" (valueChange)="aseguradora.set($event)" />
+          <syn-input [label]="textos.memberNumber" [maxlength]="largo" [value]="numeroDeAfiliacion()" (valueChange)="numeroDeAfiliacion.set($event)" />
+        </fieldset>
+
+        <fieldset class="salud-check-in__grupo">
+          <legend class="salud-check-in__titulo">{{ textos.yourHealth }}</legend>
+          <syn-textarea [label]="textos.reason" [rows]="2" [maxlength]="largo" [value]="motivoDeLaVisita()" (valueChange)="motivoDeLaVisita.set($event)" />
+          <syn-textarea [label]="textos.medications" [hint]="textos.onePerLine" [rows]="3" [value]="medicamentos()" (valueChange)="medicamentos.set($event)" />
+          <syn-textarea [label]="textos.allergies" [hint]="textos.onePerLine" [rows]="2" [value]="alergias()" (valueChange)="alergias.set($event)" />
+          <syn-textarea [label]="textos.conditions" [hint]="textos.onePerLine" [rows]="2" [value]="condiciones()" (valueChange)="condiciones.set($event)" />
+        </fieldset>
+
+        <p class="salud-check-in__texto">{{ textos.declaredNote }}</p>
+        <syn-button type="submit" [label]="textos.send" [loading]="historia.enviando()" />
+      </form>
+    }
+    @default {
+      <p class="salud-check-in__texto">{{ textos.unreadableTitle }}</p>
+    }
+  }
+  @if (historia.aviso()) {
+    <syn-live-region class="salud-check-in__texto" [message]="historia.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

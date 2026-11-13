@@ -237,8 +237,15 @@
           }
         }
 
-        <!-- ─── e-CHECK-IN wizard ─── -->
-        @if (view() === 'echeckin') {
+        <!-- ─── PRE-REGISTRO desde la historia de producción (I2 T062) ─── -->
+        @if (view() === 'echeckin' && historiaBase()) {
+          <syn-button variant="ghost" size="sm" [label]="textosDeLaHistoria.back" (pressed)="navigate('home')" />
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.checkIn }}</h1>
+          <sg-salud-check-in (enviar)="enviarCheckIn($event)" (aceptarPermiso)="darPermisoDeLaHistoria()" />
+        }
+
+        <!-- ─── e-CHECK-IN wizard (sin historia de producción) ─── -->
+        @if (view() === 'echeckin' && !historiaBase()) {
           <button type="button" class="ehr__back" (click)="navigate('home')"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Volver al inicio</button>
           <h1 class="ehr__view-title">e-Check-In</h1>
           @if (checkinDone()) {
@@ -442,8 +449,14 @@
           }
         }
 
-        <!-- ─── HEALTH SUMMARY ─── -->
-        @if (view() === 'health') {
+        <!-- ─── MI SALUD desde la historia de producción (I2 T062) ─── -->
+        @if (view() === 'health' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.title }}</h1>
+          <sg-salud-mi-salud (checkIn)="startCheckin()" (reintentar)="cargarMiHistoria()" />
+        }
+
+        <!-- ─── HEALTH SUMMARY (sin historia de producción) ─── -->
+        @if (view() === 'health' && !historiaBase()) {
           <h1 class="ehr__view-title">Resumen de salud</h1>
           @if (healthSummary(); as hs) {
             <syn-tabs
@@ -602,6 +615,12 @@
 
         <!-- ─── COCKPIT (board · patients · in basket) — SH-5 console-shell ─── -->
         @if (view() === 'board' || view() === 'patients' || view() === 'inbasket') {
+          @if (view() === 'patients' && historiaBase()) {
+            <!-- Recepción abre la historia; el médico ve y valida el resumen (I2 T063). -->
+            <sg-salud-abrir-historia (buscar)="buscarHistoria($event)" (abrir)="abrirHistoria($event)"
+              (verResumen)="verResumenDelPaciente()" />
+            <sg-salud-resumen-del-paciente (validar)="validarDatoDelPaciente($event)" />
+          }
           @if (view() === 'patients') {
             <form class="ehr__search" role="search" (submit)="$event.preventDefault(); submitPatientSearch()">
               <label class="ehr__sr-only" [attr.for]="fieldId + '-psearch'">Buscar paciente</label>
