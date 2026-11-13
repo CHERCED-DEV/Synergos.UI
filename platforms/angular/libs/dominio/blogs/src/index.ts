@@ -9,11 +9,14 @@
 // (spec de 012, regla 4).
 
 export * from './lib/comun/blogs.model';
+export * from './lib/comun/lecturas-de-blogs';
 export {
   BlogsForbiddenError,
+  BlogsNotFoundError,
   BlogsUnauthorizedError,
   BlogsWriteFailedError,
   isBlogsForbidden,
+  isBlogsNotFound,
   isBlogsUnauthorized,
   type PublishOutcome,
 } from './lib/comun/errores';

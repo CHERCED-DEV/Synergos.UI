@@ -292,6 +292,26 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  it('una tarjeta sin alumnos no anuncia «0 alumnos» ni una valoración que nadie respalda (016, I10)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    const [primero, ...resto] = component.courses();
+    component.courses.set([{ ...primero, studentCount: 0, rating: 4.9 }, ...resto.map((c) => ({ ...c, studentCount: 1 }))]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tarjetas = [...fixture.nativeElement.querySelectorAll('.academy__card')] as HTMLElement[];
+    const sinAlumnos = tarjetas.find((t) => t.textContent?.includes(primero.title))!;
+    expect(sinAlumnos.querySelector('.academy__card-count')).toBeNull();
+    expect(sinAlumnos.querySelector('.academy__card-rating')).toBeNull();
+    if (resto.length > 0) {
+      const conUno = tarjetas.find((t) => t.textContent?.includes(resto[0].title))!;
+      expect(conUno.querySelector('.academy__card-count')?.textContent?.trim()).toBe('1 alumno');
+    }
+  });
+
   // ── #83: el método de pago lo pinta `syn-segmented` ─────────────────────────────
   //
   // Era un `role="radiogroup"` cuyos hijos eran <button> SIN `role="radio"`: el lector

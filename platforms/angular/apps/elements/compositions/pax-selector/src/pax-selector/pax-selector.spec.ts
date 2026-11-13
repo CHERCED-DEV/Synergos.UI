@@ -25,6 +25,44 @@ describe('PaxSelectorElementComponent', () => {
     expect(component.summary()).toBe('1 habitación · 1 adulto · 0 niños');
   });
 
+  it('sin «desplegable» queda abierto en línea, como siempre (asistente de hotel)', () => {
+    expect(component.panelVisible()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.pax-selector__toggle')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.pax-selector__rooms')).not.toBeNull();
+  });
+
+  it('desplegable: sale cerrado, se abre con el resumen y se cierra con Escape o con un clic fuera (016, I1.b)', () => {
+    fixture.componentRef.setInput('desplegable', 'true');
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    const boton = host.querySelector<HTMLButtonElement>('.pax-selector__toggle')!;
+
+    expect(boton.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('.pax-selector__rooms')).toBeNull();
+
+    boton.click();
+    fixture.detectChanges();
+    expect(boton.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('.pax-selector__rooms')).not.toBeNull();
+
+    // Un clic DENTRO (quitar la habitación saca su botón del DOM) no lo cierra.
+    component.addRoom();
+    fixture.detectChanges();
+    host.querySelector<HTMLButtonElement>('.pax-selector__room-remove')!.click();
+    fixture.detectChanges();
+    expect(component.abierto()).toBe(true);
+
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(component.abierto()).toBe(false);
+
+    boton.click();
+    fixture.detectChanges();
+    document.body.click();
+    fixture.detectChanges();
+    expect(component.abierto()).toBe(false);
+  });
+
   it('should add a room and emit the new occupancy (add-room case)', () => {
     const emitted: PaxOccupancy[] = [];
     component.occupancychange.subscribe((value) => emitted.push(value));

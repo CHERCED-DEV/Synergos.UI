@@ -22,7 +22,7 @@ import {
   isBlogsForbidden,
   isBlogsUnauthorized,
 } from '@synergos/dominio/blogs';
-import { BlogsElementComponent } from './blogs';
+import { BlogsElementComponent, sanitizeBlogsConfig } from './blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
@@ -1677,6 +1677,269 @@ describe('BlogsElementComponent', () => {
       expect(e.visibility).not.toBe('hidden');
     }
   });
+
+  // ─── Las lecturas genéricas (012, I4): Explorar, Guardados y Mensajes leen api/lecturas/blogs ──────────────────
+  describe('las lecturas genéricas', () => {
+    const LECTURAS = '/api/lecturas/blogs';
+    const CON_LECTURAS = { ...NEGOCIO_DEL_CMS, lecturasBase: `${LECTURAS}/` };
+    const ARTICULO = {
+      id: 'post-capas',
+      titulo: 'Arquitectura por capas',
+      imagen: '/media/capas.jpg',
+      precio: null,
+      precioAntes: null,
+      calificacion: null,
+      disponibles: null,
+      atributos: {
+        tipo: 'article',
+        cuerpo: 'Por qué separamos el dominio de la presentación. #arquitectura',
+        autor: 'Camila Ríos',
+        autorId: 'autor-camila-rios',
+        alias: 'camila-rios',
+        autorImagen: '/media/camila.jpg',
+        fecha: '2026-11-11T12:00:00.0000000Z',
+        categoria: 'Ingeniería',
+        etiquetas: 'arquitectura',
+        pagina: '/blogs/ingenieria/arquitectura-por-capas/',
+        imagenAlt: 'Las capas del sitio',
+        republicaciones: '3',
+        comentarios: '7',
+        reacciones: 'like:2,love:1',
+        miReaccion: 'like',
+      },
+    };
+    const BANDEJA = {
+      hilos: [
+        {
+          id: 'th-1',
+          contexto: 'dm',
+          asunto: 'Ana Autora',
+          contraparte: 'ana-autora-a1b2c3',
+          ultimo: '¡Nos vemos!',
+          fecha: '2026-11-13T10:00:00+00:00',
+          cantidad: 2,
+          mensajes: [
+            { id: 'm1', de: 'ana-autora-a1b2c3', mio: false, texto: '¿Leíste el artículo?', fecha: '2026-11-13T09:00:00+00:00' },
+            { id: 'm2', de: 'yo-0f1e2d', mio: true, texto: '¡Nos vemos!', fecha: '2026-11-13T10:00:00+00:00' },
+          ],
+        },
+      ],
+    };
+
+    /** Un borde que contesta esas rutas con ese JSON y rechaza todo lo demás. */
+    function bordeGenerico(rutas: Record<string, unknown>): ReturnType<typeof vi.fn> {
+      const fetchMock = vi.fn((url: string) => {
+        const ruta = Object.keys(rutas).find((entrada) => String(url).includes(entrada));
+        return ruta
+          ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(rutas[ruta]) } as Response)
+          : Promise.reject(new Error('offline'));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    const pedidas = (fetchMock: ReturnType<typeof vi.fn>): string[] =>
+      fetchMock.mock.calls.map(([url]) => String(url));
+
+    it('Explorar por etiqueta lee el catálogo de la red y pinta cada publicación como la interina', async () => {
+      const fetchMock = bordeGenerico({
+        [`${LECTURAS}/catalogo`]: {
+          elementos: [ARTICULO],
+          facetas: [
+            {
+              campo: 'etiqueta',
+              titulo: 'Etiqueta',
+              tipo: 'MultiSelect',
+              valores: [{ valor: 'arquitectura', etiqueta: 'arquitectura', cantidad: 1 }],
+            },
+          ],
+          total: 1,
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      component.explorar.searchHashtag('arquitectura');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100&filtro.etiqueta=arquitectura`);
+      expect(component.explorar.searchResult()?.posts[0]).toMatchObject({
+        id: 'post-capas',
+        objectKind: 'postPage',
+        pageUrl: '/blogs/ingenieria/arquitectura-por-capas/',
+        hashtags: ['arquitectura'],
+        commentCount: 7,
+        repostCount: 3,
+        author: { actorKey: 'autor-camila-rios', handle: 'camila-rios', displayName: 'Camila Ríos' },
+        reactions: { mine: 'like', total: 3 },
+        media: [{ url: '/media/capas.jpg', kind: 'image', alt: 'Las capas del sitio' }],
+      });
+      expect(component.explorar.searchResult()?.hashtags).toEqual([{ tag: 'arquitectura', postCount: 1 }]);
+      expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/explore'))).toBe(false);
+    });
+
+    it('Guardados lee la colección «saved»: cada publicación del catálogo, sin lo que ya no está', async () => {
+      const fetchMock = bordeGenerico({
+        [`${LECTURAS}/colecciones/saved`]: {
+          coleccion: 'saved',
+          elementos: [
+            { id: 'post-capas', guardado: '2026-11-12T10:00:00+00:00', elemento: ARTICULO },
+            { id: 'ya-no-existe', guardado: '2026-11-11T10:00:00+00:00', elemento: null },
+          ],
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      component.navegacion.go('saved');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/colecciones/saved`);
+      expect(component.guardados.savedPosts().map((post) => post.id)).toEqual(['post-capas']);
+      expect(component.guardados.savedPosts()[0]?.reactions.mine).toBe('like');
+      expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/saved'))).toBe(false);
+    });
+
+    it('la bandeja lee los mensajes directos genéricos: la contraparte por su alias y su nombre, y los míos salen míos', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/mensajes`]: BANDEJA });
+      await createComponent('', CON_LECTURAS);
+
+      component.navegacion.go('messages');
+      await flushMicrotasks();
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/mensajes`);
+      const [hilo] = component.mensajes.threads();
+      expect(hilo?.participant).toMatchObject({ handle: 'ana-autora-a1b2c3', displayName: 'Ana Autora' });
+      expect(hilo?.messages.map((mensaje) => mensaje.outgoing)).toEqual([false, true]);
+
+      await component.mensajes.openThread('th-1');
+      expect(component.mensajes.activeThread()?.messages.map((mensaje) => mensaje.body)).toEqual([
+        '¿Leíste el artículo?',
+        '¡Nos vemos!',
+      ]);
+
+      // «Mensaje» desde el perfil de Ana abre SU hilo, no uno local nuevo: la bandeja la nombra por su alias.
+      component.mensajes.messageAuthor({ ...AUTHOR, actorKey: 'a1b2c3d4e5f60718', handle: 'ana-autora-a1b2c3' });
+      await flushMicrotasks();
+      expect(component.mensajes.threads().map((entrada) => entrada.id)).toEqual(['th-1']);
+      expect(pedidas(fetchMock).some((url) => /\/api\/blogs\/(messages|thread\/)/.test(url))).toBe(false);
+    });
+
+    it('con la base vacía vuelve a las rutas interinas: es la vuelta atrás', async () => {
+      const fetchMock = bordeGenerico({});
+      await createComponent('', { ...NEGOCIO_DEL_CMS, lecturasBase: '' });
+
+      component.explorar.searchHashtag('arquitectura');
+      component.navegacion.go('saved');
+      await flushMicrotasks();
+
+      const urls = pedidas(fetchMock);
+      expect(urls.some((url) => url.includes('/explore'))).toBe(true);
+      expect(urls.some((url) => url.includes('/saved'))).toBe(true);
+      expect(urls.some((url) => url.includes('/api/lecturas/'))).toBe(false);
+    });
+  });
+
+  // ─── La red por páginas (012, I3): cada vista en su página del sitio ────────
+  describe('las páginas del sitio', () => {
+    const RUTAS = [
+      { vista: 'inicio', url: '/blogs/' },
+      { vista: 'explorar', url: '/blogs/explorar/' },
+      { vista: 'publicacion', url: '/blogs/publicacion/' },
+      { vista: 'perfil', url: '/blogs/perfil/' },
+      { vista: 'notificaciones', url: '/blogs/notificaciones/' },
+      { vista: 'mensajes', url: '/blogs/mensajes-directos/' },
+      { vista: 'guardados', url: '/blogs/guardados/' },
+      { vista: 'escribir', url: '/blogs/escribir/' },
+      { vista: 'estudio', url: '/blogs/estudio/' },
+    ];
+    const enLaPagina = (vista: string): object => ({ ...NEGOCIO_DEL_CMS, vista, rutas: RUTAS });
+    const ARTICULO: Post = { ...POST_FOR_SKELETON, id: 'cms-1', objectKind: 'postPage', pageUrl: '/blogs/mi-articulo/' };
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    });
+
+    it('sanea la vista y las rutas del bloque; una vista desconocida no pasa', () => {
+      expect(sanitizeBlogsConfig({ vista: 'explorar', rutas: RUTAS })).toMatchObject({ vista: 'explorar', rutas: RUTAS });
+      expect(sanitizeBlogsConfig({ vista: 'otra' }).vista).toBeUndefined();
+    });
+
+    it('la página abre la vista que eligió el editor', async () => {
+      await createComponent('', enLaPagina('notificaciones'));
+      expect(component.red.view()).toBe('notifications');
+    });
+
+    it('enlaza cada vista con su página, lo que abre va en el hash, y la vista de la página se abre aquí', async () => {
+      await createComponent('', enLaPagina('explorar'));
+      const nav = component.navegacion;
+      expect(nav.urlDe('feed')).toBe('/blogs/');
+      expect(nav.urlDe('feed', 'publicar')).toBe('/blogs/#/blogs/publicar');
+      expect(nav.urlDe('post', 'p 1')).toBe('/blogs/publicacion/#/blogs/post/p%201');
+      expect(nav.urlDe('profile', 'valeria')).toBe('/blogs/perfil/#/blogs/@valeria');
+      expect(nav.urlDe('messages')).toBe('/blogs/mensajes-directos/');
+      expect(nav.urlDe('search', 'ia')).toBe('');
+      expect(nav.urlDe('subscribe')).toBe('');
+    });
+
+    it('ir a una vista de otra página es ir a esa página; pulsar su enlace lo deja al navegador', async () => {
+      await createComponent('', enLaPagina('explorar'));
+      const abrir = vi.fn();
+      component.navegacion.abrirPagina = abrir;
+
+      component.navegacion.alPulsar('saved');
+      expect(abrir).not.toHaveBeenCalled();
+
+      component.navegacion.go('saved');
+      expect(abrir).toHaveBeenCalledWith('/blogs/guardados/');
+      expect(component.red.view()).toBe('search');
+    });
+
+    it('un artículo del CMS se abre en su página; una publicación, en la de las publicaciones', async () => {
+      await createComponent('', enLaPagina('inicio'));
+      const abrir = vi.fn();
+      component.navegacion.abrirPagina = abrir;
+
+      expect(component.navegacion.urlDeLaPublicacion(ARTICULO)).toBe('/blogs/mi-articulo/');
+      expect(component.navegacion.urlDeLaPublicacion(POST_FOR_SKELETON)).toBe('/blogs/publicacion/#/blogs/post/p-skeleton');
+      component.navegacion.openPost(ARTICULO);
+      expect(abrir).toHaveBeenCalledWith('/blogs/mi-articulo/');
+    });
+
+    it('sin rutas, la red sigue en una sola página', async () => {
+      await createComponent();
+      expect(component.navegacion.urlDe('saved')).toBe('');
+      component.navegacion.alPulsar('saved');
+      expect(component.red.view()).toBe('saved');
+    });
+
+    it('la etiqueta viaja en la ruta de Explorar', async () => {
+      await createComponent('#/blogs/explorar/ia', enLaPagina('explorar'));
+      expect(component.red.view()).toBe('search');
+      expect(component.explorar.searchTag()).toBe('ia');
+    });
+
+    it('un perfil que no existe (404) no se cambia por el de una muestra', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          /\/profile\//.test(url)
+            ? Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) } as Response)
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent('#/blogs/@equipo-synergoslabs', enLaPagina('perfil'));
+      expect(component.perfil.profile()).toBeNull();
+      expect(component.red.errorMessage()).not.toBe('');
+    });
+
+    it('atrás hasta la URL sin hash devuelve la página a su vista', async () => {
+      await createComponent('#/blogs/post/p-skeleton', enLaPagina('inicio'));
+      expect(component.red.view()).toBe('post');
+      window.location.hash = '';
+      component.navegacion.applyHash(true);
+      expect(component.red.view()).toBe('feed');
+    });
+  });
+
   // ─── El <h1> del feed: lo compone el CMS ────────────────────────────────────
   //
   // Dos defectos distintos se cruzaban aquí. (1) El feed era la ÚNICA de las seis

@@ -100,6 +100,7 @@ export interface SynBadgeGroupSchema {
 export interface SynBlogsSchema {
   readonly heading?: string;
   readonly subheading?: string;
+  readonly vista?: string;
   readonly content?: string;
 }
 

@@ -37,6 +37,8 @@ import {
   BadgeComponent,
   ButtonComponent,
   LiveAnnouncerService,
+  coerceRutasDeLasVistas,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -46,6 +48,7 @@ import { OrchestratorService, SessionStore, TransactionEventBusService } from '@
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
 import { NavegacionDeBlogs } from './estado/navegacion';
 import { INSTANCIA_DE_BLOGS, PresentacionDeBlogs } from './estado/presentacion';
+import { VALORES_DE_LA_VISTA, vistaDeLaApp } from './rutas-de-blogs';
 import { textosDeEstaRed } from './textos-de-blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
@@ -114,6 +117,9 @@ export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
+    lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
+    vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
+    rutas: coerceRutasDeLasVistas(value.rutas),
   });
 }
 
@@ -237,11 +243,20 @@ export class BlogsElementComponent implements OnInit {
       '',
     ),
   );
+  /**
+   * Dónde viven las lecturas genéricas de Blogs (`/api/lecturas/blogs`, 012-blogs-social, I4). La declara el CMS; vacía,
+   * Explorar, los guardados y los mensajes leen las rutas interinas de `apiBase` (la vuelta atrás).
+   */
+  readonly lecturasBase = computed(() => (this.config()?.lecturasBase ?? '').replace(/\/+$/, ''));
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
+  /** La vista que el editor eligió para esta página en el bloque (`vista`, 012 I3); sin elegir, el inicio. */
+  readonly vista = computed<BlogsView>(() => vistaDeLaApp(this.config()?.vista, DEFAULT_VIEW));
+  /** En qué página del sitio vive cada vista: la declara el CMS. Sin rutas, toda la red se abre en esta página. */
+  readonly rutas = computed(() => this.config()?.rutas ?? []);
   readonly initialView = computed<BlogsView>(() => {
-    const view = resolveConfigValue(coerceView(this.viewInput()), undefined, DEFAULT_VIEW);
+    const view = resolveConfigValue(coerceView(this.viewInput()), this.vista(), DEFAULT_VIEW);
     return view === 'subscribe' && !SUSCRIPCION_ENCENDIDA ? DEFAULT_VIEW : view;
   });
 
@@ -292,8 +307,10 @@ export class BlogsElementComponent implements OnInit {
 
   constructor() {
     this.navegacion.alCambiarDeVista = (view) => this.viewchanged.emit(view);
+    this.navegacion.conectar({ rutas: () => this.rutas(), vista: () => this.initialView() });
     this.red.conectar({
       apiBase: this.apiBase,
+      lecturasBase: this.lecturasBase,
       scope: this.scope,
       navegacion: this.navegacion,
       eventos: {
@@ -335,10 +352,10 @@ export class BlogsElementComponent implements OnInit {
    * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
    */
   ngOnInit(): void {
-    this.red.view.set(this.initialView());
+    this.navegacion.abrirLaVistaDeLaPagina();
     void this.inicio.loadFeed();
     void this.explorar.loadTrending();
-    void this.red.loadYo();
+    void this.red.loadYo().then(() => this.navegacion.abrirMiPerfilSiFalta());
     this.navegacion.applyHash();
   }
 }

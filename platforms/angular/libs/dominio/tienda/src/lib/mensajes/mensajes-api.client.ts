@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { esRegistro, leerBooleano, leerJsonDelBorde, leerTexto } from '@synergos/core';
+import { esRegistro, leerBandejaDelVertical, leerBooleano, leerJsonDelBorde, leerTexto } from '@synergos/core';
 import { LecturasDeLaTienda } from '../comun/lecturas';
 import type { MessageThread } from './mensajes.model';
 
@@ -33,31 +33,25 @@ export class MensajesApi {
   }
 }
 
-/** Los hilos de la bandeja genérica. Sin acuses de lectura en la mensajería v1: ninguno sale como «sin leer». */
+/**
+ * Los hilos de la bandeja genérica, leídos con el lector común de `@synergos/core` (012-blogs-social, I4). Sin asunto
+ * no son de la tienda. Sin acuses de lectura en la mensajería v1: ninguno sale como «sin leer».
+ */
 function leerHilos(value: unknown): readonly MessageThread[] | null {
-  if (!esRegistro(value) || !Array.isArray(value['hilos'])) {
+  const hilos = leerBandejaDelVertical(value);
+  if (!hilos) {
     return null;
   }
-  return value['hilos']
-    .map((entry): MessageThread | null => {
-      if (!esRegistro(entry)) {
-        return null;
-      }
-      const id = leerTexto(entry['id']).trim();
-      const subject = leerTexto(entry['asunto']).trim();
-      if (!id || !subject) {
-        return null;
-      }
-      return {
-        id,
-        subject,
-        counterpart: leerTexto(entry['contraparte']).trim(),
-        lastMessage: leerTexto(entry['ultimo']).trim(),
-        date: leerTexto(entry['fecha']).trim().slice(0, 10),
-        unread: false,
-      };
-    })
-    .filter((thread): thread is MessageThread => thread !== null);
+  return hilos
+    .filter((hilo) => hilo.asunto !== '')
+    .map((hilo): MessageThread => ({
+      id: hilo.id,
+      subject: hilo.asunto,
+      counterpart: hilo.contraparte,
+      lastMessage: hilo.ultimo,
+      date: hilo.fecha.slice(0, 10),
+      unread: false,
+    }));
 }
 
 function normalizeThreads(value: unknown): readonly MessageThread[] | null {

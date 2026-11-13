@@ -65,20 +65,36 @@ export class ExplorarDeBlogs {
   }
 
   searchHashtag(tag: string): void {
+    this.#ponerLaEtiqueta(tag);
+    this.#red.navegacion?.aplicar('search');
+    // La etiqueta va en la ruta (`#/<scope>/explorar/<etiqueta>`): recargar o pegar el enlace vuelve a la búsqueda.
+    this.#red.navegacion?.escribirRuta('search', tag);
+    void this.runSearch();
+  }
+
+  /** Busca la etiqueta sin moverse de vista: lo que hace la ruta `#/<scope>/explorar/<etiqueta>` al abrirse. */
+  buscarLaEtiqueta(tag: string): void {
+    this.#ponerLaEtiqueta(tag);
+    void this.runSearch();
+  }
+
+  #ponerLaEtiqueta(tag: string): void {
     this.searchTerm.set('');
     this.searchTag.set(tag);
     this.searchTab.set('posts');
     this.searchCriteria.set({ term: '', facets: { hashtag: [tag] }, sort: 'top', page: 1 });
-    this.#red.navegacion?.aplicar('search');
-    this.#red.navegacion?.escribirRuta('search');
-    void this.runSearch();
   }
 
   async runSearch(): Promise<void> {
     this.searching.set(true);
     this.#red.errorMessage.set('');
     try {
-      const result = await this.#api.explore(this.#red.apiBase(), this.searchTerm(), this.searchTag());
+      const result = await this.#api.explore(
+        this.#red.apiBase(),
+        this.searchTerm(),
+        this.searchTag(),
+        this.#red.lecturasBase(),
+      );
       this.searchResult.set(result);
     } catch (error) {
       this.#red.errorMessage.set(this.#textos.busquedaFallo);

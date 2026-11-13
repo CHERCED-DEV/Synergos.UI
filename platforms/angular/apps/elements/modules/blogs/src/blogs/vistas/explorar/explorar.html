@@ -22,7 +22,7 @@
       <ul class="blogs__accounts">
         @for (account of result.accounts; track presentacion.trackAuthor($index, account)) {
           <li class="blogs__account">
-            <syn-button class="blogs__account-open" variant="plain" (pressed)="navegacion.openProfile(account.handle)">
+            <syn-button class="blogs__account-open" variant="plain" [href]="navegacion.urlDe('profile', account.handle)" (pressed)="navegacion.alPulsar('profile', account.handle)">
               <span class="blogs__account-id">
                 <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(account) }}</span>
                 <span class="blogs__account-text">
@@ -50,7 +50,7 @@
       <ul class="blogs__hashtags">
         @for (tag of result.hashtags; track presentacion.trackTag($index, tag)) {
           <li>
-            <syn-button variant="plain" block (pressed)="explorar.searchHashtag(tag.tag)">
+            <syn-button variant="plain" block [href]="navegacion.urlDe('search', tag.tag)" (pressed)="navegacion.alPulsar('search', tag.tag)">
               <span class="blogs__hashtag">
                 <span class="blogs__hashtag-name">#{{ tag.tag }}</span>
                 <span class="blogs__hashtag-count">{{ presentacion.formatCount(tag.postCount) }} publicaciones</span>

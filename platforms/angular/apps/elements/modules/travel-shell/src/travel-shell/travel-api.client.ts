@@ -528,7 +528,10 @@ function normalizeOffer(
     geo,
     fareFamilies,
     stayId,
-    rating: rating && rating > 0 ? rating : undefined,
+    // `rating` es la categoría del hotel en estrellas (1 a 5). Un número fuera de esa escala —el 9,2 del promedio de
+    // opiniones que manda el contenido— no es una categoría, y sin su número de opiniones no se puede anunciar: se
+    // queda fuera, como la ficha (016, I1.b: la cifra la respalda alguien o no se dice).
+    rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     ...(carCategory ? { carCategory } : {}),
     ...(carTransmission ? { carTransmission } : {}),
     detail: { ...detail, title, subtitle },

@@ -113,6 +113,7 @@
             <span class="travel__label" [id]="fieldId + '-hpax'">Huéspedes</span>
             <synergos-pax-selector
               class="travel__pax"
+              desplegable="true"
               [attr.aria-labelledby]="fieldId + '-hpax'"
               [attr.initial]="hotelPaxJson()"
               (occupancychange)="onHotelOccupancyChange($event)"
@@ -148,6 +149,7 @@
             <span class="travel__label" [id]="fieldId + '-fpax'">Pasajeros</span>
             <synergos-pax-selector
               class="travel__pax"
+              desplegable="true"
               [attr.aria-labelledby]="fieldId + '-fpax'"
               [attr.initial]="flightPaxJson()"
               (occupancychange)="onFlightOccupancyChange($event)"
@@ -480,7 +482,7 @@
   @if (view() === 'stay') {
     @if (stay(); as detail) {
       <syn-detail-shell
-        [eyebrow]="detail.rating ? ('★ ' + detail.rating + ' · ' + detail.reviewCount + ' opiniones') : ''"
+        [eyebrow]="stayRatingEyebrow()"
         [title]="detail.title"
         [subtitle]="detail.subtitle"
         [media]="stayMedia()"

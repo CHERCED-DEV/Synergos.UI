@@ -128,6 +128,8 @@ export interface Post {
   readonly repostCount: number;
   /** Whether the viewer has reposted this. */
   readonly reposted: boolean;
+  /** La página de un artículo del CMS en el sitio (012, I3, T022): su tarjeta la abre. Lo de un miembro no la tiene. */
+  readonly pageUrl?: string;
 }
 
 /** `GET /api/blogs/feed?scope=&cursor=` response. */

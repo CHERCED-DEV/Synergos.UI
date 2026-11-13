@@ -515,10 +515,13 @@ export class TravelShellElementComponent implements OnInit {
   readonly stayReviewSummary = computed<ReviewSummary>(() => {
     const resumen = this.stay()?.reviewSummary;
     if (!resumen) {
-      // Sin resumen del servidor se usa lo que la ficha SÍ trae. No se calcula
-      // nada: `rating` y `reviewCount` ya vienen agregados.
-      const detalle = this.stay();
-      return { average: detalle?.rating ?? 0, count: detalle?.reviewCount ?? 0 };
+      // Sin resumen del servidor, la verdad son las opiniones que llegaron (016-contenido-piezas, I1.b). El
+      // `rating`/`reviewCount` sueltos de la ficha son un agregado del contenido que ninguna opinión respalda:
+      // anunciaban «418 opiniones» sobre un panel que decía «Todavía no hay opiniones».
+      const entradas = this.stayReviews();
+      const count = entradas.length;
+      const average = count > 0 ? Math.round((entradas.reduce((suma, e) => suma + e.rating, 0) / count) * 10) / 10 : 0;
+      return { average, count };
     }
     return {
       average: resumen.average,
@@ -526,6 +529,17 @@ export class TravelShellElementComponent implements OnInit {
       distribution: resumen.distribution,
       criteria: resumen.criteria,
     };
+  });
+
+  /** La línea de arriba de la ficha: la MISMA cifra que el panel de opiniones, y nada si no hay ninguna. */
+  readonly stayRatingEyebrow = computed(() => {
+    const { average, count } = this.stayReviewSummary();
+    if (count <= 0) {
+      return '';
+    }
+    const promedio = average.toLocaleString('es-CO', { maximumFractionDigits: 1 });
+    // El rótulo es el del panel (`countLabel`): arriba se lee exactamente lo que dice el panel.
+    return `★ ${promedio} · ${count.toLocaleString('es-CO')} ${this.stayReviewConfig().countLabel}`;
   });
 
   readonly canReviewStay = computed(() => this.stay()?.canReview === true);
@@ -780,7 +794,10 @@ export class TravelShellElementComponent implements OnInit {
     }
     const specs: DetailSpec[] = [
       { label: 'Dirección', value: detail.address || '—' },
-      { label: 'Calificación', value: detail.rating ? `${detail.rating} / 5` : '—' },
+      // La misma cifra que el panel de opiniones, y la fila no sale si no hay ninguna (016, I1.b).
+      ...(this.stayReviewSummary().count > 0
+        ? [{ label: 'Calificación', value: this.stayRatingEyebrow().replace(/^★ /, '') }]
+        : []),
       ...detail.specs.map((spec) => ({ label: spec.label, value: spec.value })),
     ];
     return specs;

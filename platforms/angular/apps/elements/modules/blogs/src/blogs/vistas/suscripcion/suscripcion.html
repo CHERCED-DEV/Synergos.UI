@@ -13,7 +13,7 @@
       Tu suscripción {{ suscripcion.subscribeTier()?.name }} a &#64;{{ suscripcion.subscribeCreator()?.handle }} está activa.
       Referencia <strong>{{ suscripcion.confirmedMembership() }}</strong>.
     </p>
-    <syn-button (pressed)="navegacion.go('feed')">Ir al feed</syn-button>
+    <syn-button [href]="navegacion.urlDe('feed')" (pressed)="navegacion.alPulsar('feed')">Ir al feed</syn-button>
   </div>
 } @else {
   <h1 class="blogs__view-title">Apoya a &#64;{{ suscripcion.subscribeCreator()?.handle }}</h1>

@@ -1,9 +1,13 @@
 import { Injectable, inject } from '@angular/core';
-import { esRegistro as isRecord } from '@synergos/core';
+import { esRegistro as isRecord, leerColeccionDelMiembro } from '@synergos/core';
 import { BordeDeBlogs } from '../comun/borde-de-blogs';
 import type { Post } from '../comun/blogs.model';
 import { buildMockSaved } from '../comun/blogs.mock';
+import { postDelCatalogo } from '../comun/lecturas-de-blogs';
 import { normalizePost } from '../contenido/contenido-api.client';
+
+/** La colección de `IUserCollection` donde viven los guardados de la red. */
+const COLECCION_DE_GUARDADOS = 'saved';
 
 /** Lo que guarda quien lee (012-blogs-social, I2). */
 @Injectable({ providedIn: 'root' })
@@ -16,9 +20,15 @@ export class GuardadosApi {
    * `GET /api/blogs/saved` — the viewer's bookmarked posts. Sin `?user=`: esa era la
    * misma llave que abría la lista de guardados de cualquiera.
    *
+   * Con `lecturasBase`, la colección genérica `saved` (`GET {lecturasBase}/colecciones/saved`, 012-blogs-social, I4),
+   * con cada publicación del catálogo de la red; lo que ya no está no se pinta, como en la interina.
+   *
    * @throws {BlogsUnauthorizedError} si no hay sesión.
    */
-  async saved(apiBase: string): Promise<readonly Post[]> {
+  async saved(apiBase: string, lecturasBase = ''): Promise<readonly Post[]> {
+    if (lecturasBase) {
+      return this.#coleccion(lecturasBase);
+    }
     const url = `${apiBase}/saved`;
     try {
       const data = await this.#borde.getJson(apiBase, url);
@@ -34,6 +44,24 @@ export class GuardadosApi {
     } catch (error) {
       this.#borde.rethrowIfAuthError(error);
       this.#borde.markDegraded('GET /api/blogs/saved', error);
+      return buildMockSaved();
+    }
+  }
+
+  async #coleccion(lecturasBase: string): Promise<readonly Post[]> {
+    try {
+      const coleccion = leerColeccionDelMiembro(
+        await this.#borde.getJson(lecturasBase, `${lecturasBase}/colecciones/${COLECCION_DE_GUARDADOS}`),
+      );
+      if (coleccion) {
+        return coleccion.elementos
+          .map((guardado) => (guardado.elemento ? postDelCatalogo(guardado.elemento) : null))
+          .filter((post): post is Post => post !== null);
+      }
+      throw new Error('coleccion-shape');
+    } catch (error) {
+      this.#borde.rethrowIfAuthError(error);
+      this.#borde.markDegraded('GET /api/lecturas/{vertical}/colecciones/{coleccion}', error);
       return buildMockSaved();
     }
   }

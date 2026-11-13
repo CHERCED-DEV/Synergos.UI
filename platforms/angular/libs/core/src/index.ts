@@ -6,3 +6,4 @@ export * from './interceptors';
 export * from './services';
 export * from './element-protocol';
 export * from './http';
+export * from './lecturas';

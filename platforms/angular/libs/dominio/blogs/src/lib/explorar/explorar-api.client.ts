@@ -1,8 +1,14 @@
 import { Injectable, inject } from '@angular/core';
-import { esRegistro as isRecord, leerNumero as readNumber, leerTexto as readString } from '@synergos/core';
+import {
+  esRegistro as isRecord,
+  leerListadoDelCatalogo,
+  leerNumero as readNumber,
+  leerTexto as readString,
+} from '@synergos/core';
 import { BordeDeBlogs } from '../comun/borde-de-blogs';
 import type { Author, Post, SearchResult, TrendingTag } from '../comun/blogs.model';
 import { buildMockSearch, buildMockTrending } from '../comun/blogs.mock';
+import { CAMPO_ETIQUETA, etiquetasDelListado, postDelCatalogo } from '../comun/lecturas-de-blogs';
 import { normalizeAuthor, normalizePost } from '../contenido/contenido-api.client';
 
 /** Explorar: la búsqueda, las etiquetas y las tendencias (012-blogs-social, I2). */
@@ -38,8 +44,15 @@ export class ExplorarApi {
     }
   }
 
-  /** `GET /api/blogs/explore?q=&tag=` — the SH-1 explore/search/hashtag provider. */
-  async explore(apiBase: string, query: string, tag: string): Promise<SearchResult> {
+  /**
+   * La búsqueda de Explorar, por término o por etiqueta. Con `lecturasBase`, el catálogo de la red
+   * (`GET {lecturasBase}/catalogo?texto=&filtro.etiqueta=`, 012-blogs-social, I4), con las etiquetas de lo encontrado;
+   * sin ella, la interina `GET /api/blogs/explore?q=&tag=`.
+   */
+  async explore(apiBase: string, query: string, tag: string, lecturasBase = ''): Promise<SearchResult> {
+    if (lecturasBase) {
+      return this.#catalogo(lecturasBase, query, tag);
+    }
     const params = new URLSearchParams();
     if (query.trim()) {
       params.set('q', query.trim());
@@ -62,7 +75,36 @@ export class ExplorarApi {
       return buildMockSearch(tag.trim() ? `#${tag.trim()}` : query);
     }
   }
+
+  async #catalogo(lecturasBase: string, query: string, tag: string): Promise<SearchResult> {
+    const params = new URLSearchParams({ porPagina: String(POR_PAGINA) });
+    if (query.trim()) {
+      params.set('texto', query.trim());
+    }
+    if (tag.trim()) {
+      params.set(`filtro.${CAMPO_ETIQUETA}`, tag.trim().replace(/^#/, ''));
+    }
+    try {
+      const listado = leerListadoDelCatalogo(
+        await this.#borde.getJson(lecturasBase, `${lecturasBase}/catalogo?${params.toString()}`),
+      );
+      if (listado) {
+        return {
+          accounts: [],
+          posts: listado.elementos.map(postDelCatalogo).filter((post): post is Post => post !== null),
+          hashtags: etiquetasDelListado(listado.facetas),
+        };
+      }
+      throw new Error('catalogo-shape');
+    } catch (error) {
+      this.#borde.markDegraded('GET /api/lecturas/{vertical}/catalogo', error);
+      return buildMockSearch(tag.trim() ? `#${tag.trim()}` : query);
+    }
+  }
 }
+
+/** Cuántas publicaciones trae la búsqueda: las de la interina, que leía las cien primeras del feed. */
+const POR_PAGINA = 100;
 
 function normalizeTrending(value: unknown): readonly TrendingTag[] | null {
   const list = Array.isArray(value)
