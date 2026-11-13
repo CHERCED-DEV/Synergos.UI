@@ -17,6 +17,7 @@
   --px-step-text: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
   --px-step-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --px-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --px-shadow-overlay: var(--syn-shadow-lg, #{syn.$shadow-lg});
 
   display: block;
   max-width: 100%;
@@ -44,6 +45,13 @@
     font-size: syn.$font-size-base;
     font-weight: syn.$font-weight-semibold;
     line-height: syn.$line-height-snug;
+  }
+
+  // El panel agrupa las habitaciones y el pie: en línea es transparente (mismo hueco que antes).
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
   }
 
   &__rooms {
@@ -299,6 +307,78 @@
   &__room-remove-label,
   &__add-room-label {
     line-height: syn.$line-height-snug;
+  }
+}
+
+// ─── Desplegable (016, I1.b): un campo más de la barra de búsqueda ─────────────
+// Cerrado muestra el resumen como un campo; abierto, el panel flota encima y no empuja el formulario.
+:host(.sg-pax-selector--desplegable) {
+  .pax-selector {
+    position: relative;
+    gap: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .pax-selector__header {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .pax-selector__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    width: 100%;
+    min-height: syn.px-to-rem(44);
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--px-border);
+    border-radius: syn.$radius-lg;
+    background: var(--px-surface);
+    color: var(--px-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+  }
+
+  .pax-selector__summary {
+    font-weight: syn.$font-weight-regular;
+  }
+
+  .pax-selector__chevron {
+    flex: none;
+    width: syn.px-to-rem(8);
+    height: syn.px-to-rem(8);
+    margin-top: syn.px-to-rem(-4);
+    border-right: syn.px-to-rem(2) solid currentColor;
+    border-bottom: syn.px-to-rem(2) solid currentColor;
+    color: var(--px-text-secondary);
+    transform: rotate(45deg);
+    transition: transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+  }
+
+  .pax-selector__toggle[aria-expanded='true'] .pax-selector__chevron {
+    margin-top: syn.px-to-rem(4);
+    transform: rotate(-135deg);
+  }
+
+  .pax-selector__panel {
+    position: absolute;
+    top: calc(100% + #{syn.$space-2});
+    left: 0;
+    z-index: syn.$z-dropdown;
+    width: max(100%, #{syn.px-to-rem(288)});
+    max-width: calc(100vw - #{syn.$space-md} * 2);
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--px-border);
+    border-radius: syn.$radius-xl;
+    background: var(--px-surface);
+    box-shadow: var(--px-shadow-overlay);
   }
 }
 

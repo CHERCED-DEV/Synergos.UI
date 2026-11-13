@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  booleanAttribute,
   computed,
   inject,
   input,
@@ -166,10 +168,25 @@ let paxSelectorInstanceId = 0;
   templateUrl: './pax-selector.html',
   styleUrl: './pax-selector.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-pax-selector' },
+  host: {
+    class: 'sg-pax-selector',
+    '[class.sg-pax-selector--desplegable]': 'desplegable()',
+    '(document:click)': 'alClicFuera($event)',
+    '(keydown.escape)': 'cerrar(true)',
+  },
 })
 export class PaxSelectorElementComponent {
   readonly #initialData = inject(InitialDataService);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /**
+   * Desplegable (016-contenido-piezas, I1.b): en una barra de búsqueda el selector es un campo más — sale CERRADO,
+   * mostrando el resumen, y se abre encima del resto sin empujar el formulario. Sin el atributo queda como siempre,
+   * abierto en línea (el paso de ocupación del asistente de hotel).
+   */
+  readonly desplegable = input<boolean, unknown>(false, { transform: booleanAttribute });
+  readonly abierto = signal(false);
+  readonly panelVisible = computed(() => !this.desplegable() || this.abierto());
 
   readonly config = input<PaxSelectorRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<PaxSelectorRuntimeConfig>(sanitizePaxSelectorConfig),
@@ -258,6 +275,34 @@ export class PaxSelectorElementComponent {
   /** True while the room still has spare capacity (adults + children < cap). */
   hasRoomCapacity(room: PaxRoom): boolean {
     return this.roomGuests(room) < this.maxPerRoom();
+  }
+
+  alternar(): void {
+    this.abierto.update((abierto) => !abierto);
+  }
+
+  /** Cierra el panel; con <paramref name="devolverFoco"/> el foco vuelve al botón que lo abrió (Escape). */
+  cerrar(devolverFoco = false): void {
+    if (!this.desplegable() || !this.abierto()) {
+      return;
+    }
+    this.abierto.set(false);
+    if (devolverFoco) {
+      this.#host.nativeElement.querySelector<HTMLButtonElement>('.pax-selector__toggle')?.focus();
+    }
+  }
+
+  /**
+   * Un clic fuera del selector lo cierra. Se mira la RUTA del evento y no `contains`: «Quitar habitación» saca su
+   * propio botón del DOM antes de que el clic llegue al documento, y con `contains` el panel se cerraría solo.
+   */
+  alClicFuera(event: Event): void {
+    if (!this.abierto()) {
+      return;
+    }
+    if (!event.composedPath().includes(this.#host.nativeElement)) {
+      this.cerrar();
+    }
   }
 
   canAddAdult(room: PaxRoom): boolean {

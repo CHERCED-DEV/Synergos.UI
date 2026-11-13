@@ -824,6 +824,30 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     ]);
   });
 
+  it('la ficha no anuncia opiniones que no llegaron: el promedio suelto del contenido no cuenta (016, I1.b)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchStays();
+    component.openStay(component.stayOffers()[0]);
+    await flushMicrotasks();
+    const conResumen = component.stay()!;
+
+    // Con el resumen del servidor, la línea de arriba dice la MISMA cifra que el panel.
+    expect(component.stayRatingEyebrow()).toBe('★ 4,4 · 842 opiniones');
+
+    // Sin resumen y sin opiniones, nada: ni «418 opiniones» arriba ni un promedio inventado en el panel.
+    component.stay.set({ ...conResumen, reviewSummary: null, reviews: [], rating: 9.2, reviewCount: 418 });
+    expect(component.stayRatingEyebrow()).toBe('');
+    expect(component.stayReviewSummary()).toEqual({ average: 0, count: 0 });
+
+    // Sin resumen pero con opiniones reales, la cifra sale de ellas.
+    component.stay.set({ ...conResumen, reviewSummary: null, rating: 9.2, reviewCount: 418 });
+    const n = conResumen.reviews.length;
+    expect(component.stayReviewSummary().count).toBe(n);
+    expect(component.stayRatingEyebrow()).toContain(`· ${n} ${n === 1 ? 'opinión' : 'opiniones'}`);
+  });
+
   it('un envío contra un endpoint que no existe NO dice «gracias»', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));

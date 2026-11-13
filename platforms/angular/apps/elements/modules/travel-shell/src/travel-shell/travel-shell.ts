@@ -515,10 +515,13 @@ export class TravelShellElementComponent implements OnInit {
   readonly stayReviewSummary = computed<ReviewSummary>(() => {
     const resumen = this.stay()?.reviewSummary;
     if (!resumen) {
-      // Sin resumen del servidor se usa lo que la ficha SÍ trae. No se calcula
-      // nada: `rating` y `reviewCount` ya vienen agregados.
-      const detalle = this.stay();
-      return { average: detalle?.rating ?? 0, count: detalle?.reviewCount ?? 0 };
+      // Sin resumen del servidor, la verdad son las opiniones que llegaron (016-contenido-piezas, I1.b). El
+      // `rating`/`reviewCount` sueltos de la ficha son un agregado del contenido que ninguna opinión respalda:
+      // anunciaban «418 opiniones» sobre un panel que decía «Todavía no hay opiniones».
+      const entradas = this.stayReviews();
+      const count = entradas.length;
+      const average = count > 0 ? Math.round((entradas.reduce((suma, e) => suma + e.rating, 0) / count) * 10) / 10 : 0;
+      return { average, count };
     }
     return {
       average: resumen.average,
@@ -526,6 +529,16 @@ export class TravelShellElementComponent implements OnInit {
       distribution: resumen.distribution,
       criteria: resumen.criteria,
     };
+  });
+
+  /** La línea de arriba de la ficha: la MISMA cifra que el panel de opiniones, y nada si no hay ninguna. */
+  readonly stayRatingEyebrow = computed(() => {
+    const { average, count } = this.stayReviewSummary();
+    if (count <= 0) {
+      return '';
+    }
+    const promedio = average.toLocaleString('es-CO', { maximumFractionDigits: 1 });
+    return `★ ${promedio} · ${count.toLocaleString('es-CO')} ${count === 1 ? 'opinión' : 'opiniones'}`;
   });
 
   readonly canReviewStay = computed(() => this.stay()?.canReview === true);
