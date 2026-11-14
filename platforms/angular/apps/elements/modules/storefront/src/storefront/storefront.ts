@@ -21,6 +21,7 @@ import {
 import {
   BadgeComponent,
   ButtonComponent,
+  coerceModoDeCabecera,
   coerceRutasDeLasVistas,
   coerceStringEnumInput,
   coerceTrimmedStringInput,
@@ -77,6 +78,7 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
     filtros: leerFiltrosFijos(value.filtros),
     rutas: coerceRutasDeLasVistas(value.rutas),
+    cabecera: coerceModoDeCabecera(value.cabecera),
   });
 }
 let storefrontInstanceId = 0;
@@ -160,6 +162,13 @@ export class StorefrontElementComponent implements OnInit {
   readonly config = input<StorefrontConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<StorefrontProps>(sanitizeStorefrontConfig),
   });
+
+  /**
+   * Dentro de un sitio que ya pinta su cabecera, la app no repite su marca y su menú queda como barra secundaria
+   * (D-016-V2). Lo decide el CMS por sitio; sin el dato —servida sola— pinta la completa, la de siempre.
+   */
+  readonly cabeceraSecundaria = computed(() => this.config()?.cabecera === 'secundaria');
+
 
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
 

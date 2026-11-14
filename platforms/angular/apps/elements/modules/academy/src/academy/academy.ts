@@ -68,6 +68,7 @@ import {
   LiveRegionComponent,
   SegmentedComponent,
   TabsComponent,
+  coerceModoDeCabecera,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -218,6 +219,7 @@ export function sanitizeAcademyConfig(value: AcademyConfig): AcademyConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     enrollmentPath: coerceTrimmedStringInput(value.enrollmentPath),
+    cabecera: coerceModoDeCabecera(value.cabecera),
   });
 }
 
@@ -364,6 +366,13 @@ export class AcademyElementComponent implements OnInit {
   readonly config = input<AcademyConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<AcademyProps>(sanitizeAcademyConfig),
   });
+
+  /**
+   * Dentro de un sitio que ya pinta su cabecera, la app no repite su marca y su menú queda como barra secundaria
+   * (D-016-V2). Lo decide el CMS por sitio; sin el dato —servida sola— pinta la completa, la de siempre.
+   */
+  readonly cabeceraSecundaria = computed(() => this.config()?.cabecera === 'secundaria');
+
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });

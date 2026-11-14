@@ -59,6 +59,11 @@
     gap: syn.$space-md;
     padding-bottom: syn.$space-md;
     border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
+
+    // Barra secundaria (D-016-V2): sin la marca, el menú de la app va a la derecha, bajo la cabecera del sitio.
+    &--secundaria {
+      justify-content: flex-end;
+    }
   }
 
   &__brand {

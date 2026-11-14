@@ -1,10 +1,13 @@
 <section class="storefront" aria-label="Tienda Synergos">
   <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
-  <header class="storefront__bar">
-    <syn-button variant="ghost" class="storefront__brand" [href]="navegacion.urlDe('home')" (pressed)="navegacion.alPulsar('home')">
-      <span class="storefront__brand-mark" aria-hidden="true">◈</span>
-      <span class="storefront__brand-text">Synergos Market</span>
-    </syn-button>
+  <header class="storefront__bar" [class.storefront__bar--secundaria]="cabeceraSecundaria()">
+    <!-- Dentro de un sitio con cabecera, la marca ya la dice el sitio (D-016-V2). -->
+    @if (!cabeceraSecundaria()) {
+      <syn-button variant="ghost" class="storefront__brand" [href]="navegacion.urlDe('home')" (pressed)="navegacion.alPulsar('home')">
+        <span class="storefront__brand-mark" aria-hidden="true">◈</span>
+        <span class="storefront__brand-text">Synergos Market</span>
+      </syn-button>
+    }
 
     <nav class="storefront__nav" aria-label="Navegación de la tienda">
       <!-- Cada vista que vive en su página es un enlace a ella (014-despiece-tienda, I3); si no, se abre aquí. -->

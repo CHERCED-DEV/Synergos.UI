@@ -262,6 +262,8 @@ export interface AcademyProps {
   readonly apiBase: string;
   /** negocio */
   readonly enrollmentPath: string;
+  /** sitio */
+  readonly cabecera?: string;
 }
 
 /** <synergos-accordion> · pieza */
@@ -492,6 +494,8 @@ export interface EventosProps {
   readonly platformFeePercent: number;
   /** negocio */
   readonly purchasePath: string;
+  /** sitio */
+  readonly cabecera?: string;
 }
 
 /** <synergos-fab> · pieza · diccionario: Fab */
@@ -768,6 +772,8 @@ export interface StorefrontProps {
   readonly filtros: readonly FiltroFijo[];
   /** sitio */
   readonly rutas: readonly RutaDeUnaVista[];
+  /** sitio */
+  readonly cabecera?: string;
 }
 
 /** <synergos-tabs> · pieza */
@@ -844,7 +850,7 @@ export const ACADEMY_SYNHOST: ElementoSynHost<AcademyProps> = {
   record: "AcademyProps",
   diccionario: ["Academy.Enrollment"],
   claves: ["Academy.Enrollment.Activating","Academy.Enrollment.Active","Academy.Enrollment.AlreadyEnrolled","Academy.Enrollment.BadRequest","Academy.Enrollment.ChangePlan","Academy.Enrollment.ConsoleEmpty","Academy.Enrollment.Enroll","Academy.Enrollment.Free","Academy.Enrollment.Generic","Academy.Enrollment.GoToClassroom","Academy.Enrollment.Heading","Academy.Enrollment.Loading","Academy.Enrollment.NotFound","Academy.Enrollment.Pay","Academy.Enrollment.PaymentFailed","Academy.Enrollment.Refund","Academy.Enrollment.RefundConfirm","Academy.Enrollment.RefundFailed","Academy.Enrollment.Refunded","Academy.Enrollment.SignInRequired","Academy.Enrollment.Total","Academy.Enrollment.Transient","Academy.Enrollment.Unavailable"],
-  campos: ["heading","subheading","apiBase","enrollmentPath"],
+  campos: ["heading","subheading","apiBase","enrollmentPath","cabecera"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -852,7 +858,8 @@ export const ACADEMY_SYNHOST: ElementoSynHost<AcademyProps> = {
     "heading": "Aprende lo que el mercado pide",
     "subheading": "Catálogo, lecciones e instructores a tu ritmo",
     "apiBase": "/api/academy",
-    "enrollmentPath": "directa"
+    "enrollmentPath": "directa",
+    "cabecera": "secundaria"
   },
 };
 
@@ -1517,7 +1524,7 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   record: "EventosProps",
   diccionario: ["Events.Sale","Events.Purchase"],
   claves: ["Events.Purchase.AttendeesInvalid","Events.Purchase.BackToEvents","Events.Purchase.ConfirmPending","Events.Purchase.Failed","Events.Purchase.FreeConfirmPending","Events.Purchase.FreeContinue","Events.Purchase.FreeFailed","Events.Purchase.FreeReceived","Events.Purchase.HoldExpired","Events.Purchase.InProgress","Events.Purchase.LinkSignIn","Events.Purchase.NotCompleted","Events.Purchase.NotFound","Events.Purchase.NotOnSale","Events.Purchase.OverLimit","Events.Purchase.PaymentDeclined","Events.Purchase.PendingCancel","Events.Purchase.PendingChooseOther","Events.Purchase.PendingCompleted","Events.Purchase.PendingFound","Events.Purchase.PendingOpen","Events.Purchase.PendingOpenElsewhere","Events.Purchase.PendingResume","Events.Purchase.PendingUnanswered","Events.Purchase.PendingUnknown","Events.Purchase.PendingUnknownElsewhere","Events.Purchase.PromoDiscount","Events.Purchase.PromoExpired","Events.Purchase.PromoFailed","Events.Purchase.PromoLocked","Events.Purchase.PromoNotApplicable","Events.Purchase.PromoRemoved","Events.Purchase.PromoTooMany","Events.Purchase.PromoUnknown","Events.Purchase.RefundInProgress","Events.Purchase.Retry","Events.Purchase.SessionRequired","Events.Purchase.SignIn","Events.Purchase.SignInText","Events.Purchase.SignInTitle","Events.Purchase.SoldOut","Events.Purchase.Unavailable","Events.Sale.Closed","Events.Sale.NotYet"],
-  campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent","purchasePath"],
+  campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent","purchasePath","cabecera"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -1528,7 +1535,8 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
     "apiBase": "/api/eventos",
     "feePercent": 12,
     "platformFeePercent": 10,
-    "purchasePath": "directa"
+    "purchasePath": "directa",
+    "cabecera": "secundaria"
   },
 };
 
@@ -2693,7 +2701,7 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   record: "StorefrontProps",
   diccionario: ["Storefront.Purchase","Storefront.Cart"],
   claves: ["Storefront.Cart.Suggestions","Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
-  campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","filtros","rutas"],
+  campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","filtros","rutas","cabecera"],
   listas: {"filtros":["campo","valor"],"rutas":["vista","url"]},
   selectores: [
     {
@@ -2775,7 +2783,8 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
         "vista": "carrito",
         "url": "/tienda/carrito/"
       }
-    ]
+    ],
+    "cabecera": "secundaria"
   },
 };
 
