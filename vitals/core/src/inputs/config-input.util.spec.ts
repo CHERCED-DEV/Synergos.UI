@@ -4,6 +4,7 @@ import {
   coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
   coerceStringEnumInput,
+  coerceModoDeCabecera,
   coerceRutasDeLasVistas,
   coerceStringRecordInput,
   coerceTrimmedStringInput,
@@ -110,5 +111,11 @@ describe('config-input util', () => {
     ).toEqual([{ vista: 'catalogo', url: '/tienda/catalogo/' }]);
     expect(coerceRutasDeLasVistas([{ vista: 'carrito', url: '/\\otro.com' }])).toBeUndefined();
     expect(coerceRutasDeLasVistas({ vista: 'inicio', url: '/tienda/' })).toBeUndefined();
+  });
+  it('lee el modo de cabecera que manda el CMS y descarta lo demás (D-016-V2)', () => {
+    expect(coerceModoDeCabecera(' Secundaria ')).toBe('secundaria');
+    expect(coerceModoDeCabecera('completa')).toBe('completa');
+    expect(coerceModoDeCabecera('oculta')).toBeUndefined();
+    expect(coerceModoDeCabecera(undefined)).toBeUndefined();
   });
 });

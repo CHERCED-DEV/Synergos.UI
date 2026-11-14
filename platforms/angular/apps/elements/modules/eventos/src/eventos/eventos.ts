@@ -57,6 +57,7 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  coerceModoDeCabecera,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -223,6 +224,7 @@ export function sanitizeEventosConfig(value: EventosConfig): EventosConfig {
     feePercent: normalizeFee(value.feePercent),
     platformFeePercent: normalizeFee(value.platformFeePercent),
     purchasePath: normalizePurchasePath(value.purchasePath),
+    cabecera: coerceModoDeCabecera(value.cabecera),
   });
 }
 
@@ -448,6 +450,13 @@ export class EventosElementComponent implements OnInit {
   readonly config = input<EventosConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<EventosProps>(sanitizeEventosConfig),
   });
+
+  /**
+   * Dentro de un sitio que ya pinta su cabecera, la app no repite su marca y su menú queda como barra secundaria
+   * (D-016-V2). Lo decide el CMS por sitio; sin el dato —servida sola— pinta la completa, la de siempre.
+   */
+  readonly cabeceraSecundaria = computed(() => this.config()?.cabecera === 'secundaria');
+
   // Los atributos sueltos son la API del tag crudo. Las comisiones NO tienen atributo: una regla
   // de negocio escrita en una plantilla volvería a separar lo que se muestra de lo que se cobra.
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });

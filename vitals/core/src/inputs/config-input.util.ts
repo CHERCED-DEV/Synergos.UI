@@ -136,6 +136,21 @@ export function coerceRutasDeLasVistas(value: unknown): readonly RutaDeUnaVistaD
   return rutas.length > 0 ? rutas : undefined;
 }
 
+/** Cómo pinta una app su cabecera dentro de un sitio, como la manda el CMS (D-016-V2). */
+export type ModoDeCabecera = 'secundaria' | 'completa';
+
+/** Los dos modos que el CMS puede mandar. */
+export const MODOS_DE_CABECERA: readonly ModoDeCabecera[] = ['secundaria', 'completa'];
+
+/**
+ * El modo de cabecera saneado (D-016-V2): «secundaria» —dentro de un sitio que ya pinta su cabecera, la app no repite
+ * su marca y su menú queda como barra secundaria— o «completa», la de siempre. Cualquier otra cosa, nada: y sin dato
+ * la app pinta la completa, que es lo que necesita cuando se sirve sola.
+ */
+export function coerceModoDeCabecera(value: unknown): ModoDeCabecera | undefined {
+  return coerceStringEnumInput(value, MODOS_DE_CABECERA);
+}
+
 function esCaminoDelSitio(url: string): boolean {
   return url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
 }
