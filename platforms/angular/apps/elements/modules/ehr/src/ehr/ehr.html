@@ -320,8 +320,14 @@
           }
         }
 
+        <!-- ─── MESSAGES desde la historia de producción (I7 P15): con los profesionales del directorio ─── -->
+        @if (view() === 'messages' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.messagesTitle }}</h1>
+          <sg-salud-mis-mensajes [profesionales]="profesionalesDeLaAgenda()" [zona]="zona()" (escribir)="escribirMensaje($event)" />
+        }
+
         <!-- ─── MESSAGES — SH-7 message-center ─── -->
-        @if (view() === 'messages') {
+        @if (view() === 'messages' && !historiaBase()) {
           @if (readFailed('threads')) {
             <div class="ehr__unreadable" role="alert">
               <h1 class="ehr__unreadable-title">No pudimos leer tus mensajes</h1>
@@ -569,8 +575,14 @@
           }
         }
 
+        <!-- ─── ESTADO DE CUENTA desde Payments (I7 P17) ─── -->
+        @if (view() === 'billing' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.accountTitle }}</h1>
+          <sg-salud-mi-cuenta [zona]="zona()" />
+        }
+
         <!-- ─── BILLING ─── -->
-        @if (view() === 'billing') {
+        @if (view() === 'billing' && !historiaBase()) {
           <h1 class="ehr__view-title">Facturación</h1>
           @if (billing(); as b) {
             <div class="ehr__balance">
@@ -649,7 +661,12 @@
               <button type="submit" class="ehr__btn ehr__btn--brand">Buscar</button>
             </form>
           }
-          @if (view() === 'inbasket' && inboxNeedsProvider()) {
+          @if (view() === 'inbasket' && historiaBase()) {
+            <!-- La bandeja del consultorio (I7 P16): resultados, renovaciones y mensajes reales, en un solo sitio. -->
+            <sg-salud-bandeja [zona]="zona()" (actualizar)="actualizarBandeja()" (abrirPaciente)="abrirPacienteDeLaBandeja($event)"
+              (abrirHilo)="abrirHiloDeLaBandeja($event)" (responder)="responderEnLaBandeja($event)" />
+          }
+          @if (view() === 'inbasket' && !historiaBase() && inboxNeedsProvider()) {
             <!-- La bandeja es la del médico vinculado a la cuenta (#197). Sin médico vinculado
                  —enfermería, admin— se elige cuál revisar; antes se mandaba el NOMBRE del rol y
                  la bandeja salía vacía, leída como «al día». -->
@@ -668,6 +685,7 @@
               </select>
             </div>
           }
+          @if (!(view() === 'inbasket' && historiaBase())) {
           <syn-console-shell
             [config]="consoleConfig()"
             [kpis]="consoleKpis()"
@@ -682,6 +700,7 @@
             (filterchange)="onConsoleFilterChange($event)"
             (rowaction)="onConsoleAction($event)"
           ></syn-console-shell>
+          }
         }
 
         <!-- ─── PATIENT CHART WORKSPACE (Storyboard + activities) ─── -->

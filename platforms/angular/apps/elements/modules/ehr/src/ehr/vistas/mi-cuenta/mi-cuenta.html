@@ -1,0 +1,38 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.accountTitle">
+  <p class="salud-consultorio__texto">{{ textos.accountIntro }}</p>
+  @switch (cuenta.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('inicio') {}
+    @case ('lista') {
+      @if (cuenta.cuenta().lineas.length) {
+        <ul class="salud-consultorio__datos">
+          @for (linea of cuenta.cuenta().lineas; track linea.citaId) {
+            <li class="salud-consultorio__fila">
+              <span class="salud-consultorio__nombre">{{ textos.appointment }} {{ linea.numero }}</span>
+              <span class="salud-consultorio__texto">{{ fecha(linea) }}</span>
+              <span>{{ textos.charged }}: {{ importe(linea.cobrado, linea.moneda) }}</span>
+              @if (linea.devuelto > 0) {
+                <span>{{ textos.refunded }}: {{ importe(linea.devuelto, linea.moneda) }}</span>
+              }
+            </li>
+          }
+        </ul>
+        @for (total of cuenta.cuenta().totales; track total.moneda) {
+          <div class="salud-consultorio__fila">
+            <span class="salud-consultorio__nombre">{{ textos.total }}</span>
+            <span>{{ textos.charged }}: {{ importe(total.cobrado, total.moneda) }}</span>
+            <span>{{ textos.refunded }}: {{ importe(total.devuelto, total.moneda) }}</span>
+            <span class="salud-consultorio__nombre">{{ textos.net }}: {{ importe(total.neto, total.moneda) }}</span>
+          </div>
+        }
+      } @else {
+        <syn-empty-state [title]="textos.noCharges" />
+      }
+    }
+    @default {
+      <p class="salud-consultorio__texto">{{ textos.accountUnreadable }}</p>
+    }
+  }
+</section>

@@ -53,6 +53,10 @@ import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
   AgendaDeSalud,
+  BandejaDeLaConsulta,
+  MiCuenta,
+  MisMensajes,
+  type ItemDeLaBandeja,
   CancelacionesDeCitas,
   ConsultaDelDia,
   devolucionPrevista,
@@ -93,6 +97,9 @@ import {
 import { SaludFranjasComponent, type DiaDeLaAgenda, type HoraElegida } from './vistas/agendar/franjas/franjas';
 import { SaludCitaDelEnlaceComponent } from './vistas/mis-citas/cita-del-enlace/cita-del-enlace';
 import { SaludCancelarCitaComponent } from './vistas/mis-citas/cancelar-cita/cancelar-cita';
+import { SaludMisMensajesComponent } from './vistas/mis-mensajes/mis-mensajes';
+import { SaludMiCuentaComponent } from './vistas/mi-cuenta/mi-cuenta';
+import { SaludBandejaComponent } from './vistas/consultorio/bandeja/bandeja';
 import { SaludPermisoComponent } from './vistas/permiso/permiso';
 import { SaludMiSaludComponent } from './vistas/mi-salud/mi-salud';
 import { SaludCheckInComponent } from './vistas/check-in/check-in';
@@ -333,6 +340,9 @@ let ehrInstanceId = 0;
     SaludFranjasComponent,
     SaludCitaDelEnlaceComponent,
     SaludCancelarCitaComponent,
+    SaludMisMensajesComponent,
+    SaludMiCuentaComponent,
+    SaludBandejaComponent,
     SaludMiSaludComponent,
     SaludCheckInComponent,
     SaludAbrirHistoriaComponent,
@@ -353,7 +363,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados, RecetasDelPaciente, MiMedicacion, CancelacionesDeCitas],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados, RecetasDelPaciente, MiMedicacion, CancelacionesDeCitas, MisMensajes, MiCuenta, BandejaDeLaConsulta],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -470,6 +480,10 @@ export class EhrElementComponent implements OnInit {
    * la política (el tag crudo, una página de antes) no se ofrece: no se promete una devolución que el sitio no dijo.
    */
   readonly #cancelaciones = inject(CancelacionesDeCitas);
+  /** Mensajes, estado de cuenta y la bandeja del consultorio (I7). */
+  readonly #misMensajes = inject(MisMensajes);
+  readonly #miCuenta = inject(MiCuenta);
+  readonly #bandeja = inject(BandejaDeLaConsulta);
   readonly politicaDeDevolucion = computed<PoliticaDeDevolucion | null>(() => {
     const c = this.config();
     return c?.devolucionTotalHoras !== undefined && c.devolucionParcialHoras !== undefined && c.devolucionParcialPorcentaje !== undefined
@@ -1547,11 +1561,20 @@ export class EhrElementComponent implements OnInit {
         }
         return;
       case 'billing':
+        if (this.historiaBase()) {
+          void this.#miCuenta.cargar(this.historiaBase());
+          return;
+        }
         if (!this.billingLoaded()) {
           void this.conElPaciente(() => this.loadBilling());
         }
         return;
       case 'messages':
+        if (this.historiaBase()) {
+          void this.ensureDoctors();
+          void this.#misMensajes.cargar(this.historiaBase());
+          return;
+        }
         if (!this.threadsLoaded()) {
           void this.conElPaciente(() => this.loadThreads());
         }
@@ -1573,6 +1596,10 @@ export class EhrElementComponent implements OnInit {
         return;
       case 'inbasket':
         this.consoleSection.set('inbasket');
+        if (this.historiaBase()) {
+          void this.#bandeja.cargar(this.historiaBase());
+          return;
+        }
         if (!this.inboxLoaded()) {
           void this.loadInbox();
         }
@@ -1862,6 +1889,34 @@ export class EhrElementComponent implements OnInit {
       this.#ordenes.cargar(this.historiaBase(), key),
       this.#recetas.cargar(this.historiaBase(), key),
     ]);
+  }
+
+  // ─── Mensajes y la bandeja del consultorio (I7) ──────────────────────────────
+
+  async escribirMensaje(escrito: { readonly profesional: string; readonly texto: string }): Promise<void> {
+    await this.#misMensajes.escribir(this.historiaBase(), escrito.profesional, escrito.texto);
+  }
+
+  actualizarBandeja(): Promise<void> {
+    return this.#bandeja.cargar(this.historiaBase());
+  }
+
+  /** Un resultado o una renovación se atienden en la agenda, con el paciente abierto como en «Notas». */
+  async abrirPacienteDeLaBandeja(item: ItemDeLaBandeja): Promise<void> {
+    this.navigate('board');
+    await Promise.all([
+      this.#consultaDelDia.abrirNotas(this.historiaBase(), item.pacienteKey, item.paciente, null),
+      this.#ordenes.cargar(this.historiaBase(), item.pacienteKey),
+      this.#recetas.cargar(this.historiaBase(), item.pacienteKey),
+    ]);
+  }
+
+  abrirHiloDeLaBandeja(hiloId: string): Promise<void> {
+    return this.#bandeja.abrirHilo(this.historiaBase(), hiloId);
+  }
+
+  async responderEnLaBandeja(texto: string): Promise<void> {
+    await this.#bandeja.responder(this.historiaBase(), texto);
   }
 
   async ordenarExamenes(orden: OrdenEscrita): Promise<void> {
