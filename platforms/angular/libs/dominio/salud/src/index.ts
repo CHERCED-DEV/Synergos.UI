@@ -71,3 +71,17 @@ export {
   urlDelInforme,
 } from './lib/ordenes/ordenes-api.client';
 export { MisResultados, OrdenesDelPaciente } from './lib/ordenes/ordenes';
+
+export * from './lib/recetas/recetas.model';
+export {
+  anularLaReceta,
+  emitirLaReceta,
+  leerLasRecetas,
+  leerLasRenovaciones,
+  leerMisRecetas,
+  leerMisRenovaciones,
+  pedirLaRenovacion,
+  resolverLaRenovacion,
+  urlDeLaReceta,
+} from './lib/recetas/recetas-api.client';
+export { MiMedicacion, RecetasDelPaciente } from './lib/recetas/recetas';
