@@ -10,6 +10,24 @@ describe('La tienda: el carrito', () => {
     fixture = montado;
   });
 
+  it('con el carrito vacío sugiere por dónde empezar, y con artículos no (016)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    tienda().catalogo.products.set([PRODUCT_A, PRODUCT_B]);
+    tienda().navegacion.navigate('cart');
+    const carrito = tienda().vista(TiendaCarritoComponent);
+
+    // Antes era una línea y un botón sobre media página vacía.
+    expect(carrito.sugerencias().length).toBeGreaterThan(0);
+    const titulos = Array.from(fixture.nativeElement.querySelectorAll('.storefront__heading') as NodeListOf<Element>)
+      .map((h) => h.textContent?.trim());
+    expect(titulos).toContain('Para empezar');
+
+    await agregarAlCarrito();
+    expect(carrito.sugerencias()).toEqual([]);
+  });
+
   it('un cupón aceptado entra como línea NEGATIVA y baja el total', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));

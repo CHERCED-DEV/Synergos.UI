@@ -47,13 +47,16 @@
         }
         <span class="storefront__card-now">{{ presentacion.productPriceLabel(product) }}</span>
       </p>
-      <p class="storefront__card-meta">
-        <synergos-rating-stars
-          [attr.value]="product.rating"
-          [attr.readonly]="'true'"
-        ></synergos-rating-stars>
-        <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
-      </p>
+      <!-- Sin opiniones no hay estrellas ni «(0)»: nadie opinó (el mismo criterio de la comparación). -->
+      @if (product.reviewCount > 0) {
+        <p class="storefront__card-meta">
+          <synergos-rating-stars
+            [attr.value]="product.rating"
+            [attr.readonly]="'true'"
+          ></synergos-rating-stars>
+          <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
+        </p>
+      }
       @if (product.badges.length > 0) {
         <ul class="storefront__card-badges">
           @for (badge of product.badges; track badge) {

@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, inject, input, signal } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
 import { CatalogoDeLaTienda } from '@synergos/dominio/tienda';
-import { BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent, LinkComponent } from '@synergos/shared';
+import { BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent } from '@synergos/shared';
 import { type DiscoveryCriteria } from '@synergos/shells';
 import { NavegacionDeLaTienda } from '../../estado/navegacion';
 import { PresentacionDeLaTienda } from '../../estado/presentacion';
+import { TiendaVitrinaComponent } from '../vitrina/vitrina';
 
 const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevance', page: 1 };
 
@@ -12,7 +12,7 @@ const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevan
 @Component({
   selector: 'sg-tienda-inicio',
   standalone: true,
-  imports: [NgTemplateOutlet, BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent, LinkComponent],
+  imports: [BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent, TiendaVitrinaComponent],
   templateUrl: './inicio.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'storefront__vista' },
