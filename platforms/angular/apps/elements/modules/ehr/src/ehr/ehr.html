@@ -402,7 +402,11 @@
         }
 
         <!-- ─── MEDICATIONS + refill ─── -->
-        @if (view() === 'medications') {
+        @if (view() === 'medications' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.myMedicationTitle }}</h1>
+          <sg-salud-mi-medicacion [base]="historiaBase()" [zona]="zona()" (pedir)="pedirRenovacion($event)" />
+        }
+        @if (view() === 'medications' && !historiaBase()) {
           <h1 class="ehr__view-title">Mis medicamentos</h1>
           <p class="ehr__view-sub">Tu lista activa. Puedes solicitar renovación; tu médico la aprueba.</p>
           @if (loading() && !medsLoaded()) {
@@ -627,6 +631,8 @@
               (comprobar)="comprobarNota($event)" />
             <sg-salud-ordenes-del-paciente [base]="historiaBase()" (ordenar)="ordenarExamenes($event)"
               (cargar)="cargarResultado($event)" (liberar)="liberarResultado($event)" />
+            <sg-salud-recetas-del-paciente [base]="historiaBase()" [zona]="zona()" (emitir)="emitirReceta($event)"
+              (anular)="anularReceta($event)" (resolver)="resolverRenovacion($event)" />
           }
           @if (view() === 'patients' && historiaBase()) {
             <!-- Recepción abre la historia; el médico ve y valida el resumen (I2 T063). -->

@@ -527,6 +527,10 @@ describe('contrato SynHost: lo que el editor elige en un selector ↔ lo que el 
     return memo;
   };
 
+  beforeAll(() => {
+    cruces();
+  }, 60_000);
+
   it('cruza cada selector del contrato, y alguno (red de seguridad por el vacío)', () => {
     const enElContrato = ELEMENTOS_SYNHOST.flatMap((e) =>
       e.selectores.filter((s) => !s.deDatos).map((s) => `${e.nombre}.${s.propiedad}`),

@@ -30,6 +30,13 @@ const HISTORIA: TextosDeLaHistoria = {
   resultadoRevisa: 'resultadoRevisa',
   resultadoLiberado: 'resultadoLiberado',
   guardarFallo: 'guardarFallo',
+  recetaEmitida: 'recetaEmitida',
+  recetaRevisa: 'recetaRevisa',
+  recetaAnulada: 'recetaAnulada',
+  renovacionPedida: 'renovacionPedida',
+  renovacionAprobada: 'renovacionAprobada',
+  renovacionRechazada: 'renovacionRechazada',
+  renovacionImposible: 'renovacionImposible',
 };
 
 function fachada<T>(tipo: Type<T>): T {

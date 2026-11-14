@@ -1,0 +1,72 @@
+@if (consulta.paciente(); as paciente) {
+  <section class="salud-consultorio" [attr.aria-label]="textos.recipesTitle">
+    <h2 class="salud-consultorio__titulo">{{ textos.recipesTitle }}</h2>
+
+    <form class="salud-consultorio__form" (submit)="$event.preventDefault(); emitirLaReceta()">
+      <h3 class="salud-consultorio__grupo">{{ textos.newRecipe }}</h3>
+      <syn-input [label]="textos.medication" [maxlength]="200" [value]="medicamento()" (valueChange)="medicamento.set($event)" />
+      <div class="salud-consultorio__fila">
+        <syn-input class="salud-consultorio__campo" [label]="textos.dose" [maxlength]="200" [value]="dosis()" (valueChange)="dosis.set($event)" />
+        <syn-input class="salud-consultorio__campo" [label]="textos.frequency" [maxlength]="200" [value]="frecuencia()" (valueChange)="frecuencia.set($event)" />
+        <syn-input [label]="textos.days" type="number" [min]="1" [max]="365" [value]="dias()" (valueChange)="dias.set($event)" />
+      </div>
+      <syn-textarea [label]="textos.instructions" [rows]="2" [maxlength]="1000" [value]="indicaciones()" (valueChange)="indicaciones.set($event)" />
+      <syn-button type="submit" [label]="textos.issueRecipe" [loading]="recetas.moviendo()" />
+    </form>
+
+    @switch (recetas.estado()) {
+      @case ('cargando') {
+        <syn-skeleton variant="list" [rows]="2" />
+      }
+      @case ('lista') {
+        @if (recetas.pendientes().length) {
+          <h3 class="salud-consultorio__grupo">{{ textos.renewalsTitle }}</h3>
+          <ul class="salud-consultorio__datos">
+            @for (pedida of recetas.pendientes(); track pedida.id) {
+              <li class="salud-consultorio__fila">
+                <span class="salud-consultorio__nombre">{{ nombreDe(pedida.recetaId) }}</span>
+                @if (pedida.nota) {
+                  <span class="salud-consultorio__texto">{{ pedida.nota }}</span>
+                }
+                <syn-button size="sm" [label]="textos.approve" [loading]="recetas.moviendo()"
+                  (pressed)="resolver.emit({ id: pedida.id, aprobar: true })" />
+                <syn-button variant="ghost" size="sm" [label]="textos.reject" [loading]="recetas.moviendo()"
+                  (pressed)="resolver.emit({ id: pedida.id, aprobar: false })" />
+              </li>
+            }
+          </ul>
+        }
+        @if (recetas.recetas().length) {
+          <ul class="salud-consultorio__datos">
+            @for (receta of recetas.recetas(); track receta.id) {
+              <li class="salud-consultorio__fila">
+                <span class="salud-consultorio__nombre">{{ receta.medicamento }}</span>
+                <span>{{ receta.dosis }} · {{ receta.frecuencia }}</span>
+                <syn-badge [text]="estado(receta)" [tone]="receta.vigente ? 'brand' : 'neutral'" />
+                @if (receta.vigente) {
+                  <span class="salud-consultorio__texto">{{ hasta(receta) }}</span>
+                }
+                <syn-button variant="ghost" size="sm" [label]="textos.downloadRecipe" [href]="pdf(receta.id, paciente.patientKey)" />
+                @if (receta.vigente) {
+                  <syn-button variant="ghost" size="sm" [label]="textos.revoke" [loading]="recetas.moviendo()" (pressed)="anular.emit(receta.id)" />
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="salud-consultorio__texto">{{ textos.noRecipes }}</p>
+        }
+      }
+      @case ('negada') {
+        <p class="salud-consultorio__texto">{{ textos.validateNoConsent }}</p>
+      }
+      @case ('inicio') {}
+      @default {
+        <p class="salud-consultorio__texto">{{ textos.recipesUnreadable }}</p>
+      }
+    }
+    @if (recetas.aviso()) {
+      <syn-live-region class="salud-consultorio__texto" [message]="recetas.aviso()" [visuallyHidden]="false" announceInitial />
+    }
+  </section>
+}
