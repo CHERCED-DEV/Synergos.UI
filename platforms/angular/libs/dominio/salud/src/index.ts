@@ -103,3 +103,14 @@ export {
   urlDeLaReceta,
 } from './lib/recetas/recetas-api.client';
 export { MiMedicacion, RecetasDelPaciente } from './lib/recetas/recetas';
+
+export * from './lib/mensajes/mensajes.model';
+export {
+  escribirAlProfesional,
+  leerElHilo,
+  leerLaBandeja,
+  leerMiCuenta,
+  leerMisMensajes,
+  responderElHilo,
+} from './lib/mensajes/mensajes-api.client';
+export { BandejaDeLaConsulta, MiCuenta, MisMensajes } from './lib/mensajes/mensajes';

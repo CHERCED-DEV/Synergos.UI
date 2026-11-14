@@ -1,0 +1,44 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.messagesTitle">
+  @switch (mensajes.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('sin-historia') {
+      <syn-empty-state [title]="textos.noRecordTitle" [message]="textos.noRecordText" />
+    }
+    @case ('inicio') {}
+    @default {
+      @if (mensajes.estado() === 'lista') {
+        <form class="salud-consultorio__form" (submit)="$event.preventDefault(); enviar()">
+          <h3 class="salud-consultorio__grupo">{{ textos.newMessage }}</h3>
+          <syn-select [label]="textos.messageTo" [options]="opciones()" [value]="profesional()" (valueChange)="profesional.set($event)" />
+          <syn-textarea [label]="textos.messageText" [rows]="3" [maxlength]="2000" [value]="texto()" (valueChange)="texto.set($event)" />
+          <syn-button type="submit" [label]="textos.sendMessage" [loading]="mensajes.enviando()" />
+        </form>
+        @if (mensajes.hilos().length) {
+          <ul class="salud-consultorio__datos">
+            @for (hilo of mensajes.hilos(); track hilo.id) {
+              <li class="salud-consultorio__form">
+                <div class="salud-consultorio__fila">
+                  <span class="salud-consultorio__nombre">{{ hilo.profesional }}</span>
+                  <syn-badge [text]="hilo.esperando ? textos.waitingReply : textos.answered" [tone]="hilo.esperando ? 'neutral' : 'brand'" />
+                </div>
+                @for (m of hilo.mensajes; track m.id) {
+                  <p class="salud-consultorio__texto"><strong>{{ de(hilo, m) }}</strong> · {{ cuando(m) }}</p>
+                  <p>{{ m.texto }}</p>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <syn-empty-state [title]="textos.noMessages" />
+        }
+      } @else {
+        <p class="salud-consultorio__texto">{{ textos.messagesUnreadable }}</p>
+      }
+    }
+  }
+  @if (mensajes.aviso()) {
+    <syn-live-region class="salud-consultorio__texto" [message]="mensajes.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

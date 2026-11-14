@@ -1,0 +1,63 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.inboxTitle">
+  <div class="salud-consultorio__fila">
+    <h2 class="salud-consultorio__titulo">{{ textos.inboxTitle }}</h2>
+    <syn-button variant="ghost" size="sm" [label]="textos.refresh" (pressed)="actualizar.emit()" />
+  </div>
+
+  @switch (bandeja.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('inicio') {}
+    @case ('lista') {
+      @if (bandeja.items().length) {
+        <ul class="salud-consultorio__datos">
+          @for (item of bandeja.items(); track item.tipo + item.id) {
+            <li class="salud-consultorio__fila">
+              <syn-badge [text]="tipo(item)" [tone]="item.tipo === 'mensaje' ? 'brand' : 'neutral'" />
+              <span class="salud-consultorio__nombre">{{ item.paciente }}</span>
+              <span>{{ item.resumen }}</span>
+              <span class="salud-consultorio__texto">{{ cuando(item.fecha) }}</span>
+              @if (item.tipo === 'mensaje') {
+                <syn-button variant="ghost" size="sm" [label]="textos.reply" (pressed)="abrirHilo.emit(item.id)" />
+              } @else {
+                <syn-button variant="ghost" size="sm" [label]="textos.openPatient" (pressed)="abrirPaciente.emit(item)" />
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <syn-empty-state [title]="textos.inboxEmpty" />
+      }
+      @if (bandeja.sinPermiso()) {
+        <p class="salud-consultorio__texto">{{ textos.inboxWithoutConsent(bandeja.sinPermiso()) }}</p>
+      }
+    }
+    @case ('negada') {
+      <p class="salud-consultorio__texto">{{ textos.inboxDenied }}</p>
+    }
+    @default {
+      <p class="salud-consultorio__texto">{{ textos.inboxUnreadable }}</p>
+    }
+  }
+
+  @if (bandeja.hilo(); as hilo) {
+    <div class="salud-consultorio__form">
+      <div class="salud-consultorio__fila">
+        <h3 class="salud-consultorio__grupo">{{ hilo.paciente }} · {{ hilo.profesional }}</h3>
+        <syn-button variant="ghost" size="sm" [label]="textos.close" (pressed)="bandeja.cerrarHilo()" />
+      </div>
+      @for (m of hilo.mensajes; track m.id) {
+        <p class="salud-consultorio__texto"><strong>{{ m.delPaciente ? hilo.paciente : hilo.profesional }}</strong> · {{ cuando(m.fecha) }}</p>
+        <p>{{ m.texto }}</p>
+      }
+      <form class="salud-consultorio__form" (submit)="$event.preventDefault(); enviar()">
+        <syn-textarea [label]="textos.replyText" [rows]="3" [maxlength]="2000" [value]="respuesta()" (valueChange)="respuesta.set($event)" />
+        <syn-button type="submit" [label]="textos.reply" [loading]="bandeja.moviendo()" />
+      </form>
+    </div>
+  }
+  @if (bandeja.aviso()) {
+    <syn-live-region class="salud-consultorio__texto" [message]="bandeja.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>
