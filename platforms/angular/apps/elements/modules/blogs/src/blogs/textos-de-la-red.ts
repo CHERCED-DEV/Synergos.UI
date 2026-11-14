@@ -12,6 +12,15 @@ export function textosDeLaRed() {
     get perfilSinSesionTexto(): string {
       return t('Blogs.Red.PerfilSinSesionTexto', 'Tu perfil reúne lo que publicas, a quién sigues y quién te sigue.');
     },
+    get sesionParaPublicar(): string {
+      return t('Blogs.Red.SesionParaPublicar', 'Inicia sesión para publicar');
+    },
+    /** «1 publicación» o «N publicaciones», con la cifra ya formateada (`1,2 k`). */
+    publicaciones(cantidad: number, cifra: string): string {
+      return cantidad === 1
+        ? t('Blogs.Red.UnaPublicacion', '1 publicación')
+        : t('Blogs.Red.Publicaciones', '{cifra} publicaciones').replace('{cifra}', cifra);
+    },
   };
 }
 

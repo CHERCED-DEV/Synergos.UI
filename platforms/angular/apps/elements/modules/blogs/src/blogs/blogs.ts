@@ -52,6 +52,7 @@ import { NavegacionDeBlogs } from './estado/navegacion';
 import { INSTANCIA_DE_BLOGS, PresentacionDeBlogs } from './estado/presentacion';
 import { VALORES_DE_LA_VISTA, vistaDeLaApp } from './rutas-de-blogs';
 import { textosDeEstaRed } from './textos-de-blogs';
+import { textosDeLaRed } from './textos-de-la-red';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
 import { BlogsModeracionComponent } from './vistas/moderacion/moderacion';
@@ -216,6 +217,8 @@ export class BlogsElementComponent implements OnInit {
   readonly suscripcion = inject(SuscripcionDeBlogs);
   readonly navegacion = inject(NavegacionDeBlogs);
   readonly presentacion = inject(PresentacionDeBlogs);
+  /** Lo que dice la red en general (`Blogs.Red`): las cuentas de las tendencias. */
+  protected readonly textosRed = textosDeLaRed();
 
   /** El número de ESTA red en la página: el ámbito de su sesión y de su bus. */
   readonly instanceId = this.presentacion.instancia;

@@ -18,13 +18,22 @@
   (activeIdChange)="inicio.setFeedScope($any($event))"
 />
 
-<article class="blogs__composer-inline">
-  <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
-  <syn-button class="blogs__composer-open" variant="outline" align="start" block (pressed)="inicio.toggleComposer()">¿Qué estás pensando?</syn-button>
-</article>
+@if (red.viewer()) {
+  <article class="blogs__composer-inline">
+    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
+    <syn-button class="blogs__composer-open" variant="outline" align="start" block (pressed)="inicio.toggleComposer()">¿Qué estás pensando?</syn-button>
+  </article>
 
-@if (inicio.composerOpen()) {
-  <sg-blogs-compositor />
+  @if (inicio.composerOpen()) {
+    <sg-blogs-compositor />
+  }
+} @else {
+  <!-- Sin sesión no se ofrece escribir lo que no se podrá publicar: se invita a entrar (vuelta de valor). -->
+  <article class="blogs__composer-inline">
+    <syn-button class="blogs__composer-open" variant="outline" align="start" block [href]="navegacion.loginUrl()">
+      {{ textosRed.sesionParaPublicar }}
+    </syn-button>
+  </article>
 }
 
 @if (red.loading() && inicio.posts().length === 0) {

@@ -390,6 +390,19 @@ describe('BlogsElementComponent', () => {
         (boton.textContent ?? '').includes('Perfil'),
       );
 
+    it('con host y sin sesión, el inicio invita a entrar en vez de ofrecer un compositor que no podrá publicar', async () => {
+      conHost({ member: null });
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      fixture.detectChanges();
+
+      const inicio = (fixture.nativeElement as HTMLElement).querySelector('sg-blogs-inicio');
+      expect(inicio?.textContent).not.toContain('¿Qué estás pensando?');
+      const entrar = inicio?.querySelector<HTMLAnchorElement>('.blogs__composer-inline a');
+      expect(entrar?.textContent?.trim()).toBe('Inicia sesión para publicar');
+      expect(entrar?.getAttribute('href')).toContain('/account/login');
+    });
+
     it('con host y sin sesión, el perfil sin alias pide entrar en vez de quedar en blanco; con alias, no', async () => {
       conHost({ member: null });
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
@@ -2010,6 +2023,14 @@ describe('BlogsElementComponent', () => {
       ]);
       expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=1`);
       expect(pedidas(fetchMock).some((url) => url.includes('/trending'))).toBe(false);
+
+      // La cuenta concuerda con el número: «1 publicación», «3 publicaciones».
+      fixture.detectChanges();
+      expect(
+        Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.blogs__trend-count')).map((n) =>
+          n.textContent?.trim(),
+        ),
+      ).toEqual(['3 publicaciones', '2 publicaciones', '1 publicación']);
     });
 
     it('una tarjeta no pinta el «0» de comentarios ni de republicaciones; la etiqueta accesible sí lo dice', async () => {

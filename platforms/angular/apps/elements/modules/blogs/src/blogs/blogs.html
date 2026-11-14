@@ -161,7 +161,7 @@
             <syn-button variant="plain" block [href]="navegacion.urlDe('search', tag.tag)" (pressed)="navegacion.alPulsar('search', tag.tag)">
               <span class="blogs__trend">
                 <span class="blogs__trend-name">#{{ tag.tag }}</span>
-                <span class="blogs__trend-count">{{ presentacion.formatCount(tag.postCount) }} publicaciones</span>
+                <span class="blogs__trend-count">{{ textosRed.publicaciones(tag.postCount, presentacion.formatCount(tag.postCount)) }}</span>
               </span>
             </syn-button>
           </li>
