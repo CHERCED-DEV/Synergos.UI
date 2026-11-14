@@ -42,6 +42,7 @@ import {
 } from '@synergos/shells';
 import {
   LiveAnnouncerService,
+  coerceModoDeCabecera,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -248,6 +249,7 @@ export function sanitizeGovConfig(value: GovConfig): GovConfig {
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     camino: coerceTrimmedStringInput(value.camino),
+    cabecera: coerceModoDeCabecera(value.cabecera),
   });
 }
 
@@ -292,6 +294,13 @@ export class GovElementComponent implements OnInit {
   readonly config = input<GovConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<GovProps>(sanitizeGovConfig),
   });
+
+  /**
+   * Dentro de un sitio que ya pinta su cabecera, la app no repite su marca y su menú queda como barra secundaria
+   * (D-016-V2). Lo decide el CMS por sitio; sin el dato —servida sola— pinta la completa, la de siempre.
+   */
+  readonly cabeceraSecundaria = computed(() => this.config()?.cabecera === 'secundaria');
+
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly agencyInput = input<string | undefined>(undefined, { alias: 'agency' });

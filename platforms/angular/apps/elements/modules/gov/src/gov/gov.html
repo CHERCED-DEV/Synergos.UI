@@ -1,23 +1,26 @@
 <div class="gov">
   <!-- ─── Topbar: marca + role-switch + navegación por cara ────────────────────── -->
-  <header class="gov__bar">
-    <button
-      type="button"
-      class="gov__brand"
-      (click)="role() === 'officer' ? goToQueue() : backToCatalog()"
-      aria-label="Inicio del portal de trámites"
-    >
-      <span class="gov__brand-mark" aria-hidden="true">
-        <svg class="gov__brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-          <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
-          <path d="M7 21h10" />
-          <path d="M12 3v18" />
-          <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
-        </svg>
-      </span>
-      <span class="gov__brand-name">GOV · Trámites</span>
-    </button>
+  <header class="gov__bar" [class.gov__bar--secundaria]="cabeceraSecundaria()">
+    <!-- Dentro de un sitio con cabecera, la marca ya la dice el sitio (D-016-V2). -->
+    @if (!cabeceraSecundaria()) {
+      <button
+        type="button"
+        class="gov__brand"
+        (click)="role() === 'officer' ? goToQueue() : backToCatalog()"
+        aria-label="Inicio del portal de trámites"
+      >
+        <span class="gov__brand-mark" aria-hidden="true">
+          <svg class="gov__brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+            <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+            <path d="M7 21h10" />
+            <path d="M12 3v18" />
+            <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+          </svg>
+        </span>
+        <span class="gov__brand-name">GOV · Trámites</span>
+      </button>
+    }
 
     <!--
       El switch de perfil NO son tabs: cada perfil abre un journey completo

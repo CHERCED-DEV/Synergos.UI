@@ -72,6 +72,7 @@ import {
   LiveRegionComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
+  coerceModoDeCabecera,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -281,6 +282,7 @@ export function sanitizeTravelShellConfig(value: TravelShellConfig): TravelShell
     subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     bookingPath: value.bookingPath === 'puerta' || value.bookingPath === 'directa' ? value.bookingPath : undefined,
+    cabecera: coerceModoDeCabecera(value.cabecera),
   });
 }
 
@@ -357,6 +359,13 @@ export class TravelShellElementComponent implements OnInit {
   readonly config = input<TravelShellConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<TravelShellProps>(sanitizeTravelShellConfig),
   });
+
+  /**
+   * Dentro de un sitio que ya pinta su cabecera, la app no repite su marca y su menú queda como barra secundaria
+   * (D-016-V2). Lo decide el CMS por sitio; sin el dato —servida sola— pinta la completa, la de siempre.
+   */
+  readonly cabeceraSecundaria = computed(() => this.config()?.cabecera === 'secundaria');
+
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });

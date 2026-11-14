@@ -15,13 +15,16 @@
   </ng-template>
 
   <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
-  <header class="travel__bar">
-    <button type="button" class="travel__brand travel__brand--btn" (click)="goHome()">
-      <span class="travel__brand-mark travel__icon" aria-hidden="true">
-        <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-      </span>
-      <span class="travel__brand-text">Synergos Viajes</span>
-    </button>
+  <header class="travel__bar" [class.travel__bar--secundaria]="cabeceraSecundaria()">
+    <!-- Dentro de un sitio con cabecera, la marca ya la dice el sitio (D-016-V2). -->
+    @if (!cabeceraSecundaria()) {
+      <button type="button" class="travel__brand travel__brand--btn" (click)="goHome()">
+        <span class="travel__brand-mark travel__icon" aria-hidden="true">
+          <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        </span>
+        <span class="travel__brand-text">Synergos Viajes</span>
+      </button>
+    }
 
     <nav class="travel__nav" aria-label="Navegación de viajes">
       <button type="button" class="travel__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Buscar</button>
