@@ -42,8 +42,9 @@
   }
 
   @if (catalogo.topRated().length > 0) {
-    <section class="storefront__home-section" aria-label="Más vendidos">
-      <h2 class="storefront__heading">Más vendidos</h2>
+    <!-- Ordena por valoración, no por ventas (016, V5): el título dice lo que hace. -->
+    <section class="storefront__home-section" aria-label="Mejor valorados">
+      <h2 class="storefront__heading">Mejor valorados</h2>
       <sg-tienda-vitrina [productos]="catalogo.topRated()" />
     </section>
   }

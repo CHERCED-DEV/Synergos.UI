@@ -35,6 +35,9 @@
 
     &--snap {
       scroll-snap-type: x proximity;
+      // La hora se alinea DESPUÉS del rótulo fijo de la fila, no debajo (016, V6): sin esto, al cargar, el carril se
+      // desplazaba hasta la primera hora y el rótulo tapaba la primera franja.
+      scroll-padding-inline-start: var(--th-label-width);
     }
   }
 
