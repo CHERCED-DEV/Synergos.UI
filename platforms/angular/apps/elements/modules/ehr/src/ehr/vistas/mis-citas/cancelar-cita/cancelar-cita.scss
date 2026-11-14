@@ -1,0 +1,32 @@
+// Sólo las variables de la grilla y la tipografía, como la cita del enlace: los temas ya los emite `ehr.scss` (T051).
+@use 'scss/tokens/spacing' as space;
+@use 'scss/tokens/typography' as type;
+
+// Los colores son los `--eh-*` que declara `.sg-ehr`, que se heredan.
+
+.salud-cancelar {
+  margin-top: space.$space-md;
+}
+
+.salud-cancelar__texto {
+  margin: 0 0 space.$space-2;
+  color: var(--eh-text-secondary);
+}
+
+.salud-cancelar__nota {
+  margin: 0 0 space.$space-3;
+  font-size: type.$font-size-sm;
+  color: var(--eh-text-secondary);
+}
+
+.salud-cancelar__fila {
+  display: flex;
+  align-items: center;
+  gap: space.$space-3;
+}
+
+.salud-cancelar__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: space.$space-3;
+}

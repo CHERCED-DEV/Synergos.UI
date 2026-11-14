@@ -913,6 +913,9 @@
     <span class="ehr__visit-date">{{ formatDate(appt.date) }} · {{ appt.time }}</span>
     <span class="ehr__visit-doctor">{{ appt.doctorName }}</span>
     <span class="ehr__visit-reason">{{ appt.reason }}</span>
+    @if (appt.status === 'cancelled') {
+      <span class="ehr__visit-reason">{{ textoCancelada }}</span>
+    }
   </span>
 </ng-template>
 
@@ -920,12 +923,29 @@
   <div class="ehr__visit-detail">
     <h3 class="ehr__panel-title">{{ appt.reason }}</h3>
     <p class="ehr__panel-text">{{ formatDate(appt.date) }} · {{ appt.time }} · {{ appt.doctorName }}</p>
-    <syn-tracking-timeline
-      heading="Seguimiento de la cita"
-      ariaLabel="Estado de la cita"
-      [stages]="appointmentTracking(appt)"
-    ></syn-tracking-timeline>
-    <button type="button" class="ehr__btn ehr__btn--sm" (click)="startCheckin()">Hacer e-Check-In</button>
+    @if (appt.status !== 'cancelled') {
+      <syn-tracking-timeline
+        heading="Seguimiento de la cita"
+        ariaLabel="Estado de la cita"
+        [stages]="appointmentTracking(appt)"
+      ></syn-tracking-timeline>
+      <button type="button" class="ehr__btn ehr__btn--sm" (click)="startCheckin()">Hacer e-Check-In</button>
+    }
+    <!-- Cancelar una cita confirmada (I6): con la política del sitio, sólo sobre una cita de la puerta. -->
+    @if (politicaDeDevolucion(); as politica) {
+      @if (citaConfirmada(appt.id); as cita) {
+        <sg-salud-cancelar-cita
+          [citaId]="cita.id"
+          [prevista]="previstaDe(cita, politica)"
+          [politica]="politica"
+          [conCopago]="!!importeDeLaCita(cita)"
+          [cancelada]="cancelacionDe(cita.id)"
+          [moviendo]="cancelandoConfirmada(cita.id)"
+          [aviso]="avisoDeLaCancelacion(cita.id)"
+          (cancelar)="cancelarConfirmada($event)"
+        />
+      }
+    }
   </div>
 </ng-template>
 

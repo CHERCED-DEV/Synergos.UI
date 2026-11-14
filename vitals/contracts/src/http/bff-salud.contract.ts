@@ -23,6 +23,28 @@ export interface Rechazo {
   readonly transient: boolean;
 }
 
+export interface SaludCancelacionEntrada {
+  readonly cita: string;
+}
+
+export interface SaludCancelacionPagina {
+  readonly items: readonly SaludCancelacionRespuesta[];
+  readonly total: number;
+  readonly offset: number;
+  readonly hasMore: boolean;
+}
+
+export interface SaludCancelacionRespuesta {
+  readonly id: string;
+  readonly flujo: string;
+  readonly numero: string;
+  readonly estado: string;
+  readonly datos: { readonly cita: string | null; readonly aDevolver: { readonly amount: number; readonly currency: string; } | null; };
+  readonly compensacionesPendientes: number;
+  readonly error: string | null;
+  readonly deshaciendo: boolean;
+}
+
 export interface SaludCitaCotizacion {
   readonly flujo: string;
   readonly datos: { readonly profesional: { readonly kind: "salud.profesional"; readonly id: string; } | null; readonly ventana: { readonly start: string; readonly end: string; } | null; readonly total: { readonly amount: number; readonly currency: string; } | null; readonly reservaId: string | null; };
@@ -118,6 +140,12 @@ export interface OperacionDeLaPuerta<TMetodo extends "GET" | "POST", TConsulta, 
 
 /** Lo que la puerta expone de este orquestador: por flujo, y por su nombre en la puerta. */
 export interface OperacionesDeLaPuerta {
+  readonly "salud.cancelacion": {
+    readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludCancelacionEntrada, SaludCancelacionRespuesta, "requerida">;
+    readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludCancelacionRespuesta, "ninguna">;
+    readonly consultar: OperacionDeLaPuerta<"GET", { readonly id: string; }, undefined, SaludCancelacionRespuesta, "ninguna">;
+    readonly listar: OperacionDeLaPuerta<"GET", { readonly estado?: string; readonly offset?: number; readonly limit?: number; }, undefined, SaludCancelacionPagina, "ninguna">;
+  };
   readonly "salud.cita": {
     readonly abrir: OperacionDeLaPuerta<"POST", undefined, SaludCitaEntrada, SaludCitaRespuesta, "requerida">;
     readonly cancelar: OperacionDeLaPuerta<"POST", { readonly id: string; }, undefined, SaludCitaRespuesta, "ninguna">;
@@ -163,6 +191,12 @@ export type TablaDeLaPuerta<TOperaciones> = {
  * mismo documento que el mapa, y `satisfies` los cruza.
  */
 export const OPERACIONES_DE_LA_PUERTA = {
+  "salud.cancelacion": {
+    abrir: { metodo: "POST", llave: "requerida", consulta: [] },
+    cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },
+    consultar: { metodo: "GET", llave: "ninguna", consulta: ["id"] },
+    listar: { metodo: "GET", llave: "ninguna", consulta: ["estado", "offset", "limit"] },
+  },
   "salud.cita": {
     abrir: { metodo: "POST", llave: "requerida", consulta: [] },
     cancelar: { metodo: "POST", llave: "ninguna", consulta: ["id"] },

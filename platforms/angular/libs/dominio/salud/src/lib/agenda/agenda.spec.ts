@@ -52,6 +52,7 @@ const TEXTOS: TextosDeSalud = {
     renovacionRechazada: 'renovacionRechazada',
     renovacionImposible: 'renovacionImposible',
   },
+  cancelacion: { cancelada: () => 'cancelada', mensaje: (code) => `rechazo ${code}` },
 };
 
 /** Lo que contesta la lectura `disponibilidad`: un lunes de 2027 en Bogotá, por franjas de 20 minutos. */

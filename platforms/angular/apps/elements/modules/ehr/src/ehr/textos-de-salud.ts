@@ -1,5 +1,5 @@
 import type { TextosDeSalud } from '@synergos/dominio/salud';
-import { elegirMensaje, t, type RechazoDelFlujo } from '@synergos/vitals-core';
+import { elegirMensaje, formatearImporte, t, type RechazoDelFlujo } from '@synergos/vitals-core';
 
 /**
  * Lo que se dice de un rechazo de la cita por la puerta, elegido por su `code` y nunca por su `title`
@@ -127,6 +127,63 @@ export function textosDeSaludDelPortal(): TextosDeSalud {
       renovacionRechazada: t('Health.Record.RenewalRejected', 'Renovación rechazada.'),
       renovacionImposible: t('Health.Record.RenewalNotPossible', 'Esa receta no se puede renovar.'),
     },
+    // Cancelar una cita confirmada (I6): la sección `Health.Appointment`.
+    cancelacion: {
+      cancelada: (devuelto) =>
+        devuelto
+          ? t('Health.Appointment.CancelledRefund', 'Cancelaste la cita. Te devolvemos {monto}.', {
+              monto: formatearImporte(devuelto.amount, devuelto.currency),
+            })
+          : t('Health.Appointment.CancelledNoRefund', 'Cancelaste la cita. No hubo devolución.'),
+      mensaje: mensajeDeLaCancelacion,
+    },
+  };
+}
+
+/** Lo que se dice de un rechazo al cancelar una cita confirmada (I6), por su `code`. */
+export function mensajeDeLaCancelacion(code: string): string {
+  const porCodigo: Readonly<Record<string, string>> = {
+    'salud.cita_ya_empezo': t('Health.Appointment.AlreadyStarted', 'La cita ya empezó: no se puede cancelar.'),
+    'booking.already_cancelled': t('Health.Appointment.AlreadyCancelled', 'Esa cita ya estaba cancelada.'),
+    'booking.cancellation_too_late': t('Health.Appointment.AlreadyStarted', 'La cita ya empezó: no se puede cancelar.'),
+    'flow.original_no_encontrada': t('Health.Appointment.NotFound', 'No encontramos esa cita en tu cuenta.'),
+  };
+  const rechazo: RechazoDelFlujo = { code, status: 0, transient: false, detail: '', origen: 'servidor', extra: {} };
+  const fallo = t('Health.Appointment.CancelFailed', 'No pudimos cancelar la cita. Intenta de nuevo.');
+  return elegirMensaje(rechazo, porCodigo, {
+    sesion: t('Health.Appointment.SignInRequired', 'Inicia sesión para ver y agendar tus citas.'),
+    no_disponible: t('Health.Appointment.Unavailable', 'La agenda en línea no está disponible en este momento.'),
+    reintentable: fallo,
+    defecto: fallo,
+    negado: fallo,
+  });
+}
+
+/** Los textos de la vista «Cancelar cita» de una cita confirmada (I6), de la sección `Health.Appointment`. */
+export function textosDeLaCancelacion() {
+  return {
+    cancel: t('Health.Appointment.Cancel', 'Cancelar cita'),
+    refundAll: (monto: string): string =>
+      t('Health.Appointment.RefundAll', 'Si la cancelas ahora te devolvemos todo el copago: {monto}.', { monto }),
+    refundPart: (porcentaje: number, monto: string): string =>
+      t('Health.Appointment.RefundPart', 'Si la cancelas ahora te devolvemos el {porcentaje} % del copago: {monto}.', {
+        porcentaje: String(porcentaje),
+        monto,
+      }),
+    refundNone: t('Health.Appointment.RefundNone', 'Si la cancelas ahora no se devuelve el copago.'),
+    noCopay: t('Health.Appointment.CancelNoCopay', 'Esta cita no tiene copago: cancelarla no cobra nada.'),
+    policy: (total: number, parcial: number, porcentaje: number): string =>
+      t(
+        'Health.Appointment.RefundPolicy',
+        'Con {total} horas o más de antelación se devuelve todo el copago; desde {parcial} horas, el {porcentaje} %; con menos, nada.',
+        { total: String(total), parcial: String(parcial), porcentaje: String(porcentaje) },
+      ),
+    confirm: t('Health.Appointment.ConfirmCancel', '¿Cancelar esta cita? No se puede deshacer.'),
+    yes: t('Health.Appointment.ConfirmCancelYes', 'Sí, cancelarla'),
+    no: t('Health.Appointment.ConfirmCancelNo', 'No, mantenerla'),
+    cancelled: t('Health.Appointment.StateCancelled', 'Cancelada'),
+    refunded: (monto: string): string => t('Health.Appointment.Refunded', 'Devuelto: {monto}', { monto }),
+    noRefund: t('Health.Appointment.NoRefund', 'Sin devolución'),
   };
 }
 
