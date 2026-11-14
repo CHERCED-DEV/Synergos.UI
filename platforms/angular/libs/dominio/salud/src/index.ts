@@ -114,3 +114,5 @@ export {
   responderElHilo,
 } from './lib/mensajes/mensajes-api.client';
 export { BandejaDeLaConsulta, MiCuenta, MisMensajes } from './lib/mensajes/mensajes';
+
+export { estadoDeLosMensajes, proximaCita, resultadosLiberados } from './lib/inicio/inicio';

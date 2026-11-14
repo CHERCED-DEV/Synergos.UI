@@ -390,6 +390,25 @@ export function textosDeLaHistoria() {
     refresh: t('Health.Record.Refresh', 'Actualizar'),
     inboxUnreadable: t('Health.Record.InboxUnreadable', 'No pudimos leer la bandeja. Esto no quiere decir que no haya pendientes.'),
     inboxDenied: t('Health.Record.InboxDenied', 'La bandeja es del médico.'),
+    // El inicio del paciente (I8 P19).
+    homeTitle: t('Health.Record.HomeTitle', 'Tu portal de salud'),
+    homeIntro: t('Health.Record.HomeIntro', 'Tus pendientes y novedades con el consultorio.'),
+    nextAppointment: t('Health.Record.NextAppointment', 'Tu próxima cita'),
+    noNextAppointment: t('Health.Record.NoNextAppointment', 'No tienes citas próximas.'),
+    scheduleAppointment: t('Health.Record.ScheduleAppointment', 'Agendar una cita'),
+    seeAppointments: t('Health.Record.SeeAppointments', 'Ver mis citas'),
+    resultsReady: (n: number): string =>
+      t('Health.Record.ResultsReady', 'Resultados que tu médico ya liberó: {n}.', { n: String(n) }),
+    noResultsReady: t('Health.Record.NoResultsReady', 'Todavía no tienes resultados liberados.'),
+    seeResults: t('Health.Record.SeeResults', 'Ver resultados'),
+    repliesReady: (n: number): string =>
+      t('Health.Record.RepliesReady', 'Conversaciones que el consultorio ya respondió: {n}.', { n: String(n) }),
+    waitingReplies: (n: number): string =>
+      t('Health.Record.WaitingReplies', 'Conversaciones que esperan respuesta: {n}.', { n: String(n) }),
+    seeMessages: t('Health.Record.SeeMessages', 'Ver mensajes'),
+    paid: (monto: string): string => t('Health.Record.Paid', 'Pagado a la fecha: {monto}', { monto }),
+    seeAccount: t('Health.Record.SeeAccount', 'Ver estado de cuenta'),
+    cardUnreadable: t('Health.Record.CardUnreadable', 'No pudimos leer esto ahora. No quiere decir que no haya nada.'),
   } as const;
 }
 

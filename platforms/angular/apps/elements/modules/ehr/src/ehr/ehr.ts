@@ -53,6 +53,7 @@ import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
   AgendaDeSalud,
+  proximaCita,
   BandejaDeLaConsulta,
   MiCuenta,
   MisMensajes,
@@ -100,6 +101,7 @@ import { SaludCancelarCitaComponent } from './vistas/mis-citas/cancelar-cita/can
 import { SaludMisMensajesComponent } from './vistas/mis-mensajes/mis-mensajes';
 import { SaludMiCuentaComponent } from './vistas/mi-cuenta/mi-cuenta';
 import { SaludBandejaComponent } from './vistas/consultorio/bandeja/bandeja';
+import { SaludInicioComponent } from './vistas/inicio/inicio';
 import { SaludPermisoComponent } from './vistas/permiso/permiso';
 import { SaludMiSaludComponent } from './vistas/mi-salud/mi-salud';
 import { SaludCheckInComponent } from './vistas/check-in/check-in';
@@ -343,6 +345,7 @@ let ehrInstanceId = 0;
     SaludMisMensajesComponent,
     SaludMiCuentaComponent,
     SaludBandejaComponent,
+    SaludInicioComponent,
     SaludMiSaludComponent,
     SaludCheckInComponent,
     SaludAbrirHistoriaComponent,
@@ -484,6 +487,9 @@ export class EhrElementComponent implements OnInit {
   readonly #misMensajes = inject(MisMensajes);
   readonly #miCuenta = inject(MiCuenta);
   readonly #bandeja = inject(BandejaDeLaConsulta);
+  /** La próxima cita del inicio (I8 P19), ya escrita; vacía si no hay, `null` si no se pudo leer. */
+  readonly proximaDelInicio = signal<string | null>('');
+  readonly cargandoCitasDelInicio = signal(false);
   readonly politicaDeDevolucion = computed<PoliticaDeDevolucion | null>(() => {
     const c = this.config();
     return c?.devolucionTotalHoras !== undefined && c.devolucionParcialHoras !== undefined && c.devolucionParcialPorcentaje !== undefined
@@ -1512,6 +1518,10 @@ export class EhrElementComponent implements OnInit {
     this.viewchange.emit(view);
     switch (view) {
       case 'home':
+        if (this.historiaBase()) {
+          void this.cargarInicio();
+          return;
+        }
         if (!this.homeLoaded()) {
           void this.loadHome();
         }
@@ -1889,6 +1899,36 @@ export class EhrElementComponent implements OnInit {
       this.#ordenes.cargar(this.historiaBase(), key),
       this.#recetas.cargar(this.historiaBase(), key),
     ]);
+  }
+
+  // ─── El inicio del paciente (I8 P19) ─────────────────────────────────────────
+
+  /**
+   * Lee lo que cuenta el inicio con las mismas lecturas de sus vistas: los resultados, los mensajes y la cuenta, y por la
+   * puerta las citas con sus cancelaciones. Sin saber cuáles se cancelaron, la próxima cita no se afirma.
+   */
+  async cargarInicio(): Promise<void> {
+    const base = this.historiaBase();
+    void this.#misResultados.cargar(base);
+    void this.#misMensajes.cargar(base);
+    void this.#miCuenta.cargar(base);
+    if (!this.porLaPuerta()) {
+      this.proximaDelInicio.set('');
+      return;
+    }
+    this.cargandoCitasDelInicio.set(true);
+    try {
+      await this.ensureDoctors();
+      const [citas, leidas] = await Promise.all([listarCitas(this.#host), this.#cancelaciones.cargar(this.#host)]);
+      if (!citas.ok || !leidas) {
+        this.proximaDelInicio.set(null);
+        return;
+      }
+      const cita = proximaCita(citas.valor, new Set(this.#cancelaciones.canceladas().keys()), Date.now());
+      this.proximaDelInicio.set(cita ? [this.horaDeLaCita(cita), this.profesionalDe(cita)].filter(Boolean).join(' · ') : '');
+    } finally {
+      this.cargandoCitasDelInicio.set(false);
+    }
   }
 
   // ─── Mensajes y la bandeja del consultorio (I7) ──────────────────────────────

@@ -1,0 +1,66 @@
+<section class="salud-inicio" [attr.aria-label]="textos.homeTitle">
+  <article class="salud-inicio__tarjeta">
+    <h2 class="salud-inicio__titulo">{{ textos.nextAppointment }}</h2>
+    @if (cargandoCitas()) {
+      <syn-skeleton variant="list" [rows]="1" />
+    } @else if (proxima() === null) {
+      <p class="salud-inicio__texto">{{ textos.cardUnreadable }}</p>
+    } @else if (proxima()) {
+      <p class="salud-inicio__dato">{{ proxima() }}</p>
+      <syn-button variant="ghost" size="sm" [label]="textos.seeAppointments" (pressed)="ir.emit('visits')" />
+    } @else {
+      <p class="salud-inicio__texto">{{ textos.noNextAppointment }}</p>
+      <syn-button variant="ghost" size="sm" [label]="textos.scheduleAppointment" (pressed)="ir.emit('schedule')" />
+    }
+  </article>
+
+  <article class="salud-inicio__tarjeta">
+    <h2 class="salud-inicio__titulo">{{ textos.myResultsTitle }}</h2>
+    @switch (resultados.estado()) {
+      @case ('cargando') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('inicio') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('lista') {
+        <p class="salud-inicio__texto">{{ liberados() ? textos.resultsReady(liberados()) : textos.noResultsReady }}</p>
+        <syn-button variant="ghost" size="sm" [label]="textos.seeResults" (pressed)="ir.emit('results')" />
+      }
+      @case ('sin-historia') { <p class="salud-inicio__texto">{{ textos.noRecordTitle }}</p> }
+      @default { <p class="salud-inicio__texto">{{ textos.cardUnreadable }}</p> }
+    }
+  </article>
+
+  <article class="salud-inicio__tarjeta">
+    <h2 class="salud-inicio__titulo">{{ textos.messagesTitle }}</h2>
+    @switch (mensajes.estado()) {
+      @case ('cargando') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('inicio') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('lista') {
+        @if (mensajes.hilos().length) {
+          @if (conversaciones().respondidos) {
+            <p class="salud-inicio__texto">{{ textos.repliesReady(conversaciones().respondidos) }}</p>
+          }
+          @if (conversaciones().esperando) {
+            <p class="salud-inicio__texto">{{ textos.waitingReplies(conversaciones().esperando) }}</p>
+          }
+        } @else {
+          <p class="salud-inicio__texto">{{ textos.noMessages }}</p>
+        }
+        <syn-button variant="ghost" size="sm" [label]="textos.seeMessages" (pressed)="ir.emit('messages')" />
+      }
+      @case ('sin-historia') { <p class="salud-inicio__texto">{{ textos.noRecordTitle }}</p> }
+      @default { <p class="salud-inicio__texto">{{ textos.cardUnreadable }}</p> }
+    }
+  </article>
+
+  <article class="salud-inicio__tarjeta">
+    <h2 class="salud-inicio__titulo">{{ textos.accountTitle }}</h2>
+    @switch (cuenta.estado()) {
+      @case ('cargando') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('inicio') { <syn-skeleton variant="list" [rows]="1" /> }
+      @case ('lista') {
+        <p class="salud-inicio__texto">{{ pagado() ? textos.paid(pagado()) : textos.noCharges }}</p>
+        <syn-button variant="ghost" size="sm" [label]="textos.seeAccount" (pressed)="ir.emit('billing')" />
+      }
+      @default { <p class="salud-inicio__texto">{{ textos.cardUnreadable }}</p> }
+    }
+  </article>
+</section>
