@@ -59,6 +59,8 @@ export class BlogsModeracionComponent {
         return this.textos.publicacion;
       case 'blogs.comentario':
         return this.textos.comentario;
+      case 'blogs.mensaje':
+        return this.textos.mensaje;
       default:
         return caso.tipo;
     }

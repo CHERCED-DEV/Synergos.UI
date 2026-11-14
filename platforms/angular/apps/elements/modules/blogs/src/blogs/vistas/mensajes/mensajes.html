@@ -70,6 +70,13 @@
         } @else {
           <span class="blogs__dm-time">{{ presentacion.relativeTime(message.createdAtUtc) }}</span>
         }
+        <!-- Denunciar lo que te mandó otra persona (012-blogs-social, I5): el hilo y el mensaje lo nombran. -->
+        @if (!message.outgoing && !message.failed && moderacion.disponible()) {
+          <syn-button variant="ghost" size="sm" [ariaLabel]="textos.denunciar"
+            (pressed)="moderacion.denunciar({ tipo: 'blogs.mensaje', id: thread.id + ':' + message.id, resumen: message.body })">
+            <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+          </syn-button>
+        }
       </li>
     }
   </ol>

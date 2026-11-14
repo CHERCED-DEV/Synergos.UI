@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { Post, SearchResult, SearchTab, TrendingTag } from '../comun/blogs.model';
+import { CAMPO_ETIQUETA } from '../comun/lecturas-de-blogs';
 import { RedDeBlogs } from '../comun/red-de-blogs';
 import { TEXTOS_DE_BLOGS } from '../comun/textos';
 import { ExplorarApi } from './explorar-api.client';
@@ -29,6 +30,11 @@ export class ExplorarDeBlogs {
   readonly searchCriteria = signal<CriteriosDeExplorar>({ term: '', facets: {}, sort: 'top', page: 1 });
   readonly trending = signal<readonly TrendingTag[]>([]);
   readonly searching = signal(false);
+
+  /** La etiqueta que fija la página (I6, «#arquitectura»); vacía si la página es Explorar entero. */
+  readonly etiquetaFija = computed(
+    () => this.#red.filtrosFijos().find((filtro) => filtro.campo === CAMPO_ETIQUETA)?.valor ?? '',
+  );
 
   /** The posts SH-1 renders as its result grid — derived from the active tab. */
   readonly searchItems = computed<readonly Post[]>(() => {
@@ -94,6 +100,7 @@ export class ExplorarDeBlogs {
         this.searchTerm(),
         this.searchTag(),
         this.#red.lecturasBase(),
+        this.#red.filtrosFijos(),
       );
       this.searchResult.set(result);
     } catch (error) {

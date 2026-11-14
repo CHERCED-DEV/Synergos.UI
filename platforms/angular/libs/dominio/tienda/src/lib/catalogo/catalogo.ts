@@ -1,10 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { facetasFijas } from '@synergos/core';
 import { OrchestratorService } from '@synergos/transaction-engine';
 import { AvisosDeLaTienda } from '../comun/avisos';
 import { ConfiguracionDeLaTienda } from '../comun/configuracion';
 import { TEXTOS_DE_LA_TIENDA } from '../comun/textos';
 import { CatalogoApi } from './catalogo-api.client';
-import { facetasFijas } from './filtros-fijos';
 import type { Facet, ProductDetail, ProductVariant, SearchCriteria, ShopProduct, SortKey } from './catalogo.model';
 
 /** Lo que pide la búsqueda de la tienda: término, facetas, orden y página. */

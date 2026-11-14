@@ -1,9 +1,10 @@
 /** Lo que se puede denunciar de la red (012-blogs-social, I5): el tipo que declara el CMS para cada cosa. */
-export type TipoDenunciable = 'blogs.publicacion' | 'blogs.comentario';
+export type TipoDenunciable = 'blogs.publicacion' | 'blogs.comentario' | 'blogs.mensaje';
 
 /**
  * Lo que se va a denunciar. Un comentario se nombra por su publicación y su id, `{publicación}:{comentario}`: el CMS
- * sabe en qué hilo vive. `resumen` es lo que el panel cita de lo denunciado.
+ * sabe en qué hilo vive. Un mensaje directo, por su hilo y su id, `{hilo}:{mensaje}`. `resumen` es lo que el panel cita
+ * de lo denunciado.
  */
 export interface ObjetivoDeLaDenuncia {
   readonly tipo: TipoDenunciable;

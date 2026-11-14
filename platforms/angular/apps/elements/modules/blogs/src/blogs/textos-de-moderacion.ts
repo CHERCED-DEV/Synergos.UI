@@ -72,6 +72,9 @@ export function textosDeModeracion() {
     get comentario(): string {
       return t('Blogs.Moderacion.Comentario', 'Comentario');
     },
+    get mensaje(): string {
+      return t('Blogs.Moderacion.Mensaje', 'Mensaje directo');
+    },
   };
 }
 

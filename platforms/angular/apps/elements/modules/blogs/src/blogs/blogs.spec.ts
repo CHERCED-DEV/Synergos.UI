@@ -25,6 +25,7 @@ import {
 import { BlogsElementComponent, sanitizeBlogsConfig } from './blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
+import { BlogsExplorarComponent } from './vistas/explorar/explorar';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from '@synergos/dominio/blogs';
 import { asentar } from '../../../../../../tools/asentar';
@@ -1727,6 +1728,50 @@ describe('BlogsElementComponent', () => {
       expect(denunciarBoton()).toBeNull();
     });
 
+    it('un mensaje directo de otra persona se denuncia por su hilo y su id, y lo propio no ofrece denunciar', async () => {
+      borde({
+        'GET /api/lecturas/blogs/mensajes': {
+          status: 200,
+          body: {
+            hilos: [
+              {
+                id: 'th-1',
+                contexto: 'dm',
+                asunto: 'Ana Autora',
+                contraparte: 'ana-autora-a1b2c3',
+                ultimo: 'No me escribas así.',
+                fecha: '2026-11-13T10:00:00+00:00',
+                cantidad: 2,
+                mensajes: [
+                  { id: 'th-1-m1', de: 'ana-autora-a1b2c3', mio: false, texto: 'Un mensaje que ofende', fecha: '2026-11-13T09:00:00+00:00' },
+                  { id: 'th-1-m2', de: 'yo-0f1e2d', mio: true, texto: 'No me escribas así.', fecha: '2026-11-13T10:00:00+00:00' },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      await createComponent('', { ...CON_MODERACION, lecturasBase: '/api/lecturas/blogs/' });
+
+      component.navegacion.go('messages');
+      await flushMicrotasks();
+      await component.mensajes.openThread('th-1');
+      fixture.detectChanges();
+
+      const botones = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '.blogs__dm-messages button[aria-label="Denunciar"]',
+        ),
+      );
+      expect(botones).toHaveLength(1);
+      botones[0].click();
+      expect(component.moderacion.objetivo()).toEqual({
+        tipo: 'blogs.mensaje',
+        id: 'th-1:th-1-m1',
+        resumen: 'Un mensaje que ofende',
+      });
+    });
+
     it('denunciar una publicación manda tipo, id y motivo, y dice que llegó', async () => {
       const fetchMock = borde({ 'POST /api/moderacion/denuncias': { status: 200, body: { caso: 'caso-1' } } });
       await createComponent('', CON_MODERACION);
@@ -1918,6 +1963,64 @@ describe('BlogsElementComponent', () => {
       });
       expect(component.explorar.searchResult()?.hashtags).toEqual([{ tag: 'arquitectura', postCount: 1 }]);
       expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/explore'))).toBe(false);
+    });
+
+    // ─── Una página por etiqueta (I6): Explorar con la etiqueta fija del bloque ──
+    const CATALOGO_CON_ETIQUETAS = {
+      elementos: [ARTICULO],
+      facetas: [
+        {
+          campo: 'etiqueta',
+          titulo: 'Etiqueta',
+          tipo: 'MultiSelect',
+          valores: [
+            { valor: 'arquitectura', etiqueta: 'arquitectura', cantidad: 1 },
+            { valor: 'ux', etiqueta: 'ux', cantidad: 1 },
+          ],
+        },
+      ],
+      total: 1,
+    };
+    const RUTA_DE_EXPLORAR = [{ vista: 'explorar', url: '/blogs/explorar/' }];
+
+    it('la página de una etiqueta busca siempre dentro de ella, no deja cambiarla, y Explorar lleva a su página', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/catalogo`]: CATALOGO_CON_ETIQUETAS });
+      await createComponent('', {
+        ...CON_LECTURAS,
+        vista: 'explorar',
+        filtros: [{ campo: 'etiqueta', valor: 'arquitectura' }],
+        rutas: RUTA_DE_EXPLORAR,
+      });
+
+      // Al abrir, la etiqueta de la página, sin que nadie la elija.
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100&filtro.etiqueta=arquitectura`);
+
+      // Lo que se busca va dentro de la etiqueta, y otra etiqueta elegida no la cambia.
+      component.explorar.onSearchCriteria({ term: 'capas', facets: { hashtag: ['ux'] }, sort: 'top', page: 1 });
+      await flushMicrotasks();
+      expect(pedidas(fetchMock).at(-1)).toBe(`${LECTURAS}/catalogo?porPagina=100&texto=capas&filtro.etiqueta=arquitectura`);
+      expect(component.explorar.searchResult()?.hashtags).toEqual([]);
+
+      // El título es la etiqueta, las tendencias no se ofrecen, y Explorar y otra etiqueta abren la página de Explorar.
+      expect(vista(BlogsExplorarComponent).discoveryFacets().map((faceta) => faceta.key)).toEqual(['tab']);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__view-title')?.textContent?.trim()).toBe(
+        '#arquitectura',
+      );
+      expect(component.navegacion.urlDe('search')).toBe('/blogs/explorar/');
+      expect(component.navegacion.urlDe('search', 'ux')).toBe('/blogs/explorar/#/blogs/explorar/ux');
+    });
+
+    it('sin filtros, Explorar es el de siempre: su título, sus tendencias, y la página es la suya', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/catalogo`]: CATALOGO_CON_ETIQUETAS });
+      await createComponent('', { ...CON_LECTURAS, vista: 'explorar', rutas: RUTA_DE_EXPLORAR });
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100`);
+      expect(component.explorar.searchResult()?.hashtags.map((etiqueta) => etiqueta.tag)).toEqual(['arquitectura', 'ux']);
+      expect(vista(BlogsExplorarComponent).discoveryFacets().map((faceta) => faceta.key)).toEqual(['tab', 'hashtag']);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__view-title')?.textContent?.trim()).toBe(
+        'Explorar',
+      );
+      expect(component.navegacion.urlDe('search')).toBe('');
     });
 
     it('Guardados lee la colección «saved»: cada publicación del catálogo, sin lo que ya no está', async () => {

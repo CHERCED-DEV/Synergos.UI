@@ -4,11 +4,12 @@ import { AvisosDeLaTienda } from '../comun/avisos';
 import { ConfiguracionDeLaTienda } from '../comun/configuracion';
 import { TEXTOS_DE_LA_TIENDA, type TextosDeLaTienda } from '../comun/textos';
 import { CatalogoDeLaTienda } from './catalogo';
-import { facetasFijas, leerFiltrosFijos, type FiltroFijoDelCatalogo } from './filtros-fijos';
+import type { FiltroFijoDelCatalogo } from '@synergos/core';
 
 /**
  * La página «Ofertas» (014-despiece-tienda, I5): el bloque del catálogo declara sus filtros fijos y la tienda los aplica
  * en cada búsqueda sin ofrecerlos como faceta. El doble es la respuesta del SERVIDOR (la forma de la lectura genérica).
+ * Cómo se leen y se juntan los filtros lo prueba su módulo, en `libs/core/src/lecturas` (012-blogs-social, I6).
  */
 const LECTURAS = '/api/lecturas/tienda';
 
@@ -71,31 +72,6 @@ describe('Los filtros fijos del catálogo', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
-  });
-
-  it('se leen del config con campo y valor, sin repetir, y lo demás no viaja', () => {
-    expect(
-      leerFiltrosFijos([
-        { campo: 'oferta', valor: 'En oferta' },
-        { campo: ' oferta ', valor: 'En oferta ' },
-        { campo: '', valor: 'x' },
-        { campo: 'marca' },
-        'oferta=En oferta',
-        null,
-      ]),
-    ).toEqual([{ campo: 'oferta', valor: 'En oferta' }]);
-    expect(leerFiltrosFijos(undefined)).toEqual([]);
-    expect(leerFiltrosFijos({ campo: 'oferta', valor: 'En oferta' })).toEqual([]);
-  });
-
-  it('se juntan por campo como facetas del criterio', () => {
-    expect(
-      facetasFijas([
-        { campo: 'oferta', valor: 'En oferta' },
-        { campo: 'category', valor: 'Ropa' },
-        { campo: 'category', valor: 'Accesorios' },
-      ]),
-    ).toEqual({ oferta: ['En oferta'], category: ['Ropa', 'Accesorios'] });
   });
 
   it('la página «Ofertas»: el filtro va en cada búsqueda, su faceta no se ofrece y el precio de antes se ve', async () => {
