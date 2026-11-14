@@ -144,7 +144,11 @@ export const EXCEPCIONES = {
   // pre-registro desde la historia de producción, y recepción y el médico en el consultorio, ~35 KB de plantillas—, sus
   // textos de `Health.Record` (~7,5 KB) y la fachada de la historia (~5 KB): funcionalidad, no código muerto. Las vistas
   // de demostración se quedan como vuelta atrás con `HistoriaBase` vacía. El margen, el ~8 % de la regla de arriba.
-  ehr: { techo: 427 * KB, razon: 'vertical completa: historia clínica de producción (Mi salud, pre-registro, recepción y el médico), agenda, recetas y la cita por la puerta con «Mis citas». 395 KB medidos el 2026-11-13' },
+  // Resubido el 2026-11-14 (003-salud-cita, I5): 432,9 KB medidos con build --solo=ehr sobre la mezcla con master. Entre I3 e
+  // I4 la hoja raíz pasó a scss/sin-temas (−46 KB); lo que suma de I3 a I5 es la consulta (agenda, notas firmadas),
+  // órdenes y resultados, y recetas y medicación: funcionalidad, no código muerto. Las vistas de demostración se quedan
+  // como vuelta atrás con HistoriaBase vacía (SUPERSET). El margen, el ~8 % de la regla de arriba.
+  ehr: { techo: 468 * KB, razon: 'vertical completa: historia clínica de producción (Mi salud, pre-registro, consultorio, agenda del día y notas firmadas, órdenes y resultados, recetas y medicación) y la cita por la puerta con «Mis citas». 433 KB medidos el 2026-11-14' },
   // Resubido el 2026-10-22 (ADR 0140, 004-tienda-compra): 459,1 KB medidos en el CI de master
   // `87724914`, 459,5 (470 570 bytes) sobre el merge con 003, que le suma 424 de `salud.cita`, y 254
   // de shells (55 %). Lo que entró desde los 426 que daba el mismo build justo antes de la línea es

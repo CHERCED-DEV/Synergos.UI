@@ -1,0 +1,60 @@
+<section class="salud-consultorio" [attr.aria-label]="textos.myMedicationTitle">
+  @switch (medicacion.estado()) {
+    @case ('cargando') {
+      <syn-skeleton variant="list" [rows]="3" />
+    }
+    @case ('lista') {
+      @if (medicacion.vigentes().length) {
+        <ul class="salud-consultorio__datos">
+          @for (receta of medicacion.vigentes(); track receta.id) {
+            @let enQueVa = renovacion(receta.id);
+            <li class="salud-consultorio__form">
+              <div class="salud-consultorio__fila">
+                <span class="salud-consultorio__nombre">{{ receta.medicamento }}</span>
+                <span>{{ receta.dosis }} · {{ receta.frecuencia }}</span>
+                <syn-badge [text]="estado(receta)" tone="brand" />
+              </div>
+              @if (receta.indicaciones) {
+                <p class="salud-consultorio__texto">{{ receta.indicaciones }}</p>
+              }
+              <div class="salud-consultorio__fila">
+                <span class="salud-consultorio__texto">{{ hasta(receta) }}</span>
+                <syn-button variant="ghost" size="sm" [label]="textos.downloadRecipe" [href]="pdf(receta.id)" />
+                @if (enQueVa) {
+                  <syn-badge [text]="enQueVa" tone="neutral" />
+                } @else {
+                  <syn-button variant="ghost" size="sm" [label]="textos.requestRenewal" [loading]="medicacion.moviendo()"
+                    (pressed)="pedir.emit(receta.id)" />
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      } @else {
+        <syn-empty-state [title]="textos.noMedication" />
+      }
+      @if (medicacion.anteriores().length) {
+        <h3 class="salud-consultorio__grupo">{{ textos.pastRecipes }}</h3>
+        <ul class="salud-consultorio__datos">
+          @for (receta of medicacion.anteriores(); track receta.id) {
+            <li class="salud-consultorio__fila">
+              <span class="salud-consultorio__nombre">{{ receta.medicamento }}</span>
+              <syn-badge [text]="estado(receta)" tone="neutral" />
+              <syn-button variant="ghost" size="sm" [label]="textos.downloadRecipe" [href]="pdf(receta.id)" />
+            </li>
+          }
+        </ul>
+      }
+    }
+    @case ('sin-historia') {
+      <syn-empty-state [title]="textos.noRecordTitle" [message]="textos.noRecordText" />
+    }
+    @case ('inicio') {}
+    @default {
+      <p class="salud-consultorio__texto">{{ textos.recipesUnreadable }}</p>
+    }
+  }
+  @if (medicacion.aviso()) {
+    <syn-live-region class="salud-consultorio__texto" [message]="medicacion.aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

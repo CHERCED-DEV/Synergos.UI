@@ -56,8 +56,10 @@ import {
   ConsultaDelDia,
   HistoriaEnElConsultorio,
   MiHistoria,
+  MiMedicacion,
   MisResultados,
   OrdenesDelPaciente,
+  RecetasDelPaciente,
   PermisoDeSalud,
   TEXTOS_DE_SALUD,
   cancelarCita,
@@ -74,6 +76,7 @@ import {
   type OrdenEscrita,
   type ResultadoCargado,
   type PasoDeLlegada,
+  type RecetaEscrita,
 } from '@synergos/dominio/salud';
 import {
   encabezadoDeLaCita,
@@ -93,6 +96,8 @@ import { SaludAgendaDelDiaComponent } from './vistas/consultorio/agenda-del-dia/
 import { SaludNotaDeLaConsultaComponent } from './vistas/consultorio/nota-de-la-consulta/nota-de-la-consulta';
 import { SaludOrdenesDelPacienteComponent } from './vistas/consultorio/ordenes-del-paciente/ordenes-del-paciente';
 import { SaludMisResultadosComponent } from './vistas/mis-resultados/mis-resultados';
+import { SaludRecetasDelPacienteComponent } from './vistas/consultorio/recetas-del-paciente/recetas-del-paciente';
+import { SaludMiMedicacionComponent } from './vistas/mi-medicacion/mi-medicacion';
 import {
   EHR_FLOW,
   MINUTOS_DE_LA_CITA,
@@ -321,6 +326,8 @@ let ehrInstanceId = 0;
     SaludNotaDeLaConsultaComponent,
     SaludOrdenesDelPacienteComponent,
     SaludMisResultadosComponent,
+    SaludRecetasDelPacienteComponent,
+    SaludMiMedicacionComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -331,7 +338,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados, RecetasDelPaciente, MiMedicacion],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -439,6 +446,9 @@ export class EhrElementComponent implements OnInit {
   /** Órdenes y resultados (I4): los del paciente que se atiende y los del paciente de la sesión. */
   readonly #ordenes = inject(OrdenesDelPaciente);
   readonly #misResultados = inject(MisResultados);
+  /** Recetas y medicación (I5): las del paciente que se atiende y las del paciente de la sesión. */
+  readonly #recetas = inject(RecetasDelPaciente);
+  readonly #miMedicacion = inject(MiMedicacion);
   readonly profesionalesDeLaAgenda = computed(() => this.doctors().map((d) => ({ id: d.id, nombre: d.name })));
   /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
   readonly textosDeLaHistoria = textosDeLaHistoria();
@@ -1455,6 +1465,10 @@ export class EhrElementComponent implements OnInit {
         }
         return;
       case 'medications':
+        if (this.historiaBase()) {
+          void this.#miMedicacion.cargar(this.historiaBase());
+          return;
+        }
         if (!this.medsLoaded()) {
           void this.conElPaciente(() => this.loadMedications());
         }
@@ -1781,6 +1795,7 @@ export class EhrElementComponent implements OnInit {
     await Promise.all([
       this.#consultaDelDia.abrirNotas(this.historiaBase(), key, cita.paciente.nombre ?? '', cita.reservaId),
       this.#ordenes.cargar(this.historiaBase(), key),
+      this.#recetas.cargar(this.historiaBase(), key),
     ]);
   }
 
@@ -1803,6 +1818,31 @@ export class EhrElementComponent implements OnInit {
     if (key) {
       await this.#ordenes.liberar(this.historiaBase(), key, resultadoId);
     }
+  }
+
+  async emitirReceta(escrita: RecetaEscrita): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#recetas.emitir(this.historiaBase(), key, escrita);
+    }
+  }
+
+  async anularReceta(id: string): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#recetas.anular(this.historiaBase(), key, id);
+    }
+  }
+
+  async resolverRenovacion(decision: { readonly id: string; readonly aprobar: boolean }): Promise<void> {
+    const key = this.#consultaDelDia.paciente()?.patientKey;
+    if (key) {
+      await this.#recetas.resolver(this.historiaBase(), key, decision.id, decision.aprobar);
+    }
+  }
+
+  async pedirRenovacion(recetaId: string): Promise<void> {
+    await this.#miMedicacion.pedir(this.historiaBase(), recetaId);
   }
 
   async guardarNota(escrita: NotaEscrita): Promise<void> {

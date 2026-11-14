@@ -43,6 +43,14 @@ export interface TextosDeLaHistoria {
   readonly resultadoRevisa: string;
   readonly resultadoLiberado: string;
   readonly guardarFallo: string;
+  // Recetas y medicación (I5).
+  readonly recetaEmitida: string;
+  readonly recetaRevisa: string;
+  readonly recetaAnulada: string;
+  readonly renovacionPedida: string;
+  readonly renovacionAprobada: string;
+  readonly renovacionRechazada: string;
+  readonly renovacionImposible: string;
 }
 
 /**
