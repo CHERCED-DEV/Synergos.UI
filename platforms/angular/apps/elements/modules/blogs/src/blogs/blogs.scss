@@ -55,11 +55,20 @@
 }
 
 // ─── Shared atoms ───────────────────────────────────────────────────────────────
+.blogs__avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .blogs__avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  // La foto, si el autor la tiene, llena el círculo (vuelta de valor); si no, las iniciales.
+  overflow: hidden;
   width: syn.px-to-rem(44);
   height: syn.px-to-rem(44);
   border-radius: syn.$radius-full;

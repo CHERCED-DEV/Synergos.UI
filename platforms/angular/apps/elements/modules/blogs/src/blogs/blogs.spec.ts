@@ -2080,6 +2080,11 @@ describe('BlogsElementComponent', () => {
           .querySelector('sg-blogs-tarjeta .blogs__post-author-open a, sg-blogs-tarjeta a.blogs__post-author-open')
           ?.getAttribute('href'),
       ).toBe('/blogs/perfil/#/blogs/@camila-rios');
+
+      // Con foto, el círculo la muestra en vez de las iniciales (tanda 4), en la tarjeta y en la cuenta.
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.querySelector('sg-blogs-tarjeta .blogs__avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
+      expect(host.querySelector('.blogs__account .blogs__avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
     });
 
     it('el perfil de un autor del CMS ofrece seguirlo y no mandarle mensajes', async () => {
