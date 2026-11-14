@@ -1,9 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import {
   esRegistro as isRecord,
+  facetasFijas,
   leerListadoDelCatalogo,
   leerNumero as readNumber,
   leerTexto as readString,
+  type FiltroFijoDelCatalogo,
 } from '@synergos/core';
 import { BordeDeBlogs } from '../comun/borde-de-blogs';
 import type { Author, Post, SearchResult, TrendingTag } from '../comun/blogs.model';
@@ -48,17 +50,29 @@ export class ExplorarApi {
    * La búsqueda de Explorar, por término o por etiqueta. Con `lecturasBase`, el catálogo de la red
    * (`GET {lecturasBase}/catalogo?texto=&filtro.etiqueta=`, 012-blogs-social, I4), con las etiquetas de lo encontrado;
    * sin ella, la interina `GET /api/blogs/explore?q=&tag=`.
+   *
+   * Los filtros fijos del bloque (`fijos`, I6) van en cada búsqueda, encima de lo que elija quien lee, y su faceta no se
+   * ofrece: en «#arquitectura» la etiqueta es la de la página, y no se puede cambiar por otra.
    */
-  async explore(apiBase: string, query: string, tag: string, lecturasBase = ''): Promise<SearchResult> {
+  async explore(
+    apiBase: string,
+    query: string,
+    tag: string,
+    lecturasBase = '',
+    fijos: readonly FiltroFijoDelCatalogo[] = [],
+  ): Promise<SearchResult> {
+    const fijas = facetasFijas(fijos);
     if (lecturasBase) {
-      return this.#catalogo(lecturasBase, query, tag);
+      return this.#catalogo(lecturasBase, query, tag, fijas);
     }
+    // La interina sólo filtra por una etiqueta: la fija, si la hay.
+    const etiqueta = fijas[CAMPO_ETIQUETA]?.[0] ?? tag;
     const params = new URLSearchParams();
     if (query.trim()) {
       params.set('q', query.trim());
     }
-    if (tag.trim()) {
-      params.set('tag', tag.trim().replace(/^#/, ''));
+    if (etiqueta.trim()) {
+      params.set('tag', etiqueta.trim().replace(/^#/, ''));
     }
     const qs = params.toString();
     const url = `${apiBase}/explore${qs ? `?${qs}` : ''}`;
@@ -72,17 +86,26 @@ export class ExplorarApi {
     } catch (error) {
       // TODO(backend): `/explore` is part of the new OLA 6 contract (in parallel).
       this.#borde.markDegraded('GET /api/blogs/explore', error);
-      return buildMockSearch(tag.trim() ? `#${tag.trim()}` : query);
+      return buildMockSearch(etiqueta.trim() ? `#${etiqueta.trim()}` : query);
     }
   }
 
-  async #catalogo(lecturasBase: string, query: string, tag: string): Promise<SearchResult> {
+  async #catalogo(
+    lecturasBase: string,
+    query: string,
+    tag: string,
+    fijas: Readonly<Record<string, readonly string[]>>,
+  ): Promise<SearchResult> {
     const params = new URLSearchParams({ porPagina: String(POR_PAGINA) });
     if (query.trim()) {
       params.set('texto', query.trim());
     }
-    if (tag.trim()) {
+    if (tag.trim() && !(CAMPO_ETIQUETA in fijas)) {
       params.set(`filtro.${CAMPO_ETIQUETA}`, tag.trim().replace(/^#/, ''));
+    }
+    // Cada faceta va por su campo, con sus valores separados por coma (la query del listado genérico).
+    for (const [campo, valores] of Object.entries(fijas)) {
+      params.set(`filtro.${campo}`, valores.join(','));
     }
     try {
       const listado = leerListadoDelCatalogo(
@@ -92,13 +115,14 @@ export class ExplorarApi {
         return {
           accounts: [],
           posts: listado.elementos.map(postDelCatalogo).filter((post): post is Post => post !== null),
-          hashtags: etiquetasDelListado(listado.facetas),
+          hashtags: etiquetasDelListado(listado.facetas.filter((faceta) => !(faceta.campo in fijas))),
         };
       }
       throw new Error('catalogo-shape');
     } catch (error) {
       this.#borde.markDegraded('GET /api/lecturas/{vertical}/catalogo', error);
-      return buildMockSearch(tag.trim() ? `#${tag.trim()}` : query);
+      const etiqueta = fijas[CAMPO_ETIQUETA]?.[0] ?? tag;
+      return buildMockSearch(etiqueta.trim() ? `#${etiqueta.trim()}` : query);
     }
   }
 }

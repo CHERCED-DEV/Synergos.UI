@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal, type Signal } from '@angular/core';
-import { HostIdentityService } from '@synergos/core';
+import { HostIdentityService, type FiltroFijoDelCatalogo } from '@synergos/core';
 import { PerfilApi } from '../perfil/perfil-api.client';
 import { mockViewer } from './blogs.mock';
 import type { Author, BlogsView, Post, ReactionType } from './blogs.model';
@@ -47,6 +47,11 @@ export interface ConexionDeLaRed {
    * o ausente, la red no ofrece denunciar.
    */
   readonly moderacionBase?: Signal<string>;
+  /**
+   * Qué publicaciones muestra la página (012-blogs-social, I6): los filtros fijos que declara el bloque, como la etiqueta
+   * de «#arquitectura». Explorar los aplica en cada búsqueda; vacíos o ausentes, busca en toda la red.
+   */
+  readonly filtrosFijos?: Signal<readonly FiltroFijoDelCatalogo[]>;
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope: Signal<string>;
   readonly navegacion: NavegacionDeLaRed;
@@ -102,7 +107,10 @@ export class RedDeBlogs {
   readonly #perfil = inject(PerfilApi);
   readonly #textos = inject(TEXTOS_DE_BLOGS);
 
-  readonly #fuentes = signal<Pick<ConexionDeLaRed, 'apiBase' | 'lecturasBase' | 'moderacionBase' | 'scope'> | null>(null);
+  readonly #fuentes = signal<Pick<
+    ConexionDeLaRed,
+    'apiBase' | 'lecturasBase' | 'moderacionBase' | 'filtrosFijos' | 'scope'
+  > | null>(null);
   #navegacion: NavegacionDeLaRed | null = null;
   #eventos: EventosDeLaRed = SIN_EVENTOS;
   #anunciar: (mensaje: string) => void = () => undefined;
@@ -116,6 +124,8 @@ export class RedDeBlogs {
   readonly lecturasBase = computed(() => this.#fuentes()?.lecturasBase?.() ?? '');
   /** Dónde se modera; vacía, no se ofrece denunciar (012-blogs-social, I5). */
   readonly moderacionBase = computed(() => this.#fuentes()?.moderacionBase?.() ?? '');
+  /** Qué publicaciones muestra la página; sin filtros, toda la red (012-blogs-social, I6). */
+  readonly filtrosFijos = computed<readonly FiltroFijoDelCatalogo[]>(() => this.#fuentes()?.filtrosFijos?.() ?? []);
   /** El scope de la ruta por hash (`#/<scope>/…`). */
   readonly scope = computed(() => this.#fuentes()?.scope() ?? 'blogs');
 
@@ -210,6 +220,7 @@ export class RedDeBlogs {
       apiBase: conexion.apiBase,
       lecturasBase: conexion.lecturasBase,
       moderacionBase: conexion.moderacionBase,
+      filtrosFijos: conexion.filtrosFijos,
       scope: conexion.scope,
     });
     this.#navegacion = conexion.navegacion;

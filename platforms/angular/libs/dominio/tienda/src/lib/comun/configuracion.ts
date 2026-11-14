@@ -1,5 +1,5 @@
 import { Injectable, computed, signal, type Signal } from '@angular/core';
-import type { FiltroFijoDelCatalogo } from '../catalogo/filtros-fijos';
+import type { FiltroFijoDelCatalogo } from '@synergos/core';
 import { caminoDeLaCompra, type CaminoDeCompra } from '../compra/compra.model';
 
 /** Lo que el elemento lee del bloque del CMS y la fachada necesita. */

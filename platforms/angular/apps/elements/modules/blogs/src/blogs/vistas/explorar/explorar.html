@@ -1,6 +1,16 @@
 <!-- ═══ EXPLORE / SEARCH / HASHTAG — SH-1 discovery-shell ═══════════════════ -->
 <header class="blogs__view-head">
-  <h1 class="blogs__view-title">Explorar</h1>
+  <!-- En la página de una etiqueta (I6), el título que compone el editor o la etiqueta; si no, «Explorar». -->
+  <h1 class="blogs__view-title">
+    @if (titulo(); as texto) {
+      {{ texto }}
+    } @else {
+      Explorar
+    }
+  </h1>
+  @if (subheading()) {
+    <p class="blogs__view-sub">{{ subheading() }}</p>
+  }
 </header>
 
 <syn-discovery-shell

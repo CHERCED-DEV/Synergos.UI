@@ -54,6 +54,8 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
   /** Dónde vive cada vista en el sitio, y cuál es la de esta página: los del bloque, que conecta el elemento. */
   #rutas: () => readonly RutaDeUnaVistaDelSitio[] = () => [];
   #vistaDeLaPagina: () => BlogsView = () => 'feed';
+  /** Si la página acota su vista (I6, «#arquitectura»): entonces no es la página de esa vista. */
+  #acotada: () => boolean = () => false;
 
   /** El alias que pidió la ruta o un enlace: la página del perfil sin él abre el de quien lee. */
   #perfilPedido = '';
@@ -68,9 +70,14 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
     }
   };
 
-  conectar(fuentes: { rutas: () => readonly RutaDeUnaVistaDelSitio[]; vista: () => BlogsView }): void {
+  conectar(fuentes: {
+    rutas: () => readonly RutaDeUnaVistaDelSitio[];
+    vista: () => BlogsView;
+    acotada?: () => boolean;
+  }): void {
     this.#rutas = fuentes.rutas;
     this.#vistaDeLaPagina = fuentes.vista;
+    this.#acotada = fuentes.acotada ?? (() => false);
   }
 
   /** Abre la vista que el editor eligió para esta página, con lo que le falte, antes de mirar el hash. */
@@ -94,9 +101,12 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
   /**
    * La URL de la página donde vive `view`, con lo que la vista abre en su hash (la publicación, el alias, el hilo, la
    * etiqueta); vacía si la vista se abre en ESTA página: es la suya, o el sitio no le dio otra.
+   *
+   * Una página que acota su vista (I6) no es la de esa vista: desde «#arquitectura», Explorar y otra etiqueta se abren
+   * en la página de Explorar, donde no hay etiqueta fija.
    */
   urlDe(view: BlogsView, param = ''): string {
-    if (view === this.#vistaDeLaPagina()) {
+    if (view === this.#vistaDeLaPagina() && !this.#acotada()) {
       return '';
     }
     const bloque = vistaDelBloque(view);

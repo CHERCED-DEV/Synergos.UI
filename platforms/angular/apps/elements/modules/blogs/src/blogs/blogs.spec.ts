@@ -25,6 +25,7 @@ import {
 import { BlogsElementComponent, sanitizeBlogsConfig } from './blogs';
 import { BlogsEscribirComponent } from './vistas/escribir/escribir';
 import { BlogsEstudioComponent } from './vistas/estudio/estudio';
+import { BlogsExplorarComponent } from './vistas/explorar/explorar';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from '@synergos/dominio/blogs';
 import { asentar } from '../../../../../../tools/asentar';
@@ -1918,6 +1919,64 @@ describe('BlogsElementComponent', () => {
       });
       expect(component.explorar.searchResult()?.hashtags).toEqual([{ tag: 'arquitectura', postCount: 1 }]);
       expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/explore'))).toBe(false);
+    });
+
+    // ─── Una página por etiqueta (I6): Explorar con la etiqueta fija del bloque ──
+    const CATALOGO_CON_ETIQUETAS = {
+      elementos: [ARTICULO],
+      facetas: [
+        {
+          campo: 'etiqueta',
+          titulo: 'Etiqueta',
+          tipo: 'MultiSelect',
+          valores: [
+            { valor: 'arquitectura', etiqueta: 'arquitectura', cantidad: 1 },
+            { valor: 'ux', etiqueta: 'ux', cantidad: 1 },
+          ],
+        },
+      ],
+      total: 1,
+    };
+    const RUTA_DE_EXPLORAR = [{ vista: 'explorar', url: '/blogs/explorar/' }];
+
+    it('la página de una etiqueta busca siempre dentro de ella, no deja cambiarla, y Explorar lleva a su página', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/catalogo`]: CATALOGO_CON_ETIQUETAS });
+      await createComponent('', {
+        ...CON_LECTURAS,
+        vista: 'explorar',
+        filtros: [{ campo: 'etiqueta', valor: 'arquitectura' }],
+        rutas: RUTA_DE_EXPLORAR,
+      });
+
+      // Al abrir, la etiqueta de la página, sin que nadie la elija.
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100&filtro.etiqueta=arquitectura`);
+
+      // Lo que se busca va dentro de la etiqueta, y otra etiqueta elegida no la cambia.
+      component.explorar.onSearchCriteria({ term: 'capas', facets: { hashtag: ['ux'] }, sort: 'top', page: 1 });
+      await flushMicrotasks();
+      expect(pedidas(fetchMock).at(-1)).toBe(`${LECTURAS}/catalogo?porPagina=100&texto=capas&filtro.etiqueta=arquitectura`);
+      expect(component.explorar.searchResult()?.hashtags).toEqual([]);
+
+      // El título es la etiqueta, las tendencias no se ofrecen, y Explorar y otra etiqueta abren la página de Explorar.
+      expect(vista(BlogsExplorarComponent).discoveryFacets().map((faceta) => faceta.key)).toEqual(['tab']);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__view-title')?.textContent?.trim()).toBe(
+        '#arquitectura',
+      );
+      expect(component.navegacion.urlDe('search')).toBe('/blogs/explorar/');
+      expect(component.navegacion.urlDe('search', 'ux')).toBe('/blogs/explorar/#/blogs/explorar/ux');
+    });
+
+    it('sin filtros, Explorar es el de siempre: su título, sus tendencias, y la página es la suya', async () => {
+      const fetchMock = bordeGenerico({ [`${LECTURAS}/catalogo`]: CATALOGO_CON_ETIQUETAS });
+      await createComponent('', { ...CON_LECTURAS, vista: 'explorar', rutas: RUTA_DE_EXPLORAR });
+
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=100`);
+      expect(component.explorar.searchResult()?.hashtags.map((etiqueta) => etiqueta.tag)).toEqual(['arquitectura', 'ux']);
+      expect(vista(BlogsExplorarComponent).discoveryFacets().map((faceta) => faceta.key)).toEqual(['tab', 'hashtag']);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__view-title')?.textContent?.trim()).toBe(
+        'Explorar',
+      );
+      expect(component.navegacion.urlDe('search')).toBe('');
     });
 
     it('Guardados lee la colección «saved»: cada publicación del catálogo, sin lo que ya no está', async () => {

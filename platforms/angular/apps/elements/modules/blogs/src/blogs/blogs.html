@@ -126,7 +126,7 @@
         <sg-blogs-notificaciones />
       }
       @case ('search') {
-        <sg-blogs-explorar />
+        <sg-blogs-explorar [heading]="tituloDelEditor()" [subheading]="subheading()" />
       }
       @case ('messages') {
         <sg-blogs-mensajes />

@@ -11,6 +11,7 @@ import {
   type OnInit,
 } from '@angular/core';
 import type { BlogsProps } from '@synergos/contracts';
+import { leerFiltrosFijos } from '@synergos/core';
 import {
   ArticuloDeBlogs,
   BordeDeBlogs,
@@ -124,6 +125,7 @@ export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
     lecturasBase: coerceTrimmedStringInput(value.lecturasBase),
     moderacionBase: coerceTrimmedStringInput(value.moderacionBase),
     vista: coerceStringEnumInput(value.vista, VALORES_DE_LA_VISTA),
+    filtros: leerFiltrosFijos(value.filtros),
     rutas: coerceRutasDeLasVistas(value.rutas),
   });
 }
@@ -266,6 +268,11 @@ export class BlogsElementComponent implements OnInit {
   readonly vista = computed<BlogsView>(() => vistaDeLaApp(this.config()?.vista, DEFAULT_VIEW));
   /** En qué página del sitio vive cada vista: la declara el CMS. Sin rutas, toda la red se abre en esta página. */
   readonly rutas = computed(() => this.config()?.rutas ?? []);
+  /**
+   * Qué publicaciones muestra la página (012-blogs-social, I6): los filtros fijos del bloque, como la etiqueta de
+   * «#arquitectura». Sin ellos, Explorar busca en toda la red.
+   */
+  readonly filtrosFijos = computed(() => this.config()?.filtros ?? []);
   readonly initialView = computed<BlogsView>(() => {
     const view = resolveConfigValue(coerceView(this.viewInput()), this.vista(), DEFAULT_VIEW);
     return view === 'subscribe' && !SUSCRIPCION_ENCENDIDA ? DEFAULT_VIEW : view;
@@ -280,6 +287,10 @@ export class BlogsElementComponent implements OnInit {
       this.config()?.heading,
       DEFAULT_HEADING,
     ),
+  );
+  /** El título que escribe el editor, sin el de por defecto: Explorar pinta el suyo si el editor no puso ninguno (I6). */
+  readonly tituloDelEditor = computed(() =>
+    resolveConfigValue(coerceTrimmedStringInput(this.headingInput()), this.config()?.heading, ''),
   );
   /**
    * El subtítulo que escribe el editor (CMS#196: viajaba y nadie lo pintaba). Sin texto por defecto:
@@ -318,11 +329,16 @@ export class BlogsElementComponent implements OnInit {
 
   constructor() {
     this.navegacion.alCambiarDeVista = (view) => this.viewchanged.emit(view);
-    this.navegacion.conectar({ rutas: () => this.rutas(), vista: () => this.initialView() });
+    this.navegacion.conectar({
+      rutas: () => this.rutas(),
+      vista: () => this.initialView(),
+      acotada: () => this.filtrosFijos().length > 0,
+    });
     this.red.conectar({
       apiBase: this.apiBase,
       lecturasBase: this.lecturasBase,
       moderacionBase: this.moderacionBase,
+      filtrosFijos: this.filtrosFijos,
       scope: this.scope,
       navegacion: this.navegacion,
       eventos: {

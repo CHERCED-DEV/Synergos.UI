@@ -1,9 +1,12 @@
-import { esRegistro, leerTexto } from '@synergos/core';
+import { esRegistro, leerTexto } from '../http/borde';
 
 /**
- * Un filtro fijo del catálogo, como lo declara el bloque en el CMS (014-despiece-tienda, I5): el campo de una faceta del
- * listado genérico y el valor que se fija. La página «Ofertas» es el catálogo con `oferta = En oferta`: la tienda no sabe
- * qué es una oferta, sólo aplica el filtro en cada búsqueda y no lo ofrece como faceta.
+ * Un filtro fijo del catálogo, como lo declara el bloque en el CMS: el campo de una faceta del listado genérico y el
+ * valor que se fija. La página «Ofertas» de la tienda es el catálogo con `oferta = En oferta` (014-despiece-tienda,
+ * I5), y la de una etiqueta de Blogs es Explorar con `etiqueta = arquitectura` (012-blogs-social, I6). El elemento no
+ * sabe qué es una oferta ni una etiqueta: aplica el filtro en cada búsqueda y no lo ofrece como faceta.
+ *
+ * Vivió en `libs/dominio/tienda` hasta que lo usó la segunda vertical (I6, paso 3 de la receta de 014).
  */
 export interface FiltroFijoDelCatalogo {
   readonly campo: string;

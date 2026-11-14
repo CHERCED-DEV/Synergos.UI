@@ -346,6 +346,8 @@ export interface BlogsProps {
   readonly moderacionBase: string;
   /** decision */
   readonly vista?: string;
+  /** decision */
+  readonly filtros: readonly FiltroFijo[];
   /** sitio */
   readonly rutas: readonly RutaDeUnaVista[];
 }
@@ -1057,8 +1059,8 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   record: "BlogsProps",
   diccionario: ["Blogs.Comentarios","Blogs.Moderacion"],
   claves: ["Blogs.Comentarios.EnRevision","Blogs.Comentarios.MeGustaNoGuardado","Blogs.Comentarios.MeGustaSinSesion","Blogs.Comentarios.NoPublicado","Blogs.Comentarios.SinSesion","Blogs.Moderacion.Ayuda","Blogs.Moderacion.Cancelar","Blogs.Moderacion.Cerrar","Blogs.Moderacion.Cola","Blogs.Moderacion.ColaNoCargo","Blogs.Moderacion.ColaVacia","Blogs.Moderacion.Comentario","Blogs.Moderacion.Confirmar","Blogs.Moderacion.Contenido","Blogs.Moderacion.Decidida","Blogs.Moderacion.Denunciar","Blogs.Moderacion.Denuncias","Blogs.Moderacion.Enviada","Blogs.Moderacion.Enviar","Blogs.Moderacion.Fecha","Blogs.Moderacion.Mantener","Blogs.Moderacion.Motivo","Blogs.Moderacion.NoDecidida","Blogs.Moderacion.NoEnviada","Blogs.Moderacion.PorQue","Blogs.Moderacion.Publicacion","Blogs.Moderacion.Que","Blogs.Moderacion.Retirar","Blogs.Moderacion.SesionParaModerar","Blogs.Moderacion.SinPermiso","Blogs.Moderacion.SinSesion","Blogs.Moderacion.Titulo","Blogs.Moderacion.YaNoEsta"],
-  campos: ["heading","subheading","apiBase","lecturasBase","moderacionBase","vista","rutas"],
-  listas: {"rutas":["vista","url"]},
+  campos: ["heading","subheading","apiBase","lecturasBase","moderacionBase","vista","filtros","rutas"],
+  listas: {"filtros":["campo","valor"],"rutas":["vista","url"]},
   selectores: [
     {
       "propiedad": "vista",
@@ -1117,6 +1119,12 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
     "lecturasBase": "/api/lecturas/blogs",
     "moderacionBase": "/api/moderacion",
     "vista": "explorar",
+    "filtros": [
+      {
+        "campo": "etiqueta",
+        "valor": "arquitectura"
+      }
+    ],
     "rutas": [
       {
         "vista": "inicio",

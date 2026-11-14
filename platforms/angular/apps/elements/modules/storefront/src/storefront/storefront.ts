@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, DestroyRef, effect, inject, input, OnInit, output, signal, untracked, viewChildren, ViewEncapsulation } from '@angular/core';
 import { type StorefrontProps } from '@synergos/contracts';
+import { leerFiltrosFijos } from '@synergos/core';
 import {
   AvisosDeLaTienda,
   type BusDeLaTienda,
@@ -11,7 +12,6 @@ import {
   DevolucionesDeLaTienda,
   EscritorioDeLaTienda,
   LecturasDeLaTienda,
-  leerFiltrosFijos,
   MensajesDeLaTienda,
   PedidosDeLaTienda,
   ResenasDeLaTienda,
