@@ -52,5 +52,23 @@ export function textosDeEstaRed(): TextosDeBlogs {
     get meGustaNoGuardado(): string {
       return t('Blogs.Comentarios.MeGustaNoGuardado', 'No pudimos guardar tu me gusta. Intenta de nuevo.');
     },
+    get denunciaEnviada(): string {
+      return t('Blogs.Moderacion.Enviada', 'Gracias. Una persona de moderación la revisará.');
+    },
+    get denunciaSinSesion(): string {
+      return t('Blogs.Moderacion.SinSesion', 'Inicia sesión para denunciar.');
+    },
+    get denunciaYaNoEsta(): string {
+      return t('Blogs.Moderacion.YaNoEsta', 'Eso ya no está publicado.');
+    },
+    get denunciaNoEnviada(): string {
+      return t('Blogs.Moderacion.NoEnviada', 'No pudimos enviar la denuncia. Intenta de nuevo.');
+    },
+    get decisionGuardada(): string {
+      return t('Blogs.Moderacion.Decidida', 'Decisión guardada.');
+    },
+    get decisionNoGuardada(): string {
+      return t('Blogs.Moderacion.NoDecidida', 'No pudimos guardar la decisión. Intenta de nuevo.');
+    },
   };
 }

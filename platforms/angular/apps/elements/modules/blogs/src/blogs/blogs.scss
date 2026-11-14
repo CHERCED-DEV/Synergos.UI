@@ -1221,3 +1221,62 @@
   white-space: pre-wrap;
   line-height: 1.6;
 }
+
+// ─── Denunciar y la cola de moderación (012-blogs-social, I5) ─────────────────
+//
+// El panel de denunciar y el de decidir comparten forma: un recuadro sobre la vista, con la cita de lo denunciado,
+// la caja del motivo y sus acciones. Los colores son los de la hoja; ninguno nuevo.
+.blogs__denuncia,
+.blogs__decision {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin-block-end: syn.$space-4;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--bl-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface-muted);
+
+  // Como el panel de acceso: el foco lo trae la app al abrirse (WCAG 2.4.3), no la tabulación.
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.blogs__denuncia-titulo,
+.blogs__decision-titulo {
+  margin: 0;
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__denuncia-cita {
+  margin: 0;
+  padding-inline-start: syn.$space-3;
+  border-inline-start: syn.px-to-rem(3) solid var(--bl-border-subtle);
+  color: var(--bl-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.blogs__denuncia-form {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+}
+
+.blogs__denuncia-aviso {
+  margin: 0;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__denuncia-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-2;
+}
+
+.blogs__moderacion-enlace {
+  color: inherit;
+  overflow-wrap: anywhere;
+}

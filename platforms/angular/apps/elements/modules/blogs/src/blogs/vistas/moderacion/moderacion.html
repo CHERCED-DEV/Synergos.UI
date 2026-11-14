@@ -1,0 +1,67 @@
+<!-- ═══ LA COLA DE MODERACIÓN — SH-5 console-shell (012-blogs-social, I5) ══════════════════ -->
+@switch (moderacion.accesoALaCola()) {
+  @case ('anon') {
+    <sg-blogs-acceso>
+      <h1 class="blogs__signin-title">{{ textos.sesionParaModerar }}</h1>
+    </sg-blogs-acceso>
+  }
+  @case ('sin-permiso') {
+    <p class="blogs__notice blogs__notice--warn">{{ textos.sinPermiso }}</p>
+  }
+  @default {
+    @if (moderacion.decision(); as pendiente) {
+      <form class="blogs__decision" (submit)="confirmar($event)">
+        <h2 class="blogs__decision-titulo">
+          {{ pendiente.decision === 'retirar' ? textos.retirar : textos.mantener }}
+        </h2>
+        <blockquote class="blogs__denuncia-cita">{{ pendiente.caso.resumen }}</blockquote>
+        <syn-textarea
+          id="blogs-decision-motivo"
+          [label]="textos.porQue"
+          [value]="moderacion.motivoDeLaDecision()"
+          [maxlength]="500"
+          [rows]="2"
+          [required]="true"
+          (valueChange)="moderacion.motivoDeLaDecision.set($event)"
+        />
+        @if (moderacion.avisoDeLaDecision()) {
+          <p class="blogs__denuncia-aviso">{{ moderacion.avisoDeLaDecision() }}</p>
+        }
+        <div class="blogs__denuncia-acciones">
+          <syn-button
+            type="submit"
+            [variant]="pendiente.decision === 'retirar' ? 'danger' : 'solid'"
+            [disabled]="!moderacion.motivoDeLaDecision().trim() || moderacion.decidiendo()"
+            >{{ textos.confirmar }}</syn-button
+          >
+          <syn-button variant="ghost" (pressed)="moderacion.cancelarDecision()">{{ textos.cancelar }}</syn-button>
+        </div>
+      </form>
+    }
+    <syn-console-shell
+      [config]="config()"
+      [rows]="moderacion.casos()"
+      [columns]="columnas()"
+      [actions]="acciones()"
+      [loading]="red.loading() && !moderacion.colaCargada()"
+      [cellTemplate]="celda"
+      (rowaction)="alDecidir($event)"
+      (retry)="moderacion.cargarCola()"
+    ></syn-console-shell>
+  }
+}
+
+<ng-template #celda let-row let-column="column">
+  @switch (column.key) {
+    @case ('tipo') { {{ tipo(row) }} }
+    @case ('resumen') {
+      @if (row.enlace) {
+        <a class="blogs__moderacion-enlace" [href]="row.enlace">{{ row.resumen }}</a>
+      } @else {
+        {{ row.resumen }}
+      }
+    }
+    @case ('denunciado') { {{ presentacion.relativeTime(row.denunciado) }} }
+    @default { {{ row[column.key] }} }
+  }
+</ng-template>

@@ -108,6 +108,9 @@
       <p class="blogs__notice blogs__notice--error" role="alert">{{ red.errorMessage() }}</p>
     }
 
+    <!-- Denunciar (012-blogs-social, I5): el panel de lo que se está denunciando, sobre cualquier vista. -->
+    <sg-blogs-denuncia />
+
     <!-- Cada vista es su componente (012-blogs-social, I2): las pinta la red, una a la vez. -->
     @switch (red.view()) {
       @case ('feed') {
@@ -139,6 +142,9 @@
       }
       @case ('subscribe') {
         <sg-blogs-suscripcion />
+      }
+      @case ('moderation') {
+        <sg-blogs-moderacion />
       }
     }
   </div>

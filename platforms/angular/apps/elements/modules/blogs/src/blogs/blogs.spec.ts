@@ -1678,6 +1678,149 @@ describe('BlogsElementComponent', () => {
     }
   });
 
+  // ─── La moderación (012, I5): denunciar lo que se ve y la cola de quien modera ──────────────────────────────────
+  describe('la moderación', () => {
+    const MODERACION = '/api/moderacion';
+    const CON_MODERACION = { ...NEGOCIO_DEL_CMS, moderacionBase: `${MODERACION}/` };
+    const CASO = {
+      id: 'caso-1',
+      tipo: 'blogs.publicacion',
+      objetivoId: 'p-1',
+      resumen: 'Ana Autora: Algo que alguien denunció',
+      enlace: 'javascript:alert(1)',
+      motivo: 'Es spam',
+      denuncias: 2,
+      denunciado: '2026-11-13T10:00:00+00:00',
+    };
+
+    /** Un borde que contesta cada ruta (por su método y un trozo de la URL) y rechaza todo lo demás. */
+    function borde(rutas: Record<string, { status: number; body?: unknown }>): ReturnType<typeof vi.fn> {
+      const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+        const metodo = String(init?.method ?? 'GET');
+        const ruta = Object.keys(rutas).find((clave) => {
+          const [m, trozo] = clave.split(' ');
+          return m === metodo && String(url).includes(trozo);
+        });
+        if (!ruta) {
+          return Promise.reject(new Error('offline'));
+        }
+        const { status, body } = rutas[ruta];
+        return Promise.resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          json: () => Promise.resolve(body ?? {}),
+        } as Response);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    const denunciarBoton = (): HTMLButtonElement | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('button[aria-label="Denunciar"]');
+
+    it('sin la base de moderación la red no ofrece denunciar', async () => {
+      borde({});
+      await createComponent('', NEGOCIO_DEL_CMS);
+      fixture.detectChanges();
+
+      expect(component.moderacion.disponible()).toBe(false);
+      expect(denunciarBoton()).toBeNull();
+    });
+
+    it('denunciar una publicación manda tipo, id y motivo, y dice que llegó', async () => {
+      const fetchMock = borde({ 'POST /api/moderacion/denuncias': { status: 200, body: { caso: 'caso-1' } } });
+      await createComponent('', CON_MODERACION);
+      fixture.detectChanges();
+      expect(denunciarBoton()).not.toBeNull();
+
+      component.moderacion.denunciar({ tipo: 'blogs.publicacion', id: 'p-1', resumen: 'Algo' });
+      component.moderacion.motivo.set('  Es spam  ');
+      await component.moderacion.enviar();
+      fixture.detectChanges();
+
+      const [url, init] = fetchMock.mock.calls.find(([u]) => String(u).includes('/denuncias')) ?? [];
+      expect(url).toBe(`${MODERACION}/denuncias`);
+      expect(JSON.parse(String((init as RequestInit).body))).toEqual({ tipo: 'blogs.publicacion', id: 'p-1', motivo: 'Es spam' });
+      expect(component.moderacion.enviada()).toBe(true);
+      // El aviso se pinta en el panel y se dice por la región viva compartida (gate:regiones-vivas): no lleva rol propio.
+      expect((fixture.nativeElement as HTMLElement).querySelector('.blogs__denuncia .blogs__denuncia-aviso')?.textContent)
+        .toContain('Gracias');
+      await settleAnnouncer();
+      expect(lastLiveRegion()?.textContent).toContain('Gracias');
+    });
+
+    it('sin sesión, o si no llegó, lo dice y deja el motivo en la caja para reintentar', async () => {
+      borde({ 'POST /api/moderacion/denuncias': { status: 401 } });
+      await createComponent('', CON_MODERACION);
+
+      component.moderacion.denunciar({ tipo: 'blogs.comentario', id: 'p-1:c-1', resumen: 'Un comentario' });
+      component.moderacion.motivo.set('Insulta');
+      await component.moderacion.enviar();
+      expect(component.moderacion.enviada()).toBe(false);
+      expect(component.moderacion.aviso()).toBe('Inicia sesión para denunciar.');
+
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await component.moderacion.enviar();
+      expect(component.moderacion.enviada()).toBe(false);
+      expect(component.moderacion.aviso()).toBe('No pudimos enviar la denuncia. Intenta de nuevo.');
+      expect(component.moderacion.motivo()).toBe('Insulta');
+    });
+
+    it('la cola lista lo denunciado, y decidir con su motivo lo saca sólo cuando el servidor lo guardó', async () => {
+      const fetchMock = borde({
+        'GET /api/moderacion/cola': { status: 200, body: { casos: [CASO] } },
+        'POST /api/moderacion/casos/caso-1/decision': { status: 200, body: {} },
+      });
+      await createComponent('', CON_MODERACION);
+
+      component.navegacion.go('moderation');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.moderacion.casos().map((caso) => caso.id)).toEqual(['caso-1']);
+      // Un enlace que no es del sitio ni http(s) no se enlaza.
+      expect(component.moderacion.casos()[0]?.enlace).toBeUndefined();
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ana Autora: Algo que alguien denunció');
+
+      component.moderacion.prepararDecision(component.moderacion.casos()[0]!, 'retirar');
+      component.moderacion.motivoDeLaDecision.set('Es spam comercial');
+      await component.moderacion.confirmarDecision();
+
+      const decision = fetchMock.mock.calls.find(([u]) => String(u).includes('/decision'));
+      expect(JSON.parse(String((decision?.[1] as RequestInit).body))).toEqual({ decision: 'retirar', motivo: 'Es spam comercial' });
+      expect(component.moderacion.casos()).toEqual([]);
+    });
+
+    it('una decisión que no quedó deja el caso en la cola y lo dice', async () => {
+      borde({
+        'GET /api/moderacion/cola': { status: 200, body: { casos: [CASO] } },
+        'POST /api/moderacion/casos/caso-1/decision': { status: 502 },
+      });
+      await createComponent('', CON_MODERACION);
+      component.navegacion.go('moderation');
+      await flushMicrotasks();
+
+      component.moderacion.prepararDecision(component.moderacion.casos()[0]!, 'mantener');
+      component.moderacion.motivoDeLaDecision.set('No incumple');
+      await component.moderacion.confirmarDecision();
+
+      expect(component.moderacion.casos().map((caso) => caso.id)).toEqual(['caso-1']);
+      expect(component.moderacion.avisoDeLaDecision()).toBe('No pudimos guardar la decisión. Intenta de nuevo.');
+    });
+
+    it('la cola sin permiso o sin sesión no pinta casos: dice por qué', async () => {
+      borde({ 'GET /api/moderacion/cola': { status: 403 } });
+      await createComponent('', CON_MODERACION);
+      component.navegacion.go('moderation');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.moderacion.accesoALaCola()).toBe('sin-permiso');
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('No tienes permiso para moderar.');
+      expect(component.moderacion.casos()).toEqual([]);
+    });
+  });
+
   // ─── Las lecturas genéricas (012, I4): Explorar, Guardados y Mensajes leen api/lecturas/blogs ──────────────────
   describe('las lecturas genéricas', () => {
     const LECTURAS = '/api/lecturas/blogs';

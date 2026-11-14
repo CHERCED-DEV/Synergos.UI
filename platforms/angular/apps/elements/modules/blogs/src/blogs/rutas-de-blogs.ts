@@ -15,6 +15,7 @@ export const VISTAS_DEL_BLOQUE = {
   guardados: 'saved',
   escribir: 'write',
   estudio: 'studio',
+  moderacion: 'moderation',
 } as const satisfies Readonly<Record<string, BlogsView>>;
 
 export type VistaDelBloque = keyof typeof VISTAS_DEL_BLOQUE;
