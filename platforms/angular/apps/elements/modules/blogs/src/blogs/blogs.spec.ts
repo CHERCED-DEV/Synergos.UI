@@ -1728,6 +1728,50 @@ describe('BlogsElementComponent', () => {
       expect(denunciarBoton()).toBeNull();
     });
 
+    it('un mensaje directo de otra persona se denuncia por su hilo y su id, y lo propio no ofrece denunciar', async () => {
+      borde({
+        'GET /api/lecturas/blogs/mensajes': {
+          status: 200,
+          body: {
+            hilos: [
+              {
+                id: 'th-1',
+                contexto: 'dm',
+                asunto: 'Ana Autora',
+                contraparte: 'ana-autora-a1b2c3',
+                ultimo: 'No me escribas así.',
+                fecha: '2026-11-13T10:00:00+00:00',
+                cantidad: 2,
+                mensajes: [
+                  { id: 'th-1-m1', de: 'ana-autora-a1b2c3', mio: false, texto: 'Un mensaje que ofende', fecha: '2026-11-13T09:00:00+00:00' },
+                  { id: 'th-1-m2', de: 'yo-0f1e2d', mio: true, texto: 'No me escribas así.', fecha: '2026-11-13T10:00:00+00:00' },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      await createComponent('', { ...CON_MODERACION, lecturasBase: '/api/lecturas/blogs/' });
+
+      component.navegacion.go('messages');
+      await flushMicrotasks();
+      await component.mensajes.openThread('th-1');
+      fixture.detectChanges();
+
+      const botones = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '.blogs__dm-messages button[aria-label="Denunciar"]',
+        ),
+      );
+      expect(botones).toHaveLength(1);
+      botones[0].click();
+      expect(component.moderacion.objetivo()).toEqual({
+        tipo: 'blogs.mensaje',
+        id: 'th-1:th-1-m1',
+        resumen: 'Un mensaje que ofende',
+      });
+    });
+
     it('denunciar una publicación manda tipo, id y motivo, y dice que llegó', async () => {
       const fetchMock = borde({ 'POST /api/moderacion/denuncias': { status: 200, body: { caso: 'caso-1' } } });
       await createComponent('', CON_MODERACION);
