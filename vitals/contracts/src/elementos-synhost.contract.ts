@@ -738,7 +738,7 @@ export interface StepperProps {
   readonly currentStep?: number;
 }
 
-/** <synergos-storefront> · funcionalidad · diccionario: Storefront.Purchase */
+/** <synergos-storefront> · funcionalidad · diccionario: Storefront.Purchase, Storefront.Cart */
 export interface StorefrontProps {
   /** contenido */
   readonly heading?: string;
@@ -2674,8 +2674,8 @@ export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
   nombre: "storefront",
   tipo: "funcionalidad",
   record: "StorefrontProps",
-  diccionario: ["Storefront.Purchase"],
-  claves: ["Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
+  diccionario: ["Storefront.Purchase","Storefront.Cart"],
+  claves: ["Storefront.Cart.Suggestions","Storefront.Purchase.ConfirmPending","Storefront.Purchase.Failed","Storefront.Purchase.InProgress","Storefront.Purchase.LinkSignIn","Storefront.Purchase.NotFound","Storefront.Purchase.NotOnSale","Storefront.Purchase.OrdersSignIn","Storefront.Purchase.OrdersUnavailable","Storefront.Purchase.OutOfStock","Storefront.Purchase.PaymentDeclined","Storefront.Purchase.PendingCancel","Storefront.Purchase.PendingCancelled","Storefront.Purchase.PendingFound","Storefront.Purchase.PendingResume","Storefront.Purchase.PromoExpired","Storefront.Purchase.PromoFixed","Storefront.Purchase.PromoRemoved","Storefront.Purchase.PromoTooMany","Storefront.Purchase.PromoUnknown","Storefront.Purchase.Refunded","Storefront.Purchase.Retry","Storefront.Purchase.SessionRequired","Storefront.Purchase.SignIn","Storefront.Purchase.SignInText","Storefront.Purchase.SignInTitle","Storefront.Purchase.TrackingUnavailable","Storefront.Purchase.Unavailable","Storefront.Purchase.Unknown"],
   campos: ["heading","subheading","apiBase","lecturasBase","purchasePath","shippingCountry","zonaHoraria","vista","filtros","rutas"],
   listas: {"filtros":["campo","valor"],"rutas":["vista","url"]},
   selectores: [

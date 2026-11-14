@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, input, viewChild } from '@angular/core';
-import { CarritoDeLaTienda } from '@synergos/dominio/tienda';
+import { CarritoDeLaTienda, CatalogoDeLaTienda } from '@synergos/dominio/tienda';
 import { type AppliedPromo, PromoCodeComponent, type PromoCodeConfig } from '@synergos/shared';
 import {
   type CartAction,
@@ -14,6 +14,7 @@ import { type SessionItem, SessionStore } from '@synergos/transaction-engine';
 import { t } from '@synergos/vitals-core';
 import { NavegacionDeLaTienda } from '../../estado/navegacion';
 import { PresentacionDeLaTienda } from '../../estado/presentacion';
+import { TiendaVitrinaComponent } from '../vitrina/vitrina';
 
 /** One seller group of cart lines (carrito agrupado por vendedor). */
 interface CartSellerGroup {
@@ -28,7 +29,7 @@ const DEFAULT_SELLER_GROUP = 'Synergos Market';
 @Component({
   selector: 'sg-tienda-carrito',
   standalone: true,
-  imports: [CartShellComponent, PromoCodeComponent],
+  imports: [CartShellComponent, PromoCodeComponent, TiendaVitrinaComponent],
   templateUrl: './carrito.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'storefront__vista' },
@@ -38,6 +39,7 @@ const DEFAULT_SELLER_GROUP = 'Synergos Market';
 export class TiendaCarritoComponent {
   readonly #store = inject(SessionStore);
   protected readonly carrito = inject(CarritoDeLaTienda);
+  protected readonly catalogo = inject(CatalogoDeLaTienda);
   protected readonly navegacion = inject(NavegacionDeLaTienda);
   protected readonly presentacion = inject(PresentacionDeLaTienda);
 
@@ -95,6 +97,21 @@ export class TiendaCarritoComponent {
       .sort();
     return vencimientos[0] ?? null;
   });
+
+  /**
+   * Con el carrito vacío, por dónde empezar (016-contenido-piezas): las ofertas del día y, si no hay, los mejor
+   * valorados, que llevan a su ficha. Antes era una línea y un botón sobre media página vacía.
+   */
+  readonly sugerencias = computed(() => {
+    if (this.carrito.cartItems().length > 0) {
+      return [];
+    }
+    const ofertas = this.catalogo.deals();
+    return ofertas.length > 0 ? ofertas : this.catalogo.topRated();
+  });
+
+  /** El título de las sugerencias, del diccionario del sitio. */
+  readonly tituloDeSugerencias = computed(() => t('Storefront.Cart.Suggestions', 'Para empezar'));
 
   readonly cartPageConfig = computed<CartShellConfig>(() => ({
     heading: 'Tu carrito',
