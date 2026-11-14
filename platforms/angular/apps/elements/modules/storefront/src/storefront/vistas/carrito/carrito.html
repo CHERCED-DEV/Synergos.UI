@@ -13,6 +13,13 @@
       (action)="onCartAction($event)"
       (holdexpired)="onCartHoldExpired()"
     />
+
+    @if (sugerencias().length > 0) {
+      <section class="storefront__home-section" [attr.aria-label]="tituloDeSugerencias()">
+        <h2 class="storefront__heading">{{ tituloDeSugerencias() }}</h2>
+        <sg-tienda-vitrina [productos]="sugerencias()" />
+      </section>
+    }
   
     <!-- El cupón vive DENTRO del panel del carrito, sobre el total: es donde la
          gente lo busca, y donde el descuento se ve en la misma mirada (#29). -->

@@ -27,13 +27,15 @@
     @if (pdp.description && pdp.description !== pdp.product.subtitle) {
       <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
     }
-    <p class="storefront__pdp-meta">
-      <synergos-rating-stars
-        [attr.value]="pdp.product.rating"
-        [attr.readonly]="'true'"
-      ></synergos-rating-stars>
-      <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
-    </p>
+    @if (pdp.product.reviewCount > 0) {
+      <p class="storefront__pdp-meta">
+        <synergos-rating-stars
+          [attr.value]="pdp.product.rating"
+          [attr.readonly]="'true'"
+        ></synergos-rating-stars>
+        <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
+      </p>
+    }
   </ng-template>
 
   <!-- Cada ranura de SH-2 es su pieza (014-despiece-tienda, T010): la compra, las opiniones, las preguntas y lo relacionado. -->
