@@ -8,7 +8,10 @@
       <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">{{ presentacion.initials(author) }}</span>
       @if (author.actorKey !== red.viewer()?.actorKey) {
         <div class="blogs__profile-actions">
-          <syn-button variant="ghost" (pressed)="mensajes.messageAuthor(author)">Mensaje</syn-button>
+          <!-- Un autor del CMS no recibe mensajes directos: no hay nadie detrás que los lea (vuelta de valor). -->
+          @if (!author.editorial) {
+            <syn-button variant="ghost" (pressed)="mensajes.messageAuthor(author)">Mensaje</syn-button>
+          }
           <syn-button [variant]="perfil.profileViewerFollows() ? 'outline' : 'solid'" [selected]="perfil.profileViewerFollows()"
             (pressed)="seguidores.toggleFollow(author)">
             {{ perfil.profileViewerFollows() ? 'Siguiendo' : 'Seguir' }}

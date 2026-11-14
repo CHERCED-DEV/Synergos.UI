@@ -2052,6 +2052,65 @@ describe('BlogsElementComponent', () => {
       expect(host.querySelector('sg-blogs-tarjeta button[aria-label="Republicar (3)"]')?.textContent?.trim()).toBe('3');
     });
 
+    // ─── La vuelta de valor, tanda 3: las cuentas y el perfil de un autor del CMS ──
+    it('«Cuentas» lista a quienes publicaron lo encontrado, una vez cada uno, y su nombre enlaza su perfil', async () => {
+      const OTRO = {
+        ...ARTICULO,
+        id: 'post-ana',
+        atributos: { ...ARTICULO.atributos, autor: 'Ana Autora', autorId: 'a1b2c3d4e5f60718', alias: 'ana-autora-a1b2c3' },
+      };
+      bordeGenerico({
+        [`${LECTURAS}/catalogo`]: { elementos: [ARTICULO, { ...ARTICULO, id: 'post-2' }, OTRO], facetas: [], total: 3 },
+      });
+      await createComponent('', {
+        ...CON_LECTURAS,
+        vista: 'explorar',
+        rutas: [{ vista: 'explorar', url: '/blogs/explorar/' }, { vista: 'perfil', url: '/blogs/perfil/' }],
+      });
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.explorar.searchResult()?.accounts.map((cuenta) => cuenta.handle)).toEqual([
+        'camila-rios',
+        'ana-autora-a1b2c3',
+      ]);
+      // El autor de un artículo del CMS enlaza su perfil, que ahora existe.
+      expect(
+        (fixture.nativeElement as HTMLElement)
+          .querySelector('sg-blogs-tarjeta .blogs__post-author-open a, sg-blogs-tarjeta a.blogs__post-author-open')
+          ?.getAttribute('href'),
+      ).toBe('/blogs/perfil/#/blogs/@camila-rios');
+    });
+
+    it('el perfil de un autor del CMS ofrece seguirlo y no mandarle mensajes', async () => {
+      bordeGenerico({
+        '/api/blogs/profile/equipo-synergoslabs': {
+          author: {
+            actorKey: 'autor-equipo-synergoslabs',
+            handle: 'equipo-synergoslabs',
+            displayName: 'Equipo SynergosLabs',
+            bio: 'Redacción',
+            editorial: true,
+            postsCount: 6,
+          },
+          posts: [],
+          following: false,
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      component.navegacion.openProfile('equipo-synergoslabs');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.perfil.profile()?.editorial).toBe(true);
+      const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('sg-blogs-perfil button')).map(
+        (boton) => boton.textContent?.trim(),
+      );
+      expect(botones).toContain('Seguir');
+      expect(botones).not.toContain('Mensaje');
+    });
+
     // ─── Una página por etiqueta (I6): Explorar con la etiqueta fija del bloque ──
     const CATALOGO_CON_ETIQUETAS = {
       elementos: [ARTICULO],

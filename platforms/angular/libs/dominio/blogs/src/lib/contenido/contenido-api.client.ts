@@ -147,6 +147,8 @@ export function normalizeAuthor(value: unknown): Author | null {
     followersCount: Math.trunc(readNumber(value['followersCount'])),
     followingCount: Math.trunc(readNumber(value['followingCount'])),
     postsCount: Math.trunc(readNumber(value['postsCount'])),
+    // Sólo cuando lo es: un miembro no lleva la marca.
+    ...(readBoolean(value['editorial']) ? { editorial: true } : {}),
   };
 }
 

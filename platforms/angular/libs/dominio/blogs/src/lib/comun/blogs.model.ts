@@ -62,6 +62,11 @@ export interface Author {
   readonly followersCount: number;
   readonly followingCount: number;
   readonly postsCount: number;
+  /**
+   * Un autor del CMS (una página de autor) y no un miembro (012-blogs-social, vuelta de valor): tiene perfil y se le
+   * sigue, pero no recibe mensajes directos. Ausente, un miembro o la semilla.
+   */
+  readonly editorial?: boolean;
 }
 
 /** Aggregates shown on the profile header. */

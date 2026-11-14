@@ -140,9 +140,11 @@ export class ExplorarApi {
         await this.#borde.getJson(lecturasBase, `${lecturasBase}/catalogo?${params.toString()}`),
       );
       if (listado) {
+        const posts = listado.elementos.map(postDelCatalogo).filter((post): post is Post => post !== null);
         return {
-          accounts: [],
-          posts: listado.elementos.map(postDelCatalogo).filter((post): post is Post => post !== null),
+          // Quienes publicaron lo encontrado: la pestaña «Cuentas» (antes salía vacía con las lecturas genéricas).
+          accounts: autoresDe(posts),
+          posts,
           hashtags: etiquetasDelListado(listado.facetas.filter((faceta) => !(faceta.campo in fijas))),
         };
       }
@@ -160,6 +162,21 @@ const POR_PAGINA = 100;
 
 /** Cuántas tendencias se muestran. */
 const TENDENCIAS = 10;
+
+/** Quienes publicaron lo encontrado, una vez cada uno y en el orden en que aparecen (012-blogs-social, vuelta de valor). */
+function autoresDe(posts: readonly Post[]): readonly Author[] {
+  const vistos = new Set<string>();
+  return posts
+    .map((post) => post.author)
+    .filter((autor) => {
+      const clave = autor.handle || autor.actorKey;
+      if (!clave || vistos.has(clave)) {
+        return false;
+      }
+      vistos.add(clave);
+      return true;
+    });
+}
 
 function normalizeTrending(value: unknown): readonly TrendingTag[] | null {
   const list = Array.isArray(value)
