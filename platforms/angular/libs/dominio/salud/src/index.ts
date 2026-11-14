@@ -25,7 +25,25 @@ export {
   listarCitas,
   ventanaDeLaCita,
 } from './lib/cita/cita-api.client';
-export { TEXTOS_DE_SALUD, type TextosDeLaHistoria, type TextosDeSalud, type TextosDelPermiso } from './lib/comun/textos';
+export {
+  CancelacionesDeCitas,
+  cancelarCitaConfirmada,
+  devolucionPrevista,
+  llaveDeLaCancelacion,
+  misCancelaciones,
+  type AvisoDeLaCancelacion,
+  type CancelacionLeida,
+  type DevolucionPrevista,
+  type PoliticaDeDevolucion,
+  type TramoDeDevolucion,
+} from './lib/cita/cancelacion';
+export {
+  TEXTOS_DE_SALUD,
+  type TextosDeLaCancelacion,
+  type TextosDeLaHistoria,
+  type TextosDeSalud,
+  type TextosDelPermiso,
+} from './lib/comun/textos';
 
 export { darElPermiso, retirarElPermiso } from './lib/permiso/permiso-api.client';
 export { PermisoDeSalud, faltaElPermiso } from './lib/permiso/permiso';

@@ -1,0 +1,27 @@
+<section class="salud-cancelar" [attr.aria-label]="textos.cancel">
+  @if (cancelada()) {
+    <div class="salud-cancelar__fila">
+      <syn-badge [text]="textos.cancelled" tone="neutral" />
+      <span class="salud-cancelar__texto">{{ devuelto() }}</span>
+    </div>
+  } @else if (prevista().tramo !== 'empezo') {
+    <p class="salud-cancelar__texto">{{ loQueSeDevuelve() }}</p>
+    @if (conCopago()) {
+      <p class="salud-cancelar__nota">{{ regla() }}</p>
+    }
+    @if (confirmando()) {
+      <p class="salud-cancelar__texto">{{ textos.confirm }}</p>
+      <div class="salud-cancelar__acciones">
+        <syn-button variant="ghost" [label]="textos.no" (pressed)="confirmando.set(false)" />
+        <syn-button variant="outline" [label]="textos.yes" [loading]="moviendo()" (pressed)="confirmar()" />
+      </div>
+    } @else {
+      <div class="salud-cancelar__acciones">
+        <syn-button variant="outline" [label]="textos.cancel" [loading]="moviendo()" (pressed)="confirmando.set(true)" />
+      </div>
+    }
+  }
+  @if (aviso()) {
+    <syn-live-region class="salud-cancelar__texto" [message]="aviso()" [visuallyHidden]="false" announceInitial />
+  }
+</section>

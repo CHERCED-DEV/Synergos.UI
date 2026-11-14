@@ -1,4 +1,13 @@
 import { InjectionToken } from '@angular/core';
+import type { Importe } from '../cita/cita.model';
+
+/** Lo que se dice al cancelar una cita confirmada (I6): los de la sección `Health.Appointment`. */
+export interface TextosDeLaCancelacion {
+  /** Que la cita quedó cancelada, con lo que se devuelve; `null`, sin devolución. */
+  cancelada(devuelto: Importe | null): string;
+  /** Lo que se dice de un rechazo de la cancelación, elegido por su `code`. */
+  mensaje(code: string): string;
+}
 
 /** Los textos del permiso de datos de salud: los de la sección `Health.Consent`, cuya versión declara el CMS. */
 export interface TextosDelPermiso {
@@ -66,6 +75,7 @@ export interface TextosDeSalud {
   /** Que el profesional no tiene horas libres en los próximos días. */
   readonly sinHorasLibres: string;
   readonly historia: TextosDeLaHistoria;
+  readonly cancelacion: TextosDeLaCancelacion;
 }
 
 /** Los textos de Salud. Sin factory a propósito: una app que monta las fachadas sin decir qué se dice no arranca. */

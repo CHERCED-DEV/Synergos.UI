@@ -15,6 +15,7 @@ export * from './gobierno.toma';
 export * from './propiedades.visita';
 export * from './propiedades.visita-cancelacion';
 export * from './reservas.servicio';
+export * from './salud.cancelacion';
 export * from './salud.cita';
 export * from './salud.consentimiento';
 export * from './salud.consentimiento-retiro';

@@ -53,7 +53,12 @@ import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import {
   AgendaDeSalud,
+  CancelacionesDeCitas,
   ConsultaDelDia,
+  devolucionPrevista,
+  type CancelacionLeida,
+  type DevolucionPrevista,
+  type PoliticaDeDevolucion,
   HistoriaEnElConsultorio,
   MiHistoria,
   MiMedicacion,
@@ -87,6 +92,7 @@ import {
 } from './textos-de-salud';
 import { SaludFranjasComponent, type DiaDeLaAgenda, type HoraElegida } from './vistas/agendar/franjas/franjas';
 import { SaludCitaDelEnlaceComponent } from './vistas/mis-citas/cita-del-enlace/cita-del-enlace';
+import { SaludCancelarCitaComponent } from './vistas/mis-citas/cancelar-cita/cancelar-cita';
 import { SaludPermisoComponent } from './vistas/permiso/permiso';
 import { SaludMiSaludComponent } from './vistas/mi-salud/mi-salud';
 import { SaludCheckInComponent } from './vistas/check-in/check-in';
@@ -280,7 +286,15 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
     historiaBase: coerceTrimmedStringInput(value.historiaBase),
     appointmentPath: normalizeAppointmentPath(value.appointmentPath),
     zona: zonaValida(value.zona) ? value.zona : undefined,
+    devolucionTotalHoras: enteroNoNegativo(value.devolucionTotalHoras),
+    devolucionParcialHoras: enteroNoNegativo(value.devolucionParcialHoras),
+    devolucionParcialPorcentaje: enteroNoNegativo(value.devolucionParcialPorcentaje),
   });
+}
+
+/** Un número de la política de devolución (I6): un entero no negativo, o nada. */
+function enteroNoNegativo(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
 /** El camino de la cita que declara el CMS (ADR 0140): uno de los dos, o nada. */
@@ -318,6 +332,7 @@ let ehrInstanceId = 0;
     SaludPermisoComponent,
     SaludFranjasComponent,
     SaludCitaDelEnlaceComponent,
+    SaludCancelarCitaComponent,
     SaludMiSaludComponent,
     SaludCheckInComponent,
     SaludAbrirHistoriaComponent,
@@ -338,7 +353,7 @@ let ehrInstanceId = 0;
   // Las fachadas de Salud de las vistas de I1 (T051), una por elemento: cada portal de la página tiene su agenda y su
   // permiso. Las vistas las inyectan; el componente encadena sus casos de uso con el asistente. Lo que dicen lo traduce
   // el portal con su diccionario.
-  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados, RecetasDelPaciente, MiMedicacion],
+  providers: [{ provide: TEXTOS_DE_SALUD, useFactory: textosDeSaludDelPortal }, AgendaDeSalud, PermisoDeSalud, MiHistoria, HistoriaEnElConsultorio, ConsultaDelDia, OrdenesDelPaciente, MisResultados, RecetasDelPaciente, MiMedicacion, CancelacionesDeCitas],
 })
 export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
@@ -432,6 +447,7 @@ export class EhrElementComponent implements OnInit {
   /** La cita abierta por la puerta y sin confirmar de esta sesión: la única que se puede cancelar aquí. */
   readonly citaPendiente = computed(() => (this.porLaPuerta() ? citaPendiente(this.#store.session()) : null));
   readonly textoCancelar = t('Health.Appointment.Cancel', 'Cancelar cita');
+  readonly textoCancelada = t('Health.Appointment.StateCancelled', 'Cancelada');
   /**
    * El permiso de datos de salud (T048-T050), en su fachada (T051): sus textos son la sección `Health.Consent` del
    * diccionario, cuya versión declara el CMS (`VersionDelPermiso`). El borrador lo aprueba el arquitecto antes de encender
@@ -449,6 +465,21 @@ export class EhrElementComponent implements OnInit {
   /** Recetas y medicación (I5): las del paciente que se atiende y las del paciente de la sesión. */
   readonly #recetas = inject(RecetasDelPaciente);
   readonly #miMedicacion = inject(MiMedicacion);
+  /**
+   * Cancelar una cita confirmada (I6): las cancelaciones del paciente y la política de devolución que declara el CMS. Sin
+   * la política (el tag crudo, una página de antes) no se ofrece: no se promete una devolución que el sitio no dijo.
+   */
+  readonly #cancelaciones = inject(CancelacionesDeCitas);
+  readonly politicaDeDevolucion = computed<PoliticaDeDevolucion | null>(() => {
+    const c = this.config();
+    return c?.devolucionTotalHoras !== undefined && c.devolucionParcialHoras !== undefined && c.devolucionParcialPorcentaje !== undefined
+      ? { totalHoras: c.devolucionTotalHoras, parcialHoras: c.devolucionParcialHoras, porcentaje: c.devolucionParcialPorcentaje }
+      : null;
+  });
+  /** Las citas confirmadas de la puerta, por su id: las que «Mis citas» puede cancelar. */
+  readonly #citasConfirmadas = signal<ReadonlyMap<string, CitaLeida>>(new Map());
+  /** Si se pudieron leer las cancelaciones: sin saber cuáles siguen en pie, no se ofrece cancelar ninguna. */
+  readonly #cancelacionesLeidas = signal(false);
   readonly profesionalesDeLaAgenda = computed(() => this.doctors().map((d) => ({ id: d.id, nombre: d.name })));
   /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
   readonly textosDeLaHistoria = textosDeLaHistoria();
@@ -1248,8 +1279,40 @@ export class EhrElementComponent implements OnInit {
       time: reloj.hora,
       durationMin: minutos > 0 ? minutos : MINUTOS_DE_LA_CITA,
       reason: this.encabezadoDeLaCita(cita),
-      status: 'booked',
+      status: this.#cancelaciones.cancelacionDe(cita.id) ? 'cancelled' : 'booked',
     };
+  }
+
+  // ─── Cancelar una cita confirmada (I6) ───────────────────────────────────────
+
+  /** La cita confirmada de la puerta detrás de una fila de «Mis citas», si se puede ofrecer cancelarla. */
+  citaConfirmada(id: string): CitaLeida | null {
+    return this.#cancelacionesLeidas() ? (this.#citasConfirmadas().get(id) ?? null) : null;
+  }
+
+  /** Lo que se devolvería si se cancela ahora, con la política del sitio y la misma regla que el orquestador. */
+  previstaDe(cita: CitaLeida, politica: PoliticaDeDevolucion): DevolucionPrevista {
+    return devolucionPrevista(cita.total, cita.ventana?.start ?? '', Date.now(), politica);
+  }
+
+  cancelacionDe(id: string): CancelacionLeida | null {
+    return this.#cancelaciones.cancelacionDe(id);
+  }
+
+  cancelandoConfirmada(id: string): boolean {
+    return this.#cancelaciones.moviendo() === id;
+  }
+
+  avisoDeLaCancelacion(id: string): string {
+    const aviso = this.#cancelaciones.aviso();
+    return aviso?.citaId === id ? aviso.texto : '';
+  }
+
+  /** Cancela la cita confirmada por la puerta; si quedó cancelada, su fila lo dice. */
+  async cancelarConfirmada(id: string): Promise<void> {
+    if (await this.#cancelaciones.cancelar(this.#host, id)) {
+      this.myAppointments.update((citas) => citas.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
+    }
   }
 
   /**
@@ -1691,10 +1754,12 @@ export class EhrElementComponent implements OnInit {
       const list: Appointment[] = home.nextAppointment ? [home.nextAppointment] : [];
       if (this.porLaPuerta()) {
         await this.ensureDoctors();
-        const r = await listarCitas(this.#host);
+        const [r, leidas] = await Promise.all([listarCitas(this.#host), this.#cancelaciones.cargar(this.#host)]);
         if (!r.ok) {
           throw new Error(r.rechazo.code);
         }
+        this.#cancelacionesLeidas.set(leidas);
+        this.#citasConfirmadas.set(new Map(r.valor.filter((c) => c.estado === 'Completed').map((c) => [c.id, c])));
         for (const cita of r.valor) {
           const fila = this.filaDeLaCita(cita, home.patient.name);
           if (fila && !list.some((a) => a.id === fila.id)) {
