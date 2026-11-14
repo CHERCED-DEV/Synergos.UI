@@ -64,4 +64,10 @@
       </ul>
     }
   }
+} @else if (!red.viewer() && !navegacion.pidioUnPerfil()) {
+  <!-- Sin sesión y sin un alias en la ruta no hay perfil que pintar: el panel para entrar, como en Mensajes. -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">{{ textos.perfilSinSesion }}</h1>
+    <p class="blogs__signin-text">{{ textos.perfilSinSesionTexto }}</p>
+  </sg-blogs-acceso>
 }

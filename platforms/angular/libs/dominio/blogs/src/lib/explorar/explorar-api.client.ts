@@ -28,7 +28,14 @@ export class ExplorarApi {
   // `blogs.ts`. Su único llamador era un spec que probaba el filtro del mock, re-apuntado a
   // `explore` para no perder esa cobertura.
 
-  async trending(apiBase: string): Promise<readonly TrendingTag[]> {
+  /**
+   * Las tendencias de la red. Con `lecturasBase`, las etiquetas del catálogo con cuántas publicaciones las llevan (las del
+   * cuerpo y las que pone el editor, 012-blogs-social, I6); sin ella, la interina `GET /api/blogs/trending`.
+   */
+  async trending(apiBase: string, lecturasBase = ''): Promise<readonly TrendingTag[]> {
+    if (lecturasBase) {
+      return this.#tendenciasDelCatalogo(lecturasBase);
+    }
     const url = `${apiBase}/trending`;
     try {
       const data = await this.#borde.getJson(apiBase, url);
@@ -90,6 +97,27 @@ export class ExplorarApi {
     }
   }
 
+  /**
+   * Las etiquetas del catálogo, de la más usada a la menos (la faceta cuenta sobre todo el catálogo, así que basta una
+   * publicación por página). Si no se pueden leer, ninguna: no se pinta una tendencia de muestra.
+   */
+  async #tendenciasDelCatalogo(lecturasBase: string): Promise<readonly TrendingTag[]> {
+    try {
+      const listado = leerListadoDelCatalogo(
+        await this.#borde.getJson(lecturasBase, `${lecturasBase}/catalogo?porPagina=1`),
+      );
+      if (!listado) {
+        throw new Error('catalogo-shape');
+      }
+      return [...etiquetasDelListado(listado.facetas)]
+        .sort((a, b) => b.postCount - a.postCount)
+        .slice(0, TENDENCIAS);
+    } catch (error) {
+      this.#borde.markDegraded('GET /api/lecturas/{vertical}/catalogo', error, 'auxiliary');
+      return [];
+    }
+  }
+
   async #catalogo(
     lecturasBase: string,
     query: string,
@@ -129,6 +157,9 @@ export class ExplorarApi {
 
 /** Cuántas publicaciones trae la búsqueda: las de la interina, que leía las cien primeras del feed. */
 const POR_PAGINA = 100;
+
+/** Cuántas tendencias se muestran. */
+const TENDENCIAS = 10;
 
 function normalizeTrending(value: unknown): readonly TrendingTag[] | null {
   const list = Array.isArray(value)

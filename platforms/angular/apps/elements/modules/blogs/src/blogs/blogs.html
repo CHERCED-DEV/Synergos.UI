@@ -41,7 +41,7 @@
       </li>
       <li>
         <syn-button class="blogs__nav-btn" variant="ghost" align="start" block [current]="red.view() === 'studio'" [href]="navegacion.urlDe('studio')" (pressed)="navegacion.alPulsar('studio')">
-          <svg class="blogs__nav-glyph blogs__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> Creator Studio
+          <svg class="blogs__nav-glyph blogs__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> Estudio
         </syn-button>
       </li>
       <!-- «Perfil» abre el de quien lee por su handle: sin handle conocido no se ofrece (CMS#197). Es el lugar actual
@@ -161,7 +161,7 @@
             <syn-button variant="plain" block [href]="navegacion.urlDe('search', tag.tag)" (pressed)="navegacion.alPulsar('search', tag.tag)">
               <span class="blogs__trend">
                 <span class="blogs__trend-name">#{{ tag.tag }}</span>
-                <span class="blogs__trend-count">{{ presentacion.formatCount(tag.postCount) }} publicaciones</span>
+                <span class="blogs__trend-count">{{ textosRed.publicaciones(tag.postCount, presentacion.formatCount(tag.postCount)) }}</span>
               </span>
             </syn-button>
           </li>
