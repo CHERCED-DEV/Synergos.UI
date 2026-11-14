@@ -1,15 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MensajesDeBlogs, PerfilDeBlogs, RedDeBlogs, SeguidoresDeBlogs } from '@synergos/dominio/blogs';
 import { ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
+import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
+import { BlogsAccesoComponent } from '../../piezas/acceso/acceso';
 import { BlogsTarjetaComponent } from '../../piezas/tarjeta/tarjeta';
 import { BlogsVerificadaComponent } from '../../piezas/verificada/verificada';
+import { textosDeLaRed } from '../../textos-de-la-red';
 
 /** El perfil de una persona: su cabecera con las cifras, seguirla o escribirle, y lo que publicó. */
 @Component({
   selector: 'sg-blogs-perfil',
   standalone: true,
-  imports: [ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent, BlogsTarjetaComponent, BlogsVerificadaComponent],
+  imports: [
+    ButtonComponent,
+    SynEmptyStateComponent,
+    SynSkeletonComponent,
+    TabsComponent,
+    BlogsAccesoComponent,
+    BlogsTarjetaComponent,
+    BlogsVerificadaComponent,
+  ],
   templateUrl: './perfil.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },
@@ -20,6 +31,8 @@ export class BlogsPerfilComponent {
   protected readonly seguidores = inject(SeguidoresDeBlogs);
   protected readonly mensajes = inject(MensajesDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
+  protected readonly navegacion = inject(NavegacionDeBlogs);
+  protected readonly textos = textosDeLaRed();
 
   readonly profileTabs: readonly { readonly id: 'posts' | 'replies' | 'media'; readonly label: string; readonly content: string }[] = [
     { id: 'posts', label: 'Publicaciones', content: '' },
