@@ -2,6 +2,8 @@
 
 .syn-button {
   @include syn.button-base;
+  // El relleno lateral se puede apretar desde fuera (una barra de iconos en un teléfono, 012); `sm` tiene el suyo abajo.
+  padding-inline: var(--syn-button-padding-inline, #{syn.$space-md});
 
   position:       relative;
   isolation:      isolate;
