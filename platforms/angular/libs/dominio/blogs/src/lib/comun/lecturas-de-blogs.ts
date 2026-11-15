@@ -100,11 +100,15 @@ export function postDelCatalogo(elemento: ElementoDelCatalogo): Post | null {
     return null;
   }
   const pageUrl = paginaSegura(a['pagina']);
+  const objectKind = tipoDeObjeto(a['tipo']);
+  // El título del catálogo es el del artículo; el de lo que publica un miembro es un resumen de su cuerpo, que ya se pinta.
+  const title = objectKind === 'postPage' ? elemento.titulo.trim() : '';
   return {
     ...(pageUrl ? { pageUrl } : {}),
+    ...(title ? { title } : {}),
     id: elemento.id,
     author: autor(id, alias, (a['autor'] ?? '').trim(), (a['autorImagen'] ?? '').trim(), a['verificado'] === 'si'),
-    objectKind: tipoDeObjeto(a['tipo']),
+    objectKind,
     body: (a['cuerpo'] ?? '').trim(),
     media: elemento.imagen ? [{ url: elemento.imagen, kind: 'image', alt: (a['imagenAlt'] ?? '').trim() }] : [],
     hashtags: valores(a['etiquetas']),

@@ -216,8 +216,11 @@ export function normalizePost(value: unknown): Post | null {
   const kindRaw = readString(value['objectKind']).trim();
   const objectKind = kindRaw === 'postPage' || kindRaw === 'lesson' ? kindRaw : 'post';
   const pageUrl = readPageUrl(value['pageUrl']);
+  // El título es de un artículo del CMS: lo de un miembro no lo lleva, aunque llegara.
+  const title = objectKind === 'postPage' ? readString(value['title']).trim() : '';
   return {
     ...(pageUrl ? { pageUrl } : {}),
+    ...(title ? { title } : {}),
     id,
     author,
     objectKind,

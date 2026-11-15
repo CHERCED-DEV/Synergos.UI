@@ -557,6 +557,19 @@
   letter-spacing: syn.$letter-spacing-eyebrow;
 }
 
+// El título de un artículo del CMS, antes de su extracto (012, vuelta de valor, tanda 5).
+.blogs__post-title {
+  margin: syn.$space-3 0 0;
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-bold;
+  line-height: syn.$line-height-tight;
+  overflow-wrap: anywhere;
+}
+
+.blogs__post-title + .blogs__post-body {
+  margin-top: syn.$space-1;
+}
+
 .blogs__post-body {
   margin: syn.$space-3 0;
   font-size: syn.$font-size-base;
