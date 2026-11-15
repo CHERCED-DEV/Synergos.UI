@@ -1,7 +1,13 @@
 @let post = publicacion();
 <ng-template #quien>
   <span class="blogs__post-author">
-    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(post.author) }}</span>
+    <span class="blogs__avatar" aria-hidden="true">
+      @if (post.author.avatarUrl) {
+        <img class="blogs__avatar-img" [src]="post.author.avatarUrl" alt="" loading="lazy" decoding="async" />
+      } @else {
+        {{ presentacion.initials(post.author) }}
+      }
+    </span>
     <span class="blogs__post-id">
       <span class="blogs__post-name">
         {{ post.author.displayName }}
@@ -13,14 +19,10 @@
 </ng-template>
 <article class="blogs__post" [class.blogs__post--detail]="detalle()">
   <header class="blogs__post-head">
-    <!-- El autor de un artículo del CMS no es un miembro y no tiene perfil en la red: su nombre no enlaza (I3). -->
-    @if (post.pageUrl) {
+    <!-- El autor enlaza su perfil; el de un artículo del CMS también tiene uno desde la vuelta de valor (antes no enlazaba). -->
+    <syn-button class="blogs__post-author-open" variant="plain" [href]="navegacion.urlDe('profile', post.author.handle)" (pressed)="navegacion.alPulsar('profile', post.author.handle)">
       <ng-container [ngTemplateOutlet]="quien" />
-    } @else {
-      <syn-button class="blogs__post-author-open" variant="plain" [href]="navegacion.urlDe('profile', post.author.handle)" (pressed)="navegacion.alPulsar('profile', post.author.handle)">
-        <ng-container [ngTemplateOutlet]="quien" />
-      </syn-button>
-    }
+    </syn-button>
     <span class="blogs__meta-time" [attr.title]="post.createdAtUtc">{{ presentacion.relativeTime(post.createdAtUtc) }}</span>
   </header>
 
