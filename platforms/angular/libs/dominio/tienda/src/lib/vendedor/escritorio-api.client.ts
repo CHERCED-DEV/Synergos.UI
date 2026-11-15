@@ -190,7 +190,7 @@ function mockSellerDesk(): SellerDeskResult {
       // manda, y aun así tiene que ir por delante de la pendiente. Sin esta fila,
       // ordenar sólo por conteo daría el mismo resultado que ordenar bien.
       { id: 'SMOD-3', author: 'Sofía Marín', productTitle: 'Audífonos inalámbricos', rating: 2, body: 'La descripción decía cancelación activa y no la tiene.', createdAt: '2026-09-10', reason: 'reported', reportCount: 0 },
-      { id: 'SMOD-1', author: 'Andrés Gómez', productTitle: 'Audífonos inalámbricos', rating: 1, body: 'No compren acá, escríbanme y se los vendo más barato.', createdAt: '2026-09-11', reason: 'reported', reportCount: 4 },
+      { id: 'SMOD-1', author: 'Joaquín Ibagón', productTitle: 'Audífonos inalámbricos', rating: 1, body: 'No compren acá, escríbanme y se los vendo más barato.', createdAt: '2026-09-11', reason: 'reported', reportCount: 4 },
     ],
     salesFormatted: '$756.000',
     pendingShipments: 2,
