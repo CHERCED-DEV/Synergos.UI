@@ -169,6 +169,8 @@ function textosDeAlquiler() {
     selloPendiente: t('Alquiler.Seal.Pending', 'Sello pendiente: lo ponemos en cuanto el servicio de firma responda.'),
     cargandoMios: t('Alquiler.Mine.Loading', 'Cargando tus alquileres'),
     sinSesion: t('Alquiler.Mine.SignInTitle', 'Inicia sesión para ver tus alquileres'),
+    sesionParaAlquilar: t('Alquiler.Errors.SignInToRent', 'Hay que iniciar sesión para alquilar.'),
+    iniciarSesion: t('Alquiler.Errors.SignInAction', 'Iniciar sesión'),
     sinSesionDetalle: t('Alquiler.Mine.SignInMessage', 'Tus contratos van atados a tu cuenta, no a este navegador.'),
     miosFallo: t('Alquiler.Mine.Failed', 'No pudimos leer tus alquileres.'),
     miosVacio: t('Alquiler.Mine.EmptyTitle', 'Todavía no has alquilado nada'),
@@ -369,6 +371,21 @@ export class AlquilerElementComponent implements OnInit {
    * vez sobre un equipo que nadie apartó.
    */
   readonly problema = signal('');
+
+  /**
+   * El problema es que no hay sesión (016, C7): al lado del aviso va el enlace para entrar, que vuelve a esta página.
+   * Antes «Calcular» decía «Hay que iniciar sesión para alquilar» y no ofrecía cómo.
+   */
+  readonly faltaSesion = computed(() => this.problema() === this.txt.sesionParaAlquilar);
+
+  /** El login del CMS de vuelta a ESTA página (la forma de la consola del vendedor). Método: la URL cambia al navegar. */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/account/login';
+    }
+    const aqui = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `/account/login?returnUrl=${encodeURIComponent(aqui)}`;
+  }
 
   readonly puedeCotizar = computed(() => {
     const f = this.ficha();

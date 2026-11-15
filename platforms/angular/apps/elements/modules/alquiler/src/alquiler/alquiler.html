@@ -21,6 +21,9 @@
 @if (problema()) {
   <syn-status-banner [message]="problema()" tone="degraded" [dismissable]="true"
                      (dismiss)="problema.set('')" />
+  @if (faltaSesion()) {
+    <a class="sg-alquiler__cta sg-alquiler__entrar" [href]="loginUrl()">{{ txt.iniciarSesion }}</a>
+  }
 }
 
 <!-- ── EJE 1 · el catálogo, que sale del contenido del CMS ─────────────── -->
@@ -80,6 +83,11 @@
           <button type="button" class="sg-alquiler__back" (click)="volver()">{{ txt.volver }}</button>
           <h3 class="sg-alquiler__name">{{ eq.name }}</h3>
           <p class="sg-alquiler__summary">{{ eq.description || eq.summary }}</p>
+          <!-- El precio por día y la garantía, como en la tarjeta (016, C7): la ficha no los repetía. -->
+          <p class="sg-alquiler__price">
+            {{ plata(eq.dailyRate, eq.currency) }} <span class="sg-alquiler__per">{{ txt.porDia }}</span>
+          </p>
+          <p class="sg-alquiler__deposit">{{ garantiaRetenida(eq.deposit, eq.currency) }}</p>
 
           @if (eq.galleryUrls.length > 0) {
             <ul class="sg-alquiler__gallery">
