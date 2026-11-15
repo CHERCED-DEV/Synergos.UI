@@ -58,7 +58,7 @@
 }
 
 // ─── Shared atoms ───────────────────────────────────────────────────────────────
-// Ya no la usa ningún sitio de Blogs: los nueve pintan `syn-avatar`. Se queda por la regla del superset.
+// `.blogs__avatar*` sin uso desde el 2026-11-15 (012: los nueve sitios pintan `syn-avatar`); lo decide el arquitecto.
 .blogs__avatar-img {
   display: block;
   width: 100%;
