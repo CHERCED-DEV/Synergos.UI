@@ -2615,7 +2615,7 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   tipo: "pieza",
   record: "ShareBarProps",
   diccionario: ["Share"],
-  claves: ["Share.Copied","Share.Copy","Share.CopyFailed","Share.Email","Share.Label","Share.On"],
+  claves: ["Share.Copied","Share.Copy","Share.CopyFailed","Share.Email","Share.Label","Share.Mail","Share.On"],
   campos: ["platforms","shareLink","shareTitle"],
   listas: {},
   selectores: [
