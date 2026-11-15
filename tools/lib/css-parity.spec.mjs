@@ -46,7 +46,12 @@ const RAICES = raicesEnDisco(REPO);
  * (Las `syn-*` NO van acá: se exceptúan por namespace dentro del módulo, porque
  * quien las emite es el design system y la próxima se llamará de otra manera.)
  */
-const EXENTAS = new Map();
+const EXENTAS = new Map([
+  ['blogs__avatar', 'el círculo propio de Blogs, que los nueve sitios cambiaron por syn-avatar (012, 2026-11-15); se queda por la regla del superset hasta que el arquitecto decida si se borra'],
+  ['blogs__avatar--sm', 'el círculo propio de Blogs, que los nueve sitios cambiaron por syn-avatar (012, 2026-11-15); se queda por la regla del superset hasta que el arquitecto decida si se borra'],
+  ['blogs__avatar--lg', 'el círculo propio de Blogs, que los nueve sitios cambiaron por syn-avatar (012, 2026-11-15); se queda por la regla del superset hasta que el arquitecto decida si se borra'],
+  ['blogs__avatar-img', 'el círculo propio de Blogs, que los nueve sitios cambiaron por syn-avatar (012, 2026-11-15); se queda por la regla del superset hasta que el arquitecto decida si se borra'],
+]);
 
 function apps() {
   return RAICES.flatMap((raiz) => {

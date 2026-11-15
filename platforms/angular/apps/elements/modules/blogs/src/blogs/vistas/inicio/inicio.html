@@ -20,7 +20,7 @@
 
 @if (red.viewer()) {
   <article class="blogs__composer-inline">
-    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
+    <syn-avatar aria-hidden="true" [name]="presentacion.nombreDelAvatar(red.autorLocal())" [src]="red.autorLocal().avatarUrl || ''" />
     <syn-button class="blogs__composer-open" variant="outline" align="start" block (pressed)="inicio.toggleComposer()">¿Qué estás pensando?</syn-button>
   </article>
 

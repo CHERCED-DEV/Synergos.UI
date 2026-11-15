@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 
-type AvatarSize = 'sm' | 'md' | 'lg';
+type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
+type AvatarLoading = 'eager' | 'lazy';
 
 @Component({
   selector: 'syn-avatar',
@@ -12,6 +13,7 @@ type AvatarSize = 'sm' | 'md' | 'lg';
       [class.syn-avatar--sm]="size() === 'sm'"
       [class.syn-avatar--md]="size() === 'md'"
       [class.syn-avatar--lg]="size() === 'lg'"
+      [class.syn-avatar--xl]="size() === 'xl'"
       role="img"
       [attr.aria-label]="resolvedAlt()"
     >
@@ -20,6 +22,8 @@ type AvatarSize = 'sm' | 'md' | 'lg';
           class="syn-avatar__image"
           [src]="src()"
           [alt]="resolvedAlt()"
+          [attr.loading]="loading() === 'lazy' ? 'lazy' : null"
+          [attr.decoding]="loading() === 'lazy' ? 'async' : null"
           (error)="onImageError()"
         />
       } @else {
@@ -34,6 +38,8 @@ export class AvatarComponent {
   readonly src = input('');
   readonly alt = input('');
   readonly size = input<AvatarSize>('md');
+  /** `lazy` para las listas largas (un feed, unas cuentas): la foto se pide al acercarse a la vista. */
+  readonly loading = input<AvatarLoading>('eager');
 
   readonly #imageErrored = signal(false);
 

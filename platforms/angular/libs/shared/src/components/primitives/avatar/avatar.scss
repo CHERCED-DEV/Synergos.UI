@@ -1,6 +1,8 @@
-@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+@use '../../../../../../../../vitals/core-assets/src/scss/sin-temas' as syn;
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
+// Los colores salen de dos propiedades que se heredan del contenedor, con los de siempre de respaldo: una app las
+// repinta en sus temas (Blogs, desde sus `--bl-*`) y las demás se ven igual.
 
 .syn-avatar {
   @include syn.flex-center;
@@ -8,8 +10,8 @@
   flex-shrink: 0;
   border-radius: 50%;
   overflow:    hidden;
-  background:  syn.$color-neutral-200;
-  color:       syn.$color-neutral-700;
+  background:  var(--syn-avatar-background, #{syn.$color-neutral-200});
+  color:       var(--syn-avatar-text-color, #{syn.$color-neutral-700});
   font-weight: syn.$font-weight-semibold;
   user-select: none;
 }

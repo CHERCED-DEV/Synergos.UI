@@ -63,7 +63,7 @@
       <li>
         <syn-button variant="plain" block (pressed)="notificaciones.openNotification(n)">
           <span class="blogs__notif" [class.is-unread]="!n.read">
-            <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(n.actor) }}</span>
+            <syn-avatar aria-hidden="true" size="sm" loading="lazy" [name]="presentacion.nombreDelAvatar(n.actor)" [src]="n.actor.avatarUrl || ''" />
             <span class="blogs__notif-body">
               <span class="blogs__notif-text"><strong>{{ n.actor.displayName }}</strong> {{ n.summary }}</span>
               <span class="blogs__meta-time">{{ presentacion.relativeTime(n.createdAtUtc) }}</span>

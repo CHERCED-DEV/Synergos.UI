@@ -23,6 +23,9 @@
   --bl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
   --bl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
   --bl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+  // El avatar del design system, con los colores de la red en cada tema.
+  --syn-avatar-background: var(--bl-brand-soft);
+  --syn-avatar-text-color: var(--bl-brand);
 
   display: block;
   max-width: 100%;
@@ -55,6 +58,7 @@
 }
 
 // ─── Shared atoms ───────────────────────────────────────────────────────────────
+// Ya no la usa ningún sitio de Blogs: los nueve pintan `syn-avatar`. Se queda por la regla del superset.
 .blogs__avatar-img {
   display: block;
   width: 100%;
@@ -92,6 +96,16 @@
   }
 }
 
+// El avatar del perfil sobre la portada: el anillo del color de la superficie lo separa de ella. El fondo también es
+// la superficie: el del avatar es translúcido (`--bl-brand-soft`), y sin esto las iniciales de quien no tiene foto se
+// pierden sobre el degradado de la portada.
+.blogs__avatar-anillo {
+  display: inline-flex;
+  border: syn.px-to-rem(4) solid var(--bl-surface);
+  border-radius: syn.$radius-full;
+  background: var(--bl-surface);
+}
+
 // ─── Skeleton bone ──────────────────────────────────────────────────────────────
 // Un hueso es DECORATIVO: no lleva texto ni rol, y sus contenedores van marcados
 // `aria-hidden`. Las medidas replican el contenido real de cada lista para que el
@@ -109,17 +123,17 @@
   background-size: 200% 100%;
   animation: blogs-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
 
-  // Mismo diámetro que `.blogs__avatar--sm` (36px), que es quien fija la altura de
-  // la fila de las notificaciones. El molde del hilo de comentarios es del organismo
-  // SH-15 (`libs/shells`), con las mismas clases que su comentario.
+  // Mismo diámetro que el avatar chico de las notificaciones (`syn-avatar` sm, 32px), para que el cambio a los datos
+  // no mueva la fila. El molde del hilo de comentarios es del organismo SH-15 (`libs/shells`), con las mismas clases
+  // que su comentario.
   &--avatar-sm {
     flex: 0 0 auto;
-    inline-size: syn.px-to-rem(36);
-    block-size: syn.px-to-rem(36);
+    inline-size: syn.px-to-rem(32);
+    block-size: syn.px-to-rem(32);
     border-radius: syn.$radius-full;
   }
 
-  // Notificaciones: texto + hora apilados; 20 + 2 (gap) + 14 = 36 = el avatar.
+  // Notificaciones: texto + hora apilados; 20 + 2 (gap) + 14 = 36, la altura de la fila (el avatar chico mide 32).
   &--notif-text {
     inline-size: 70%;
     block-size: syn.px-to-rem(20);

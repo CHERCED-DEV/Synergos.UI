@@ -34,13 +34,7 @@
           <li class="blogs__account">
             <syn-button class="blogs__account-open" variant="plain" [href]="navegacion.urlDe('profile', account.handle)" (pressed)="navegacion.alPulsar('profile', account.handle)">
               <span class="blogs__account-id">
-                <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">
-                  @if (account.avatarUrl) {
-                    <img class="blogs__avatar-img" [src]="account.avatarUrl" alt="" loading="lazy" decoding="async" />
-                  } @else {
-                    {{ presentacion.initials(account) }}
-                  }
-                </span>
+                <syn-avatar aria-hidden="true" size="sm" loading="lazy" [name]="presentacion.nombreDelAvatar(account)" [src]="account.avatarUrl || ''" />
                 <span class="blogs__account-text">
                   <span class="blogs__account-name">
                     {{ account.displayName }}

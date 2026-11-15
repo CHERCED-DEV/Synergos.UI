@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ExplorarDeBlogs, RedDeBlogs, SeguidoresDeBlogs, type SearchTab } from '@synergos/dominio/blogs';
-import { ButtonComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent } from '@synergos/shared';
 import { DiscoveryShellComponent, type DiscoveryFacet, type DiscoverySortOption } from '@synergos/shells';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
@@ -29,7 +29,7 @@ const SEARCH_TABS: readonly { key: SearchTab; label: string }[] = [
 @Component({
   selector: 'sg-blogs-explorar',
   standalone: true,
-  imports: [ButtonComponent, DiscoveryShellComponent, BlogsTarjetaComponent, BlogsVerificadaComponent],
+  imports: [AvatarComponent, ButtonComponent, DiscoveryShellComponent, BlogsTarjetaComponent, BlogsVerificadaComponent],
   templateUrl: './explorar.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },

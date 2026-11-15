@@ -1,6 +1,6 @@
 <form class="blogs__composer" (submit)="$event.preventDefault(); compositor.publish()">
   <div class="blogs__composer-row">
-    <span class="blogs__avatar" aria-hidden="true">{{ presentacion.initials(red.autorLocal()) }}</span>
+    <syn-avatar aria-hidden="true" [name]="presentacion.nombreDelAvatar(red.autorLocal())" [src]="red.autorLocal().avatarUrl || ''" />
     <syn-textarea class="blogs__composer-input" [id]="presentacion.fieldId + '-body'" [rows]="3" ariaLabel="Texto de la publicación"
       placeholder="¿Qué estás pensando? Usa #hashtags y @menciones" [maxlength]="compositor.maxChars"
       [describedBy]="presentacion.fieldId + '-count'" [value]="compositor.draftBody()" (valueChange)="compositor.draftBody.set($event)" />

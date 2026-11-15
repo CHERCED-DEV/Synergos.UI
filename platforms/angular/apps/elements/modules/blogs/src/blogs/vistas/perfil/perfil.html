@@ -5,13 +5,7 @@
   <header class="blogs__profile">
     <div class="blogs__profile-banner" aria-hidden="true"></div>
     <div class="blogs__profile-head">
-      <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">
-        @if (author.avatarUrl) {
-          <img class="blogs__avatar-img" [src]="author.avatarUrl" alt="" decoding="async" />
-        } @else {
-          {{ presentacion.initials(author) }}
-        }
-      </span>
+      <syn-avatar class="blogs__avatar-anillo" aria-hidden="true" size="xl" [name]="presentacion.nombreDelAvatar(author)" [src]="author.avatarUrl || ''" />
       @if (author.actorKey !== red.viewer()?.actorKey) {
         <div class="blogs__profile-actions">
           <!-- Un autor del CMS no recibe mensajes directos: no hay nadie detrás que los lea (vuelta de valor). -->

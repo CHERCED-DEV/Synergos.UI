@@ -382,7 +382,7 @@ describe('BlogsElementComponent', () => {
 
     /** Iniciales, nombre y handle de la tarjeta «yo», por pieza (la plantilla no deja espacios entre ellas). */
     const tarjeta = (): string[] =>
-      ['.blogs__rail-me .blogs__avatar', '.blogs__rail-me-name', '.blogs__rail-me-handle'].map(
+      ['.blogs__rail-me syn-avatar', '.blogs__rail-me-name', '.blogs__rail-me-handle'].map(
         (selector) => (fixture.nativeElement as HTMLElement).querySelector(selector)?.textContent?.trim() ?? '',
       );
     const hayPerfil = (): boolean =>
@@ -2081,10 +2081,12 @@ describe('BlogsElementComponent', () => {
           ?.getAttribute('href'),
       ).toBe('/blogs/perfil/#/blogs/@camila-rios');
 
-      // Con foto, el círculo la muestra en vez de las iniciales (tanda 4), en la tarjeta y en la cuenta.
+      // Con foto, el avatar la muestra en vez de las iniciales (tanda 4), en la tarjeta y en la cuenta: es el de
+      // `syn-avatar`, decorativo porque el nombre va al lado.
       const host = fixture.nativeElement as HTMLElement;
-      expect(host.querySelector('sg-blogs-tarjeta .blogs__avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
-      expect(host.querySelector('.blogs__account .blogs__avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
+      expect(host.querySelector('sg-blogs-tarjeta syn-avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
+      expect(host.querySelector('.blogs__account syn-avatar img')?.getAttribute('src')).toBe('/media/camila.jpg');
+      expect(host.querySelector('sg-blogs-tarjeta syn-avatar')?.getAttribute('aria-hidden')).toBe('true');
     });
 
     it('el perfil de un autor del CMS ofrece seguirlo y no mandarle mensajes', async () => {

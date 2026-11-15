@@ -91,6 +91,11 @@ export class PresentacionDeBlogs {
     return formatearImporte(desdeMenores(minorUnits, currency), currency);
   }
 
+  /** El nombre con que `syn-avatar` saca las iniciales: el visible o, si no hay, el handle, como `initials`. */
+  nombreDelAvatar(author: Author): string {
+    return author.displayName || author.handle;
+  }
+
   initials(author: Author): string {
     const name = author.displayName || author.handle;
     return name

@@ -1,13 +1,7 @@
 @let post = publicacion();
 <ng-template #quien>
   <span class="blogs__post-author">
-    <span class="blogs__avatar" aria-hidden="true">
-      @if (post.author.avatarUrl) {
-        <img class="blogs__avatar-img" [src]="post.author.avatarUrl" alt="" loading="lazy" decoding="async" />
-      } @else {
-        {{ presentacion.initials(post.author) }}
-      }
-    </span>
+    <syn-avatar aria-hidden="true" loading="lazy" [name]="presentacion.nombreDelAvatar(post.author)" [src]="post.author.avatarUrl || ''" />
     <span class="blogs__post-id">
       <span class="blogs__post-name">
         {{ post.author.displayName }}

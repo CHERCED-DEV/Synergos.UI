@@ -37,6 +37,7 @@ import {
 } from '@synergos/dominio/blogs';
 import {
   BadgeComponent,
+  AvatarComponent,
   ButtonComponent,
   LiveAnnouncerService,
   coerceRutasDeLasVistas,
@@ -148,6 +149,7 @@ let blogsInstanceId = 0;
   selector: 'sg-blogs',
   standalone: true,
   imports: [
+    AvatarComponent,
     BadgeComponent,
     ButtonComponent,
     BlogsInicioComponent,

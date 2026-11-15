@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { GuardadosDeBlogs, ModeracionDeBlogs, ReaccionesDeBlogs, type Post } from '@synergos/dominio/blogs';
-import { ButtonComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent } from '@synergos/shared';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { textosDeModeracion } from '../../textos-de-moderacion';
@@ -14,7 +14,7 @@ import { BlogsVerificadaComponent } from '../verificada/verificada';
 @Component({
   selector: 'sg-blogs-tarjeta',
   standalone: true,
-  imports: [NgTemplateOutlet, ButtonComponent, BlogsVerificadaComponent],
+  imports: [NgTemplateOutlet, AvatarComponent, ButtonComponent, BlogsVerificadaComponent],
   templateUrl: './tarjeta.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__pieza' },
