@@ -344,4 +344,56 @@ describe(DiscoveryShellComponent.name, () => {
 
     expect(host.criteriaLog.at(-1)?.facets).toEqual({ brand: ['sony', 'acme'] });
   });
+
+  // ── filtros plegados en el teléfono (012-blogs-social, D-012-V9) ─────────────
+  it('folds the facets behind a "Filtros" toggle that starts closed and controls the panel', async () => {
+    const fixture = await createHost();
+    fixture.componentInstance.facets.set(FACETS);
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const toggle = element.querySelector<HTMLButtonElement>('.syn-discovery__toggle')!;
+    const panel = element.querySelector<HTMLElement>('.syn-discovery__facets')!;
+    expect(toggle.textContent).toContain('Filtros');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-controls')).toBe(panel.id);
+    expect(panel.classList).toContain('syn-discovery__facets--collapsed');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.classList).not.toContain('syn-discovery__facets--collapsed');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(panel.classList).toContain('syn-discovery__facets--collapsed');
+
+    // El botón dice lo que esconde aunque el panel se titule de otro modo (Blogs: «Explorar»).
+    fixture.componentInstance.config.update((config) => ({ ...config, filtersHeading: 'Explorar' }));
+    fixture.detectChanges();
+    expect(toggle.textContent?.trim()).toBe('Filtros');
+    expect(element.querySelector('.syn-discovery__facets-title')?.textContent?.trim()).toBe('Explorar');
+  });
+
+  it('counts the marked values on the toggle, and renders no toggle without facets', async () => {
+    const fixture = await createHost();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.querySelector('.syn-discovery__toggle')).toBeNull();
+
+    fixture.componentInstance.facets.set(FACETS);
+    fixture.detectChanges();
+    expect(element.querySelector('.syn-discovery__toggle-count')).toBeNull();
+
+    const [sony, acme] = optionInputs(element);
+    sony.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    acme.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(element.querySelector('.syn-discovery__toggle-count')?.textContent?.trim()).toBe('2');
+
+    sony.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(element.querySelector('.syn-discovery__toggle-count')?.textContent?.trim()).toBe('1');
+  });
 });
