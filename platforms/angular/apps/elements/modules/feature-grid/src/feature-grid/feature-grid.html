@@ -11,7 +11,7 @@
       />
     </header>
   }
-  <syn-grid-columns class="feature-grid__grid" [columns]="resolvedColumns()" [autoFit]="false" gap="lg">
+  <syn-grid-columns class="feature-grid__grid" [columns]="resolvedColumns()" [autoFit]="false" stackBelow="md" gap="lg">
     @for (item of parsedItems(); track item.heading + item.body) {
       <article class="feature-grid__item">
         @if (item.icon) {

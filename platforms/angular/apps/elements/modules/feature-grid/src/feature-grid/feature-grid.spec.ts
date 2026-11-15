@@ -25,6 +25,17 @@ describe('FeatureGridComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  it('en el teléfono la rejilla se apila en una columna, sin importar cuántas pida (016, D-016-C14)', async () => {
+    fixture.componentRef.setInput('items', JSON.stringify([{ heading: 'Uno', body: 'a' }, { heading: 'Dos', body: 'b' }, { heading: 'Tres', body: 'c' }]));
+    fixture.componentRef.setInput('columns', 3);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const grid = (fixture.nativeElement as HTMLElement).querySelector('.syn-grid-columns') as HTMLElement;
+    expect(grid.className).toContain('syn-grid-columns--fixed');
+    expect(grid.className).toContain('syn-grid-columns--stack-md');
+  });
+
   it('should normalize feature items from JSON', async () => {
     fixture.componentRef.setInput(
       'items',
