@@ -1,5 +1,9 @@
 @use '../../../../../../vitals/core-assets/src/scss/sin-temas' as syn;
 
+// El ancho por debajo del cual los filtros se apilan sobre los resultados. Ahí se pliegan tras «Filtros»
+// (012-blogs-social, D-012-V9); por encima, el organismo queda como estaba.
+$stacked: syn.px-to-rem(720);
+
 :host {
   --shd-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --shd-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
@@ -87,7 +91,7 @@
     grid-template-columns: syn.px-to-rem(224) minmax(0, 1fr);
     gap: syn.$space-lg;
 
-    @media (max-width: #{syn.px-to-rem(720)}) {
+    @media (max-width: #{$stacked}) {
       grid-template-columns: minmax(0, 1fr);
     }
   }
@@ -160,6 +164,73 @@
   &__facet-count {
     color: var(--shd-muted);
     font-size: syn.$font-size-xs;
+  }
+
+  // ─── Filters toggle: sólo con los filtros apilados (el teléfono) ───────────
+  &__toggle {
+    display: none;
+  }
+
+  @media (max-width: #{$stacked}) {
+    &__toggle {
+      display: flex;
+      align-items: center;
+      gap: syn.$space-2;
+      width: 100%;
+      min-height: syn.$control-h-lg;
+      padding: syn.$space-2 syn.$space-4;
+      border: syn.px-to-rem(1) solid var(--shd-border);
+      border-radius: syn.$radius-md;
+      background: var(--shd-surface);
+      color: var(--shd-text);
+      font: inherit;
+      font-weight: syn.$font-weight-semibold;
+      text-align: start;
+      cursor: pointer;
+
+      @include syn.focus-visible(var(--shd-focus-ring));
+
+      &[aria-expanded='true'] .syn-discovery__toggle-icon {
+        transform: translateY(25%) rotate(-135deg);
+      }
+    }
+
+    &__facets--collapsed {
+      display: none;
+    }
+
+    // Con el botón delante, el título del panel repetiría «Filtros»: queda para el lector de pantalla. Su cabecera se
+    // disuelve en el panel para no dejar un hueco cuando no hay «Limpiar».
+    &__facets-head {
+      display: contents;
+    }
+
+    &__facets-title {
+      @include syn.visually-hidden;
+    }
+
+    &__clear {
+      align-self: flex-end;
+    }
+  }
+
+  &__toggle-label {
+    flex: 1 1 auto;
+  }
+
+  &__toggle-count {
+    @include syn.badge(var(--shd-brand), var(--shd-brand-text));
+
+    min-width: syn.px-to-rem(24);
+  }
+
+  &__toggle-icon {
+    flex: 0 0 auto;
+    width: syn.px-to-rem(8);
+    height: syn.px-to-rem(8);
+    border-right: syn.px-to-rem(2) solid currentColor;
+    border-bottom: syn.px-to-rem(2) solid currentColor;
+    transform: translateY(-25%) rotate(45deg);
   }
 
   // ─── Toolbar + results ─────────────────────────────────────────────────────

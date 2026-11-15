@@ -102,7 +102,8 @@ const ACTORS: readonly Author[] = [
   {
     actorKey: 'a-lucia',
     handle: 'lucia.dev',
-    displayName: 'Lucía Marín',
+    // No «Lucía Marín», que es una directora de orquesta conocida (D-016-C18, 012-blogs-social).
+    displayName: 'Lucía Ospitia',
     bio: 'Backend & arquitectura limpia · café ☕ · gatos 🐈',
     avatarUrl: '',
     bannerUrl: '',
