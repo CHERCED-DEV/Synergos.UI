@@ -12,6 +12,18 @@
   grid-template-columns: repeat(var(--syn-grid-columns, 2), minmax(0, 1fr));
 }
 
+.syn-grid-columns--stack-sm {
+  @include syn.respond-below(sm) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.syn-grid-columns--stack-md {
+  @include syn.respond-below(md) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .syn-grid-columns--gap-sm {
   gap: syn.$space-sm;
 }
