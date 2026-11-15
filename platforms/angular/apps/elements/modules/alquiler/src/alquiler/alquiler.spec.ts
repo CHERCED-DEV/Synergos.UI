@@ -259,6 +259,32 @@ describe('AlquilerElementComponent', () => {
     expect(component.puedeCotizar()).toBe(true);
   });
 
+  it('sin sesión, «Calcular» dice que falta entrar y ofrece el enlace de vuelta a esta página (016, C7)', async () => {
+    servidor(GUION_FELIZ, ['401 POST /api/alquiler/quote']);
+    await montar();
+    await component.abrir('andamio-6m');
+    await drenar();
+    component.desde.set('2026-10-05');
+    component.hasta.set('2026-10-12');
+    await component.cotizar();
+    await drenar();
+
+    expect(component.faltaSesion()).toBe(true);
+    expect(component.loginUrl()).toMatch(/^\/account\/login\?returnUrl=/);
+  });
+
+  it('la ficha repite el precio por día y la garantía, como la tarjeta (016, C7)', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    await component.abrir('andamio-6m');
+    await drenar();
+    fixture.detectChanges();
+
+    const ficha = (fixture.nativeElement as HTMLElement).querySelector('.sg-alquiler__detail') as HTMLElement;
+    expect(ficha.querySelector('.sg-alquiler__price')).not.toBeNull();
+    expect(ficha.querySelector('.sg-alquiler__deposit')?.textContent).toContain('Garantía retenida');
+  });
+
   it('la cotización distingue lo que se COBRA de lo que se RETIENE', async () => {
     servidor(GUION_FELIZ);
     await montar();

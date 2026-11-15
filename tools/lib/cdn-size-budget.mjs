@@ -200,7 +200,9 @@ export const EXCEPCIONES = {
   // —el catálogo, la renta por la puerta (cotizar, apartar, retomar, confirmar), «mis alquileres» con sus estados y la
   // cara del personal— y 8,6 de la puerta común (vitals/core/flujos: coordinador, transporte, rechazos). Lo evitable no
   // es de este vertical: 6,3 KB son escapes `ɵ` de Angular, lo mismo que en eventos (`charset: 'utf8'` es del build).
-  alquiler: { techo: 94 * KB, razon: 'vertical completa: catálogo, renta por la puerta, mis alquileres y la cara del personal. 87 KB medidos el 2026-10-22, 0 de shells; 68 del componente y 8,6 de la puerta' },
+  // Subido el 2026-11-15 (016, C7: Alquiler se abre en su raíz): 94,7 KB medidos. Entraron «Iniciar sesión» bajo el aviso
+  // de cotizar sin sesión y, en la ficha, el precio por día y la garantía. El margen, el ~5 %.
+  alquiler: { techo: 100 * KB, razon: 'vertical completa: catálogo, renta por la puerta, mis alquileres, la cara del personal y, desde C7 (2026-11-15), entrar desde el aviso de cotizar y el precio y la garantía en la ficha. 94,7 KB medidos el 2026-11-15' },
   'product-detail': { techo: 104 * KB, razon: 'ficha con galería, variantes y motor de precio' },
 };
 
