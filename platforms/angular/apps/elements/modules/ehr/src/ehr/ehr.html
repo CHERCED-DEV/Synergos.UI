@@ -114,8 +114,15 @@
 
         <!-- ═══════════════════════ PATIENT PORTAL (MyChart) ═══════════════════════ -->
 
+        <!-- ─── INICIO desde la historia de producción (I8 P19): todo de las mismas lecturas que sus vistas ─── -->
+        @if (view() === 'home' && historiaBase()) {
+          <h1 class="ehr__view-title">{{ textosDeLaHistoria.homeTitle }}</h1>
+          <p class="ehr__view-sub">{{ textosDeLaHistoria.homeIntro }}</p>
+          <sg-salud-inicio [proxima]="proximaDelInicio()" [cargandoCitas]="cargandoCitasDelInicio()" (ir)="navigate($event)" />
+        }
+
         <!-- ─── HOME FEED ─── -->
-        @if (view() === 'home') {
+        @if (view() === 'home' && !historiaBase()) {
           @if (home(); as h) {
             <h1 class="ehr__view-title">Hola, {{ h.patient.name }}</h1>
             <p class="ehr__view-sub">Este es tu portal de salud. Aquí ves tus pendientes y novedades.</p>
