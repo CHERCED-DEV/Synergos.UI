@@ -536,6 +536,8 @@ export interface GovProps {
   readonly apiBase: string;
   /** negocio */
   readonly camino: string;
+  /** sitio */
+  readonly cabecera?: string;
 }
 
 /** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
@@ -824,6 +826,8 @@ export interface TravelShellProps {
   readonly apiBase: string;
   /** negocio */
   readonly bookingPath: string;
+  /** sitio */
+  readonly cabecera?: string;
 }
 
 /** <synergos-tree-view> · pieza · diccionario: TreeView */
@@ -1852,7 +1856,7 @@ export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
   record: "GovProps",
   diccionario: ["Gov.Tramite"],
   claves: ["Gov.Tramite.Action.Approve","Gov.Tramite.Action.Reject","Gov.Tramite.Action.RequestInfo","Gov.Tramite.Action.Resubmit","Gov.Tramite.Action.Take","Gov.Tramite.Actions.Hint","Gov.Tramite.Actions.Stale","Gov.Tramite.Actions.Waiting","Gov.Tramite.Consent.Accepted","Gov.Tramite.Consent.Declined","Gov.Tramite.Consent.Text","Gov.Tramite.Consent.Unknown","Gov.Tramite.Consent.Version","Gov.Tramite.Error.ActNotPrepared","Gov.Tramite.Error.Changed","Gov.Tramite.Error.Closed","Gov.Tramite.Error.NoOffer","Gov.Tramite.Error.NotAvailable","Gov.Tramite.Error.NotFound","Gov.Tramite.Error.Payment","Gov.Tramite.Error.Unfinished","Gov.Tramite.Notify.NeedsConsent","Gov.Tramite.Resubmit.Done","Gov.Tramite.Resubmit.Failed","Gov.Tramite.Resubmit.NoDocuments","Gov.Tramite.Resubmit.Note","Gov.Tramite.Resubmit.Title","Gov.Tramite.SignIn","Gov.Tramite.Take.Done","Gov.Tramite.Take.Failed","Gov.Tramite.Take.Hint","Gov.Tramite.Unavailable"],
-  campos: ["heading","subheading","apiBase","camino"],
+  campos: ["heading","subheading","apiBase","camino","cabecera"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -1860,7 +1864,8 @@ export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
     "heading": "Tus trámites, sin filas",
     "subheading": "Radica, paga la tasa y sigue tu expediente",
     "apiBase": "/api/gov",
-    "camino": "directa"
+    "camino": "directa",
+    "cabecera": "secundaria"
   },
 };
 
@@ -2957,7 +2962,7 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
   record: "TravelShellProps",
   diccionario: ["Travel.Booking"],
   claves: ["Travel.Booking.BadRequest","Travel.Booking.CancelPending","Travel.Booking.CancelledNoCharge","Travel.Booking.Generic","Travel.Booking.HoldExpired","Travel.Booking.ItemNotFulfilled","Travel.Booking.ItemTaken","Travel.Booking.NoDates","Travel.Booking.NotBookable","Travel.Booking.NotConfirmable","Travel.Booking.NotFound","Travel.Booking.NothingFulfilled","Travel.Booking.PartRefunded","Travel.Booking.PartiallyConfirmed","Travel.Booking.PastTripsUnavailable","Travel.Booking.PaymentFailed","Travel.Booking.PriceUnavailable","Travel.Booking.ReadOnlyTrip","Travel.Booking.RefundIssued","Travel.Booking.RoomBadRequest","Travel.Booking.RoomNotBookable","Travel.Booking.RoomTaken","Travel.Booking.SignIn","Travel.Booking.SignInRequired","Travel.Booking.StaySignIn","Travel.Booking.StillPending","Travel.Booking.Unavailable"],
-  campos: ["heading","subheading","apiBase","bookingPath"],
+  campos: ["heading","subheading","apiBase","bookingPath","cabecera"],
   listas: {},
   selectores: [],
   ejemplo: {
@@ -2965,7 +2970,8 @@ export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
     "heading": "Reserva tu próximo viaje",
     "subheading": "Vuelos, hoteles y paquetes",
     "apiBase": "/api/travel",
-    "bookingPath": "directa"
+    "bookingPath": "directa",
+    "cabecera": "secundaria"
   },
 };
 
