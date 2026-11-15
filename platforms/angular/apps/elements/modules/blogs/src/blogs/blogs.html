@@ -65,7 +65,7 @@
 
     @if (red.viewer(); as yo) {
       <p class="blogs__rail-me">
-        <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(yo) }}</span>
+        <syn-avatar aria-hidden="true" size="sm" [name]="presentacion.nombreDelAvatar(yo)" [src]="yo.avatarUrl || ''" />
         <span class="blogs__rail-me-text">
           <span class="blogs__rail-me-name">{{ yo.displayName }}</span>
           @if (yo.handle) {

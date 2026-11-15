@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MensajesDeBlogs, ModeracionDeBlogs, RedDeBlogs } from '@synergos/dominio/blogs';
-import { BadgeComponent, ButtonComponent } from '@synergos/shared';
+import { AvatarComponent, BadgeComponent, ButtonComponent } from '@synergos/shared';
 import { MessageCenterComponent, type MessageCenterConfig } from '@synergos/shells';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
@@ -15,7 +15,7 @@ import { textosDeModeracion } from '../../textos-de-moderacion';
 @Component({
   selector: 'sg-blogs-mensajes',
   standalone: true,
-  imports: [BadgeComponent, ButtonComponent, MessageCenterComponent, BlogsAccesoComponent, BlogsVerificadaComponent],
+  imports: [AvatarComponent, BadgeComponent, ButtonComponent, MessageCenterComponent, BlogsAccesoComponent, BlogsVerificadaComponent],
   templateUrl: './mensajes.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },

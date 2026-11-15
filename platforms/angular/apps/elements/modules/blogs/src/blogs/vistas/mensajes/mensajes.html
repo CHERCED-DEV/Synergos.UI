@@ -30,7 +30,7 @@
 
 <!-- ─── SH-7 conversation-list row + thread pane ───────────────────────────────── -->
 <ng-template #threadRowTpl let-thread let-selected="selected">
-  <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(thread.participant) }}</span>
+  <syn-avatar aria-hidden="true" size="sm" loading="lazy" [name]="presentacion.nombreDelAvatar(thread.participant)" [src]="thread.participant.avatarUrl || ''" />
   <span class="blogs__thread-row">
     <span class="blogs__thread-row-top">
       <span class="blogs__thread-row-name">{{ thread.participant.displayName }}</span>
@@ -47,7 +47,7 @@
   <header class="blogs__dm-head">
     <syn-button variant="plain" [href]="navegacion.urlDe('profile', thread.participant.handle)" (pressed)="navegacion.alPulsar('profile', thread.participant.handle)">
       <span class="blogs__dm-peer">
-        <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ presentacion.initials(thread.participant) }}</span>
+        <syn-avatar aria-hidden="true" size="sm" [name]="presentacion.nombreDelAvatar(thread.participant)" [src]="thread.participant.avatarUrl || ''" />
         <span class="blogs__dm-peer-name">
           {{ thread.participant.displayName }}
           @if (thread.participant.verified) {<span class="blogs__verified" aria-label="Verificada"><sg-blogs-verificada /></span>}

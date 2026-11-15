@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CompositorDeBlogs, RedDeBlogs } from '@synergos/dominio/blogs';
-import { ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent } from '@synergos/shared';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 
 /** Desde cuántos caracteres restantes el compositor avisa (una vez) de que quedan pocos. */
@@ -10,7 +10,7 @@ const DRAFT_FEW_CHARS = 20;
 @Component({
   selector: 'sg-blogs-compositor',
   standalone: true,
-  imports: [ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent],
+  imports: [AvatarComponent, ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent],
   templateUrl: './compositor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__pieza' },

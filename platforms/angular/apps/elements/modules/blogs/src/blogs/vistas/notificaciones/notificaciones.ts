@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
 import { NotificacionesDeBlogs, RedDeBlogs } from '@synergos/dominio/blogs';
-import { ButtonComponent, TabsComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent, TabsComponent } from '@synergos/shared';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsAccesoComponent } from '../../piezas/acceso/acceso';
 
@@ -8,7 +8,7 @@ import { BlogsAccesoComponent } from '../../piezas/acceso/acceso';
 @Component({
   selector: 'sg-blogs-notificaciones',
   standalone: true,
-  imports: [ButtonComponent, TabsComponent, BlogsAccesoComponent],
+  imports: [AvatarComponent, ButtonComponent, TabsComponent, BlogsAccesoComponent],
   templateUrl: './notificaciones.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },

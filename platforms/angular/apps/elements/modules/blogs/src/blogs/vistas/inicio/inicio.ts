@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { InicioDeBlogs, RedDeBlogs, type FeedScope } from '@synergos/dominio/blogs';
-import { ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsCompositorComponent } from '../../piezas/compositor/compositor';
@@ -11,7 +11,7 @@ import { textosDeLaRed } from '../../textos-de-la-red';
 @Component({
   selector: 'sg-blogs-inicio',
   standalone: true,
-  imports: [ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent, BlogsCompositorComponent, BlogsTarjetaComponent],
+  imports: [AvatarComponent, ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent, BlogsCompositorComponent, BlogsTarjetaComponent],
   templateUrl: './inicio.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },

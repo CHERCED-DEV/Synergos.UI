@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MensajesDeBlogs, PerfilDeBlogs, RedDeBlogs, SeguidoresDeBlogs } from '@synergos/dominio/blogs';
-import { ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
+import { AvatarComponent, ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsAccesoComponent } from '../../piezas/acceso/acceso';
@@ -13,6 +13,7 @@ import { textosDeLaRed } from '../../textos-de-la-red';
   selector: 'sg-blogs-perfil',
   standalone: true,
   imports: [
+    AvatarComponent,
     ButtonComponent,
     SynEmptyStateComponent,
     SynSkeletonComponent,
