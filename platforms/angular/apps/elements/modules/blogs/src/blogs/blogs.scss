@@ -249,10 +249,16 @@
   flex-direction: column;
   gap: syn.$space-2;
 
+  // En el teléfono, tres filas cortas en vez de una columna que se envolvía en 280–325 px (012, vuelta de valor): la
+  // marca con el «yo», la barra de iconos y las dos acciones lado a lado.
   @media (max-width: 60rem) {
     position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'marca yo'
+      'nav nav'
+      'cta cta';
     align-items: center;
   }
 }
@@ -263,6 +269,12 @@
   gap: syn.$space-2;
   margin: 0 0 syn.$space-3;
   padding: syn.$space-2 syn.$space-3;
+
+  @media (max-width: 60rem) {
+    grid-area: marca;
+    margin: 0;
+    padding: syn.$space-1 0;
+  }
 }
 
 .blogs__brand-mark {
@@ -315,9 +327,27 @@
   padding: 0;
   list-style: none;
 
+  // En el teléfono, una barra de iconos: el nombre de cada uno se oculta a la vista (lo sigue diciendo al lector de
+  // pantalla) y el botón se aprieta para que quepan los siete, también a 320 px.
   @media (max-width: 60rem) {
+    grid-area: nav;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 0;
+    --syn-button-padding-inline: #{syn.$space-2};
+
+    > li {
+      display: flex;
+      flex: 1 1 0;
+      justify-content: center;
+      min-width: 0;
+    }
+  }
+}
+
+.blogs__nav-label {
+  @media (max-width: 60rem) {
+    @include syn.visually-hidden;
   }
 }
 
@@ -334,6 +364,11 @@
   margin: syn.$space-2 0 0;
   padding: syn.$space-2 syn.$space-3;
   border-radius: syn.$radius-full;
+
+  @media (max-width: 60rem) {
+    grid-area: yo;
+    margin: 0;
+  }
 }
 
 .blogs__rail-me--signin {
@@ -859,6 +894,16 @@
   flex-direction: column;
   gap: syn.$space-2;
   margin: syn.$space-3 0;
+
+  @media (max-width: 60rem) {
+    grid-area: cta;
+    flex-direction: row;
+    margin: 0;
+
+    > * {
+      flex: 1 1 0;
+    }
+  }
 }
 
 // Progressive-enhancement embeds (hydrate in the CMS; hidden until upgraded so the
