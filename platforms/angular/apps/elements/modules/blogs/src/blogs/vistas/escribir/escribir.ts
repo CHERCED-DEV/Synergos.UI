@@ -4,6 +4,8 @@ import { ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent
 import { AuthoringWizardComponent, type AuthoringWizardConfig } from '@synergos/shells';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
+import { BlogsAccesoComponent } from '../../piezas/acceso/acceso';
+import { textosDeLaRed } from '../../textos-de-la-red';
 
 /**
  * Escribir un artículo (SH-6 `syn-authoring-wizard`, #26): contenido, portada y revisar. Lo que aporta y el editor no
@@ -12,7 +14,7 @@ import { PresentacionDeBlogs } from '../../estado/presentacion';
 @Component({
   selector: 'sg-blogs-escribir',
   standalone: true,
-  imports: [AuthoringWizardComponent, ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent],
+  imports: [AuthoringWizardComponent, ButtonComponent, InputComponent, LiveRegionComponent, TextareaComponent, BlogsAccesoComponent],
   templateUrl: './escribir.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },
@@ -22,6 +24,7 @@ export class BlogsEscribirComponent {
   protected readonly articulo = inject(ArticuloDeBlogs);
   protected readonly navegacion = inject(NavegacionDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
+  protected readonly textos = textosDeLaRed();
 
   readonly articleWizard = viewChild(AuthoringWizardComponent);
 

@@ -1,4 +1,4 @@
-@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+@use '../../../../../../../../vitals/core-assets/src/scss/sin-temas' as syn;
 
 .syn-button {
   @include syn.button-base;
@@ -160,6 +160,9 @@ a.syn-button {
 // The sm box stays at 32px — on the 8pt grid, per `--syn-control-h-sm`. Only the
 // pointer target grows to 44px (WCAG 2.5.5, AAA). See `_touch-target.scss`.
 .syn-button--sm { @include syn.button-size(sm); @include syn.touch-target; }
+// Una app puede apretar el relleno lateral de los botones chicos donde van muchos en fila (las acciones de una tarjeta
+// en un teléfono, 012). El alto de 32 px y el área táctil de 44 px no cambian.
+.syn-button--sm { padding-inline: var(--syn-button-padding-inline, #{syn.$space-sm}); }
 .syn-button--md { @include syn.button-size(md); }
 .syn-button--lg { @include syn.button-size(lg); }
 

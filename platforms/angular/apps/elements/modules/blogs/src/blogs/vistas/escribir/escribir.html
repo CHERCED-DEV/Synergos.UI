@@ -2,29 +2,38 @@
 <!-- ═══ ESCRIBIR: SH-6 syn-authoring-wizard (#26) ══════════════════════════
      Lo que aporta y el editor no tenía: BORRADOR PERSISTENTE con scope y TTL
      de 24 h, así que un artículo a medias sobrevive a recargar la página. -->
-<syn-button class="blogs__back" variant="ghost" size="sm" (pressed)="onArticleExit()">
-  <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-  Volver
-</syn-button>
+@if (red.viewer()) {
+  <syn-button class="blogs__back" variant="ghost" size="sm" (pressed)="onArticleExit()">
+    <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    Volver
+  </syn-button>
 
-@if (articulo.articleNotSaved()) {
-  <!-- Se pudo escribir y NO se guardó. Se dice, y el texto sigue donde
-       estaba: antes esto se borraba y se enseñaba la pantalla de publicado. -->
-  <p class="blogs__article-unsaved" role="alert">
-    No pudimos publicar tu artículo — el servidor no respondió.
-    <strong>Tu borrador está a salvo</strong>: se queda acá y sigue disponible
-    si recargas. Intenta publicar de nuevo en un momento.
-  </p>
+  @if (articulo.articleNotSaved()) {
+    <!-- Se pudo escribir y NO se guardó. Se dice, y el texto sigue donde
+         estaba: antes esto se borraba y se enseñaba la pantalla de publicado. -->
+    <p class="blogs__article-unsaved" role="alert">
+      No pudimos publicar tu artículo — el servidor no respondió.
+      <strong>Tu borrador está a salvo</strong>: se queda acá y sigue disponible
+      si recargas. Intenta publicar de nuevo en un momento.
+    </p>
+  }
+
+  <syn-authoring-wizard
+    [config]="articleWizardConfig()"
+    [stepTemplate]="articleStepTpl"
+    [validity]="articulo.articleValidity()"
+    [publishing]="red.publishing()"
+    (published)="articulo.publishArticle()"
+    (exit)="onArticleExit()"
+  ></syn-authoring-wizard>
+} @else {
+  <!-- Sin sesión no se ofrece escribir lo que no se podrá publicar: se invita a entrar, como en el inicio (vuelta de
+       valor). WCAG 2.4.3: el enganche de foco del panel, como en las notificaciones. -->
+  <sg-blogs-acceso>
+    <h1 class="blogs__signin-title">{{ textos.escribirSinSesion }}</h1>
+    <p class="blogs__signin-text">{{ textos.escribirSinSesionTexto }}</p>
+  </sg-blogs-acceso>
 }
-
-<syn-authoring-wizard
-  [config]="articleWizardConfig()"
-  [stepTemplate]="articleStepTpl"
-  [validity]="articulo.articleValidity()"
-  [publishing]="red.publishing()"
-  (published)="articulo.publishArticle()"
-  (exit)="onArticleExit()"
-></syn-authoring-wizard>
 
 <!-- ─── Pasos del artículo (SH-6) ─────────────────────────────────────────────── -->
 <!-- El contenido de los tres pasos. Título y cuerpo van JUNTOS a propósito: son la

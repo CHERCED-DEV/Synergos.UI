@@ -403,6 +403,17 @@ describe('BlogsElementComponent', () => {
       expect(entrar?.getAttribute('href')).toContain('/account/login');
     });
 
+    it('con host y sin sesión, Escribir pide entrar en vez de ofrecer un editor que no podrá publicar', async () => {
+      conHost({ member: null });
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent('', { ...NEGOCIO_DEL_CMS, vista: 'escribir' });
+      fixture.detectChanges();
+
+      const escribir = (fixture.nativeElement as HTMLElement).querySelector('sg-blogs-escribir');
+      expect(escribir?.querySelector('.blogs__signin-title')?.textContent?.trim()).toBe('Inicia sesión para escribir un artículo');
+      expect(escribir?.querySelector('syn-authoring-wizard')).toBeNull();
+    });
+
     it('con host y sin sesión, el perfil sin alias pide entrar en vez de quedar en blanco; con alias, no', async () => {
       conHost({ member: null });
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
