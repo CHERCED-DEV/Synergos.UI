@@ -136,6 +136,8 @@ export interface Post {
   readonly reposted: boolean;
   /** La página de un artículo del CMS en el sitio (012, I3, T022): su tarjeta la abre. Lo de un miembro no la tiene. */
   readonly pageUrl?: string;
+  /** El título de un artículo del CMS, lo primero que se lee de su tarjeta (012, vuelta de valor). Lo de un miembro no lo tiene. */
+  readonly title?: string;
 }
 
 /** `GET /api/blogs/feed?scope=&cursor=` response. */

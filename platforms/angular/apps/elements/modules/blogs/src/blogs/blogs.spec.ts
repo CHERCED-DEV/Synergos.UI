@@ -1958,6 +1958,28 @@ describe('BlogsElementComponent', () => {
     const pedidas = (fetchMock: ReturnType<typeof vi.fn>): string[] =>
       fetchMock.mock.calls.map(([url]) => String(url));
 
+    it('la tarjeta de un artículo lleva su título, que enlaza su página; la de un miembro no tiene título', async () => {
+      bordeGenerico({
+        '/api/blogs/feed': {
+          posts: [
+            postDeServidor({ id: 'art-1', objectKind: 'postPage', title: 'Arquitectura por capas', pageUrl: '/blogs/ingenieria/capas/', body: 'El resumen.' }),
+            postDeServidor({ id: 'srv-2', title: 'No es suyo', body: 'Lo que publica un miembro' }),
+          ],
+          nextCursor: null,
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      const titulos = Array.from(host.querySelectorAll('sg-blogs-tarjeta h2.blogs__post-title'));
+      expect(titulos.map((titulo) => titulo.textContent?.trim())).toEqual(['Arquitectura por capas']);
+      expect(titulos[0]?.querySelector('a')?.getAttribute('href')).toBe('/blogs/ingenieria/capas/');
+      // El extracto ya no enlaza la página: lo hace el título.
+      expect(host.querySelector('sg-blogs-tarjeta .blogs__post-body a')).toBeNull();
+    });
+
     it('Explorar por etiqueta lee el catálogo de la red y pinta cada publicación como la interina', async () => {
       const fetchMock = bordeGenerico({
         [`${LECTURAS}/catalogo`]: {
@@ -1982,6 +2004,7 @@ describe('BlogsElementComponent', () => {
       expect(component.explorar.searchResult()?.posts[0]).toMatchObject({
         id: 'post-capas',
         objectKind: 'postPage',
+        title: 'Arquitectura por capas',
         pageUrl: '/blogs/ingenieria/arquitectura-por-capas/',
         hashtags: ['arquitectura'],
         commentCount: 7,

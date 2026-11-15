@@ -24,8 +24,17 @@
     <span class="blogs__kind">{{ post.objectKind === 'lesson' ? 'Lección' : 'Artículo' }}</span>
   }
 
-  <!-- Un artículo del CMS se lee en su página (T022): el extracto la enlaza. -->
-  @if (post.pageUrl) {
+  <!-- Un artículo del CMS se lee en su página (T022): su título la enlaza y, si no lo trae, el extracto. -->
+  @if (post.title) {
+    <h2 class="blogs__post-title">
+      @if (post.pageUrl) {
+        <a class="blogs__post-link" [href]="post.pageUrl">{{ post.title }}</a>
+      } @else {
+        {{ post.title }}
+      }
+    </h2>
+    <p class="blogs__post-body">{{ post.body }}</p>
+  } @else if (post.pageUrl) {
     <p class="blogs__post-body"><a class="blogs__post-link" [href]="post.pageUrl">{{ post.body }}</a></p>
   } @else {
     <p class="blogs__post-body">{{ post.body }}</p>
