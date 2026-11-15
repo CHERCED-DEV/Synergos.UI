@@ -15,6 +15,12 @@ export function textosDeLaRed() {
     get sesionParaPublicar(): string {
       return t('Blogs.Red.SesionParaPublicar', 'Inicia sesión para publicar');
     },
+    get escribirSinSesion(): string {
+      return t('Blogs.Red.EscribirSinSesion', 'Inicia sesión para escribir un artículo');
+    },
+    get escribirSinSesionTexto(): string {
+      return t('Blogs.Red.EscribirSinSesionTexto', 'Tus artículos salen con tu nombre y tu perfil. Entra y escribe aquí el tuyo.');
+    },
     /** «1 publicación» o «N publicaciones», con la cifra ya formateada (`1,2 k`). */
     publicaciones(cantidad: number, cifra: string): string {
       return cantidad === 1

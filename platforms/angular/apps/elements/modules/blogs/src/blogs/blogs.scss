@@ -626,6 +626,13 @@
   margin-top: syn.$space-3;
   padding-top: syn.$space-3;
   border-top: syn.px-to-rem(1) solid var(--bl-border-subtle);
+
+  // En un teléfono, las ocho acciones en una fila (012, vuelta de valor): botones más angostos y menos hueco. El área
+  // táctil de cada uno sigue siendo de 44 px.
+  @media (max-width: 30rem) {
+    gap: syn.$space-1;
+    --syn-button-padding-inline: #{syn.$space-2};
+  }
 }
 
 .blogs__reactions {
