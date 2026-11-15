@@ -84,12 +84,19 @@
 
     <syn-button variant="ghost" size="sm" [href]="navegacion.urlDeLaPublicacion(post)" (pressed)="navegacion.alPulsarLaPublicacion(post)"
       [ariaLabel]="'Comentarios (' + post.commentCount + ')'">
-      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> {{ presentacion.formatCount(post.commentCount) }}
+      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+      <!-- Sin el número cuando es cero: la etiqueta accesible lo sigue diciendo. -->
+      @if (post.commentCount > 0) {
+        {{ presentacion.formatCount(post.commentCount) }}
+      }
     </syn-button>
 
     <syn-button variant="ghost" size="sm" [selected]="post.reposted"
       (pressed)="reacciones.toggleRepost(post)" [ariaLabel]="'Republicar (' + post.repostCount + ')'">
-      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg> {{ presentacion.formatCount(post.repostCount) }}
+      <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      @if (post.repostCount > 0) {
+        {{ presentacion.formatCount(post.repostCount) }}
+      }
     </syn-button>
 
     <syn-button variant="ghost" size="sm" [selected]="guardados.isSaved(post.id)"

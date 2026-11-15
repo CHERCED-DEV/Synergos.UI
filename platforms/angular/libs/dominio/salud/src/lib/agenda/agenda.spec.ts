@@ -51,6 +51,9 @@ const TEXTOS: TextosDeSalud = {
     renovacionAprobada: 'renovacionAprobada',
     renovacionRechazada: 'renovacionRechazada',
     renovacionImposible: 'renovacionImposible',
+    mensajeEnviado: 'mensajeEnviado',
+    mensajeRevisa: 'mensajeRevisa',
+    respuestaEnviada: 'respuestaEnviada',
   },
   cancelacion: { cancelada: () => 'cancelada', mensaje: (code) => `rechazo ${code}` },
 };

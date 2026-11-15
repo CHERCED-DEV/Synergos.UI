@@ -390,6 +390,35 @@ describe('BlogsElementComponent', () => {
         (boton.textContent ?? '').includes('Perfil'),
       );
 
+    it('con host y sin sesión, el inicio invita a entrar en vez de ofrecer un compositor que no podrá publicar', async () => {
+      conHost({ member: null });
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      fixture.detectChanges();
+
+      const inicio = (fixture.nativeElement as HTMLElement).querySelector('sg-blogs-inicio');
+      expect(inicio?.textContent).not.toContain('¿Qué estás pensando?');
+      const entrar = inicio?.querySelector<HTMLAnchorElement>('.blogs__composer-inline a');
+      expect(entrar?.textContent?.trim()).toBe('Inicia sesión para publicar');
+      expect(entrar?.getAttribute('href')).toContain('/account/login');
+    });
+
+    it('con host y sin sesión, el perfil sin alias pide entrar en vez de quedar en blanco; con alias, no', async () => {
+      conHost({ member: null });
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent('', { ...NEGOCIO_DEL_CMS, vista: 'perfil' });
+      fixture.detectChanges();
+
+      const titulo = (): string | undefined =>
+        (fixture.nativeElement as HTMLElement).querySelector('sg-blogs-perfil .blogs__signin-title')?.textContent?.trim();
+      expect(titulo()).toBe('Inicia sesión para ver tu perfil');
+
+      component.navegacion.openProfile('ana-autora');
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(titulo()).toBeUndefined();
+    });
+
     it('sin host, la tarjeta «yo» es la de muestra, como siempre', async () => {
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
       await createComponent();
@@ -1963,6 +1992,64 @@ describe('BlogsElementComponent', () => {
       });
       expect(component.explorar.searchResult()?.hashtags).toEqual([{ tag: 'arquitectura', postCount: 1 }]);
       expect(pedidas(fetchMock).some((url) => url.includes('/api/blogs/explore'))).toBe(false);
+    });
+
+    // ─── La vuelta de valor: las tendencias y los contadores ──────────────────────
+    it('las tendencias salen de las etiquetas del catálogo, de la más usada a la menos, y no de la interina', async () => {
+      const fetchMock = bordeGenerico({
+        [`${LECTURAS}/catalogo`]: {
+          elementos: [ARTICULO],
+          facetas: [
+            {
+              campo: 'etiqueta',
+              titulo: 'Etiqueta',
+              tipo: 'MultiSelect',
+              valores: [
+                { valor: 'ux', etiqueta: 'ux', cantidad: 1 },
+                { valor: 'arquitectura', etiqueta: 'arquitectura', cantidad: 3 },
+                { valor: 'producto', etiqueta: 'producto', cantidad: 2 },
+              ],
+            },
+          ],
+          total: 1,
+        },
+      });
+      await createComponent('', CON_LECTURAS);
+
+      expect(component.explorar.trending()).toEqual([
+        { tag: 'arquitectura', postCount: 3 },
+        { tag: 'producto', postCount: 2 },
+        { tag: 'ux', postCount: 1 },
+      ]);
+      expect(pedidas(fetchMock)).toContain(`${LECTURAS}/catalogo?porPagina=1`);
+      expect(pedidas(fetchMock).some((url) => url.includes('/trending'))).toBe(false);
+
+      // La cuenta concuerda con el número: «1 publicación», «3 publicaciones».
+      fixture.detectChanges();
+      expect(
+        Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.blogs__trend-count')).map((n) =>
+          n.textContent?.trim(),
+        ),
+      ).toEqual(['3 publicaciones', '2 publicaciones', '1 publicación']);
+    });
+
+    it('una tarjeta no pinta el «0» de comentarios ni de republicaciones; la etiqueta accesible sí lo dice', async () => {
+      bordeGenerico({
+        [`${LECTURAS}/catalogo`]: {
+          elementos: [{ ...ARTICULO, atributos: { ...ARTICULO.atributos, comentarios: '0' } }],
+          facetas: [],
+          total: 1,
+        },
+      });
+      await createComponent('', { ...CON_LECTURAS, vista: 'explorar' });
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(component.explorar.searchItems()).toHaveLength(1);
+
+      const host = fixture.nativeElement as HTMLElement;
+      // De un artículo, «Comentarios» es un enlace a su página: se busca por la etiqueta, no por el botón.
+      expect(host.querySelector('sg-blogs-tarjeta [aria-label="Comentarios (0)"]')?.textContent?.trim()).toBe('');
+      expect(host.querySelector('sg-blogs-tarjeta button[aria-label="Republicar (3)"]')?.textContent?.trim()).toBe('3');
     });
 
     // ─── Una página por etiqueta (I6): Explorar con la etiqueta fija del bloque ──

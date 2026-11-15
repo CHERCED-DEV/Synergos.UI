@@ -6,6 +6,7 @@ import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsTarjetaComponent } from '../../piezas/tarjeta/tarjeta';
 import { BlogsVerificadaComponent } from '../../piezas/verificada/verificada';
+import { textosDeLaRed } from '../../textos-de-la-red';
 
 const SEARCH_SORT: readonly DiscoverySortOption[] = [
   { key: 'top', label: 'Top' },
@@ -39,6 +40,7 @@ export class BlogsExplorarComponent {
   protected readonly seguidores = inject(SeguidoresDeBlogs);
   protected readonly navegacion = inject(NavegacionDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
+  protected readonly textosRed = textosDeLaRed();
 
   readonly searchSort = SEARCH_SORT;
 

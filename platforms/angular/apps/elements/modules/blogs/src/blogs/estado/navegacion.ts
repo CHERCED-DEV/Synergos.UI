@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, inject } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import {
   EstudioDeBlogs,
   ExplorarDeBlogs,
@@ -58,7 +58,10 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
   #acotada: () => boolean = () => false;
 
   /** El alias que pidió la ruta o un enlace: la página del perfil sin él abre el de quien lee. */
-  #perfilPedido = '';
+  readonly #perfilPedido = signal('');
+
+  /** Si la ruta o un enlace pidieron un perfil por su alias: sin eso, la página del perfil es la de quien lee. */
+  readonly pidioUnPerfil = computed(() => this.#perfilPedido() !== '');
 
   /** El shell la escucha para emitir `viewchanged`. */
   alCambiarDeVista: (view: BlogsView) => void = () => undefined;
@@ -93,7 +96,7 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
   /** La página del perfil sin alias en la ruta abre el de quien lee, en cuanto se sabe quién es. */
   abrirMiPerfilSiFalta(): void {
     const handle = this.#red.viewer()?.handle;
-    if (handle && this.#red.view() === 'profile' && !this.#perfilPedido) {
+    if (handle && this.#red.view() === 'profile' && !this.#perfilPedido()) {
       this.openProfile(handle);
     }
   }
@@ -225,7 +228,7 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
       this.abrirPagina(pagina);
       return;
     }
-    this.#perfilPedido = handle;
+    this.#perfilPedido.set(handle);
     this.#perfil.reset();
     this.applyRoute('profile', '');
     this.escribirRuta('profile', handle);
@@ -357,7 +360,7 @@ export class NavegacionDeBlogs implements NavegacionDeLaRed {
         return;
       case 'profile':
         if (param) {
-          this.#perfilPedido = param;
+          this.#perfilPedido.set(param);
           void this.#perfil.loadProfile(param);
         }
         return;

@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { InicioDeBlogs, RedDeBlogs, type FeedScope } from '@synergos/dominio/blogs';
 import { ButtonComponent, SynEmptyStateComponent, SynSkeletonComponent, TabsComponent } from '@synergos/shared';
+import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsCompositorComponent } from '../../piezas/compositor/compositor';
 import { BlogsTarjetaComponent } from '../../piezas/tarjeta/tarjeta';
+import { textosDeLaRed } from '../../textos-de-la-red';
 
 /** El inicio de la red: el título que compone el CMS, «Para ti» o «Siguiendo», el compositor y el feed. */
 @Component({
@@ -18,6 +20,8 @@ export class BlogsInicioComponent {
   protected readonly red = inject(RedDeBlogs);
   protected readonly inicio = inject(InicioDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
+  protected readonly navegacion = inject(NavegacionDeBlogs);
+  protected readonly textosRed = textosDeLaRed();
 
   readonly heading = input('');
 

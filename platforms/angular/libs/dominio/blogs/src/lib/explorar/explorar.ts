@@ -113,7 +113,7 @@ export class ExplorarDeBlogs {
 
   async loadTrending(): Promise<void> {
     try {
-      this.trending.set(await this.#api.trending(this.#red.apiBase()));
+      this.trending.set(await this.#api.trending(this.#red.apiBase(), this.#red.lecturasBase()));
     } catch (error) {
       void error;
     }
