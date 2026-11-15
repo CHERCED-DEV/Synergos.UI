@@ -37,6 +37,9 @@ const HISTORIA: TextosDeLaHistoria = {
   renovacionAprobada: 'renovacionAprobada',
   renovacionRechazada: 'renovacionRechazada',
   renovacionImposible: 'renovacionImposible',
+  mensajeEnviado: 'mensajeEnviado',
+  mensajeRevisa: 'mensajeRevisa',
+  respuestaEnviada: 'respuestaEnviada',
 };
 
 function fachada<T>(tipo: Type<T>): T {

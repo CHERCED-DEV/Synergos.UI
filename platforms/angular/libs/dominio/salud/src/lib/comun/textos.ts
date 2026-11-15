@@ -60,6 +60,10 @@ export interface TextosDeLaHistoria {
   readonly renovacionAprobada: string;
   readonly renovacionRechazada: string;
   readonly renovacionImposible: string;
+  // Mensajes y bandeja (I7).
+  readonly mensajeEnviado: string;
+  readonly mensajeRevisa: string;
+  readonly respuestaEnviada: string;
 }
 
 /**

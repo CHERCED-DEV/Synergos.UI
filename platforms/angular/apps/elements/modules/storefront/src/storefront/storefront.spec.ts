@@ -18,6 +18,29 @@ describe('La tienda: el elemento', () => {
   // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
   // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
   // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('dentro de un sitio con cabecera no repite su marca y su menú queda como barra secundaria (D-016-V2)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ apiBase: '/api/shop', cabecera: 'secundaria' });
+    fixture.detectChanges();
+
+    const barra = fixture.nativeElement.querySelector('.storefront__bar') as HTMLElement;
+    expect(barra.classList.contains('storefront__bar--secundaria')).toBe(true);
+    expect(barra.querySelector('.storefront__brand')).toBeNull();
+    expect(barra.querySelector('.storefront__nav')).not.toBeNull();
+  });
+
+  it('sin el dato del sitio pinta la cabecera completa, con su marca (servida sola)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ apiBase: '/api/shop', cabecera: 'oculta' });
+    fixture.detectChanges();
+
+    const barra = fixture.nativeElement.querySelector('.storefront__bar') as HTMLElement;
+    expect(barra.classList.contains('storefront__bar--secundaria')).toBe(false);
+    expect(barra.querySelector('.storefront__brand')).not.toBeNull();
+  });
+
   it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
     const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
     vi.stubGlobal('fetch', red);

@@ -4,10 +4,12 @@ import {
   ElementRef,
   booleanAttribute,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { InitialDataService } from '@synergos/core';
 import {
@@ -397,12 +399,16 @@ export class PaxSelectorElementComponent {
     this.commit(next);
   }
 
-  /** Re-seed from `initial` config exactly once, lazily. */
+  /**
+   * Siembra desde `initial` una sola vez, cuando LLEGA. En un custom element el atributo puede aplicarse después de
+   * `ngOnInit`: antes se daba por sembrado aunque no hubiera nada, y el `initial` que llegaba después se ignoraba (el
+   * asistente de Hoteles mandaba 2 adultos, el selector pintaba 1 y el resumen decía 2; 016, 4.ª vuelta). Lo que toca la
+   * persona cierra la siembra: un `initial` tardío no pisa su elección.
+   */
   seedInitial(): void {
     if (this.#initialSeeded) {
       return;
     }
-    this.#initialSeeded = true;
 
     const raw =
       this.initialInput() !== undefined
@@ -413,7 +419,17 @@ export class PaxSelectorElementComponent {
       return;
     }
 
+    this.#initialSeeded = true;
     this.rooms.set(normalizeRooms(raw, this.maxRooms(), this.maxPerRoom(), this.maxChildAge()));
+  }
+
+  constructor() {
+    // El `initial` (atributo o config) puede llegar después de crear el elemento: se siembra cuando llega.
+    effect(() => {
+      this.initialInput();
+      this.config();
+      untracked(() => this.seedInitial());
+    });
   }
 
   ngOnInit(): void {
@@ -421,6 +437,7 @@ export class PaxSelectorElementComponent {
   }
 
   private commit(rooms: readonly PaxRoom[]): void {
+    this.#initialSeeded = true;
     this.rooms.set(rooms);
     this.occupancychange.emit({
       rooms: rooms.map((room) => ({ adults: room.adults, childAges: [...room.childAges] })),

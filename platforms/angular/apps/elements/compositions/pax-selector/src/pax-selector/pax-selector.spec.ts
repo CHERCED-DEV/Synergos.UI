@@ -25,6 +25,25 @@ describe('PaxSelectorElementComponent', () => {
     expect(component.summary()).toBe('1 habitación · 1 adulto · 0 niños');
   });
 
+  it('un initial que llega DESPUÉS de montar se siembra (el asistente de Hoteles manda 2 adultos; 016)', async () => {
+    fixture.componentRef.setInput('initial', JSON.stringify({ rooms: [{ adults: 2, childAges: [] }] }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.totalAdults()).toBe(2);
+    expect(component.summary()).toBe('1 habitación · 2 adultos · 0 niños');
+  });
+
+  it('lo que elige la persona no lo pisa un initial tardío', async () => {
+    component.addRoom();
+    fixture.componentRef.setInput('initial', JSON.stringify({ rooms: [{ adults: 3, childAges: [] }] }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.totalRooms()).toBe(2);
+    expect(component.totalAdults()).toBe(2);
+  });
+
   it('sin «desplegable» queda abierto en línea, como siempre (asistente de hotel)', () => {
     expect(component.panelVisible()).toBe(true);
     expect(fixture.nativeElement.querySelector('.pax-selector__toggle')).toBeNull();
