@@ -1421,7 +1421,7 @@ export const DATA_GRID_SYNHOST: ElementoSynHost<DataGridProps> = {
   tipo: "pieza",
   record: "DataGridProps",
   diccionario: ["DataGrid"],
-  claves: ["DataGrid.Aria","DataGrid.Count.One","DataGrid.Count.Other","DataGrid.Cta","DataGrid.Date","DataGrid.Detail","DataGrid.Duration","DataGrid.Empty","DataGrid.Free","DataGrid.Level","DataGrid.Loading","DataGrid.Location","DataGrid.NoResults","DataGrid.Place","DataGrid.Price","DataGrid.PriceFrom"],
+  claves: ["DataGrid.Aria","DataGrid.Count.One","DataGrid.Count.Other","DataGrid.Cta","DataGrid.Date","DataGrid.Detail","DataGrid.Duration","DataGrid.Empty","DataGrid.Free","DataGrid.Level","DataGrid.Loading","DataGrid.Location","DataGrid.NoResults","DataGrid.PerMonth","DataGrid.Place","DataGrid.Price","DataGrid.PriceFrom"],
   campos: ["rows"],
   listas: {"rows":["id","title","href","image","imageAlt","badge","specs"]},
   selectores: [
