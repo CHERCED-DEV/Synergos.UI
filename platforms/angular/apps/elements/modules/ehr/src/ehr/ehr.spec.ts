@@ -564,6 +564,38 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(host.textContent).not.toContain('No pudimos leer tus resultados');
   });
 
+  // ── Vuelta de valor (2026-11-26): el inicio con la historia de producción, que es lo primero que ve quien entra ──
+  /** El inicio de `HistoriaBase`, ya asentado. */
+  async function inicioConLaHistoria(sesion: FakeServerOptions['sesion'], camino: 'directa' | 'puerta'): Promise<HTMLElement> {
+    await createComponent({ sesion }, { ...NEGOCIO_DEL_CMS, historiaBase: '/api/healthcare', appointmentPath: camino });
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    return fixture.nativeElement;
+  }
+
+  it.each(['directa', 'puerta'] as const)(
+    'sin sesión, el inicio de la historia pide iniciar sesión, no dice «no tienes citas» (%s)',
+    async (camino) => {
+      const host = await inicioConLaHistoria('anonimo', camino);
+
+      expect(component.access()).toBe('sin-sesion');
+      expect(host.querySelector('.ehr__access')?.textContent).toContain('Inicia sesión para ver tu historia clínica');
+      expect(host.textContent).not.toContain('No tienes citas próximas');
+      expect(host.textContent).not.toContain('No pudimos leer esto ahora');
+    },
+  );
+
+  it('con sesión y por la directa, el inicio lee la próxima cita del portal en vez de darla por ninguna', async () => {
+    const host = await inicioConLaHistoria(SOLO_PACIENTE, 'directa');
+
+    expect(component.access()).toBe('ok');
+    expect(component.proximaDelInicio()).toContain('08:00');
+    expect(component.proximaDelInicio()).toContain('Dra. Laura Méndez');
+    expect(host.textContent).not.toContain('No tienes citas próximas');
+  });
+
   it('una cuenta sin historia vinculada (404 con `{ error }`) ve un estado vacío, no un error', async () => {
     await createComponent({ sesion: SIN_HISTORIA });
     fixture.detectChanges();
