@@ -490,11 +490,11 @@ export class GovElementComponent implements OnInit {
         badge: this.unopenedCount() || undefined,
       },
     ],
-    inboxEmptyTitle: 'No tienes actos notificados',
+    inboxEmptyTitle: 'No tiene actos notificados',
     inboxEmptyMessage:
       'Cuando una entidad le ponga en conocimiento una decisión, aparecerá aquí.',
-    inboxLoadingMessage: 'Cargando tus notificaciones…',
-    detailPlaceholder: 'Elige un acto para abrirlo.',
+    inboxLoadingMessage: 'Cargando sus notificaciones…',
+    detailPlaceholder: 'Elija un acto para abrirlo.',
   }));
 
   // ─── Comprobante de radicación (SH-11) ──────────────────────────────────────
@@ -620,7 +620,7 @@ export class GovElementComponent implements OnInit {
       ) {
         return;
       }
-      this.errorMessage.set('No pudimos cargar tus notificaciones.');
+      this.errorMessage.set('No pudimos cargar sus notificaciones.');
     } finally {
       this.loading.set(false);
     }
@@ -663,7 +663,7 @@ export class GovElementComponent implements OnInit {
         return;
       }
       this.openError.set(
-        'No pudimos registrar la apertura de este acto. No se abrió y el término no ha empezado: intenta de nuevo.',
+        'No pudimos registrar la apertura de este acto. No se abrió y el término no ha empezado: intente de nuevo.',
       );
       void error;
     } finally {
