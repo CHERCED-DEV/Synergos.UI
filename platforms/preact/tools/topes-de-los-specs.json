@@ -1,0 +1,6 @@
+{
+  "tools/elemento.spec.mjs": {
+    "tope": 30000,
+    "razon": "lanza el build ENTERO de Preact de verdad, con `--watch` y canal IPC como lo lanza `dev:cdn` (UI#91), y espera su aviso `dist-listo` (#88). El fichero entero tarda 2,3–3,1 s con la máquina tranquila; con el CMS y otras líneas en paralelo ese build solo tardó 5144 ms (tanda 40), por encima de los 5 s de serie. Lo que se prueba es que el build de verdad avisa y se queda mirando; simularlo no probaría que `dev:cdn` se entera."
+  }
+}

@@ -4,10 +4,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
+  FICHERO_DE_TOPES,
   TOPES_DECLARADOS,
   configsDeVitest,
   revisarEsperas,
   specsDelRepo,
+  topesDeLasPlataformas,
+  topesDeclarados,
   topesExplicitos,
   topesGlobales,
   vueltasEnBucle,
@@ -43,15 +46,25 @@ describe('las esperas de los specs, contra el árbol de verdad (#84)', () => {
   it('todo tope explícito está en TOPES_DECLARADOS con su razón — y ninguna entrada sobra', () => {
     expect(
       resultado.sinDeclarar,
-      'Un tope propio sin razón escrita es subir el global a escondidas. Declaralo en ' +
-        'TOPES_DECLARADOS (tools/lib/esperas-de-los-specs.mjs) diciendo QUÉ cuesta el tiempo, ' +
-        'medido:\n  ' + resultado.sinDeclarar.join('\n  '),
+      'Un tope propio sin razón escrita es subir el global a escondidas. Declaralo diciendo QUÉ ' +
+        'cuesta el tiempo, medido: el de un spec neutral en TOPES_DECLARADOS ' +
+        `(tools/lib/esperas-de-los-specs.mjs), el de una plataforma en su tools/${FICHERO_DE_TOPES}:\n  ` +
+        resultado.sinDeclarar.join('\n  '),
     ).toEqual([]);
     expect(resultado.sobrantes, 'una excepción que sobra deja de leerse').toEqual([]);
   });
 
-  it.each(Object.entries(TOPES_DECLARADOS))('%s dice por qué', (_, { razon }) => {
+  it.each(Object.entries(topesDeclarados(REPO)))('%s dice por qué', (_, { razon }) => {
     expect(razon.length).toBeGreaterThan(60);
+  });
+
+  it('el censo neutral no declara topes de una plataforma: los declara ella (#60)', () => {
+    // Este módulo no nombra rutas de plataforma. Antes llevaba dos specs de Angular, y el
+    // censo de rutas de frameworks.spec no los veía: su limpiador de comentarios tomaba el
+    // comodín de una ruta escrita en una cadena del módulo como el principio de un comentario.
+    expect(Object.keys(TOPES_DECLARADOS).filter((r) => r.startsWith('platforms/'))).toEqual([]);
+    // Y las plataformas sí declaran: si el descubrimiento se rompiera, esto vería cero.
+    expect(Object.keys(topesDeLasPlataformas(REPO)).length).toBeGreaterThanOrEqual(3);
   });
 
   it('ningún spec da vueltas de setTimeout(0) en un bucle propio: usa `asentar`', () => {
@@ -146,15 +159,52 @@ describe('el cruce, sobre un árbol con la forma del repo', () => {
   /** La ruta relativa del spec del fixture, armada sin literal de plataforma. */
   const SPEC = ['platforms', PLATAFORMA, 'apps', 'x', 'x.spec.ts'].join('/');
 
-  function arbol({ spec, config = 'export default {};' }) {
+  function arbol({ spec, config = 'export default {};', topes }) {
     raiz = mkdtempSync(path.join(tmpdir(), 'esperas-'));
     const dir = path.join(raiz, 'platforms', PLATAFORMA);
     mkdirSync(path.join(dir, 'apps', 'x'), { recursive: true });
     writeFileSync(path.join(dir, 'package.json'), '{}');
     writeFileSync(path.join(dir, 'vitest.config.ts'), config);
     writeFileSync(path.join(dir, 'apps', 'x', 'x.spec.ts'), spec);
+    if (topes) {
+      mkdirSync(path.join(dir, 'tools'), { recursive: true });
+      writeFileSync(path.join(dir, 'tools', FICHERO_DE_TOPES), JSON.stringify(topes));
+    }
     return raiz;
   }
+
+  const RAZON = 'lo que cuesta el tiempo, medido, para que la excepción se pueda volver a leer';
+
+  it('la plataforma declara el tope de SU spec en su fichero, sin tocar el censo neutral', () => {
+    const r = arbol({
+      spec: "describe('v', { timeout: 15000 }, () => {});",
+      topes: { 'apps/x/x.spec.ts': { tope: 15000, razon: RAZON } },
+    });
+    expect(topesDeLasPlataformas(r)).toEqual({ [SPEC]: { tope: 15000, razon: RAZON } });
+    expect(revisarEsperas(r, topesDeLasPlataformas(r)).sinDeclarar).toEqual([]);
+    expect(revisarEsperas(r, topesDeLasPlataformas(r)).sobrantes).toEqual([]);
+  });
+
+  it('lo que declara la plataforma se cruza igual: otra cifra rompe, y una entrada sin uso sobra', () => {
+    const otraCifra = arbol({
+      spec: "describe('v', { timeout: 30000 }, () => {});",
+      topes: { 'apps/x/x.spec.ts': { tope: 15000, razon: RAZON } },
+    });
+    expect(revisarEsperas(otraCifra, topesDeLasPlataformas(otraCifra)).sinDeclarar).toHaveLength(1);
+    rmSync(otraCifra, { recursive: true, force: true });
+
+    const sinUso = arbol({ spec: "describe('v', () => {});", topes: { 'apps/x/x.spec.ts': { tope: 15000, razon: RAZON } } });
+    expect(revisarEsperas(sinUso, topesDeLasPlataformas(sinUso)).sobrantes).toHaveLength(1);
+  });
+
+  it('una plataforma no declara fuera de su árbol, ni una entrada sin cifra o sin razón', () => {
+    const fuera = arbol({ spec: '', topes: { '../../tools/lib/x.spec.mjs': { tope: 15000, razon: RAZON } } });
+    expect(() => topesDeLasPlataformas(fuera)).toThrow(/no es un spec de esta plataforma/);
+    rmSync(fuera, { recursive: true, force: true });
+
+    const sinRazon = arbol({ spec: '', topes: { 'apps/x/x.spec.ts': { tope: 15000 } } });
+    expect(() => topesDeLasPlataformas(sinRazon)).toThrow(/"tope" numérico y una "razon"/);
+  });
 
   it('un tope sin declarar rompe, y declarado con la misma cifra pasa', () => {
     const r = arbol({ spec: "describe('v', { timeout: 15000 }, () => {});" });

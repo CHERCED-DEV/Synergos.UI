@@ -47,9 +47,14 @@ import { raicesEnDisco } from './frameworks.mjs';
 const K = ts.SyntaxKind;
 
 /**
- * Los topes explícitos que existen, con su razón. Las claves son rutas relativas a la
- * raíz del repo. Se vigila en los DOS sentidos: un tope sin entrada rompe, y una entrada
- * cuyo fichero ya no declara ese tope también — una excepción que sobra deja de leerse.
+ * Los topes explícitos de los specs NEUTRALES (`tools/`, `vitals/`), con su razón. Las
+ * claves son rutas relativas a la raíz del repo. Se vigila en los DOS sentidos: un tope sin
+ * entrada rompe, y una entrada cuyo fichero ya no declara ese tope también — una excepción
+ * que sobra deja de leerse.
+ *
+ * Los de una plataforma NO van acá: los declara ella, en su `tools/topes-de-los-specs.json`
+ * (ver {@link topesDeLasPlataformas}). Este módulo es neutral (#60) y no nombra una ruta de
+ * plataforma; antes lo hacía con dos specs de Angular, y el censo de rutas no lo veía.
  */
 export const TOPES_DECLARADOS = {
   'tools/lib/sello-del-cdn.spec.mjs': {
@@ -107,23 +112,55 @@ export const TOPES_DECLARADOS = {
       'enlace. Cada caso arranca el servicio de esbuild; con `test:tools` en paralelo eso puede pasar ' +
       'de los 5 s de serie.',
   },
-  'platforms/angular/libs/shop/src/lib/cart.store.registro.spec.ts': {
-    tope: 30_000,
-    razon:
-      'simula DOS bundles con `vi.resetModules()` + `import()` del store (UI#85): la segunda copia ' +
-      'vuelve a evaluar el grafo de `@synergos/shared` que importa. Solo tarda ~2 s; con la suite ' +
-      'de Angular en paralelo se midió por encima de los 5 de serie. Simularlo de otro modo no ' +
-      'probaría que dos copias del módulo se encuentran.',
-  },
-  'platforms/angular/apps/domains/shop/cart-summary/src/cart-summary/carrito-de-la-pagina.spec.ts': {
-    tope: 30_000,
-    razon:
-      'monta `cart-summary` y `product-card` y además evalúa otra copia de `@synergos/shop` con ' +
-      '`vi.resetModules()` (UI#85), que arrastra el grafo de `@synergos/shared`: ~3,5 s sola y ' +
-      '5 s justos con la suite en paralelo (medido: "timed out in 5000ms"). El clic de verdad y las ' +
-      'dos copias son lo que se prueba; no se simulan.',
-  },
 };
+
+/** El fichero donde una plataforma declara los topes de SUS specs, bajo su `tools/`. */
+export const FICHERO_DE_TOPES = 'topes-de-los-specs.json';
+
+/**
+ * Los topes que declara cada plataforma en `platforms/<p>/tools/topes-de-los-specs.json`,
+ * con las claves pasadas a rutas relativas a la raíz del repo.
+ *
+ * El fichero es `{ "<ruta relativa a la plataforma>": { "tope": N, "razon": "…" } }`. La
+ * plataforma se descubre del disco (`raicesEnDisco`), como en el resto de este módulo, así
+ * que una nueva declara sus topes sin tocar nada neutral. Lo que no es una declaración
+ * cabal rompe en vez de ignorarse: una entrada sin cifra o sin razón, o que apunta fuera de
+ * su plataforma, sería una excepción que nadie revisó.
+ *
+ * @param {string} repo
+ * @returns {Record<string, { tope: number, razon: string }>}
+ */
+export function topesDeLasPlataformas(repo) {
+  const rel = (f) => path.relative(repo, f).split(path.sep).join('/');
+  const topes = {};
+  for (const raiz of raicesEnDisco(repo)) {
+    const fichero = path.join(raiz, 'tools', FICHERO_DE_TOPES);
+    if (!existsSync(fichero)) continue;
+    const declarados = JSON.parse(readFileSync(fichero, 'utf8'));
+    for (const [clave, decl] of Object.entries(declarados)) {
+      const destino = path.resolve(raiz, clave);
+      if (path.relative(raiz, destino).startsWith('..') || path.isAbsolute(clave)) {
+        throw new Error(`${rel(fichero)}: «${clave}» no es un spec de esta plataforma; cada una declara sólo los suyos.`);
+      }
+      if (typeof decl?.tope !== 'number' || typeof decl?.razon !== 'string') {
+        throw new Error(`${rel(fichero)}: «${clave}» necesita un "tope" numérico y una "razon".`);
+      }
+      topes[rel(destino)] = { tope: decl.tope, razon: decl.razon };
+    }
+  }
+  return topes;
+}
+
+/**
+ * Todos los topes declarados: los neutrales de {@link TOPES_DECLARADOS} y los de cada
+ * plataforma. No se pisan: los de una plataforma caen siempre bajo ella, y el spec exige que
+ * {@link TOPES_DECLARADOS} no tenga ninguno de una plataforma.
+ *
+ * @param {string} repo
+ */
+export function topesDeclarados(repo) {
+  return { ...TOPES_DECLARADOS, ...topesDeLasPlataformas(repo) };
+}
 
 /** Las llamadas que declaran tests o grupos: `describe`, `it`, `test` y sus variantes. */
 const DECLARADORES = new Set(['describe', 'it', 'test', 'suite', 'bench']);
@@ -279,7 +316,7 @@ export function configsDeVitest(repo) {
  * El cruce entero: `{ globales, sinDeclarar, sobrantes, bucles }`, cada uno una lista de
  * cadenas legibles. Todo vacío = verde.
  */
-export function revisarEsperas(repo, declarados = TOPES_DECLARADOS) {
+export function revisarEsperas(repo, declarados = topesDeclarados(repo)) {
   const rel = (f) => path.relative(repo, f).split(path.sep).join('/');
   const globales = configsDeVitest(repo).flatMap((f) =>
     topesGlobales(readFileSync(f, 'utf8'), f).map((t) => `${rel(f)}:${t.linea} sube ${t.clave} para TODOS los tests`),
@@ -294,7 +331,7 @@ export function revisarEsperas(repo, declarados = TOPES_DECLARADOS) {
     for (const t of topesExplicitos(fuente, f)) {
       const decl = declarados[r];
       if (decl && decl.tope === t.tope) vistos.add(r);
-      else sinDeclarar.push(`${r}:${t.linea} ${t.forma} = ${t.tope ?? '¿no literal?'} ms sin entrada en TOPES_DECLARADOS`);
+      else sinDeclarar.push(`${r}:${t.linea} ${t.forma} = ${t.tope ?? '¿no literal?'} ms sin declarar (TOPES_DECLARADOS, o el ${FICHERO_DE_TOPES} de su plataforma)`);
     }
     for (const l of vueltasEnBucle(fuente, f)) bucles.push(`${r}:${l}`);
   }
