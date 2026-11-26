@@ -7,7 +7,7 @@ import { definirCoordinador, formatearImporte } from '@synergos/vitals-core';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy, itemsDelViaje } from './travel-fulfillment.strategy';
 import { entradaDelViaje } from './travel-viaje';
-import { TravelShellElementComponent, mensajeDelViaje } from './travel-shell';
+import { TravelShellElementComponent, mensajeDelViaje, tarifasDeLaBusqueda } from './travel-shell';
 import { pasajerosDelVuelo, periodoDeLaBusqueda, type TravelCheckoutLine, type TravelProduct, type TravelTrip } from './travel.model';
 
 /** Una línea del checkout con la forma de `CartItemDto` del CMS (defecto 1 de la línea 006). */
@@ -171,6 +171,23 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks();
     fixture.detectChanges();
   }
+
+  // ── D-016-C25: el precio corto del pin en es-CO, y la nota de noches que manda el servidor ──
+  it('el pin dice el precio como se lee en Colombia y la estadía dice de cuántas noches es', async () => {
+    await createComponent();
+    const oferta = (amount: number, detail: Record<string, unknown> = {}) =>
+      ({ offerId: 'x', product: 'hotel', title: 't', subtitle: 's', amount, currency: 'COP', badges: [], detail }) as never;
+
+    const mil = component.stayPinLabelOf(oferta(440_000));
+    const millon = component.stayPinLabelOf(oferta(1_080_000));
+    expect(mil).toMatch(/440\s*mil/);
+    expect(millon).toContain('1,1');
+    expect(mil).not.toMatch(/k$/);
+    expect(millon).not.toMatch(/1\.1M/);
+
+    expect(component.stayPriceNote(oferta(440_000, { priceNote: 'por 2 noches' }))).toBe('por 2 noches');
+    expect(component.stayPriceNote(oferta(440_000))).toBe('desde');
+  });
 
   /** Search flights offline → mock offers with fare families. */
   async function searchFlights(): Promise<void> {
@@ -931,6 +948,18 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(filas).not.toContain('Zona');
     // Y lo que sí es dato, sí sale.
     expect(filas).toContain('Precio');
+  });
+});
+
+// ── D-016-C25: la tarifa de la ficha dice el régimen en palabras, el que manda el servidor ──
+describe('tarifasDeLaBusqueda', () => {
+  it('prefiere el régimen en palabras (`board`) al código (`boardBasis`)', () => {
+    const oferta = (detail: Record<string, unknown>) =>
+      ({ offerId: 'STD/STD-FLEX', product: 'hotel', stayId: 'ctg', title: 't', subtitle: 's', amount: 1, currency: 'COP',
+        badges: [], detail: { roomTypeName: 'Habitación Estándar', ...detail } }) as never;
+
+    expect(tarifasDeLaBusqueda([oferta({ board: 'Desayuno incluido', boardBasis: 'BB' })], 'ctg')[0].rateLabel).toBe('Desayuno incluido');
+    expect(tarifasDeLaBusqueda([oferta({ boardBasis: 'BB' })], 'ctg')[0].rateLabel).toBe('BB');
   });
 });
 

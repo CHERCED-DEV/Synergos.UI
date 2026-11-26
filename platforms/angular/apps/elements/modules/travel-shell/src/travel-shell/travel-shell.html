@@ -358,7 +358,7 @@
             }
             <div class="travel__stay-foot">
               <span class="travel__stay-price">
-                <span class="travel__flight-from">desde</span>
+                <span class="travel__flight-from">{{ stayPriceNote(offer) }}</span>
                 <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
               </span>
               <button type="button" class="travel__btn travel__btn--sm travel__btn--primary" (click)="select()">

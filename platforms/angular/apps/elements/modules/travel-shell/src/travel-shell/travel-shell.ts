@@ -137,7 +137,8 @@ export function tarifasDeLaBusqueda(ofertas: readonly TravelOffer[], stayId: str
       return {
         id: oferta.offerId,
         roomLabel: texto('roomTypeName') || oferta.subtitle || oferta.title,
-        rateLabel: texto('boardBasis'),
+        // El régimen en palabras que manda el servidor («Desayuno incluido»); el código («BB») sólo si no llega (D-016-C25).
+        rateLabel: texto('board') || texto('boardBasis'),
         amount: oferta.amount,
         currency: oferta.currency,
         refundable: detalle['refundable'] === true,
@@ -1722,6 +1723,12 @@ export class TravelShellElementComponent implements OnInit {
     return this.formatPrice(item.amount / 100, this.#store.pricing().currency || this.currency());
   }
 
+  /** Lo que dice el precio de una estadía: de cuántas noches es («por 2 noches»), como lo manda el servidor. */
+  stayPriceNote(offer: TravelOffer): string {
+    const nota = (offer.detail as Record<string, unknown> | undefined)?.['priceNote'];
+    return typeof nota === 'string' && nota.trim() ? nota.trim() : 'desde';
+  }
+
   offerPriceLabel(offer: TravelOffer): string {
     return this.formatPrice(offer.amount, offer.currency || this.currency());
   }
@@ -2277,10 +2284,14 @@ export class TravelShellElementComponent implements OnInit {
     this.#bus.publish('cartUpdated', { count, total: this.cartTotalMinor() });
   }
 
+  /**
+   * El precio corto del pin, como se lee en Colombia: «$ 440 mil», «$ 1,1 M» (antes «$440k», «$1.1M»). A mano y no con
+   * `notation: 'compact'`, que cada motor escribe distinto («$440,0 K» en Node).
+   */
   private compactPrice(amount: number, currency: string): string {
-    const value = amount >= 1_000_000 ? `${Math.round(amount / 100_000) / 10}M` : `${Math.round(amount / 1000)}k`;
     void currency;
-    return `$${value}`;
+    const numero = (valor: number) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(valor);
+    return amount >= 1_000_000 ? `$ ${numero(amount / 1_000_000)} M` : `$ ${numero(Math.round(amount / 1000))} mil`;
   }
 
   private metaString(meta: Readonly<Record<string, unknown>> | undefined, key: string): string {
