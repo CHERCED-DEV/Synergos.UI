@@ -1909,11 +1909,13 @@ export class EhrElementComponent implements OnInit {
    */
   async cargarInicio(): Promise<void> {
     const base = this.historiaBase();
-    void this.#misResultados.cargar(base);
-    void this.#misMensajes.cargar(base);
-    void this.#miCuenta.cargar(base);
+    void Promise.all([
+      this.#misResultados.cargar(base),
+      this.#misMensajes.cargar(base),
+      this.#miCuenta.cargar(base),
+    ]).then(() => this.sinSesionEnElInicio());
     if (!this.porLaPuerta()) {
-      this.proximaDelInicio.set('');
+      await this.proximaPorLaDirecta();
       return;
     }
     this.cargandoCitasDelInicio.set(true);
@@ -1926,6 +1928,37 @@ export class EhrElementComponent implements OnInit {
       }
       const cita = proximaCita(citas.valor, new Set(this.#cancelaciones.canceladas().keys()), Date.now());
       this.proximaDelInicio.set(cita ? [this.horaDeLaCita(cita), this.profesionalDe(cita)].filter(Boolean).join(' · ') : '');
+    } finally {
+      this.cargandoCitasDelInicio.set(false);
+    }
+  }
+
+  /**
+   * Un 401 de las lecturas del inicio es el portal sin sesión, no tres tarjetas que no se leyeron: el inicio es lo
+   * primero que ve quien entra, y antes le decía «No tienes citas próximas» y «No pudimos leer esto ahora».
+   */
+  private sinSesionEnElInicio(): void {
+    const lecturas = [this.#misResultados, this.#misMensajes, this.#miCuenta];
+    if (this.portalAccess() === 'ok' && lecturas.some((lectura) => lectura.estado() === 'sin-sesion')) {
+      this.portalAccess.set('sin-sesion');
+      this.#accessFocusPending.set(true);
+    }
+  }
+
+  /**
+   * Por la directa, la próxima cita es la del portal (la misma lectura que «Mis citas»). Antes se daba por ninguna sin
+   * leerla; una negativa abre el panel de acceso y una caída no afirma nada.
+   */
+  private async proximaPorLaDirecta(): Promise<void> {
+    this.cargandoCitasDelInicio.set(true);
+    try {
+      const home = this.home() ?? (await this.#api.portalHome(this.apiBase()));
+      this.home.set(home);
+      const cita = home.nextAppointment;
+      this.proximaDelInicio.set(cita ? [`${this.formatDate(cita.date)} · ${cita.time}`, cita.doctorName].filter(Boolean).join(' · ') : '');
+    } catch (error) {
+      this.proximaDelInicio.set(null);
+      this.negado(error, 'portal');
     } finally {
       this.cargandoCitasDelInicio.set(false);
     }

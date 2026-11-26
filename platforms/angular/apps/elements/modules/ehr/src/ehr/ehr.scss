@@ -61,6 +61,11 @@
   overflow: hidden;
   font-size: syn.$font-size-sm;
 
+  // Sin acceso sólo se pinta el panel: el alto mínimo dejaba ~350 px vacíos debajo de «Inicia sesión».
+  &:has(.ehr__access) {
+    min-height: 0;
+  }
+
   /* The clinician portal gets a subtly cooler frame to signal "cockpit". */
   &[data-portal='clinician'] {
     --eh-surface-muted: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
@@ -1191,7 +1196,23 @@
 
   /* ─── Responsive ─────────────────────────────────────────────────────────── */
   @media (max-width: #{syn.px-to-rem(760)}) {
-    &__nav-toggle { display: inline-flex; }
+    // En el teléfono la cabecera va en dos filas: la marca y «Menú» arriba, los perfiles debajo a lo ancho. En una
+    // sola, a 375 px «Menú» quedaba en 2 px y «Enfermería» fuera de la pantalla: no se llegaba a las secciones.
+    &__topbar { flex-wrap: wrap; }
+
+    &__nav-toggle {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    &__roles {
+      order: 1;
+      flex: 1 1 100%;
+    }
+
+    &__role-btn { flex: 1; }
 
     &__layout { grid-template-columns: 1fr; }
 
