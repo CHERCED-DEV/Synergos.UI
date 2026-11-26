@@ -52,15 +52,6 @@ const K = ts.SyntaxKind;
  * cuyo fichero ya no declara ese tope también — una excepción que sobra deja de leerse.
  */
 export const TOPES_DECLARADOS = {
-  'platforms/preact/tools/elemento.spec.mjs': {
-    tope: 30_000,
-    razon:
-      'lanza `tools/build.mjs --watch` DE VERDAD (un build entero de Preact) y espera su aviso ' +
-      '`dist-listo` por IPC, para ver que el modo --watch avisa y se queda mirando. Medido: el fichero ' +
-      'entero en 2,3–3,1 s sin el gate encima, y la prueba cortada a los 5 s de serie (5144 ms) en el ' +
-      'gate de la tanda 40, con el CMS y otras líneas en paralelo. Es lo único que prueba el --watch ' +
-      'como lo usa dev-cdn, así que no se simula.',
-  },
   'tools/lib/sello-del-cdn.spec.mjs': {
     tope: 60_000,
     razon:
