@@ -145,6 +145,11 @@ export class RedDeBlogs {
    */
   readonly sessionAccess = signal<'ok' | 'anon'>('ok');
   /**
+   * Hay host y no hay sesión en él (012, vuelta de valor, D-012-V13): lo que es del usuario no se pide, porque la
+   * respuesta ya se sabe —un 401— y quedaba en la consola de cada visitante. Sin host (standalone, tests) no aplica.
+   */
+  readonly sinSesion = computed(() => this.#identity.hasHost() && !this.#identity.member());
+  /**
    * Acceso a la conversación ABIERTA (403 = el hilo es de otras dos personas). Es un
    * estado del detalle, no de la sesión: la bandeja propia sigue siendo legítima y se
    * mantiene a la vista; lo único que se cierra es el hilo ajeno.
@@ -303,6 +308,18 @@ export class RedDeBlogs {
    * contando mensajes que ya no podemos leer. Cada caso de uso del usuario se marca
    * "cargado" para que navegar entre ellos no dispare tres 401 más.
    */
+  /**
+   * Para las cargas de lo que es del usuario: sin sesión en el host, la vista pasa a su panel para entrar sin pedir nada
+   * y la carga corta (devuelve `true`). Sin anuncio ni foco: nadie pidió algo que se le negara, la página abrió así.
+   */
+  sinSesionNoSePide(): boolean {
+    if (!this.sinSesion()) {
+      return false;
+    }
+    this.sessionAccess.set('anon');
+    return true;
+  }
+
   handleUnauthenticated(error: unknown, announcement?: string): boolean {
     if (!isBlogsUnauthorized(error)) {
       return false;

@@ -414,6 +414,24 @@ describe('BlogsElementComponent', () => {
       expect(escribir?.querySelector('syn-authoring-wizard')).toBeNull();
     });
 
+    // D-012-V13: la respuesta ya se sabía —un 401— y quedaba en la consola de cada visitante.
+    it.each(['notificaciones', 'mensajes', 'guardados', 'estudio', 'moderacion'])(
+      'con host y sin sesión, %s no pide lo del usuario y pinta el panel para entrar',
+      async (vista) => {
+        conHost({ member: null });
+        const fetch = vi.fn((url: string) => Promise.reject(new Error(`offline ${url}`)));
+        vi.stubGlobal('fetch', fetch);
+        await createComponent('', { ...NEGOCIO_DEL_CMS, vista });
+        fixture.detectChanges();
+
+        const delUsuario = fetch.mock.calls
+          .map(([url]) => String(url))
+          .filter((url) => /\/(notifications|messages|thread\/|saved|studio|cola|guardados|mensajes)\b/.test(url));
+        expect(delUsuario).toEqual([]);
+        expect((fixture.nativeElement as HTMLElement).querySelector('sg-blogs-acceso .blogs__signin-title')).not.toBeNull();
+      },
+    );
+
     it('con host y sin sesión, el perfil sin alias pide entrar en vez de quedar en blanco; con alias, no', async () => {
       conHost({ member: null });
       vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
