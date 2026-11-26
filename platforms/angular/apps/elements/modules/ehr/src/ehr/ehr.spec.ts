@@ -235,6 +235,52 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture.detectChanges();
   }
 
+  // ── Vuelta de valor (2026-11-26): «Agendar» desde la tarjeta del profesional en «Equipo» (`?profesional={id}`) ──
+  describe('el profesional que trae el enlace de su tarjeta', () => {
+    afterEach(() => window.history.replaceState({}, '', '/'));
+
+    async function agendarCon(enlace: string): Promise<CheckoutWizardComponent> {
+      window.history.replaceState({}, '', enlace);
+      await createComponent();
+      component.navigate('schedule');
+      await flushMicrotasks();
+      fixture.detectChanges();
+      // El efecto elige durante ese ciclo; el `<select>` lo refleja en el siguiente.
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+    }
+
+    it('llega elegido si existe (aunque no sea el primero del directorio), y el asistente sigue en su primer paso', async () => {
+      const asistente = await agendarCon('/healthcare/?profesional=doc-rojas');
+
+      expect(component.doctors()[0]?.id).not.toBe('doc-rojas');
+      expect(component.scheduleDoctorId()).toBe('doc-rojas');
+      expect(asistente.currentStep()?.id).toBe('proveedor');
+      const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select[id$="-sch-doc"]');
+      expect(select).not.toBeNull();
+      expect(select?.value).toBe('doc-rojas');
+    });
+
+    it('si no casa con ninguno, queda la elección de siempre (el primero del directorio)', async () => {
+      await agendarCon('/healthcare/?profesional=no-existe');
+
+      expect(component.doctors().length).toBeGreaterThan(0);
+      expect(component.scheduleDoctorId()).toBe(component.doctors()[0]!.id);
+    });
+
+    it('no pisa una elección: si el paciente cambia de profesional, queda el que eligió', async () => {
+      await agendarCon('/healthcare/?profesional=doc-rojas');
+      const otro = component.doctors().find((profesional) => profesional.id !== 'doc-rojas')!.id;
+
+      component.setScheduleDoctor(otro);
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.scheduleDoctorId()).toBe(otro);
+    });
+  });
+
   // ── I1 de producción (T045): el directorio sale de la lectura genérica que declara el CMS ──
   it('con la base de lecturas, el directorio sale de la lectura genérica de Salud y no de /doctors', async () => {
     await createComponent({}, { ...NEGOCIO_DEL_CMS, lecturasBase: '/api/lecturas/salud' });

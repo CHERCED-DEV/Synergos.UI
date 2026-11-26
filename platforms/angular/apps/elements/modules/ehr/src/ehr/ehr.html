@@ -1074,9 +1074,11 @@
       <label class="ehr__field-label" [attr.for]="fieldId + '-sch-doc'">Médico</label>
       <select class="ehr__input" [id]="fieldId + '-sch-doc'" [value]="scheduleDoctorId()"
         (change)="setScheduleDoctor($any($event.target).value)">
-        <option value="" disabled>Selecciona un médico</option>
+        <!-- Cada opción dice si es la elegida: el [value] del select se aplica antes de que existan las opciones, y el
+             navegador mostraba la primera aunque la cita fuera con otro (lo destapó el profesional del enlace). -->
+        <option value="" disabled [selected]="!scheduleDoctorId()">Selecciona un médico</option>
         @for (doc of doctors(); track doc.id) {
-          <option [value]="doc.id">{{ doc.name }} · {{ doc.specialty }}</option>
+          <option [value]="doc.id" [selected]="doc.id === scheduleDoctorId()">{{ doc.name }} · {{ doc.specialty }}</option>
         }
       </select>
 

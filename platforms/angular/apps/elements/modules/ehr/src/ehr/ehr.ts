@@ -219,6 +219,8 @@ const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartad
 const DEFAULT_ROLE: EhrRole = 'patient';
 /** El login del sitio, con la vuelta a ESTA página (el mismo de gov, blogs y realty). */
 const LOGIN_PATH = '/account/login';
+/** El dato que lleva el botón de la tarjeta de un profesional («Dato que lleva el enlace» del listado del catálogo). */
+const PARAMETRO_DEL_PROFESIONAL = 'profesional';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EhrRole; label: string; portal: EhrPortal }[] = [
@@ -520,6 +522,10 @@ export class EhrElementComponent implements OnInit {
   readonly estadoDelEnlace = signal<'nada' | 'cargando' | 'leida' | 'aviso'>('nada');
   readonly textoDelEnlace = signal('');
   #idDelEnlace = '';
+  /** El profesional que trae el enlace de su tarjeta, hasta que se elige en «Agendar». */
+  #profesionalDelEnlace = '';
+  /** Si el paciente ya eligió profesional en «Agendar»: el del enlace no lo pisa. */
+  #eligioElPaciente = false;
 
   readonly instanceId = (ehrInstanceId += 1);
   readonly fieldId = `syn-ehr-${this.instanceId}`;
@@ -1197,6 +1203,25 @@ export class EhrElementComponent implements OnInit {
         return;
       }
       untracked(() => void this.abrirElEnlace(this.#idDelEnlace));
+    });
+
+    // El profesional de su tarjeta («Equipo», `?profesional={id}`, vuelta de valor de 003): llega elegido en «Agendar»
+    // si casa con uno del directorio, una sola vez. Gana a la elección automática (el primero del directorio), nunca a
+    // la del paciente. Nunca avanza ni confirma solo (D-016-C24).
+    if (typeof window !== 'undefined') {
+      this.#profesionalDelEnlace = new URLSearchParams(window.location.search).get(PARAMETRO_DEL_PROFESIONAL)?.trim() ?? '';
+    }
+    effect(() => {
+      const id = this.#profesionalDelEnlace;
+      if (!id || this.#eligioElPaciente || this.view() !== 'schedule') {
+        return;
+      }
+      if (this.doctors().some((profesional) => profesional.id === id)) {
+        untracked(() => {
+          this.#profesionalDelEnlace = '';
+          this.scheduleDoctorId.set(id);
+        });
+      }
     });
   }
 
@@ -2412,6 +2437,7 @@ export class EhrElementComponent implements OnInit {
   }
 
   setScheduleDoctor(id: string): void {
+    this.#eligioElPaciente = true;
     this.scheduleDoctorId.set(id);
   }
 
