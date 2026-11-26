@@ -524,6 +524,8 @@ export interface FormStepperProps {
   readonly apiBase: string;
   /** negocio */
   readonly honeypotField: string;
+  /** negocio */
+  readonly prefillFromQuery?: readonly string[];
 }
 
 /** <synergos-gov> · funcionalidad · diccionario: Gov.Tramite */
@@ -1818,7 +1820,7 @@ export const FORM_STEPPER_SYNHOST: ElementoSynHost<FormStepperProps> = {
   record: "FormStepperProps",
   diccionario: ["Form.Messages","Form.Actions","Form.Validation.Required","Form.Placeholders.SelectOption","Form.Submit"],
   claves: ["Form.Actions.Apply","Form.Actions.Back","Form.Actions.Next","Form.Actions.Register","Form.Actions.RequestDemo","Form.Actions.Send","Form.Actions.Subscribe","Form.Messages.Error","Form.Messages.NetworkError","Form.Messages.NotFound","Form.Messages.Sending","Form.Messages.Success","Form.Placeholders.SelectOption","Form.Submit","Form.Validation.Required"],
-  campos: ["formKey","steps","allowSkip","apiBase","honeypotField"],
+  campos: ["formKey","steps","allowSkip","apiBase","honeypotField","prefillFromQuery"],
   listas: {"steps":["title","fields","description"]},
   selectores: [],
   ejemplo: {
@@ -1846,7 +1848,10 @@ export const FORM_STEPPER_SYNHOST: ElementoSynHost<FormStepperProps> = {
     ],
     "allowSkip": true,
     "apiBase": "/api/forms",
-    "honeypotField": "syn_hp"
+    "honeypotField": "syn_hp",
+    "prefillFromQuery": [
+      "servicio"
+    ]
   },
 };
 

@@ -97,11 +97,12 @@
                     [attr.aria-describedby]="field.helpText ? 'fs-' + field.name + '-help' : null"
                     (change)="onTextInput(field.name, $event)"
                   >
-                    <option value="" disabled selected>
+                    <!-- La opción elegida se marca en la opción: `[value]` del select llega antes que sus opciones. -->
+                    <option value="" disabled [selected]="!textValue(field.name)">
                       {{ field.placeholder || textos.selectOption() }}
                     </option>
                     @for (option of field.options; track option) {
-                      <option [value]="option">{{ option }}</option>
+                      <option [value]="option" [selected]="option === textValue(field.name)">{{ option }}</option>
                     }
                   </select>
                 }
