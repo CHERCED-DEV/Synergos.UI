@@ -7,7 +7,7 @@ import {
   leerTextos as readStringArray,
 } from '@synergos/core';
 import { BordeDeBlogs } from '../comun/borde-de-blogs';
-import type { PublishOutcome } from '../comun/errores';
+import { isBlogsNotFound, type PublishOutcome } from '../comun/errores';
 import type {
   Author,
   Comment,
@@ -65,6 +65,11 @@ export class ContenidoApi {
       }
       throw new Error('post-shape');
     } catch (error) {
+      // Un 404 es el servidor diciendo que esa publicación no existe, o que la moderación la retiró. La muestra pintaba
+      // OTRA, inventada, con el aviso de que el servidor no responde: la red dice que no está (012, vuelta de valor).
+      if (isBlogsNotFound(error)) {
+        throw error;
+      }
       this.#borde.markDegraded('GET /api/blogs/post/{id}', error);
       const feed = buildMockFeed('foryou', null).posts;
       const post = feed.find((entry) => entry.id === id) ?? feed[0];

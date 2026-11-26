@@ -2364,6 +2364,35 @@ describe('BlogsElementComponent', () => {
       expect(component.red.errorMessage()).not.toBe('');
     });
 
+    // Tanda 13 de valor: un enlace a una publicación que no existe, o que la moderación retiró, pintaba OTRA de la
+    // muestra con el aviso de que el servidor no respondía, y la página no tenía <h1>.
+    it('una publicación que no existe (404) dice que no está disponible, sin otra de la muestra', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          /\/post\//.test(url)
+            ? Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) } as Response)
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent('#/blogs/post/no-existe', enLaPagina('publicacion'));
+      fixture.detectChanges();
+
+      expect(component.publicacion.activePost()).toBeNull();
+      expect(fixture.nativeElement.querySelector('.blogs__post--detail')).toBeNull();
+      const h1 = fixture.nativeElement.querySelector('sg-blogs-publicacion h1');
+      expect(h1?.textContent.trim()).toBe('Esta publicación no está disponible');
+    });
+
+    it('una publicación abierta lleva su <h1> para el lector de pantalla', async () => {
+      await createComponent('#/blogs/post/p-skeleton', enLaPagina('publicacion'));
+      fixture.detectChanges();
+
+      const h1 = fixture.nativeElement.querySelector('sg-blogs-publicacion h1');
+      expect(h1?.classList.contains('blogs__sr-only')).toBe(true);
+      expect(h1?.textContent.trim()).toBe(`Publicación de ${component.publicacion.activePost()?.author.displayName}`);
+    });
+
     it('atrás hasta la URL sin hash devuelve la página a su vista', async () => {
       await createComponent('#/blogs/post/p-skeleton', enLaPagina('inicio'));
       expect(component.red.view()).toBe('post');

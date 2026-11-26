@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { OrchestratorService } from '@synergos/transaction-engine';
 import type { Comment, Post } from '../comun/blogs.model';
+import { isBlogsNotFound } from '../comun/errores';
 import { RedDeBlogs } from '../comun/red-de-blogs';
 import { TEXTOS_DE_BLOGS } from '../comun/textos';
 import { ContenidoApi } from '../contenido/contenido-api.client';
@@ -54,6 +55,12 @@ export class PublicacionDeBlogs {
       this.activePost.set(detail.post);
       this.comments.set(detail.comments);
     } catch (error) {
+      // No existe, o la moderación la retiró: la vista dice que no está disponible, sin la que se abrió antes.
+      if (isBlogsNotFound(error)) {
+        this.activePost.set(null);
+        this.comments.set([]);
+        return;
+      }
       this.#red.errorMessage.set(this.#textos.publicacionNoAbrio);
       void error;
     } finally {
