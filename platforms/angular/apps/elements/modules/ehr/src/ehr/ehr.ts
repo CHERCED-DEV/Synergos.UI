@@ -278,10 +278,13 @@ const E_CHECKIN_STEPS = ['demografia', 'seguro', 'medicamentos', 'cuestionario',
 
 type ScheduleMode = 'in-person' | 'video';
 
-/** Las modalidades de la cita, en el orden en que las pinta `syn-segmented` (#83). */
+/**
+ * Las modalidades de la cita que se ofrecen, en el orden en que las pinta `syn-segmented` (#83). Sólo la presencial: la
+ * app no hace consulta por video, y por la puerta la modalidad ni viajaba (vuelta de valor de 003). Con una sola, el
+ * asistente no pinta el selector. `'video'` sigue en el tipo por el contrato de la directa, no se ofrece.
+ */
 const SCHEDULE_MODES: readonly { readonly value: ScheduleMode; readonly label: string }[] = [
   { value: 'in-person', label: 'Presencial' },
-  { value: 'video', label: 'Video' },
 ];
 
 /**
@@ -448,6 +451,12 @@ export class EhrElementComponent implements OnInit {
     this.portal() === 'patient' ? caminoDeLaCita(this.config()?.appointmentPath) : 'directa',
   );
   readonly porLaPuerta = computed(() => this.caminoDeLaCita() === 'puerta');
+  /**
+   * Si se pide el motivo de la consulta. Por la puerta no viaja (la entrada de `salud.cita` es paciente, profesional,
+   * ventana y servicio), y pedir un dato clínico para tirarlo no se hace: ni se pide ni se exige para avanzar. El
+   * motivo lo registra el médico en la nota de la consulta. Por la directa sigue, porque ahí viaja.
+   */
+  readonly pideMotivo = computed(() => !this.porLaPuerta());
   /** La zona del sitio, en la que el paciente elige la hora (`EhrProps.zona`). */
   readonly zona = computed(() => this.config()?.zona ?? '');
   /** Por la puerta sin `<synergos-flujo>` arriba: se dice que no está disponible y no se toca la red. */
@@ -1093,7 +1102,7 @@ export class EhrElementComponent implements OnInit {
   });
 
   readonly scheduleValidity = computed<Readonly<Record<string, boolean>>>(() => ({
-    proveedor: this.scheduleDoctorId().trim() !== '' && this.scheduleReason().trim().length >= 3,
+    proveedor: this.scheduleDoctorId().trim() !== '' && (!this.pideMotivo() || this.scheduleReason().trim().length >= 3),
     slot: this.scheduleValid(),
     // Sin un copago que haya dicho el servidor no se agenda: ni un cero inventado ni un número de antes.
     copago: !this.copayUnknown(),

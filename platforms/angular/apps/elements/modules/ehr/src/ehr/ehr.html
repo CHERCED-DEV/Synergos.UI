@@ -1082,20 +1082,26 @@
         }
       </select>
 
-      <p class="ehr__field-label" [id]="fieldId + '-sch-mode'">Modalidad</p>
-      <!-- El rótulo VISIBLE nombra el grupo (#87): antes se repetía en un aria-label aparte. -->
-      <syn-segmented
-        class="ehr__mode-toggle"
-        size="sm"
-        [ariaLabelledby]="fieldId + '-sch-mode'"
-        [options]="scheduleModes"
-        [value]="scheduleMode()"
-        (valueChange)="setScheduleMode($event)"
-      />
+      <!-- Con una sola modalidad (la presencial: no hay consulta por video) no hay nada que elegir. -->
+      @if (scheduleModes.length > 1) {
+        <p class="ehr__field-label" [id]="fieldId + '-sch-mode'">Modalidad</p>
+        <!-- El rótulo VISIBLE nombra el grupo (#87): antes se repetía en un aria-label aparte. -->
+        <syn-segmented
+          class="ehr__mode-toggle"
+          size="sm"
+          [ariaLabelledby]="fieldId + '-sch-mode'"
+          [options]="scheduleModes"
+          [value]="scheduleMode()"
+          (valueChange)="setScheduleMode($event)"
+        />
+      }
 
-      <label class="ehr__field-label" [attr.for]="fieldId + '-sch-reason'">Motivo de la consulta</label>
-      <input class="ehr__input" type="text" [id]="fieldId + '-sch-reason'" placeholder="Ej. control de hipertensión"
-        [value]="scheduleReason()" (input)="bind(scheduleReason.set)($event)" />
+      <!-- Por la puerta el motivo no viaja: no se pide (pideMotivo). -->
+      @if (pideMotivo()) {
+        <label class="ehr__field-label" [attr.for]="fieldId + '-sch-reason'">Motivo de la consulta</label>
+        <input class="ehr__input" type="text" [id]="fieldId + '-sch-reason'" placeholder="Ej. control de hipertensión"
+          [value]="scheduleReason()" (input)="bind(scheduleReason.set)($event)" />
+      }
     }
     @case ('slot') {
       <!-- La vista de las franjas (T051): qué horas hay lo decide el componente; la vista avisa la elegida. -->
@@ -1121,7 +1127,9 @@
       <h3 class="ehr__panel-title">Revisa tu cita</h3>
       <p class="ehr__panel-text">{{ doctorName(scheduleDoctorId()) }}</p>
       <p class="ehr__panel-text">{{ formatDate(scheduleDate()) }} · {{ scheduleTime() }} · {{ scheduleMode() === 'video' ? 'Video' : 'Presencial' }}</p>
-      <p class="ehr__panel-text">Motivo: {{ scheduleReason() || 'Consulta' }}</p>
+      @if (pideMotivo()) {
+        <p class="ehr__panel-text">Motivo: {{ scheduleReason() || 'Consulta' }}</p>
+      }
       @if (copay(); as c) { @if (c.amountMinor > 0) { <p class="ehr__panel-text">Copago: {{ formatMinor(c.amountMinor, c.currency) }}</p> } }
     }
   }

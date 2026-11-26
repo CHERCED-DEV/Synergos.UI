@@ -320,46 +320,38 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // Antes eran dos <button> con sólo la clase `is-active`: la pantalla cambiaba de color
   // y un lector de pantalla no tenía nada que leer. Se busca por ROL y NOMBRE, no por
   // la clase, porque lo que se prueba es lo que recibe el lector.
-  it('la modalidad es un radiogroup con estado y se cambia con el teclado (#83)', async () => {
-    Element.prototype.scrollIntoView = vi.fn();
+  // Vuelta de valor (2026-11-26): no hay consulta por video, así que «Video» no se ofrece, y con una sola modalidad no
+  // hay nada que elegir. El radiogroup accesible (#83, #87) es de `syn-segmented`, que lo prueba en su spec.
+  it('no se ofrece «Video»: la cita es presencial y no se pinta un selector de una sola opción', async () => {
     await createComponent();
     component.navigate('schedule');
     await flushMicrotasks();
     fixture.detectChanges();
 
-    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-      'syn-segmented.ehr__mode-toggle [role="radiogroup"]',
-    );
-    expect(group).not.toBeNull();
-    // #87: el nombre es el rótulo VISIBLE «Modalidad», por aria-labelledby. Antes el rótulo no
-    // se asociaba y el grupo llevaba otro texto aparte en aria-label.
-    const rotulo = document.getElementById(group?.getAttribute('aria-labelledby') ?? '');
-    expect(rotulo?.textContent?.trim()).toBe('Modalidad');
-    expect((fixture.nativeElement as HTMLElement).contains(rotulo)).toBe(true);
-    expect(group?.hasAttribute('aria-label')).toBe(false);
-    const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
-    const estado = (): string[][] =>
-      radios.map((radio) => [radio.textContent?.trim() ?? '', radio.getAttribute('aria-checked') ?? '']);
-    expect(estado()).toEqual([
-      ['Presencial', 'true'],
-      ['Video', 'false'],
-    ]);
-
-    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    fixture.detectChanges();
-
-    expect(component.scheduleMode()).toBe('video');
-    expect(estado()).toEqual([
-      ['Presencial', 'false'],
-      ['Video', 'true'],
-    ]);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('syn-segmented.ehr__mode-toggle')).toBeNull();
+    expect(host.textContent).not.toContain('Video');
+    expect(component.scheduleMode()).toBe('in-person');
   });
 
-  it('una modalidad que no está en la lista no llega a la cita (#83)', async () => {
+  it('una modalidad que no se ofrece no llega a la cita, «Video» tampoco (#83)', async () => {
     await createComponent();
     component.setScheduleMode('video');
     component.setScheduleMode('telepatía');
-    expect(component.scheduleMode()).toBe('video');
+    expect(component.scheduleMode()).toBe('in-person');
+  });
+
+  it('por la directa el motivo se pide y hace falta para avanzar, porque ahí viaja', async () => {
+    await createComponent();
+    component.navigate('schedule');
+    await flushMicrotasks();
+    component.setScheduleDoctor('doc-mendez');
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('input[id$="-sch-reason"]')).not.toBeNull();
+    expect(component.scheduleValidity()['proveedor']).toBe(false);
+    component.scheduleReason.set('Control');
+    expect(component.scheduleValidity()['proveedor']).toBe(true);
   });
 
   it('agenda la cita CONTRA EL SERVIDOR y enseña el comprobante suyo (engine case)', async () => {
@@ -1470,6 +1462,30 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     { inicio: '2027-03-15T14:20:00Z', fin: '2027-03-15T14:40:00Z', libres: 0 },
     { inicio: '2027-03-15T14:40:00Z', fin: '2027-03-15T15:00:00Z', libres: 1 },
   ];
+
+  it('por la puerta el motivo no se pide, no hace falta para avanzar y no sale en el resumen (no viaja)', async () => {
+    await montar(puertaDeLaCita());
+    component.navigate('schedule');
+    await asentar(12);
+    component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('input[id$="-sch-reason"]')).toBeNull();
+    expect(component.scheduleValidity()['proveedor']).toBe(true);
+
+    component.selectSlot({ date: '2026-08-01', time: '10:00' });
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+    expect(host.textContent).not.toContain('Motivo:');
+    expect(host.textContent).toContain('Presencial');
+  });
 
   it('las horas son las libres de la agenda del profesional, en la hora del sitio, pedidas por la puerta (T046)', async () => {
     const puerta = puertaDeLaCita({ franjas: AGENDA });
