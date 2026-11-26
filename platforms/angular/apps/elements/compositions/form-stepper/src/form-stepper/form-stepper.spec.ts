@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FORM_STEPPER_SYNHOST } from '@synergos/contracts';
 import { LiveAnnouncerService } from '@synergos/shared';
 import { asentar as vueltas } from '../../../../../../tools/asentar';
-import { FormStepperElementComponent, sanitizeFormStepperConfig } from './form-stepper';
+import { FormStepperElementComponent, sanitizeFormStepperConfig, valoresDesdeLaDireccion } from './form-stepper';
 
 /**
  * El formulario por pasos sobre el modelo de Forms (CMS#196, tanda D). Antes no pintaba nada (los
@@ -92,6 +92,45 @@ describe('FormStepperElementComponent', () => {
     boton('Siguiente').click();
     await asentar(fixture);
     expect(el.querySelector('.form-stepper__help')?.textContent).toContain('Nunca lo compartimos.');
+  });
+
+  // ── D-016-C24: «Reservar ahora» llega con el servicio elegido, sólo donde la instancia lo declara ──
+  describe('lo que toma de la dirección', () => {
+    const conLaDireccion = (busqueda: string) => window.history.replaceState(null, '', `/booking/reservar${busqueda}`);
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('elige la opción que llega en la dirección, sin avanzar ni enviar', async () => {
+      const fetchSpy = vi.fn();
+      vi.stubGlobal('fetch', fetchSpy);
+      conLaDireccion('?servicio=Auditorio');
+      await montar({ ...NEGOCIO_DEL_CMS, prefillFromQuery: ['servicio'] });
+      await asentar(fixture);
+
+      expect(el.querySelector<HTMLSelectElement>('select[name="servicio"]')!.value).toBe('Auditorio');
+      expect(component.currentIndex()).toBe(0);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('ignora un valor que no es una de las opciones', async () => {
+      conLaDireccion('?servicio=Spa');
+      await montar({ ...NEGOCIO_DEL_CMS, prefillFromQuery: ['servicio'] });
+      await asentar(fixture);
+
+      expect(el.querySelector<HTMLSelectElement>('select[name="servicio"]')!.value).toBe('');
+    });
+
+    it('una instancia que no lo declara no lee la dirección', async () => {
+      conLaDireccion('?servicio=Auditorio');
+      await montar();
+      await asentar(fixture);
+
+      expect(el.querySelector<HTMLSelectElement>('select[name="servicio"]')!.value).toBe('');
+    });
+
+    it('sólo casa campos con opciones: un campo de texto no se llena desde la dirección', () => {
+      expect(valoresDesdeLaDireccion(['servicio', 'email'], NEGOCIO_DEL_CMS.steps, '?servicio=Asesor%C3%ADa&email=a%40b.co'))
+        .toEqual({ servicio: 'Asesoría' });
+    });
   });
 
   it('no avanza con un obligatorio vacío', async () => {

@@ -3,9 +3,11 @@ import {
   Component,
   ElementRef,
   computed,
+  effect,
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import type { CampoDelFormulario, FormStepperProps, PasoDelFormulario } from '@synergos/contracts';
 import {
@@ -128,7 +130,32 @@ export function sanitizeFormStepperConfig(value: FormStepperConfig): FormStepper
     allowSkip: coerceOptionalBooleanInput(value.allowSkip),
     apiBase: coerceTrimmedStringInput(value.apiBase),
     honeypotField: coerceTrimmedStringInput(value.honeypotField),
+    prefillFromQuery: sanitizeOptions(value.prefillFromQuery),
   });
+}
+
+/**
+ * Lo que el formulario toma de la dirección (016, D-016-C24): sólo los campos que su instancia declara
+ * (`prefillFromQuery`) y sólo si el valor es una de las opciones del campo. Lo demás se ignora; no avanza ni envía.
+ */
+export function valoresDesdeLaDireccion(
+  campos: readonly string[] | undefined,
+  pasos: readonly PasoDelFormulario[],
+  busqueda: string,
+): Record<string, string> {
+  const valores: Record<string, string> = {};
+  if (!campos?.length) {
+    return valores;
+  }
+  const parametros = new URLSearchParams(busqueda);
+  for (const nombre of campos) {
+    const campo = pasos.flatMap((paso) => paso.fields).find((f) => f.name === nombre);
+    const valor = parametros.get(nombre)?.trim();
+    if (campo?.options?.length && valor && campo.options.includes(valor)) {
+      valores[nombre] = valor;
+    }
+  }
+  return valores;
 }
 
 function toFieldType(value: string): FieldType {
@@ -172,6 +199,22 @@ export class FormStepperElementComponent {
   readonly #errors = signal<ReadonlySet<string>>(new Set());
   readonly #estado = signal<EstadoDelEnvio>('editando');
   readonly #mensajeDeError = signal('');
+  #prellenado = false;
+
+  constructor() {
+    // D-016-C24: una sola vez, cuando llegan los pasos; sólo elige opciones, nunca avanza ni envía.
+    effect(() => {
+      const config = this.config();
+      if (this.#prellenado || !config?.steps?.length) {
+        return;
+      }
+      this.#prellenado = true;
+      const valores = valoresDesdeLaDireccion(config.prefillFromQuery, config.steps, globalThis.location?.search ?? '');
+      if (Object.keys(valores).length > 0) {
+        untracked(() => this.#values.update((actuales) => ({ ...valores, ...actuales })));
+      }
+    });
+  }
 
   readonly allowSkip = computed(() => this.config()?.allowSkip ?? false);
   /** Dónde vive la API. Sin ella no se envía nada: no hay una base de respaldo compilada (ADR 0137). */
