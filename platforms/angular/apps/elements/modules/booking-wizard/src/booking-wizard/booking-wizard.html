@@ -171,6 +171,10 @@
                   </div>
                   <div class="booking-wizard__offer-aside">
                     <p class="booking-wizard__offer-price">{{ offer.totalPriceFormatted }}</p>
+                    <!-- D-016-C23: el precio es el total de la estadía; se dice de cuántas noches. -->
+                    @if (nightCount() > 0) {
+                      <p class="booking-wizard__offer-nights">{{ nightsLabel() }}</p>
+                    }
                     <button
                       type="button"
                       class="booking-wizard__btn booking-wizard__btn--primary"
