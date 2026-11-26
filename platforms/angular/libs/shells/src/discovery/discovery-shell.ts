@@ -6,6 +6,7 @@ import {
   input,
   linkedSignal,
   output,
+  signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import {
@@ -74,6 +75,11 @@ export interface DiscoveryShellConfig {
   readonly searchButtonLabel?: string;
   readonly showSearch?: boolean;
   readonly filtersHeading?: string;
+  /**
+   * El botón que pliega los filtros en el teléfono. Default `Filtros`. Va aparte de `filtersHeading`, porque el
+   * título del panel puede ser otro («Explorar», «Categoría») y el botón dice lo que esconde.
+   */
+  readonly filtersToggleLabel?: string;
   readonly clearLabel?: string;
   /**
    * La opción "sin filtro" de una faceta de valor único. Default `Cualquiera`.
@@ -156,7 +162,25 @@ let discoveryInstanceId = 0;
 
       <div class="syn-discovery__body">
         @if (facets().length > 0) {
-          <aside class="syn-discovery__facets" [attr.aria-label]="config().filtersHeading || 'Filtros'">
+          <button
+            type="button"
+            class="syn-discovery__toggle"
+            [attr.aria-expanded]="filtersOpen()"
+            [attr.aria-controls]="fieldId + '-facets'"
+            (click)="toggleFilters()"
+          >
+            <span class="syn-discovery__toggle-label">{{ config().filtersToggleLabel || 'Filtros' }}</span>
+            @if (activeFilterCount() > 0) {
+              <span class="syn-discovery__toggle-count">{{ activeFilterCount() }}</span>
+            }
+            <span class="syn-discovery__toggle-icon" aria-hidden="true"></span>
+          </button>
+          <aside
+            class="syn-discovery__facets"
+            [class.syn-discovery__facets--collapsed]="!filtersOpen()"
+            [id]="fieldId + '-facets'"
+            [attr.aria-label]="config().filtersHeading || 'Filtros'"
+          >
             <div class="syn-discovery__facets-head">
               <h2 class="syn-discovery__facets-title">{{ config().filtersHeading || 'Filtros' }}</h2>
               @if (hasActiveCriteria()) {
@@ -337,6 +361,13 @@ export class DiscoveryShellComponent<TItem> {
   );
   readonly page = linkedSignal(() => this.initialCriteria()?.page ?? 1);
 
+  /**
+   * El panel de filtros, plegado tras el botón «Filtros» (012-blogs-social, D-012-V9). Sólo cuenta por debajo del
+   * corte en que los filtros se apilan sobre los resultados: ahí empieza cerrado, para que los resultados se vean
+   * primero. Por encima, la hoja no pinta el botón y el panel se ve siempre, esté abierto o no.
+   */
+  readonly filtersOpen = signal(false);
+
   // ─── Derived ───────────────────────────────────────────────────────────────
   readonly layout = computed(() => this.config().layout ?? 'grid');
   readonly totalCount = computed(() => this.total() ?? this.items().length);
@@ -348,6 +379,10 @@ export class DiscoveryShellComponent<TItem> {
     }
     return Object.values(this.selectedFacets()).some((values) => values.length > 0);
   });
+  /** Los valores marcados, que el botón plegado cuenta para que se sepa que hay filtros puestos. */
+  readonly activeFilterCount = computed(() =>
+    Object.values(this.selectedFacets()).reduce((count, values) => count + values.length, 0),
+  );
 
   /** The current criteria snapshot (what `criteriachange` emits). */
   readonly criteria = computed<DiscoveryCriteria>(() => ({
@@ -533,6 +568,10 @@ export class DiscoveryShellComponent<TItem> {
 
   showSearch(): boolean {
     return this.config().showSearch ?? true;
+  }
+
+  toggleFilters(): void {
+    this.filtersOpen.update((open) => !open);
   }
 
   itemContext(item: TItem, index: number): DiscoveryItemContext<TItem> {
