@@ -235,6 +235,18 @@ describe('BookingWizardElementComponent', () => {
     });
   });
 
+  // D-016-C23: el precio de la oferta es el total de la estadía, y cada tarjeta dice de cuántas noches.
+  it('cada oferta dice de cuántas noches es su precio', async () => {
+    stubFetch({ search: { offers: [SAMPLE_OFFER, OTRA_OFERTA] } });
+    mount();
+    conFechas();
+    await avanzar();
+
+    const noches = Array.from(fixture.nativeElement.querySelectorAll('.booking-wizard__offer-nights') as NodeListOf<HTMLElement>)
+      .map((el) => el.textContent?.trim());
+    expect(noches).toEqual(['3 noches', '3 noches']);
+  });
+
   it('elegir una oferta la mete como LÍNEA del carrito del motor', async () => {
     stubFetch({ search: { offers: [SAMPLE_OFFER] } });
     mount();

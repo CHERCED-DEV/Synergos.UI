@@ -236,6 +236,12 @@
     font-variant-numeric: tabular-nums;
   }
 
+  &__offer-nights {
+    margin: 0;
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-xs;
+  }
+
   // ─── Summary / voucher lists ──────────────────────────────────────────────
   &__summary-list {
     display: flex;
