@@ -219,6 +219,8 @@ const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartad
 const DEFAULT_ROLE: EhrRole = 'patient';
 /** El login del sitio, con la vuelta a ESTA página (el mismo de gov, blogs y realty). */
 const LOGIN_PATH = '/account/login';
+/** El dato que lleva el botón de la tarjeta de un profesional («Dato que lleva el enlace» del listado del catálogo). */
+const PARAMETRO_DEL_PROFESIONAL = 'profesional';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EhrRole; label: string; portal: EhrPortal }[] = [
@@ -276,10 +278,13 @@ const E_CHECKIN_STEPS = ['demografia', 'seguro', 'medicamentos', 'cuestionario',
 
 type ScheduleMode = 'in-person' | 'video';
 
-/** Las modalidades de la cita, en el orden en que las pinta `syn-segmented` (#83). */
+/**
+ * Las modalidades de la cita que se ofrecen, en el orden en que las pinta `syn-segmented` (#83). Sólo la presencial: la
+ * app no hace consulta por video, y por la puerta la modalidad ni viajaba (vuelta de valor de 003). Con una sola, el
+ * asistente no pinta el selector. `'video'` sigue en el tipo por el contrato de la directa, no se ofrece.
+ */
 const SCHEDULE_MODES: readonly { readonly value: ScheduleMode; readonly label: string }[] = [
   { value: 'in-person', label: 'Presencial' },
-  { value: 'video', label: 'Video' },
 ];
 
 /**
@@ -298,6 +303,9 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
     devolucionTotalHoras: enteroNoNegativo(value.devolucionTotalHoras),
     devolucionParcialHoras: enteroNoNegativo(value.devolucionParcialHoras),
     devolucionParcialPorcentaje: enteroNoNegativo(value.devolucionParcialPorcentaje),
+    // Un booleano de verdad, o nada: un «true» escrito, un 1 o un null son «no lo dijo», y el portal pregunta como
+    // siempre. Sólo el `true` cambia algo (`sinSesionDelServidor`).
+    sinSesion: typeof value.sinSesion === 'boolean' ? value.sinSesion : undefined,
   });
 }
 
@@ -443,6 +451,12 @@ export class EhrElementComponent implements OnInit {
     this.portal() === 'patient' ? caminoDeLaCita(this.config()?.appointmentPath) : 'directa',
   );
   readonly porLaPuerta = computed(() => this.caminoDeLaCita() === 'puerta');
+  /**
+   * Si se pide el motivo de la consulta. Por la puerta no viaja (la entrada de `salud.cita` es paciente, profesional,
+   * ventana y servicio), y pedir un dato clínico para tirarlo no se hace: ni se pide ni se exige para avanzar. El
+   * motivo lo registra el médico en la nota de la consulta. Por la directa sigue, porque ahí viaja.
+   */
+  readonly pideMotivo = computed(() => !this.porLaPuerta());
   /** La zona del sitio, en la que el paciente elige la hora (`EhrProps.zona`). */
   readonly zona = computed(() => this.config()?.zona ?? '');
   /** Por la puerta sin `<synergos-flujo>` arriba: se dice que no está disponible y no se toca la red. */
@@ -517,6 +531,10 @@ export class EhrElementComponent implements OnInit {
   readonly estadoDelEnlace = signal<'nada' | 'cargando' | 'leida' | 'aviso'>('nada');
   readonly textoDelEnlace = signal('');
   #idDelEnlace = '';
+  /** El profesional que trae el enlace de su tarjeta, hasta que se elige en «Agendar». */
+  #profesionalDelEnlace = '';
+  /** Si el paciente ya eligió profesional en «Agendar»: el del enlace no lo pisa. */
+  #eligioElPaciente = false;
 
   readonly instanceId = (ehrInstanceId += 1);
   readonly fieldId = `syn-ehr-${this.instanceId}`;
@@ -591,9 +609,15 @@ export class EhrElementComponent implements OnInit {
   readonly portalAccess = signal<EhrAcceso>('ok');
   /** Si la superficie clínica se puede abrir: `sin-sesion` (401) o `sin-permiso` (403, sin rol). */
   readonly clinicAccess = signal<EhrAcceso>('ok');
+  /**
+   * Si el servidor pintó la página sin sesión (`sinSesion`, vuelta de valor de 003): el elemento ya trae dentro el panel
+   * «Inicia sesión» como reserva, y la app arranca ahí, sin pintar antes el inicio ni pedir lecturas que contestarían
+   * 401. Es una pista para pintar, no un permiso: lo que se lee lo sigue decidiendo el servidor.
+   */
+  readonly sinSesionDelServidor = computed(() => this.config()?.sinSesion === true);
   /** El acceso de la superficie que se está mirando: lo que decide si se pinta el panel. */
   readonly access = computed<EhrAcceso>(() =>
-    this.portal() === 'patient' ? this.portalAccess() : this.clinicAccess(),
+    this.sinSesionDelServidor() ? 'sin-sesion' : this.portal() === 'patient' ? this.portalAccess() : this.clinicAccess(),
   );
   /**
    * La bandeja clínica pidió de QUÉ médico es (#197): quien mira es clínico sin médico
@@ -1078,7 +1102,7 @@ export class EhrElementComponent implements OnInit {
   });
 
   readonly scheduleValidity = computed<Readonly<Record<string, boolean>>>(() => ({
-    proveedor: this.scheduleDoctorId().trim() !== '' && this.scheduleReason().trim().length >= 3,
+    proveedor: this.scheduleDoctorId().trim() !== '' && (!this.pideMotivo() || this.scheduleReason().trim().length >= 3),
     slot: this.scheduleValid(),
     // Sin un copago que haya dicho el servidor no se agenda: ni un cero inventado ni un número de antes.
     copago: !this.copayUnknown(),
@@ -1184,10 +1208,29 @@ export class EhrElementComponent implements OnInit {
       this.#idDelEnlace = new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
     }
     effect(() => {
-      if (!this.#idDelEnlace || !this.config() || this.estadoDelEnlace() !== 'nada') {
+      if (!this.#idDelEnlace || !this.config() || this.estadoDelEnlace() !== 'nada' || this.sinSesionDelServidor()) {
         return;
       }
       untracked(() => void this.abrirElEnlace(this.#idDelEnlace));
+    });
+
+    // El profesional de su tarjeta («Equipo», `?profesional={id}`, vuelta de valor de 003): llega elegido en «Agendar»
+    // si casa con uno del directorio, una sola vez. Gana a la elección automática (el primero del directorio), nunca a
+    // la del paciente. Nunca avanza ni confirma solo (D-016-C24).
+    if (typeof window !== 'undefined') {
+      this.#profesionalDelEnlace = new URLSearchParams(window.location.search).get(PARAMETRO_DEL_PROFESIONAL)?.trim() ?? '';
+    }
+    effect(() => {
+      const id = this.#profesionalDelEnlace;
+      if (!id || this.#eligioElPaciente || this.view() !== 'schedule') {
+        return;
+      }
+      if (this.doctors().some((profesional) => profesional.id === id)) {
+        untracked(() => {
+          this.#profesionalDelEnlace = '';
+          this.scheduleDoctorId.set(id);
+        });
+      }
     });
   }
 
@@ -1483,6 +1526,11 @@ export class EhrElementComponent implements OnInit {
     this.errorMessage.set('');
     this.navOpen.set(false);
     this.rolechange.emit(role);
+    if (this.sinSesionDelServidor()) {
+      // Sin sesión el perfil sólo cambia el texto del panel; no hay agenda ni inicio que leer.
+      this.navigate(portalOf(role) === 'clinician' ? 'board' : 'home');
+      return;
+    }
     if (portalOf(role) === 'clinician') {
       if (!this.boardLoaded()) {
         void this.loadBoard();
@@ -1516,6 +1564,10 @@ export class EhrElementComponent implements OnInit {
     this.view.set(view);
     this.errorMessage.set('');
     this.viewchange.emit(view);
+    // Sin sesión no hay de quién leer: el panel ya está, y cada lectura contestaría 401.
+    if (this.sinSesionDelServidor()) {
+      return;
+    }
     switch (view) {
       case 'home':
         if (this.historiaBase()) {
@@ -2394,6 +2446,7 @@ export class EhrElementComponent implements OnInit {
   }
 
   setScheduleDoctor(id: string): void {
+    this.#eligioElPaciente = true;
     this.scheduleDoctorId.set(id);
   }
 
