@@ -37,7 +37,9 @@
 }
 
 @if (red.loading() && inicio.posts().length === 0) {
-  <syn-skeleton variant="card" [rows]="4" />
+  <!-- Mientras llega el feed, ocupa al menos la pantalla (D-012-V11): más corto, lo que el servidor pinta debajo de la
+       app entraba a la vista con el esqueleto y volvía a salir al llegar las tarjetas. -->
+  <div class="blogs__cargando"><syn-skeleton variant="card" [rows]="4" /></div>
 } @else if (inicio.posts().length === 0) {
   <syn-empty-state
     kind="first-use"
