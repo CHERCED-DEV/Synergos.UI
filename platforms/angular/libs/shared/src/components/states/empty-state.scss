@@ -6,8 +6,10 @@
   --emp-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --emp-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --emp-icon: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --emp-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --emp-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // La acción es un botón primario: su token, no el tinte de marca (`state-brand-surface` es un fondo al 12 % y con
+  // texto blanco daba 1,05:1 en el tema claro — «Iniciar sesión» del portal de Salud no se leía).
+  --emp-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --emp-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --emp-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
 
   display: block;

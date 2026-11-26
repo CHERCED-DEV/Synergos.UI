@@ -525,6 +525,12 @@
   list-style: none;
 }
 
+// El feed mientras llega (D-012-V11): ocupa al menos la pantalla. La reserva del servidor ya deja fuera de la vista lo
+// que la página pinta debajo de la app; si el esqueleto midiera menos, eso entraría con él y saldría con las tarjetas.
+.blogs__cargando {
+  min-block-size: 100svh;
+}
+
 .blogs__post {
   padding: syn.$space-4;
   border: syn.px-to-rem(1) solid var(--bl-border);

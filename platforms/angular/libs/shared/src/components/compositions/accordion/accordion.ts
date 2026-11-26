@@ -154,11 +154,13 @@ export class AccordionComponent implements OnInit {
 
   readonly headerId = computed(() => `${this.baseId()}-header`);
   readonly panelId = computed(() => `${this.baseId()}-panel`);
-  private readonly baseId = computed(() => this.id() || `syn-accordion-${accordionId}`);
-
-  constructor() {
-    accordionId += 1;
-  }
+  /**
+   * El número de ESTA instancia, tomado al construirla. El computed leía el contador global la primera vez que se
+   * pintaba, cuando ya se habían construido todas: las tres preguntas de un FAQ salían con el mismo
+   * `aria-controls="syn-accordion-3-panel"` e ids repetidos.
+   */
+  readonly #numero = ++accordionId;
+  private readonly baseId = computed(() => this.id() || `syn-accordion-${this.#numero}`);
 
   ngOnInit(): void {
     this.#expanded.set(this.initiallyExpanded());
