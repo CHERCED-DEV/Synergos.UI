@@ -298,6 +298,9 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
     devolucionTotalHoras: enteroNoNegativo(value.devolucionTotalHoras),
     devolucionParcialHoras: enteroNoNegativo(value.devolucionParcialHoras),
     devolucionParcialPorcentaje: enteroNoNegativo(value.devolucionParcialPorcentaje),
+    // Un booleano de verdad, o nada: un «true» escrito, un 1 o un null son «no lo dijo», y el portal pregunta como
+    // siempre. Sólo el `true` cambia algo (`sinSesionDelServidor`).
+    sinSesion: typeof value.sinSesion === 'boolean' ? value.sinSesion : undefined,
   });
 }
 
@@ -591,9 +594,15 @@ export class EhrElementComponent implements OnInit {
   readonly portalAccess = signal<EhrAcceso>('ok');
   /** Si la superficie clínica se puede abrir: `sin-sesion` (401) o `sin-permiso` (403, sin rol). */
   readonly clinicAccess = signal<EhrAcceso>('ok');
+  /**
+   * Si el servidor pintó la página sin sesión (`sinSesion`, vuelta de valor de 003): el elemento ya trae dentro el panel
+   * «Inicia sesión» como reserva, y la app arranca ahí, sin pintar antes el inicio ni pedir lecturas que contestarían
+   * 401. Es una pista para pintar, no un permiso: lo que se lee lo sigue decidiendo el servidor.
+   */
+  readonly sinSesionDelServidor = computed(() => this.config()?.sinSesion === true);
   /** El acceso de la superficie que se está mirando: lo que decide si se pinta el panel. */
   readonly access = computed<EhrAcceso>(() =>
-    this.portal() === 'patient' ? this.portalAccess() : this.clinicAccess(),
+    this.sinSesionDelServidor() ? 'sin-sesion' : this.portal() === 'patient' ? this.portalAccess() : this.clinicAccess(),
   );
   /**
    * La bandeja clínica pidió de QUÉ médico es (#197): quien mira es clínico sin médico
@@ -1184,7 +1193,7 @@ export class EhrElementComponent implements OnInit {
       this.#idDelEnlace = new URLSearchParams(window.location.search).get(parametro)?.trim() ?? '';
     }
     effect(() => {
-      if (!this.#idDelEnlace || !this.config() || this.estadoDelEnlace() !== 'nada') {
+      if (!this.#idDelEnlace || !this.config() || this.estadoDelEnlace() !== 'nada' || this.sinSesionDelServidor()) {
         return;
       }
       untracked(() => void this.abrirElEnlace(this.#idDelEnlace));
@@ -1483,6 +1492,11 @@ export class EhrElementComponent implements OnInit {
     this.errorMessage.set('');
     this.navOpen.set(false);
     this.rolechange.emit(role);
+    if (this.sinSesionDelServidor()) {
+      // Sin sesión el perfil sólo cambia el texto del panel; no hay agenda ni inicio que leer.
+      this.navigate(portalOf(role) === 'clinician' ? 'board' : 'home');
+      return;
+    }
     if (portalOf(role) === 'clinician') {
       if (!this.boardLoaded()) {
         void this.loadBoard();
@@ -1516,6 +1530,10 @@ export class EhrElementComponent implements OnInit {
     this.view.set(view);
     this.errorMessage.set('');
     this.viewchange.emit(view);
+    // Sin sesión no hay de quién leer: el panel ya está, y cada lectura contestaría 401.
+    if (this.sinSesionDelServidor()) {
+      return;
+    }
     switch (view) {
       case 'home':
         if (this.historiaBase()) {

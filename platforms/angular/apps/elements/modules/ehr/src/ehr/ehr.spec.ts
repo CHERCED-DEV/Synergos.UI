@@ -587,6 +587,25 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     },
   );
 
+  it('si el servidor pintó la página sin sesión, arranca en el panel y no pide nada, en ninguna vista ni perfil', async () => {
+    // Aunque el doble tuviera sesión: lo que vale es lo que vio el servidor al pintar la página.
+    await createComponent({}, { ...NEGOCIO_DEL_CMS, historiaBase: '/api/healthcare', sinSesion: true });
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+
+    expect(component.access()).toBe('sin-sesion');
+    expect(host.querySelector('.ehr__access')?.textContent).toContain('Inicia sesión para ver tu historia clínica');
+    // El inicio no se pinta antes del panel: era el salto de 0,06 a 1280 px.
+    expect(host.querySelector('.ehr__view-title')).toBeNull();
+
+    component.navigate('results');
+    component.setRole('doctor');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(host.querySelector('.ehr__access')?.textContent).toContain('Inicia sesión para abrir el cockpit clínico');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('con sesión y por la directa, el inicio lee la próxima cita del portal en vez de darla por ninguna', async () => {
     const host = await inicioConLaHistoria(SOLO_PACIENTE, 'directa');
 
@@ -1137,6 +1156,14 @@ describe('sanitizeEhrConfig: el camino de la cita', () => {
     ['con otra caja', { ...NEGOCIO_DEL_CMS, appointmentPath: 'PUERTA' }],
   ])('%s, no hay camino', (_caso, config) => {
     expect(sanitizeEhrConfig(config)).toEqual(NEGOCIO_DEL_CMS);
+  });
+
+  it('«sin sesión» sólo vale como booleano de verdad', () => {
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: true })).toEqual({ ...NEGOCIO_DEL_CMS, sinSesion: true });
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: false })).toEqual({ ...NEGOCIO_DEL_CMS, sinSesion: false });
+    for (const raro of ['true', 1, null]) {
+      expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: raro as never })).toEqual(NEGOCIO_DEL_CMS);
+    }
   });
 });
 
