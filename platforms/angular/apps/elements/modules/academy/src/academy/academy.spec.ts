@@ -312,6 +312,42 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     }
   });
 
+  // ── D-016-C23: la ficha del curso no afirma una valoración sin alumnos ni pinta ceros ──
+  it('la ficha no muestra valoración sin alumnos ni «0» en la tarjeta de quien dicta', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    component.openCourse(component.courses()[0]);
+    await flushMicrotasks();
+    const base = component.detail()!;
+    const conDatos = (studentCount: number, courseCount: number) => {
+      component.detail.set({
+        ...base,
+        course: { ...base.course, studentCount, rating: 4.8 },
+        instructor: { ...base.instructor, studentCount, rating: 4.8, courseCount },
+      });
+      fixture.detectChanges();
+      const filas = new Map(component.pdpSpecs().map((f) => [f.label, f.value]));
+      const stats = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.academy__instructor-stats li'))
+        .map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+      return { filas, stats };
+    };
+
+    // Lo que manda el servidor hoy: sin alumnos, y los cursos de quien lo dicta contados del catálogo.
+    const hoy = conDatos(0, 2);
+    expect(hoy.filas.has('Valoración')).toBe(false);
+    expect(hoy.filas.has('Estudiantes')).toBe(false);
+    expect(hoy.stats).toEqual(['2 cursos']);
+    expect(conDatos(0, 1).stats).toEqual(['1 curso']);
+    expect(conDatos(0, 0).stats).toEqual([]);
+
+    // Con alumnos, la valoración vuelve, con la coma de es-CO.
+    const conAlumnos = conDatos(3, 2);
+    expect(conAlumnos.filas.get('Valoración')).toBe('4,8');
+    expect(conAlumnos.filas.get('Estudiantes')).toBe('3');
+    expect(conAlumnos.stats).toEqual(['4,8 valoración', '3 estudiantes', '2 cursos']);
+  });
+
   // ── #83: el método de pago lo pinta `syn-segmented` ─────────────────────────────
   //
   // Era un `role="radiogroup"` cuyos hijos eran <button> SIN `role="radio"`: el lector

@@ -373,11 +373,20 @@
             </div>
           </div>
           <p class="academy__instructor-bio">{{ detail.instructor.bio }}</p>
+          <!-- D-016-C23: lo que no llega no se pinta; ni «0.0 valoración» ni «0 cursos». -->
+          @if (detail.instructor.studentCount > 0 || detail.instructor.courseCount > 0) {
           <ul class="academy__instructor-stats">
-            <li><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ detail.instructor.rating.toFixed(1) }} valoración</li>
-            <li>{{ formatCount(detail.instructor.studentCount) }} estudiantes</li>
-            <li>{{ detail.instructor.courseCount }} cursos</li>
+            @if (detail.instructor.rating > 0 && detail.instructor.studentCount > 0) {
+              <li><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ formatRating(detail.instructor.rating) }} valoración</li>
+            }
+            @if (detail.instructor.studentCount > 0) {
+              <li>{{ formatCount(detail.instructor.studentCount) }} estudiantes</li>
+            }
+            @if (detail.instructor.courseCount > 0) {
+              <li>{{ detail.instructor.courseCount }} {{ detail.instructor.courseCount === 1 ? 'curso' : 'cursos' }}</li>
+            }
           </ul>
+          }
         </div>
       </ng-template>
     }

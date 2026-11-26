@@ -591,6 +591,33 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── D-016-C23: la ficha no cuelga el separador ni llama «Artista» a quien da una charla ──
+  it('la ficha dice el papel que manda el servidor, «Lugar», y no cuelga el separador sin dirección', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    component.openEvent(component.events()[0]);
+    await flushMicrotasks();
+    const pdp = component.detail()!;
+    // Lo que manda el servidor hoy: el papel del ponente y el lugar sin dirección.
+    component.detail.set({
+      ...pdp,
+      artist: { ...pdp.artist, role: 'Ponente' },
+      venue: { ...pdp.venue, address: '', city: 'Bogotá' },
+    });
+    fixture.detectChanges();
+
+    const textos = (selector: string) =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll(selector)).map((el) => el.textContent?.trim());
+    expect(textos('.eventos__profile-label')).toEqual(['Ponente', 'Lugar', 'Organiza']);
+    expect(textos('.eventos__profile-meta')).toContain('Bogotá');
+    expect(textos('.eventos__profile-meta').some((t) => t?.startsWith('·'))).toBe(false);
+
+    component.detail.set({ ...pdp, artist: { ...pdp.artist, role: undefined } });
+    fixture.detectChanges();
+    expect(textos('.eventos__profile-label')[0]).toBe('Artista');
+  });
+
   // ── el hero se COMPONE: el título del CMS llega por el JSON de `config` ───────
   it('pinta el heading/subheading que manda el CMS por `config` (no el baked)', async () => {
     installMemoryStorage();
@@ -3556,6 +3583,27 @@ describe('EventosApiClient', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  // D-016-C23: la forma del SERVIDOR (`EventArtistDto`): el papel llega en `role`, sin seguidores inventados.
+  it('lee el papel del artista que manda el servidor, y sin él no inventa uno', async () => {
+    const detalle = (role: string | null) => ({
+      event: { id: 'evt-cumbre-tech', title: 'Cumbre Tech 2027', category: 'Conferencia', city: 'Bogotá', fromAmount: 250_000, currency: 'COP' },
+      artist: { name: 'Valeria Cárdenas', headline: 'Keynote principal', followers: 0, role },
+      venue: { name: 'Ágora Centro de Convenciones', address: '', city: 'Bogotá', zones: [] },
+      tiers: [],
+    });
+    let role: string | null = 'Ponente';
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(detalle(role)) } as Response)));
+    const client = createClient();
+
+    const conPapel = await client.event('/api/eventos', 'evt-cumbre-tech', 'COP');
+    expect(conPapel.artist.role).toBe('Ponente');
+    expect(conPapel.artist.followers).toBe(0);
+
+    role = null;
+    expect((await client.event('/api/eventos', 'evt-cumbre-tech', 'COP')).artist.role).toBeUndefined();
   });
 
   it('normalises a live catalogue response (happy case)', async () => {

@@ -617,14 +617,17 @@ export class AcademyElementComponent implements OnInit {
       return [];
     }
     const course = detail.course;
-    return [
+    // D-016-C23: sin alumnos no hay quien respalde una valoración (la misma regla de la tarjeta, I10), y «0 estudiantes»
+    // no se dice: las dos filas salen enteras cuando el dato no llega.
+    const rows: (DetailSpec | null)[] = [
       { label: 'Nivel', value: this.levelLabel(course.level) },
       { label: 'Escuela', value: course.category || '—' },
       { label: 'Lecciones', value: String(this.totalLessons() || course.lessonCount) },
       { label: 'Duración', value: this.durationLabel(course.durationMinutes) || '—' },
-      { label: 'Valoración', value: course.rating > 0 ? course.rating.toFixed(1) : '—' },
-      { label: 'Estudiantes', value: this.formatCount(course.studentCount) },
+      course.studentCount > 0 && course.rating > 0 ? { label: 'Valoración', value: this.formatRating(course.rating) } : null,
+      course.studentCount > 0 ? { label: 'Estudiantes', value: this.formatCount(course.studentCount) } : null,
     ];
+    return rows.filter((row): row is DetailSpec => row !== null);
   });
 
   readonly pdpPriceLabel = computed(() => {
@@ -2464,6 +2467,15 @@ export class AcademyElementComponent implements OnInit {
   }
 
   /** es-CO grouped integer. */
+  /** Una valoración con un decimal y la coma de es-CO («4,8»). */
+  formatRating(value: number): string {
+    try {
+      return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+    } catch {
+      return value.toFixed(1);
+    }
+  }
+
   formatCount(value: number): string {
     try {
       return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(value);

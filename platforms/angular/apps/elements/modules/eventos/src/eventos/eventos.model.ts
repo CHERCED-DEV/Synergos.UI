@@ -162,6 +162,8 @@ export interface EventArtist {
   readonly name: string;
   readonly headline: string;
   readonly followers: number;
+  /** Su papel en la ficha («Ponente» en una conferencia); sin él, la ficha dice «Artista». */
+  readonly role?: string;
 }
 
 /** The venue, with optional reserved-seating zones. */
