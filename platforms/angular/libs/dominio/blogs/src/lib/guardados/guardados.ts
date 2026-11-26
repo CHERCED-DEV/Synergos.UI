@@ -143,6 +143,10 @@ export class GuardadosDeBlogs {
   }
 
   async loadSaved(): Promise<void> {
+    if (this.#red.sinSesionNoSePide()) {
+      this.savedLoaded.set(true);
+      return;
+    }
     this.#red.loading.set(true);
     try {
       const posts = await this.#api.saved(this.#red.apiBase(), this.#red.lecturasBase());

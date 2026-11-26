@@ -5,6 +5,8 @@
 </syn-button>
 
 @if (publicacion.activePost(); as post) {
+  <!-- El <h1> de la vista: la tarjeta titula con un <h2>, o no titula si es de un miembro (tanda 13). -->
+  <h1 class="blogs__sr-only">{{ textosRed.publicacionDe(post.author.displayName) }}</h1>
   <sg-blogs-tarjeta [publicacion]="post" [detalle]="true" />
 
   <!-- Reuse the published comments-widget custom element (progressive enhancement;
@@ -49,4 +51,13 @@
     (authorSelect)="abrirAutor($event)"
     (report)="denunciar($event)"
   />
+} @else if (red.loading()) {
+  <syn-skeleton variant="card" [rows]="1" />
+} @else {
+  <!-- Sin publicación (012, vuelta de valor, tanda 13): no existe, la moderación la retiró o el enlace llegó sin ella.
+       Antes, la página quedaba vacía, o con OTRA inventada de la muestra y el aviso de que el servidor no respondía. -->
+  <header class="blogs__view-head">
+    <h1 class="blogs__view-title">{{ textosRed.publicacionNoDisponible }}</h1>
+    <p class="blogs__view-sub">{{ textosRed.publicacionNoDisponibleTexto }}</p>
+  </header>
 }

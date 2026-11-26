@@ -39,6 +39,10 @@ export class EstudioDeBlogs {
   }
 
   async loadStudio(): Promise<void> {
+    if (this.#red.sinSesionNoSePide()) {
+      this.studioLoaded.set(true);
+      return;
+    }
     this.#red.loading.set(true);
     try {
       const studio = await this.#orchestrator.callApi('studio', () => this.#api.studio(this.#red.apiBase()));

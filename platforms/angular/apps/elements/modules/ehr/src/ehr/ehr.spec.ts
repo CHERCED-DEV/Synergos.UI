@@ -235,6 +235,52 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture.detectChanges();
   }
 
+  // ── Vuelta de valor (2026-11-26): «Agendar» desde la tarjeta del profesional en «Equipo» (`?profesional={id}`) ──
+  describe('el profesional que trae el enlace de su tarjeta', () => {
+    afterEach(() => window.history.replaceState({}, '', '/'));
+
+    async function agendarCon(enlace: string): Promise<CheckoutWizardComponent> {
+      window.history.replaceState({}, '', enlace);
+      await createComponent();
+      component.navigate('schedule');
+      await flushMicrotasks();
+      fixture.detectChanges();
+      // El efecto elige durante ese ciclo; el `<select>` lo refleja en el siguiente.
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.directive(CheckoutWizardComponent)).componentInstance as CheckoutWizardComponent;
+    }
+
+    it('llega elegido si existe (aunque no sea el primero del directorio), y el asistente sigue en su primer paso', async () => {
+      const asistente = await agendarCon('/healthcare/?profesional=doc-rojas');
+
+      expect(component.doctors()[0]?.id).not.toBe('doc-rojas');
+      expect(component.scheduleDoctorId()).toBe('doc-rojas');
+      expect(asistente.currentStep()?.id).toBe('proveedor');
+      const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select[id$="-sch-doc"]');
+      expect(select).not.toBeNull();
+      expect(select?.value).toBe('doc-rojas');
+    });
+
+    it('si no casa con ninguno, queda la elección de siempre (el primero del directorio)', async () => {
+      await agendarCon('/healthcare/?profesional=no-existe');
+
+      expect(component.doctors().length).toBeGreaterThan(0);
+      expect(component.scheduleDoctorId()).toBe(component.doctors()[0]!.id);
+    });
+
+    it('no pisa una elección: si el paciente cambia de profesional, queda el que eligió', async () => {
+      await agendarCon('/healthcare/?profesional=doc-rojas');
+      const otro = component.doctors().find((profesional) => profesional.id !== 'doc-rojas')!.id;
+
+      component.setScheduleDoctor(otro);
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.scheduleDoctorId()).toBe(otro);
+    });
+  });
+
   // ── I1 de producción (T045): el directorio sale de la lectura genérica que declara el CMS ──
   it('con la base de lecturas, el directorio sale de la lectura genérica de Salud y no de /doctors', async () => {
     await createComponent({}, { ...NEGOCIO_DEL_CMS, lecturasBase: '/api/lecturas/salud' });
@@ -274,46 +320,38 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // Antes eran dos <button> con sólo la clase `is-active`: la pantalla cambiaba de color
   // y un lector de pantalla no tenía nada que leer. Se busca por ROL y NOMBRE, no por
   // la clase, porque lo que se prueba es lo que recibe el lector.
-  it('la modalidad es un radiogroup con estado y se cambia con el teclado (#83)', async () => {
-    Element.prototype.scrollIntoView = vi.fn();
+  // Vuelta de valor (2026-11-26): no hay consulta por video, así que «Video» no se ofrece, y con una sola modalidad no
+  // hay nada que elegir. El radiogroup accesible (#83, #87) es de `syn-segmented`, que lo prueba en su spec.
+  it('no se ofrece «Video»: la cita es presencial y no se pinta un selector de una sola opción', async () => {
     await createComponent();
     component.navigate('schedule');
     await flushMicrotasks();
     fixture.detectChanges();
 
-    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-      'syn-segmented.ehr__mode-toggle [role="radiogroup"]',
-    );
-    expect(group).not.toBeNull();
-    // #87: el nombre es el rótulo VISIBLE «Modalidad», por aria-labelledby. Antes el rótulo no
-    // se asociaba y el grupo llevaba otro texto aparte en aria-label.
-    const rotulo = document.getElementById(group?.getAttribute('aria-labelledby') ?? '');
-    expect(rotulo?.textContent?.trim()).toBe('Modalidad');
-    expect((fixture.nativeElement as HTMLElement).contains(rotulo)).toBe(true);
-    expect(group?.hasAttribute('aria-label')).toBe(false);
-    const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
-    const estado = (): string[][] =>
-      radios.map((radio) => [radio.textContent?.trim() ?? '', radio.getAttribute('aria-checked') ?? '']);
-    expect(estado()).toEqual([
-      ['Presencial', 'true'],
-      ['Video', 'false'],
-    ]);
-
-    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    fixture.detectChanges();
-
-    expect(component.scheduleMode()).toBe('video');
-    expect(estado()).toEqual([
-      ['Presencial', 'false'],
-      ['Video', 'true'],
-    ]);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('syn-segmented.ehr__mode-toggle')).toBeNull();
+    expect(host.textContent).not.toContain('Video');
+    expect(component.scheduleMode()).toBe('in-person');
   });
 
-  it('una modalidad que no está en la lista no llega a la cita (#83)', async () => {
+  it('una modalidad que no se ofrece no llega a la cita, «Video» tampoco (#83)', async () => {
     await createComponent();
     component.setScheduleMode('video');
     component.setScheduleMode('telepatía');
-    expect(component.scheduleMode()).toBe('video');
+    expect(component.scheduleMode()).toBe('in-person');
+  });
+
+  it('por la directa el motivo se pide y hace falta para avanzar, porque ahí viaja', async () => {
+    await createComponent();
+    component.navigate('schedule');
+    await flushMicrotasks();
+    component.setScheduleDoctor('doc-mendez');
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('input[id$="-sch-reason"]')).not.toBeNull();
+    expect(component.scheduleValidity()['proveedor']).toBe(false);
+    component.scheduleReason.set('Control');
+    expect(component.scheduleValidity()['proveedor']).toBe(true);
   });
 
   it('agenda la cita CONTRA EL SERVIDOR y enseña el comprobante suyo (engine case)', async () => {
@@ -586,6 +624,25 @@ describe('EhrElementComponent (v2 dual portal)', () => {
       expect(host.textContent).not.toContain('No pudimos leer esto ahora');
     },
   );
+
+  it('si el servidor pintó la página sin sesión, arranca en el panel y no pide nada, en ninguna vista ni perfil', async () => {
+    // Aunque el doble tuviera sesión: lo que vale es lo que vio el servidor al pintar la página.
+    await createComponent({}, { ...NEGOCIO_DEL_CMS, historiaBase: '/api/healthcare', sinSesion: true });
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+
+    expect(component.access()).toBe('sin-sesion');
+    expect(host.querySelector('.ehr__access')?.textContent).toContain('Inicia sesión para ver tu historia clínica');
+    // El inicio no se pinta antes del panel: era el salto de 0,06 a 1280 px.
+    expect(host.querySelector('.ehr__view-title')).toBeNull();
+
+    component.navigate('results');
+    component.setRole('doctor');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(host.querySelector('.ehr__access')?.textContent).toContain('Inicia sesión para abrir el cockpit clínico');
+    expect(fetch).not.toHaveBeenCalled();
+  });
 
   it('con sesión y por la directa, el inicio lee la próxima cita del portal en vez de darla por ninguna', async () => {
     const host = await inicioConLaHistoria(SOLO_PACIENTE, 'directa');
@@ -1138,6 +1195,14 @@ describe('sanitizeEhrConfig: el camino de la cita', () => {
   ])('%s, no hay camino', (_caso, config) => {
     expect(sanitizeEhrConfig(config)).toEqual(NEGOCIO_DEL_CMS);
   });
+
+  it('«sin sesión» sólo vale como booleano de verdad', () => {
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: true })).toEqual({ ...NEGOCIO_DEL_CMS, sinSesion: true });
+    expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: false })).toEqual({ ...NEGOCIO_DEL_CMS, sinSesion: false });
+    for (const raro of ['true', 1, null]) {
+      expect(sanitizeEhrConfig({ ...NEGOCIO_DEL_CMS, sinSesion: raro as never })).toEqual(NEGOCIO_DEL_CMS);
+    }
+  });
 });
 
 // ══ LA CITA POR LA PUERTA (003-salud-cita, ADR 0140, fase 9) ═══════════════════════════════════════
@@ -1397,6 +1462,30 @@ describe('La cita por la puerta (003-salud-cita)', () => {
     { inicio: '2027-03-15T14:20:00Z', fin: '2027-03-15T14:40:00Z', libres: 0 },
     { inicio: '2027-03-15T14:40:00Z', fin: '2027-03-15T15:00:00Z', libres: 1 },
   ];
+
+  it('por la puerta el motivo no se pide, no hace falta para avanzar y no sale en el resumen (no viaja)', async () => {
+    await montar(puertaDeLaCita());
+    component.navigate('schedule');
+    await asentar(12);
+    component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('input[id$="-sch-reason"]')).toBeNull();
+    expect(component.scheduleValidity()['proveedor']).toBe(true);
+
+    component.selectSlot({ date: '2026-08-01', time: '10:00' });
+    fixture.detectChanges();
+    await asentar(12);
+    const wizard = asistente();
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await asentar(12);
+    }
+    expect(host.textContent).not.toContain('Motivo:');
+    expect(host.textContent).toContain('Presencial');
+  });
 
   it('las horas son las libres de la agenda del profesional, en la hora del sitio, pedidas por la puerta (T046)', async () => {
     const puerta = puertaDeLaCita({ franjas: AGENDA });
