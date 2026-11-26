@@ -110,6 +110,7 @@ import {
   type EventDetail,
   type EventMode,
   type EventStatus,
+  type EventVenue,
   type EventSummary,
   type EventosRole,
   type EventosSortKey,
@@ -2910,6 +2911,11 @@ export class EventosElementComponent implements OnInit {
     } catch {
       return iso;
     }
+  }
+
+  /** La dirección y la ciudad del lugar, sin el separador colgado cuando falta una de las dos. */
+  venueLine(venue: EventVenue): string {
+    return [venue.address, venue.city].map((parte) => parte.trim()).filter(Boolean).join(' · ');
   }
 
   formatCount(value: number): string {

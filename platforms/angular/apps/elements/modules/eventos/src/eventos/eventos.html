@@ -171,7 +171,7 @@
 
           <div class="eventos__pdp-profiles">
             <div class="eventos__profile">
-              <p class="eventos__profile-label">Artista</p>
+              <p class="eventos__profile-label">{{ pdp.artist.role || 'Artista' }}</p>
               <p class="eventos__profile-name">{{ pdp.artist.name }}</p>
               <p class="eventos__profile-meta">{{ pdp.artist.headline }}</p>
               @if (pdp.artist.followers > 0) {
@@ -179,9 +179,9 @@
               }
             </div>
             <div class="eventos__profile">
-              <p class="eventos__profile-label">Venue</p>
+              <p class="eventos__profile-label">Lugar</p>
               <p class="eventos__profile-name">{{ pdp.venue.name }}</p>
-              <p class="eventos__profile-meta">{{ pdp.venue.address }} · {{ pdp.venue.city }}</p>
+              <p class="eventos__profile-meta">{{ venueLine(pdp.venue) }}</p>
             </div>
             <div class="eventos__profile">
               <p class="eventos__profile-label">Organiza</p>

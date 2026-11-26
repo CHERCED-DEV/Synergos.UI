@@ -810,6 +810,7 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): EventDetail 
       name: readString(artist['name']).trim() || event.title,
       headline: readString(artist['headline']).trim(),
       followers: Math.trunc(readNumber(artist['followers'])),
+      role: readString(artist['role']).trim() || undefined,
     },
     venue: {
       name: readString(rawVenue['name']).trim() || event.venueName || 'Venue',
@@ -1383,7 +1384,8 @@ function mockArtist(event: EventSummary): EventArtist {
   return {
     name: event.title.split('·')[0].trim() || event.title,
     headline: `Artista destacado · ${event.category}`,
-    followers: 12_400 + Math.round(event.soldPercent * 380),
+    // Sin seguidores inventados: la ficha no pinta el chip en 0 (D-016-C23).
+    followers: 0,
   };
 }
 
