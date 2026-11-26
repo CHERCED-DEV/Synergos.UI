@@ -217,6 +217,58 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── 016: la ficha no pinta lo que el inventario no trae ──────────────────────
+  //
+  // El doble es la forma del SERVIDOR (`SpecsDto`): lo que el inventario del CMS no tiene llega en nulo. Antes la ficha
+  // decía «Parqueaderos 0», «Antigüedad Nuevo» y «—» de datos que nadie escribió.
+  it('la ficha muestra los datos del inventario y omite los que no llegan', async () => {
+    installMemoryStorage();
+    const inmueble = (slug: string, title: string) => ({
+      id: slug, slug, title, operation: 'sale', type: 'local', price: 1_650_000_000, currency: 'COP',
+      geo: { lat: 4.667, lng: -74.053, address: '', neighborhood: 'Zona T', city: 'Bogotá' },
+    });
+    const sinParqueadero = inmueble('local-zona-t-bogota', 'Local comercial en Zona T');
+    const conParqueadero = inmueble('oficina-centro-internacional-bogota', 'Oficina en torre empresarial');
+    const servidor = (url: string) => {
+      const listing = url.includes(conParqueadero.slug) ? conParqueadero : sinParqueadero;
+      return {
+        listing,
+        specs: {
+          beds: 0, baths: 1, areaBuilt: 85, areaPrivate: null, parking: listing === conParqueadero ? 2 : null,
+          stratum: 6, ageYears: null, floor: null,
+        },
+        description: 'Con acceso a la calle.',
+        location: { lat: 4.667, lng: -74.053, address: 'Zona T, Bogotá', neighborhood: 'Zona T', city: 'Bogotá' },
+      };
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      const ruta = String(url);
+      const cuerpo = ruta.includes('/listing/') ? servidor(ruta)
+        : ruta.includes('/listings') ? { listings: [sinParqueadero, conParqueadero], total: 2 } : null;
+      return cuerpo
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(cuerpo) } as Response)
+        : Promise.reject(new Error('offline'));
+    }));
+    await createComponent();
+    const filasDe = async (slug: string) => {
+      component.openListing(component.listings().find((l) => l.id === slug)!);
+      await flushMicrotasks();
+      return new Map(component.pdpSpecs().map((f) => [f.label, f.value]));
+    };
+
+    const filas = await filasDe(sinParqueadero.slug);
+    expect(filas.get('Baños')).toBe('1');
+    expect(filas.get('Estrato')).toBe('6');
+    for (const ausente of ['Habitaciones', 'Área privada', 'Parqueaderos', 'Antigüedad']) {
+      expect(filas.has(ausente)).toBe(false);
+    }
+    expect([...filas.values()]).not.toContain('Nuevo');
+    expect([...filas.values()]).not.toContain('—');
+
+    // Con el dato en el inventario, la fila está.
+    expect((await filasDe(conParqueadero.slug)).get('Parqueaderos')).toBe('2');
+  });
+
   /** PDP → asistente de visita con los datos llenos, parado en el último paso. */
   async function llegarAlUltimoPasoDeLaVisita(): Promise<CheckoutWizardComponent> {
     component.openListing(component.listings()[0]);

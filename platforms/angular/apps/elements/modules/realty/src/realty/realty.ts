@@ -719,19 +719,21 @@ export class RealtyElementComponent implements OnInit {
       return [];
     }
     const specs = detail.specs;
-    const rows: DetailSpec[] = [
+    // Lo que no llega no se pinta: un 0 de este backend es «no lo sabemos» (como en el comparador), así que la fila
+    // sale entera en vez de decir «—», «Parqueaderos 0» o «Antigüedad Nuevo» de un dato que nadie escribió.
+    const rows: (DetailSpec | null)[] = [
       { label: 'Operación', value: detail.listing.operation === 'rent' ? 'En arriendo' : 'En venta' },
       { label: 'Tipo', value: this.typeLabel(detail.listing.type) },
-      { label: 'Habitaciones', value: specs.beds > 0 ? String(specs.beds) : '—' },
-      { label: 'Baños', value: specs.baths > 0 ? String(specs.baths) : '—' },
-      { label: 'Área construida', value: specs.areaBuilt > 0 ? this.formatArea(specs.areaBuilt) : '—' },
-      { label: 'Área privada', value: specs.areaPrivate > 0 ? this.formatArea(specs.areaPrivate) : '—' },
-      { label: 'Parqueaderos', value: String(specs.parking) },
-      { label: 'Estrato', value: specs.stratum > 0 ? String(specs.stratum) : '—' },
-      { label: 'Antigüedad', value: specs.ageYears > 0 ? `${specs.ageYears} años` : 'Nuevo' },
+      specs.beds > 0 ? { label: 'Habitaciones', value: String(specs.beds) } : null,
+      specs.baths > 0 ? { label: 'Baños', value: String(specs.baths) } : null,
+      specs.areaBuilt > 0 ? { label: 'Área construida', value: this.formatArea(specs.areaBuilt) } : null,
+      specs.areaPrivate > 0 ? { label: 'Área privada', value: this.formatArea(specs.areaPrivate) } : null,
+      specs.parking > 0 ? { label: 'Parqueaderos', value: String(specs.parking) } : null,
+      specs.stratum > 0 ? { label: 'Estrato', value: String(specs.stratum) } : null,
+      specs.ageYears > 0 ? { label: 'Antigüedad', value: `${specs.ageYears} años` } : null,
       { label: 'Ubicación', value: [detail.location.neighborhood, detail.location.city].filter(Boolean).join(', ') || '—' },
     ];
-    return rows;
+    return rows.filter((row): row is DetailSpec => row !== null);
   });
 
   /** Single-pin location map for the PDP (reuses SH-8 in map-only mode). */
