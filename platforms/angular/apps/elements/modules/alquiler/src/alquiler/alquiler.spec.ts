@@ -173,6 +173,8 @@ describe('AlquilerElementComponent', () => {
 
   afterEach(() => {
     delete (window as unknown as { synergos?: unknown }).synergos;
+    // La ficha escribe su dirección en el hash (D-016-C25): la prueba siguiente no debe heredarla.
+    window.history.replaceState(null, '', '/');
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
@@ -219,6 +221,62 @@ describe('AlquilerElementComponent', () => {
   });
 
   // ── La ficha y la cotización ───────────────────────────────────────────
+
+  // ── D-016-C25: la ficha tiene su dirección, y la tarjeta no presenta la flota como disponibilidad ──
+  describe('la dirección de la ficha', () => {
+    afterEach(() => window.history.replaceState(null, '', '/'));
+
+    it('abrir un equipo escribe #/alquiler/equipo/{id}, y volver la quita', async () => {
+      servidor(GUION_FELIZ);
+      await montar();
+
+      await component.abrir('andamio-6m');
+      await drenar();
+      expect(window.location.hash).toBe('#/alquiler/equipo/andamio-6m');
+
+      component.volver();
+      expect(window.location.hash).toBe('#/alquiler');
+      expect(component.vista()).toBe('catalogo');
+    });
+
+    it('volver hasta la página sin hash («atrás») vuelve al catálogo', async () => {
+      servidor(GUION_FELIZ);
+      await montar();
+      await component.abrir('andamio-6m');
+      await drenar();
+
+      window.history.replaceState(null, '', '/alquiler/');
+      component.aplicarRuta();
+
+      expect(component.vista()).toBe('catalogo');
+    });
+
+    it('entrar con el enlace de la ficha la abre', async () => {
+      servidor(GUION_FELIZ);
+      window.history.replaceState(null, '', '/alquiler/#/alquiler/equipo/andamio-6m');
+      await montar();
+      await drenar();
+
+      expect(component.vista()).toBe('ficha');
+    });
+  });
+
+  it('la tarjeta dice la categoría y no la flota, y ningún texto lleva «(s)» ni «(es)»', async () => {
+    servidor(GUION_FELIZ);
+    await montar();
+    fixture.detectChanges();
+
+    expect(component.meta(EQUIPO)).toBe(EQUIPO.category);
+    const textos = [
+      component.tramoDesde(7),
+      component.lineaDeCotizacion(COTIZACION),
+      component.lineaDeContrato(CONTRATO as never),
+    ];
+    for (const texto of textos) {
+      expect(texto).not.toMatch(/\((s|es)\)/);
+    }
+    expect(component.tramoDesde(7)).toBe('desde el día 7');
+  });
 
   it('la ficha trae sus tramos de tarifa y sus límites', async () => {
     servidor(GUION_FELIZ);
@@ -721,7 +779,7 @@ describe('la cara del personal', () => {
     await component.cargarPersonal();
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Declarada hace 3 día(s)');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Días desde que se declaró: 3');
   });
 
   it('a quien no es del personal (403) la cara NO se le enseña, ni vacía', async () => {

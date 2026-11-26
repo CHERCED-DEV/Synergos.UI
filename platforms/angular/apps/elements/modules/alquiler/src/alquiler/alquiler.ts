@@ -26,6 +26,8 @@ import {
   elegirMensaje,
   formatearImporte,
   hayCoordinador,
+  mismaRuta,
+  segmentosDeRuta,
   t,
   type ClaseDeRechazo,
   type RechazoDelFlujo,
@@ -258,6 +260,9 @@ function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
  * devolver no inventa un acuse, y el sello de un comprobante se pinta como comprobado sólo si el
  * servidor lo dijo: `verified` en nulo es «no consta» y se ve distinto de «no cuadra».</p>
  */
+/** La base de las rutas de la vertical en el hash (`#/alquiler/…`). */
+const RUTA_DE_ALQUILER = 'alquiler';
+
 @Component({
   selector: 'synergos-alquiler',
   standalone: true,
@@ -271,7 +276,7 @@ function rechazosDeAlquiler(eq: EquipmentDetail | null, generico: string): {
   templateUrl: './alquiler.html',
   styleUrl: './alquiler.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-alquiler' },
+  host: { class: 'sg-alquiler', '(window:hashchange)': 'aplicarRuta()' },
 })
 export class AlquilerElementComponent implements OnInit {
   readonly #api = inject(AlquilerApiClient);
@@ -413,6 +418,33 @@ export class AlquilerElementComponent implements OnInit {
     void this.cargarCatalogo();
     const delAviso = rentaDelEnlace();
     if (delAviso) void this.abrirDelAviso(delAviso);
+    else this.aplicarRuta();
+  }
+
+  /** El equipo cuya ficha está abierta, para no volver a abrirla cuando el hash que la nombra ya es el de ahora. */
+  #equipoAbierto = '';
+
+  /**
+   * La ficha de un equipo tiene su dirección (`#/alquiler/equipo/{id}`, D-016-C25): se puede enlazar, compartir y volver
+   * a ella con «atrás». Un hash de otra cosa no se toca.
+   */
+  aplicarRuta(): void {
+    if (typeof window === 'undefined') return;
+    // Sin hash es la página misma («atrás» hasta ella): el catálogo.
+    const hash = window.location.hash;
+    const segmentos = hash === '' || hash === '#' ? [] : segmentosDeRuta(hash, RUTA_DE_ALQUILER);
+    if (!segmentos) return;
+    const [cabeza = '', id = ''] = segmentos;
+    if (cabeza === 'equipo' && id) {
+      if (id !== this.#equipoAbierto) void this.abrir(id);
+      return;
+    }
+    if (this.vista() === 'ficha') this.volver();
+  }
+
+  #escribirRuta(hash: string): void {
+    if (typeof window === 'undefined' || mismaRuta(window.location.hash, hash)) return;
+    window.location.hash = hash;
   }
 
   /**
@@ -461,6 +493,8 @@ export class AlquilerElementComponent implements OnInit {
 
   /** Abre la ficha de un equipo. */
   async abrir(equipmentId: string): Promise<void> {
+    this.#equipoAbierto = equipmentId;
+    this.#escribirRuta(`#/${RUTA_DE_ALQUILER}/equipo/${encodeURIComponent(equipmentId)}`);
     this.vista.set('ficha');
     this.ficha.set({ estado: 'cargando' });
     this.cotizacion.set(null);
@@ -578,10 +612,10 @@ export class AlquilerElementComponent implements OnInit {
     }
   }
 
-  /** «Declarada hace 3 día(s)», o vacío si no consta cuándo. */
+  /** «Días desde que se declaró: 3», o vacío si no consta cuándo. */
   esperando(a: RentalAgreement): string {
     const dias = diasEsperando(a, this.ahora());
-    return dias === null ? '' : t('Alquiler.Staff.Waiting', 'Declarada hace {dias} día(s)', { dias });
+    return dias === null ? '' : t('Alquiler.Staff.Waiting', 'Días desde que se declaró: {dias}', { dias });
   }
 
   /** Lo cotizado deja de valer en cuanto cambian las fechas o las unidades, por cualquiera de los dos caminos. */
@@ -592,6 +626,8 @@ export class AlquilerElementComponent implements OnInit {
 
   /** Vuelve al catálogo. */
   volver(): void {
+    this.#equipoAbierto = '';
+    this.#escribirRuta(`#/${RUTA_DE_ALQUILER}`);
     this.vista.set('catalogo');
     this.ficha.set(null);
     this.problema.set('');
@@ -958,9 +994,9 @@ export class AlquilerElementComponent implements OnInit {
     return formatearImporte(valor, moneda);
   }
 
-  /** «Altura · 8 unidad(es)». */
+  /** La categoría del equipo. La flota no se dice: no es lo disponible en unas fechas (D-016-C25). */
   meta(e: EquipmentCard): string {
-    return t('Alquiler.Catalog.Units', '{categoria} · {unidades} unidad(es)', {
+    return t('Alquiler.Catalog.Units', '{categoria}', {
       categoria: e.category,
       unidades: e.units,
     });
@@ -971,9 +1007,9 @@ export class AlquilerElementComponent implements OnInit {
     return t('Alquiler.Catalog.DepositHeld', 'Garantía retenida: {monto}', { monto: this.plata(valor, moneda) });
   }
 
-  /** «desde 7 día(s)», en la tabla de tramos. */
+  /** «desde el día 7», en la tabla de tramos. */
   tramoDesde(dias: number): string {
-    return t('Alquiler.Detail.RateFrom', 'desde {dias} día(s)', { dias });
+    return t('Alquiler.Detail.RateFrom', 'desde el día {dias}', { dias });
   }
 
   /** «$ 38.000 / día», en la tabla de tramos. */
@@ -993,7 +1029,7 @@ export class AlquilerElementComponent implements OnInit {
 
   /** La ventana que el equipo admite. */
   limites(eq: EquipmentDetail): string {
-    return t('Alquiler.Form.Bounds', 'Entre {min} y {max} día(s).', { min: eq.minDays, max: eq.maxDays });
+    return t('Alquiler.Form.Bounds', 'Entre {min} y {max} días.', { min: eq.minDays, max: eq.maxDays });
   }
 
   /** Cuántos días pide la ventana elegida. */
@@ -1001,9 +1037,9 @@ export class AlquilerElementComponent implements OnInit {
     return t('Alquiler.Form.Asked', 'Pediste {dias}.', { dias });
   }
 
-  /** «7 día(s) × 2 unidad(es) a $ 38.000». */
+  /** «Días: 7 · unidades: 2 · $ 38.000 por día». */
   lineaDeCotizacion(q: RentalQuote): string {
-    return t('Alquiler.Quote.Line', '{dias} día(s) × {unidades} unidad(es) a {monto}', {
+    return t('Alquiler.Quote.Line', 'Días: {dias} · unidades: {unidades} · {monto} por día', {
       dias: q.days,
       unidades: q.quantity,
       monto: this.plata(q.perDay, q.currency),
@@ -1019,9 +1055,9 @@ export class AlquilerElementComponent implements OnInit {
     );
   }
 
-  /** «2 unidad(es), del 2026-11-05 al 2026-11-08.», de lo que se está pidiendo por la puerta. */
+  /** «Unidades: 2, del 2026-11-05 al 2026-11-08.», de lo que se está pidiendo por la puerta. */
   lineaDeLaPuerta(): string {
-    return t('Alquiler.Done.Line', '{unidades} unidad(es), del {desde} al {hasta}.', {
+    return t('Alquiler.Done.Line', 'Unidades: {unidades}, del {desde} al {hasta}.', {
       unidades: this.unidades(),
       desde: this.desde(),
       hasta: this.hasta(),
@@ -1048,18 +1084,18 @@ export class AlquilerElementComponent implements OnInit {
     return t('Alquiler.Done.Title', 'Alquiler {id}', { id: r.rentalId });
   }
 
-  /** «2 unidad(es), del 2026-10-05 al 2026-10-12.» */
+  /** «Unidades: 2, del 2026-10-05 al 2026-10-12.» */
   lineaDeReserva(r: Rental): string {
-    return t('Alquiler.Done.Line', '{unidades} unidad(es), del {desde} al {hasta}.', {
+    return t('Alquiler.Done.Line', 'Unidades: {unidades}, del {desde} al {hasta}.', {
       unidades: r.quantity,
       desde: r.start,
       hasta: r.end,
     });
   }
 
-  /** «2 unidad(es) · del 2026-10-05 al 2026-10-12», en la bandeja. */
+  /** «Unidades: 2 · del 2026-10-05 al 2026-10-12», en la bandeja. */
   lineaDeContrato(a: RentalAgreement): string {
-    return t('Alquiler.Mine.Line', '{unidades} unidad(es) · del {desde} al {hasta}', {
+    return t('Alquiler.Mine.Line', 'Unidades: {unidades} · del {desde} al {hasta}', {
       unidades: a.quantity,
       desde: a.start,
       hasta: a.end,
