@@ -33,6 +33,10 @@ export class MensajesDeBlogs {
   }
 
   async loadThreads(): Promise<void> {
+    if (this.#red.sinSesionNoSePide()) {
+      this.threadsLoaded.set(true);
+      return;
+    }
     this.#red.loading.set(true);
     try {
       const threads = await this.#orchestrator.callApi('messages', () =>
@@ -58,6 +62,9 @@ export class MensajesDeBlogs {
   }
 
   async openThread(threadId: string): Promise<void> {
+    if (this.#red.sinSesionNoSePide()) {
+      return;
+    }
     // Se intenta un hilo nuevo: el veredicto del anterior no aplica a este.
     this.#red.threadAccess.set('ok');
     // Optimistically clear unread on the selected row.

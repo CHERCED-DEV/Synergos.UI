@@ -61,6 +61,10 @@ export class NotificacionesDeBlogs {
   }
 
   async loadNotifications(): Promise<void> {
+    if (this.#red.sinSesionNoSePide()) {
+      this.notificationsLoaded.set(true);
+      return;
+    }
     this.#red.loading.set(true);
     try {
       const list = await this.#api.notifications(this.#red.apiBase());

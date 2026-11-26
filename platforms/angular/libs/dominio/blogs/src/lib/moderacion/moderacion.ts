@@ -96,6 +96,13 @@ export class ModeracionDeBlogs {
   }
 
   async cargarCola(): Promise<void> {
+    // Sin sesión en el host, la cola no se pide: el panel para entrar sale desde el primer cuadro (D-012-V13).
+    if (this.#red.sinSesion()) {
+      this.casos.set([]);
+      this.accesoALaCola.set('anon');
+      this.colaCargada.set(true);
+      return;
+    }
     this.#red.loading.set(true);
     try {
       this.casos.set(await this.#api.cola(this.#red.moderacionBase()));
