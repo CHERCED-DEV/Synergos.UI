@@ -629,10 +629,15 @@
   margin: syn.$space-3 0;
 }
 
+// La imagen reserva su caja antes de llegar (012, vuelta de valor, tanda 11): sin alto, cada tarjeta crecía al cargarla
+// y todo lo de abajo saltaba. 3:2 es la proporción de las imágenes de la red (1536 × 1024); con `auto`, una de otra
+// proporción se ve como antes en cuanto carga.
 .blogs__media-asset {
   width: 100%;
   max-height: syn.px-to-rem(440);
+  aspect-ratio: auto 3 / 2;
   border-radius: syn.$radius-md;
+  background: var(--bl-surface-muted);
   object-fit: cover;
 }
 
