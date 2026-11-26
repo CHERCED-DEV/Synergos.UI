@@ -60,7 +60,7 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
     summary:
       'Obtenga su pasaporte para viajar fuera del país. Se solicita en línea y se recoge en la sede.',
     category: 'identidad',
-    agency: 'Cancillería',
+    agency: 'Ventanilla de Pasaportes (ejemplo)',
     estimatedDays: 8,
     steps: [
       { id: 'st-1', title: 'Verifique que le aplica', detail: 'Debe ser mayor de edad o tener autorización de sus padres.' },
@@ -85,7 +85,7 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
     summary:
       'Descargue el certificado que dice si tiene o no antecedentes judiciales. Es gratis e inmediato.',
     category: 'identidad',
-    agency: 'Policía Nacional',
+    agency: 'Ventanilla de Certificados (ejemplo)',
     estimatedDays: 1,
     steps: [
       { id: 'st-1', title: 'Autorice el tratamiento de datos', detail: 'Ley 1581 de 2012.' },
@@ -102,7 +102,7 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
     summary:
       'Pida una copia de su licencia si la perdió o se la robaron. Llega a su casa en pocos días.',
     category: 'vehiculos',
-    agency: 'Ministerio de Transporte',
+    agency: 'Ventanilla de Tránsito (ejemplo)',
     estimatedDays: 5,
     steps: [
       { id: 'st-1', title: 'Indique la categoría', detail: 'La categoría de la licencia que necesita reponer.' },
@@ -117,18 +117,18 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
   },
   {
     id: 'svc-sisben',
-    name: 'Actualización de datos en el Sisbén',
+    name: 'Actualización de datos del hogar (ejemplo)',
     summary:
-      'Actualice la información de su hogar para que su clasificación del Sisbén refleje su situación real.',
+      'Actualice la información de su hogar para que su clasificación de ejemplo refleje su situación.',
     category: 'salud',
-    agency: 'Departamento Nacional de Planeación',
+    agency: 'Ventanilla de Programas Sociales (ejemplo)',
     estimatedDays: 15,
     steps: [
       { id: 'st-1', title: 'Cuente su hogar', detail: 'Incluya niños y adultos mayores.' },
       { id: 'st-2', title: 'Explique el cambio', detail: 'Por ejemplo: cambio de vivienda o de ingresos.' },
       { id: 'st-3', title: 'Adjunte un soporte', detail: 'Un recibo de servicio público reciente.' },
     ],
-    eligibility: ['Estar registrado en el Sisbén.'],
+    eligibility: ['Estar registrado en el programa social de ejemplo.'],
     required: ['Recibo de un servicio público reciente (PDF o foto).'],
     feeMinor: 0,
     currency: 'COP',
@@ -139,7 +139,7 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
     summary:
       'Renueve cada año la matrícula de su negocio para mantenerlo activo y al día ante la ley.',
     category: 'empresa',
-    agency: 'Cámara de Comercio',
+    agency: 'Ventanilla de Empresas (ejemplo)',
     estimatedDays: 3,
     steps: [
       { id: 'st-1', title: 'Identifique el negocio', detail: 'NIT sin dígito de verificación.' },
@@ -158,7 +158,7 @@ export const MOCK_SERVICES: readonly MockServiceDetail[] = [
     summary:
       'Certifique que su predio no debe impuesto predial. Lo necesita para vender o hipotecar.',
     category: 'tributario',
-    agency: 'Secretaría de Hacienda',
+    agency: 'Ventanilla de Hacienda (ejemplo)',
     estimatedDays: 2,
     steps: [
       { id: 'st-1', title: 'Identifique el predio', detail: 'CHIP o matrícula inmobiliaria.' },
@@ -195,7 +195,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
           },
           {
             id: 'fechaNacimiento',
-            label: 'Fecha de nacimiento',
+            label: 'Fecha de nacimiento (de prueba)',
             type: 'date',
             required: true,
             help: 'Como aparece en su documento de identidad.',
@@ -289,7 +289,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
         fields: [
           {
             id: 'direccionEntrega',
-            label: 'Dirección de entrega',
+            label: 'Dirección de entrega (de prueba)',
             type: 'text',
             required: true,
             help: 'Donde quiere recibir la licencia.',
@@ -306,7 +306,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
   },
   'svc-sisben': {
     id: 'form-sisben',
-    title: 'Actualización del Sisbén',
+    title: 'Actualización de datos del hogar (ejemplo)',
     sections: [
       {
         id: 'sec-hogar',
@@ -340,7 +340,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
         fields: [
           {
             id: 'nit',
-            label: 'NIT del negocio',
+            label: 'NIT del negocio (de prueba)',
             type: 'text',
             required: true,
             help: 'Sin dígito de verificación.',
@@ -348,7 +348,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
           },
           {
             id: 'activosTotales',
-            label: 'Activos totales del último año (COP)',
+            label: 'Activos totales del último año, de prueba (COP)',
             type: 'number',
             required: true,
             help: 'El valor define la tarifa de la renovación.',
@@ -380,7 +380,7 @@ export const MOCK_FORMS: Readonly<Record<string, GovForm>> = {
         fields: [
           {
             id: 'chip',
-            label: 'CHIP o matrícula inmobiliaria del predio',
+            label: 'CHIP o matrícula inmobiliaria del predio (de prueba)',
             type: 'text',
             required: true,
             help: 'Lo encuentra en el recibo del predial.',
@@ -442,7 +442,7 @@ export const SEED_APPLICATIONS: readonly SeedApplication[] = [
     id: 'app-seed-2',
     reference: 'GOV-2026-10002',
     serviceId: 'svc-sisben',
-    serviceName: 'Actualización de datos en el Sisbén',
+    serviceName: 'Actualización de datos del hogar (ejemplo)',
     citizenName: 'Carolina Pérez García',
     status: 'info-requested',
     submittedAt: '2026-06-18T10:00:00Z',
@@ -513,8 +513,8 @@ export const SEED_APPLICATIONS: readonly SeedApplication[] = [
     feeMinor: 42_000,
     feeStatus: 'unavailable',
     answers: [
-      { label: 'NIT del negocio', value: '901234567' },
-      { label: 'Activos totales del último año (COP)', value: '25000000' },
+      { label: 'NIT del negocio (de prueba)', value: '901234567' },
+      { label: 'Activos totales del último año, de prueba (COP)', value: '25000000' },
     ],
     documents: [
       { id: 'doc-1', name: 'estados-financieros.pdf', status: 'received', uploadedAt: '2026-07-02T15:20:00Z' },
