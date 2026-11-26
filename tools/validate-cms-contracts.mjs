@@ -294,6 +294,9 @@ const CMS_INTERNAL_ALIASES = new Set([
   // Blog (server-rendered article blocks — no web component)
   'elementCompArticleList',
   'elementCompBlogHighlight',
+  // Catálogo (server-rendered: `ListadoDelCatalogoEnLaPagina` lo pinta en el servidor con la lectura genérica
+  // del vertical, D-003-V2). Entró sin venir acá, como `elementFormStep`, y este gate quedó en rojo.
+  'elementCompCatalogList',
   // Forms (server-side form rendering pipeline)
   'elementFormEmbed',
   'elementFormField',
