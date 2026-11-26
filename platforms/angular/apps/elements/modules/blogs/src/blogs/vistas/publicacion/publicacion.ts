@@ -1,17 +1,18 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, computed, inject } from '@angular/core';
 import { ModeracionDeBlogs, PublicacionDeBlogs, RedDeBlogs, type Comment } from '@synergos/dominio/blogs';
-import { ButtonComponent, TextareaComponent } from '@synergos/shared';
+import { ButtonComponent, SynSkeletonComponent, TextareaComponent } from '@synergos/shared';
 import { CommentThreadComponent, type CommentThreadConfig, type CommentThreadEntry } from '@synergos/shells';
 import { NavegacionDeBlogs } from '../../estado/navegacion';
 import { PresentacionDeBlogs } from '../../estado/presentacion';
 import { BlogsTarjetaComponent } from '../../piezas/tarjeta/tarjeta';
+import { textosDeLaRed } from '../../textos-de-la-red';
 import { textosDeModeracion } from '../../textos-de-moderacion';
 
 /** Una publicación abierta: su tarjeta, comentar y el hilo de comentarios (SH-15 `syn-comment-thread`). */
 @Component({
   selector: 'sg-blogs-publicacion',
   standalone: true,
-  imports: [ButtonComponent, TextareaComponent, CommentThreadComponent, BlogsTarjetaComponent],
+  imports: [ButtonComponent, SynSkeletonComponent, TextareaComponent, CommentThreadComponent, BlogsTarjetaComponent],
   templateUrl: './publicacion.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'blogs__vista' },
@@ -24,6 +25,8 @@ export class BlogsPublicacionComponent {
   protected readonly navegacion = inject(NavegacionDeBlogs);
   protected readonly presentacion = inject(PresentacionDeBlogs);
   protected readonly moderacion = inject(ModeracionDeBlogs);
+  /** Lo que dice la vista sin publicación, y el `<h1>` de la que está abierta (tanda 13). */
+  protected readonly textosRed = textosDeLaRed();
   readonly #textosDeModeracion = textosDeModeracion();
 
   /**

@@ -21,6 +21,17 @@ export function textosDeLaRed() {
     get escribirSinSesionTexto(): string {
       return t('Blogs.Red.EscribirSinSesionTexto', 'Tus artículos salen con tu nombre y tu perfil. Entra y escribe aquí el tuyo.');
     },
+    /** La publicación que no existe, o que la moderación retiró (012, vuelta de valor, tanda 13). */
+    get publicacionNoDisponible(): string {
+      return t('Blogs.Red.PublicacionNoDisponible', 'Esta publicación no está disponible');
+    },
+    get publicacionNoDisponibleTexto(): string {
+      return t('Blogs.Red.PublicacionNoDisponibleTexto', 'Puede que la hayan retirado o que el enlace esté incompleto.');
+    },
+    /** El `<h1>` de una publicación abierta, para el lector de pantalla: su tarjeta titula con un `<h2>`, o sin título. */
+    publicacionDe(autor: string): string {
+      return t('Blogs.Red.PublicacionDe', 'Publicación de {autor}').replace('{autor}', autor);
+    },
     /** «1 publicación» o «N publicaciones», con la cifra ya formateada (`1,2 k`). */
     publicaciones(cantidad: number, cifra: string): string {
       return cantidad === 1
