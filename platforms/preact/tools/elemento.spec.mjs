@@ -183,5 +183,7 @@ describe('el build de Preact en modo --watch', () => {
     // Sin --watch el proceso termina enseguida; con --watch sigue vivo mirando.
     await new Promise((r) => setTimeout(r, 300));
     expect(salio).toBe(false);
-  });
+    // Un build entero de Preact: con la máquina cargada pasa de los 5 s de serie (tanda 40, 5144 ms).
+    // El tope lo declara la plataforma, con su razón, en tools/topes-de-los-specs.json (#84).
+  }, 30_000);
 });
