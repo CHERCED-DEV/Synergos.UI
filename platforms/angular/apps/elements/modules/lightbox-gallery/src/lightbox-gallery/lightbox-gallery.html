@@ -82,7 +82,7 @@
           }
 
           <figure class="lightbox__figure">
-            <img class="lightbox__image" [src]="active.src" [alt]="active.alt" decoding="async" />
+            <img class="lightbox__image" [src]="active.src" [attr.srcset]="srcset(active.src)" sizes="100vw" [alt]="active.alt" decoding="async" />
             @if (active.caption) {
               <figcaption class="lightbox__caption">{{ active.caption }}</figcaption>
             }

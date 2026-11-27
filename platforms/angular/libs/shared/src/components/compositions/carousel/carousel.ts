@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, inject, input, linkedSignal, output } from '@angular/core';
 import { BadgeComponent } from '../../primitives/badge/badge';
 import { classNames } from '../../../utils/class-names.util';
+import { srcsetServido } from '../../../utils/srcset-servido.util';
 
 export type CarouselItemType = 'image' | 'video';
 
@@ -54,10 +55,10 @@ export interface CarouselItem {
               [href]="item.href"
               [attr.aria-label]="item.alt ? null : item.label || null"
             >
-              <img class="syn-carousel__media" [src]="item.src" [alt]="item.alt || ''" />
+              <img class="syn-carousel__media" [src]="item.src" [attr.srcset]="srcset(item.src)" sizes="100vw" [alt]="item.alt || ''" />
             </a>
           } @else {
-            <img class="syn-carousel__media" [src]="item.src" [alt]="item.alt || ''" />
+            <img class="syn-carousel__media" [src]="item.src" [attr.srcset]="srcset(item.src)" sizes="100vw" [alt]="item.alt || ''" />
           }
 
           @if (item.label) {
@@ -118,6 +119,9 @@ export interface CarouselItem {
   styleUrl: './carousel.scss',
 })
 export class CarouselComponent {
+  /** D-016-Y7: el teléfono pide la diapositiva a 800 px y no la de escritorio. */
+  protected readonly srcset = srcsetServido;
+
   readonly #host = inject(ElementRef<HTMLElement>);
 
   readonly items = input<readonly CarouselItem[]>([]);
