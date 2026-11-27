@@ -989,7 +989,7 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
-    "src": "/media/equipo/ana-gomez.jpg",
+    "src": "/media/equipo/ana-gomez.jpg?width=256&format=webp&quality=80",
     "alt": "Ana Gómez, directora de producto"
   },
 };
@@ -1216,13 +1216,13 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
     "culture": "es-CO",
     "slides": [
       {
-        "src": "/media/sala.jpg",
+        "src": "/media/sala.jpg?width=1600&format=webp&quality=80",
         "alt": "Sala con ventanal",
         "label": "La sala",
         "linkUrl": "/propiedades/101"
       },
       {
-        "src": "/media/cocina.jpg",
+        "src": "/media/cocina.jpg?width=1600&format=webp&quality=80",
         "alt": "Cocina integral",
         "label": "La cocina"
       }
@@ -1890,7 +1890,7 @@ export const HERO_BANNER_SYNHOST: ElementoSynHost<HeroBannerProps> = {
     "culture": "es-CO",
     "title": "Viví el Caribe colombiano",
     "subtitle": "Temporada 2026: vuelos y hoteles con el 20 % de descuento",
-    "media": "/media/hero/playa-palomino.jpg",
+    "media": "/media/hero/playa-palomino.jpg?width=1600&format=webp&quality=80",
     "mediaAlt": "Playa de Palomino al atardecer",
     "ctaLabel": "Reservar ahora",
     "ctaLink": "/reservas"
@@ -2183,14 +2183,14 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
     "culture": "es-CO",
     "images": [
       {
-        "src": "/media/casa/sala.jpg",
-        "thumb": "/media/casa/sala-t.jpg",
+        "src": "/media/casa/sala.jpg?width=1600&format=webp&quality=80",
+        "thumb": "/media/casa/sala-t.jpg?width=400&format=webp&quality=80",
         "alt": "Sala con ventanal",
         "caption": "La sala"
       },
       {
-        "src": "/media/casa/cocina.jpg",
-        "thumb": "/media/casa/cocina-t.jpg",
+        "src": "/media/casa/cocina.jpg?width=1600&format=webp&quality=80",
+        "thumb": "/media/casa/cocina-t.jpg?width=400&format=webp&quality=80",
         "alt": "Cocina integral",
         "caption": "La cocina"
       }
@@ -3036,7 +3036,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
   ejemplo: {
     "culture": "es-CO",
     "videoFile": "/media/propiedades/recorrido-casa-lago.mp4",
-    "posterImage": "/media/propiedades/casa-lago-fachada.jpg"
+    "posterImage": "/media/propiedades/casa-lago-fachada.jpg?width=1600&format=webp&quality=80"
   },
 };
 
