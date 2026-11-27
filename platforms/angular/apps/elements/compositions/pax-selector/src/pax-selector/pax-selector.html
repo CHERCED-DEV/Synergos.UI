@@ -23,7 +23,7 @@
     @for (room of rooms(); track trackRoom($index); let roomIndex = $index) {
       <li class="pax-selector__room">
         <div class="pax-selector__room-header">
-          <h3 class="pax-selector__room-title">Habitación {{ roomIndex + 1 }}</h3>
+          <h2 class="pax-selector__room-title">Habitación {{ roomIndex + 1 }}</h2>
           @if (canRemoveRoom()) {
             <button
               type="button"

@@ -8,6 +8,9 @@
   --th-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --th-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
   --th-accent-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // D-016-Y5: la hora va sobre el tinte de marca. Medido en los 7 temas, sólo el texto principal pasa 4,5:1 ahí
+  // (8,9–12,6); el de énfasis daba 4,0 en light y el de marca 3,5 en silverGold.
+  --th-accent-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
 
   --th-label-width: #{syn.px-to-rem(120)};
   --th-col-width: #{syn.px-to-rem(180)};
@@ -105,7 +108,7 @@
   }
 
   &__item-time {
-    color: var(--th-accent);
+    color: var(--th-accent-text);
     font-size: syn.$font-size-xs;
     font-weight: syn.$font-weight-bold;
     font-variant-numeric: tabular-nums;

@@ -20,7 +20,6 @@ import { aliasDeLavado, lavadosComoTinta } from './tinta-de-lavado.mjs';
  */
 const HEREDADOS_POR_ALIAS = [
   'platforms/angular/apps/elements/compositions/form-stepper/src/form-stepper/form-stepper.scss --fs-danger',
-  'platforms/angular/apps/elements/compositions/pax-selector/src/pax-selector/pax-selector.scss --px-step-text',
   'platforms/angular/apps/elements/compositions/testimonial-item/src/testimonial-item/testimonial-item.scss --tmi-decorative-quote',
   'platforms/angular/apps/elements/modules/seller/src/seller/seller.scss --sl-brand',
   'platforms/angular/apps/elements/modules/testimonial-section/src/testimonial-section/testimonial-section.scss --tss-decorative-quote',
