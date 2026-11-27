@@ -244,7 +244,14 @@
               <span class="realty__agent-avatar" aria-hidden="true">{{ pdp.agent.name.charAt(0) }}</span>
               <div>
                 <p class="realty__agent-name">{{ pdp.agent.name }}</p>
-                <p class="realty__agent-agency">{{ pdp.agent.agency }} · <svg class="realty__icon realty__icon--star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ pdp.agent.rating }}</p>
+                <!-- Sin agencia ni nota no se pinta «· ★ 0» (D-016-X6): la línea sale sólo con lo que llegó. -->
+                @if (pdp.agent.agency || pdp.agent.rating > 0) {
+                  <p class="realty__agent-agency">
+                    @if (pdp.agent.agency) {{{ pdp.agent.agency }}}
+                    @if (pdp.agent.agency && pdp.agent.rating > 0) { · }
+                    @if (pdp.agent.rating > 0) {<svg class="realty__icon realty__icon--star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ pdp.agent.rating }}}
+                  </p>
+                }
               </div>
             </div>
           </div>

@@ -269,6 +269,32 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect((await filasDe(conParqueadero.slug)).get('Parqueaderos')).toBe('2');
   });
 
+  it('el asesor sin agencia ni nota no dice «· 0» (D-016-X6)', async () => {
+    installMemoryStorage();
+    const listing = {
+      id: 'local-zona-t-bogota', slug: 'local-zona-t-bogota', title: 'Local comercial en Zona T', operation: 'sale',
+      type: 'local', price: 1_650_000_000, currency: 'COP',
+      geo: { lat: 4.667, lng: -74.053, address: '', neighborhood: 'Zona T', city: 'Bogotá' },
+    };
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      const ruta = String(url);
+      const cuerpo = ruta.includes('/listing/') ? { listing, description: 'Con acceso a la calle.' }
+        : ruta.includes('/listings') ? { listings: [listing], total: 1 } : null;
+      return cuerpo
+        ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(cuerpo) } as Response)
+        : Promise.reject(new Error('offline'));
+    }));
+    await createComponent();
+    component.openListing(component.listings()[0]);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const tarjeta = (fixture.nativeElement as HTMLElement).querySelector('.realty__agent');
+    expect(tarjeta).not.toBeNull();
+    expect(tarjeta!.querySelector('.realty__agent-agency')).toBeNull();
+    expect(tarjeta!.textContent).not.toMatch(/·\s*0/);
+  });
+
   /** PDP → asistente de visita con los datos llenos, parado en el último paso. */
   async function llegarAlUltimoPasoDeLaVisita(): Promise<CheckoutWizardComponent> {
     component.openListing(component.listings()[0]);
