@@ -1,6 +1,7 @@
 // Public API Surface of @synergos/shared
 export * from './utils/class-names.util';
 export * from './utils/countdown-milestone.util';
+export * from './utils/srcset-servido.util';
 // Los normalizadores de lo que emite el CMS bajaron a `vitals` al segundo
 // consumidor (#63): la segunda plataforma los necesita idénticos y dos copias
 // que se separan es cómo una clave deja de cruzar en silencio. Se re-exportan

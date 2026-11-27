@@ -18,6 +18,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  srcsetServido,
 } from '@synergos/shared';
 
 /**
@@ -123,6 +124,9 @@ export function sanitizeLightboxGalleryConfig(value: Partial<LightboxGalleryProp
   host: { class: 'sg-lightbox-gallery' },
 })
 export class LightboxGalleryElementComponent {
+  /** D-016-Y7: la foto grande se pide a 800 px en el teléfono, no la de escritorio. */
+  protected readonly srcset = srcsetServido;
+
   readonly #initialData = inject(InitialDataService);
   readonly #elementRef = inject(ElementRef<HTMLElement>);
   readonly #destroyRef = inject(DestroyRef);
