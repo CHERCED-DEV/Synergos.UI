@@ -13,8 +13,13 @@
   --px-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
   --px-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
   --px-step-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
-  --px-step-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
-  --px-step-text: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  // D-016-Y1: el borde de «+», «−» y «Agregar habitación» marca un control: 3:1 como mínimo. El borde por defecto
+  // daba 1,2–1,6 en los 7 temas; el de énfasis, 4,9–12,1.
+  --px-step-border: var(--syn-color-border-emphasis, #{syn.$color-neutral-500});
+  // D-016-Y1: el texto de «+», «−» y «Agregar habitación» es el de marca para texto; el tinte de superficie
+  // (alfa 0,08–0,18 según el tema) los dejaba en contraste 1,1 en terraLux y light.
+  --px-step-text: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --px-brand-border: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
   --px-step-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --px-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --px-shadow-overlay: var(--syn-shadow-lg, #{syn.$shadow-lg});
@@ -85,6 +90,8 @@
     color: var(--px-text);
     font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
+    // La altura de línea la fija la clase (D-016-Y4): el título pasó de h3 a h2 y no debe heredar la del h2 global.
+    line-height: syn.$line-height-snug;
     letter-spacing: syn.$letter-spacing-wide;
     text-transform: uppercase;
   }
@@ -165,7 +172,7 @@
 
     &:hover:not(:disabled) {
       background: var(--px-brand-soft);
-      border-color: var(--px-brand-surface);
+      border-color: var(--px-brand-border);
     }
 
     &:active:not(:disabled) {
@@ -293,7 +300,7 @@
     @include syn.focus-visible(var(--px-focus-ring));
 
     &:hover:not(:disabled) {
-      border-color: var(--px-brand-surface);
+      border-color: var(--px-brand-border);
       background: var(--px-brand-soft);
     }
 

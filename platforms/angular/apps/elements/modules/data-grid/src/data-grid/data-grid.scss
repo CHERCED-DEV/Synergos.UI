@@ -14,8 +14,10 @@
   --dg-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
   --dg-count-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --dg-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --dg-badge-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --dg-badge-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // D-016-Y3: la etiqueta va sobre la foto; un fondo sólido propio la deja leer sobre cualquiera (con el tinte del 8 %
+  // desaparecía en una foto clara). El par de la acción primaria pasa 4,5:1 en los 7 temas.
+  --dg-badge-surface: var(--syn-color-action-primary, #{syn.$color-brand-600});
+  --dg-badge-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --dg-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
   --dg-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
 

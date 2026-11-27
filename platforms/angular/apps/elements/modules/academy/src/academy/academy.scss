@@ -326,16 +326,16 @@
       inset: 0;
     }
 
-    // El anillo se dibuja sobre el ::after para que rodee la TARJETA, no solo el texto.
-    // Offset negativo porque .academy__card lleva overflow: hidden y lo recortaría.
+    // El anillo rodea la TARJETA, no sólo el texto. D-016-Y6: va en la tarjeta (con :has), por fuera y con
+    // separación, como el foco del sistema; dibujado hacia dentro en el ::after se fundía con el borde de 1 px.
     &:focus-visible {
       outline: none;
     }
+  }
 
-    &:focus-visible::after {
-      outline: syn.px-to-rem(2) solid var(--ac-focus-ring);
-      outline-offset: syn.px-to-rem(-2);
-    }
+  &__card:has(.academy__card-link:focus-visible) {
+    outline: var(--syn-focus-ring-width, #{syn.px-to-rem(2)}) solid var(--ac-focus-ring);
+    outline-offset: var(--syn-focus-ring-offset, #{syn.px-to-rem(2)});
   }
 
   // SH-14 (#30). `position: relative` + `z-index` NO son decoración: el velo del

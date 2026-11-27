@@ -5,7 +5,10 @@
   --fs-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
   --fs-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --fs-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --fs-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  // D-016-Y5: el acento es el de la acción primaria; con el de énfasis, «Siguiente» quedaba en 3,1 (terraLux) y 3,7
+  // (meridian). El número del paso activo usa el texto de marca, que pasa 4,5:1 sobre la superficie en los 7 temas.
+  --fs-accent: var(--syn-color-action-primary, #{syn.$color-brand-600});
+  --fs-accent-ink: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
   --fs-accent-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --fs-track: var(--syn-color-border-default, #{syn.$color-neutral-200});
   --fs-danger: var(--syn-color-state-danger-border, #{syn.$color-danger-500});
@@ -76,7 +79,7 @@
 
   &__indicator-item--active &__indicator-marker {
     border-color: var(--fs-accent);
-    color: var(--fs-accent);
+    color: var(--fs-accent-ink);
   }
 
   &__indicator-item--completed &__indicator-marker {
