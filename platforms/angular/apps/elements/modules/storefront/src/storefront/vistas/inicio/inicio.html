@@ -1,4 +1,5 @@
-<div class="storefront__home">
+<!-- D-016-Z1: hasta la primera búsqueda la portada sólo tiene el héroe; sin reserva, lo de abajo entraba y salía. -->
+<div class="storefront__home" [class.storefront__home--cargando]="!catalogo.searched() && !avisos.errorMessage()">
   <div class="storefront__hero">
     <h1 class="storefront__hero-title">{{ heading() }}</h1>
     <p class="storefront__hero-sub">{{ subheading() }}</p>

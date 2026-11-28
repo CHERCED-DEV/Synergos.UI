@@ -585,6 +585,11 @@
     gap: syn.$space-lg;
   }
 
+  // D-016-Z1: mientras llega el catálogo, la portada ocupa la pantalla: así lo de abajo no entra y vuelve a salir.
+  &__home--cargando {
+    min-block-size: 100svh;
+  }
+
   &__hero {
     display: flex;
     flex-direction: column;

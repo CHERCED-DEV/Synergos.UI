@@ -311,3 +311,8 @@
   background: var(--al-surface-muted);
   color: var(--al-muted);
 }
+
+// D-016-Z1: la caja del esqueleto de carga del catálogo tapa la pantalla.
+.sg-alquiler__reserva {
+  min-block-size: 100svh;
+}

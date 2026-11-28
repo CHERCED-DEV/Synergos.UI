@@ -88,7 +88,7 @@
         (itemselect)="openEvent($event)"
       />
 
-      <ng-template #eventCard let-event let-select="select">
+      <ng-template #eventCard let-event let-select="select" let-indice="index">
         <article class="eventos__card">
           <button
             type="button"
@@ -97,7 +97,7 @@
             [attr.aria-label]="'Ver ' + event.title"
           >
             @if (hasImage(event.cover, 'cover-' + event.id)) {
-              <img class="eventos__card-img" [src]="event.cover" alt="" loading="lazy" (error)="onImageError('cover-' + event.id)" />
+              <img class="eventos__card-img" [attr.loading]="indice < 2 ? 'eager' : 'lazy'" [attr.fetchpriority]="indice < 2 ? 'high' : null" [src]="event.cover" alt="" (error)="onImageError('cover-' + event.id)" />
             } @else {
               <span class="eventos__card-placeholder" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>

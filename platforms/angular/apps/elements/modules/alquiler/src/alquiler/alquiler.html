@@ -34,7 +34,10 @@
 @if (vista() === 'catalogo') {
   @switch (catalogo().estado) {
     @case ('cargando') {
-      <syn-skeleton [rows]="3" variant="card" [ariaLabel]="txt.cargandoEquipos" />
+      <!-- D-016-Z1: el esqueleto ocupa la pantalla mientras llega el catálogo, para que lo de abajo no entre y salga. -->
+      <div class="sg-alquiler__reserva">
+        <syn-skeleton [rows]="3" variant="card" [ariaLabel]="txt.cargandoEquipos" />
+      </div>
     }
     @case ('error') {
       <syn-error-state [message]="txt.catalogoFallo" (retry)="cargarCatalogo()" />
@@ -47,10 +50,10 @@
                            [message]="txt.catalogoVacioDetalle" />
         } @else {
           <ul class="sg-alquiler__grid">
-            @for (e of equipos; track e.equipmentId) {
+            @for (e of equipos; track e.equipmentId; let i = $index) {
               <li class="sg-alquiler__card">
                 @if (e.coverUrl) {
-                  <img class="sg-alquiler__cover" [src]="e.coverUrl" [alt]="e.name" loading="lazy" />
+                  <img class="sg-alquiler__cover" [attr.loading]="i < 2 ? 'eager' : 'lazy'" [attr.fetchpriority]="i < 2 ? 'high' : null" [src]="e.coverUrl" [alt]="e.name" />
                 }
                 <h3 class="sg-alquiler__name">{{ e.name }}</h3>
                 <p class="sg-alquiler__meta">{{ meta(e) }}</p>
