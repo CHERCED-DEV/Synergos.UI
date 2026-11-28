@@ -1,5 +1,5 @@
 <ul class="storefront__home-grid">
-  @for (product of productos(); track product.id) {
+  @for (product of productos(); track product.id; let i = $index) {
     <li>
       <article class="storefront__card">
         <syn-button
@@ -10,7 +10,8 @@
           (pressed)="navegacion.openProduct(product)"
         >
           @if (presentacion.hasImage(product)) {
-            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="presentacion.onImageError(product.id)" />
+            <!-- D-016-Z4: las dos primeras son la imagen del LCP: sin diferir y con prioridad. -->
+            <img class="storefront__card-img" [attr.loading]="i < 2 ? 'eager' : 'lazy'" [attr.fetchpriority]="i < 2 ? 'high' : null" [src]="product.images[0]" alt="" (error)="presentacion.onImageError(product.id)" />
           } @else {
             <span class="storefront__card-monogram" aria-hidden="true">{{ presentacion.monogram(product.title) }}</span>
           }

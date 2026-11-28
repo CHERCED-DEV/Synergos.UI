@@ -96,8 +96,14 @@ $stacked: syn.px-to-rem(720);
     }
   }
 
-  &__body:not(:has(.syn-discovery__facets)) {
+  &__body:not(:has(.syn-discovery__facets, .syn-discovery__facets-reserva)) {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__facets-reserva {
+    @media (max-width: #{$stacked}) {
+      display: none;
+    }
   }
 
   // ─── Facet board ───────────────────────────────────────────────────────────

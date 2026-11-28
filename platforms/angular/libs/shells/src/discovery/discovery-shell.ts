@@ -161,6 +161,10 @@ let discoveryInstanceId = 0;
       }
 
       <div class="syn-discovery__body">
+        @if (facets().length === 0 && loading()) {
+          <!-- D-016-Z1: la columna de los filtros se reserva mientras cargan, para que los resultados no se corran al llegar. -->
+          <div class="syn-discovery__facets-reserva" aria-hidden="true"></div>
+        }
         @if (facets().length > 0) {
           <button
             type="button"

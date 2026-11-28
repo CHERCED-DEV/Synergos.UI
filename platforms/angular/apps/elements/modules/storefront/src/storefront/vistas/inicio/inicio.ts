@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, CUSTOM_ELEMENTS_SCHEMA, inject, input, signal } from '@angular/core';
-import { CatalogoDeLaTienda } from '@synergos/dominio/tienda';
+import { AvisosDeLaTienda, CatalogoDeLaTienda } from '@synergos/dominio/tienda';
 import { BadgeComponent, ButtonComponent, IconButtonComponent, InputComponent } from '@synergos/shared';
 import { type DiscoveryCriteria } from '@synergos/shells';
 import { NavegacionDeLaTienda } from '../../estado/navegacion';
@@ -20,6 +20,7 @@ const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevan
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class TiendaInicioComponent {
+  protected readonly avisos = inject(AvisosDeLaTienda);
   protected readonly catalogo = inject(CatalogoDeLaTienda);
   protected readonly navegacion = inject(NavegacionDeLaTienda);
   protected readonly presentacion = inject(PresentacionDeLaTienda);
