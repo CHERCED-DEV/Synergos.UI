@@ -44,6 +44,7 @@ import {
   SynEmptyStateComponent,
   SynSkeletonComponent,
   TabsComponent,
+  VisuallyHiddenComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -306,6 +307,8 @@ export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
     // Un booleano de verdad, o nada: un «true» escrito, un 1 o un null son «no lo dijo», y el portal pregunta como
     // siempre. Sólo el `true` cambia algo (`sinSesionDelServidor`).
     sinSesion: typeof value.sinSesion === 'boolean' ? value.sinSesion : undefined,
+    // D-016-Y4: sólo el 1 cambia algo (el título de la pieza pasa a h1); cualquier otro valor la deja en su h2.
+    headingLevel: value.headingLevel === 1 ? 1 : undefined,
   });
 }
 
@@ -335,6 +338,7 @@ let ehrInstanceId = 0;
   selector: 'sg-ehr',
   standalone: true,
   imports: [
+    VisuallyHiddenComponent,
     AccountShellComponent,
     ConsoleShellComponent,
     MessageCenterComponent,
@@ -517,6 +521,8 @@ export class EhrElementComponent implements OnInit {
   readonly profesionalesDeLaAgenda = computed(() => this.doctors().map((d) => ({ id: d.id, nombre: d.name })));
   /** Los títulos de las vistas de la historia en el portal (sección `Health.Record`). */
   readonly textosDeLaHistoria = textosDeLaHistoria();
+  /** D-016-Y4: el editor marcó el bloque como «Es el título de la página»; sin marcar, la pieza abre con h2. */
+  readonly esTituloDeLaPagina = computed(() => this.config()?.headingLevel === 1);
   readonly textosDelPermiso = this.#permiso.textos;
   /** Si el copago no se cotizó porque falta el permiso: el paso pinta el texto del permiso y «Autorizo». */
   readonly necesitaPermiso = computed(() => faltaElPermiso(this.rechazoDelCopago()));

@@ -84,6 +84,10 @@
     <p class="storefront__error" role="alert">{{ avisos.errorMessage() }}</p>
   }
 
+  @if (tituloParaLectores()) {
+    <syn-visually-hidden><h1>{{ heading() }}</h1></syn-visually-hidden>
+  }
+
   <!-- ═══ Una vista a la vez (014-despiece-tienda, T010): cada una es su componente, con su parte de la plantilla. ═══ -->
   @switch (navegacion.view()) {
     @case ('home') {

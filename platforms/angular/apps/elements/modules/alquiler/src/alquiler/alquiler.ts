@@ -93,6 +93,8 @@ export function sanitizeAlquilerConfig(value: AlquilerConfig): AlquilerConfig {
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
     rentalPath: normalizeRentalPath(value.rentalPath),
+    // D-016-Y4: sólo el 1 cambia algo (el título de la pieza pasa a h1); cualquier otro valor la deja en su h2.
+    headingLevel: value.headingLevel === 1 ? 1 : undefined,
   });
 }
 
@@ -307,6 +309,8 @@ export class AlquilerElementComponent implements OnInit {
   readonly category = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.categoryInput()), this.config()?.category, ''),
   );
+  /** D-016-Y4: el editor marcó el bloque como «Es el título de la página»; sin marcar, la pieza abre con h2. */
+  readonly esTituloDeLaPagina = computed(() => this.config()?.headingLevel === 1);
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
