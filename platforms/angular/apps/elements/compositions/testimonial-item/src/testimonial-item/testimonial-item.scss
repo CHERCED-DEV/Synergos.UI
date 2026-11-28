@@ -63,7 +63,8 @@
     flex: 1 1 auto;
 
     &::before {
-      content: '\201C';
+      // D-016-Y8: decoración pura; el texto alternativo vacío la saca del lector (el contraste no aplica a lo decorativo).
+      content: '\201C' / '';
       position: absolute;
       inset-block-start: syn.px-to-rem(-8);
       inset-inline-end: 0;
