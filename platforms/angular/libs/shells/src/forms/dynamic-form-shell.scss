@@ -12,9 +12,10 @@
   --sdf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --sdf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sdf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --sdf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  // D-016-Y8: pinta texto (y su borde o su marca); el tinte de superficie daba 1,1–1,3:1. El de texto pasa 4,5:1 en los 7 temas.
+  --sdf-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
   --sdf-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
-  --sdf-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --sdf-success: var(--syn-color-state-success-text, #{syn.$color-success-600});
   --sdf-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
 
   display: block;

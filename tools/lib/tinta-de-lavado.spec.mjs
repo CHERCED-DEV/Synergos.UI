@@ -19,18 +19,8 @@ import { aliasDeLavado, lavadosComoTinta } from './tinta-de-lavado.mjs';
  * ticket. El censo sólo baja: un alias nuevo es rojo, y uno arreglado que siga acá también.
  */
 const HEREDADOS_POR_ALIAS = [
-  'platforms/angular/apps/elements/compositions/form-stepper/src/form-stepper/form-stepper.scss --fs-danger',
   'platforms/angular/apps/elements/compositions/testimonial-item/src/testimonial-item/testimonial-item.scss --tmi-decorative-quote',
-  'platforms/angular/apps/elements/modules/seller/src/seller/seller.scss --sl-brand',
   'platforms/angular/apps/elements/modules/testimonial-section/src/testimonial-section/testimonial-section.scss --tss-decorative-quote',
-  'platforms/angular/libs/shells/src/authoring/authoring-wizard.scss --shw-done',
-  'platforms/angular/libs/shells/src/console/console-shell.scss --shc-down',
-  'platforms/angular/libs/shells/src/console/console-shell.scss --shc-up',
-  'platforms/angular/libs/shells/src/forms/dynamic-form-shell.scss --sdf-danger',
-  'platforms/angular/libs/shells/src/forms/dynamic-form-shell.scss --sdf-success',
-  'platforms/angular/libs/shells/src/reviews/review-panel.scss --srv-danger',
-  'platforms/angular/libs/shells/src/reviews/review-panel.scss --srv-ok-text',
-  'platforms/angular/libs/shells/src/reviews/review-panel.scss --srv-star',
 ];
 
 const REPO = path.resolve(import.meta.dirname, '../..');

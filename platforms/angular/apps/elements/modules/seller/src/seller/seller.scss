@@ -9,7 +9,8 @@
   --sl-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sl-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --sl-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sl-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  // D-016-Y8: pinta texto (y su borde o su marca); el tinte de superficie daba 1,1–1,3:1. El de texto pasa 4,5:1 en los 7 temas.
+  --sl-brand: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
   --sl-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --sl-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
   --sl-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
