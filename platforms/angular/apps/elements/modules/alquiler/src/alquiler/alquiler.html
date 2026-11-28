@@ -1,6 +1,10 @@
 <header class="sg-alquiler__head">
   <div>
-    <h2 class="sg-alquiler__title">{{ heading() }}</h2>
+    @if (esTituloDeLaPagina()) {
+      <h1 class="sg-alquiler__title">{{ heading() }}</h1>
+    } @else {
+      <h2 class="sg-alquiler__title">{{ heading() }}</h2>
+    }
     <p class="sg-alquiler__lead">{{ subheading() }}</p>
   </div>
   <nav class="sg-alquiler__nav" [attr.aria-label]="txt.secciones">

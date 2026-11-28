@@ -80,6 +80,10 @@
            2.4.3) y no es región viva: lo lee el foco, y no nace con su texto (regla 42). -->
       @if (access() !== 'ok') {
         <div class="ehr__access" tabindex="-1" #accessPanel [attr.data-access]="access()">
+          <!-- D-016-Y4: sin sesión la vista no trae h1; cuando el bloque es el título de la página, lo pone para el lector. -->
+          @if (esTituloDeLaPagina()) {
+            <syn-visually-hidden><h1>{{ textosDeLaHistoria.homeTitle }}</h1></syn-visually-hidden>
+          }
           @switch (access()) {
             @case ('sin-sesion') {
               <syn-empty-state

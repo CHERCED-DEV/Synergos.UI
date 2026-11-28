@@ -30,6 +30,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
   SynStatusBannerComponent,
+  VisuallyHiddenComponent,
 } from '@synergos/shared';
 import { OrchestratorService, SessionStore, TransactionEventBusService } from '@synergos/transaction-engine';
 import { CompraEnLaPagina } from './estado/compra-en-la-pagina';
@@ -79,6 +80,8 @@ export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontCon
     filtros: leerFiltrosFijos(value.filtros),
     rutas: coerceRutasDeLasVistas(value.rutas),
     cabecera: coerceModoDeCabecera(value.cabecera),
+    // D-016-Y4: sólo el 1 cambia algo (el título de la pieza pasa a h1); cualquier otro valor la deja en su h2.
+    headingLevel: value.headingLevel === 1 ? 1 : undefined,
   });
 }
 let storefrontInstanceId = 0;
@@ -87,6 +90,7 @@ let storefrontInstanceId = 0;
   selector: 'sg-storefront',
   standalone: true,
   imports: [
+    VisuallyHiddenComponent,
     TiendaInicioComponent,
     TiendaCatalogoComponent,
     TiendaFichaComponent,
@@ -202,6 +206,19 @@ export class StorefrontElementComponent implements OnInit {
       DEFAULT_SCOPE,
     ),
   );
+
+  /**
+   * D-016-Y4: el h1 sólo-lectores de las vistas que no traen el suyo (el catálogo, el carrito, el pago y la ficha sin
+   * producto), cuando el editor marcó el bloque como «Es el título de la página». El inicio y la ficha con producto
+   * ya tienen su h1 visible.
+   */
+  readonly tituloParaLectores = computed(() => {
+    if (this.config()?.headingLevel !== 1) {
+      return false;
+    }
+    const vista = this.navegacion.view();
+    return vista === 'plp' || vista === 'cart' || vista === 'checkout' || (vista === 'pdp' && !this.catalogo.detail());
+  });
 
   readonly heading = computed(() =>
     resolveConfigValue(
